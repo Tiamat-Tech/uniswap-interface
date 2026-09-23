@@ -1,12 +1,14 @@
 import { useMutation } from '@tanstack/react-query'
-import { CurrencyAmount } from '@uniswap/sdk-core'
+import { Button, Flex, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { ArrowDown } from '@universe/mycelium/icons/ArrowDown'
+import { useIsDarkMode } from '@universe/mycelium/theme-hooks-compat'
 import { useWeb3React } from '@web3-react/core'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
-import { Button, Flex, Image, Text, useIsDarkMode } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { ArrowDown } from 'ui/src/components/icons/ArrowDown'
+import { Image } from 'ui/src'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { Dialog } from 'uniswap/src/components/dialog/Dialog'
 import { GetHelpHeader } from 'uniswap/src/components/dialog/GetHelpHeader'
 import { NetworkFeeWarning } from 'uniswap/src/components/gas/NetworkFeeWarning'
@@ -29,10 +31,10 @@ import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { shortenAddress } from 'utilities/src/addresses'
 import { NumberType } from 'utilities/src/format/types'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
 import { useSendCallback } from '~/features/Swap/hooks/useSendCallback'
 import { useAccount } from '~/hooks/useAccount'
 import { useTransactionGasFee } from '~/hooks/useTransactionGasFee'
+import { getOffRampTransferCurrencyAmount } from '~/pages/Swap/Buy/offRampTransferAmount'
 import { useFiatOnRampTransactions } from '~/state/fiatOnRampTransactions/hooks'
 import { updateFiatOnRampTransaction } from '~/state/fiatOnRampTransactions/reducer'
 import { FiatOnRampTransactionStatus } from '~/state/fiatOnRampTransactions/types'
@@ -89,7 +91,7 @@ const TransferDetails = ({
         </Text>
       </Flex>
       <Flex justifyContent="center">
-        <CurrencyLogo currency={currencyInfo.currency} />
+        <CurrencyLogo currencyInfo={currencyInfo} />
       </Flex>
     </Flex>
   )
@@ -154,10 +156,10 @@ export const OffRampConfirmTransferModal = ({
       provider,
       account: account.address,
       chainId,
-      currencyAmount: CurrencyAmount.fromRawAmount(
-        currencyInfo.currency,
-        offRampTransferDetails.baseCurrencyAmount * 10 ** currencyInfo.currency.decimals,
-      ),
+      currencyAmount: getOffRampTransferCurrencyAmount({
+        baseCurrencyAmount: offRampTransferDetails.baseCurrencyAmount,
+        currency: currencyInfo.currency,
+      }),
       toAddress: offRampTransferDetails.depositWalletAddress,
     }
   }, [offRampTransferDetails, currencyInfo, chainId, provider, account.address])

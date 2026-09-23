@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { DynamicConfigs, FeatureFlags, SwapConfigKey, useDynamicConfigValue, useFeatureFlag } from '@universe/gating'
 import { useCallback } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isMainnetChainId } from 'uniswap/src/features/chains/utils'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
 

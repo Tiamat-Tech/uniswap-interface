@@ -1,10 +1,8 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Flex } from '@universe/mycelium'
 import { memo } from 'react'
-import { Flex } from 'ui/src'
-import {
-  CONTEXT_MENU_ACTIONS,
-  TokenContextMenuVariant,
-} from 'uniswap/src/components/lists/items/tokens/TokenOptionItem'
+import { CONTEXT_MENU_ACTIONS } from 'uniswap/src/components/lists/items/tokens/TokenOptionItem/contextMenuActions'
+import { TokenContextMenuVariant } from 'uniswap/src/components/lists/items/tokens/TokenOptionItem/types'
 import { TokenOptionItemContextMenu } from 'uniswap/src/components/lists/items/tokens/TokenOptionItemContextMenu'
 import { ContextMenuTriggerButton } from 'uniswap/src/components/menus/ContextMenuTriggerButton'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'

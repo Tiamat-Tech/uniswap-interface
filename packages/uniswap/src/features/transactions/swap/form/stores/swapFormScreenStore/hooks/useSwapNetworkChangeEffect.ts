@@ -1,6 +1,6 @@
+import type { UniverseChainId } from '@universe/chains'
 import { isMobileApp } from '@universe/environment'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { SwapChains } from 'uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/hooks/useChainIdsChangeEffect'
 import { useChainIdsChangeEffect } from 'uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/hooks/useChainIdsChangeEffect'
 import { useEvent } from 'utilities/src/react/hooks'

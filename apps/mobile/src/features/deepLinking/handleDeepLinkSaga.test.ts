@@ -14,7 +14,7 @@ import { handleOnRampReturnLink } from 'src/features/deepLinking/handleOnRampRet
 import { handleTransactionLink } from 'src/features/deepLinking/handleTransactionLinkSaga'
 import { handleUniswapAppDeepLink } from 'src/features/deepLinking/handleUniswapAppDeepLink'
 import { LinkSource } from 'src/features/deepLinking/types'
-import { openModal } from 'src/features/modals/modalSlice'
+import { closeAllModals, openModal } from 'src/features/modals/modalSlice'
 import { waitForWcWeb3WalletIsReady } from 'src/features/walletConnect/walletConnectClient'
 import { UNISWAP_WEB_URL } from 'uniswap/src/constants/urls'
 import { MobileEventName, ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -94,8 +94,8 @@ describe(handleDeepLink, () => {
     vi.spyOn(navigationRef, 'getState').mockReturnValue({
       key: 'root',
       index: 0,
-      routes: [{ name: MobileScreens.Home, key: 'home' }],
-      routeNames: [MobileScreens.Home],
+      routes: [{ name: MobileScreens.MainTabs, key: 'main-tabs' }],
+      routeNames: [MobileScreens.MainTabs],
       history: [],
       type: 'stack',
       stale: false,
@@ -473,6 +473,37 @@ describe(handleDeepLink, () => {
       })
       .returns(undefined)
       .silentRun()
+  })
+
+  it('opens the Home Earn card expanded for an Earn push deeplink', async () => {
+    const payload = {
+      url: 'uniswap://app/earn?source=push',
+      coldStart: false,
+    }
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_786_557_600_000)
+
+    try {
+      await expectSaga(handleDeepLink, { payload, type: '' })
+        .withState(stateWithActiveAccountAddress)
+        .put(closeAllModals())
+        .call(navigate, MobileScreens.MainTabs, {
+          screen: MobileScreens.Home,
+          params: {
+            earnCardExpansionRequestId: 1_786_557_600_000,
+          },
+        })
+        .call(sendAnalyticsEvent, MobileEventName.DeepLinkOpened, {
+          action: DeepLinkAction.EarnScreen,
+          url: payload.url,
+          screen: 'other',
+          is_cold_start: payload.coldStart,
+          source: 'push',
+        })
+        .returns(undefined)
+        .silentRun()
+    } finally {
+      now.mockRestore()
+    }
   })
 
   it('Handles showing fiat onramp', () => {

@@ -1,10 +1,12 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { ArrowRight } from '@universe/mycelium/icons/ArrowRight'
+import { Rocket } from '@universe/mycelium/icons/Rocket'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Button, Flex, Separator, Switch, Text, Tooltip, TouchableArea } from 'ui/src'
-import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
-import { Rocket } from 'ui/src/components/icons/Rocket'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { Separator, Switch } from 'ui/src'
 import { AdvancedSettingsSeparator } from '~/pages/Liquidity/CreateAuction/components/AdvancedSettingsSeparator'
 import {
   useCreateAuctionStore,
@@ -15,11 +17,13 @@ import { useIsStepValid } from '~/pages/Liquidity/CreateAuction/hooks/useIsStepV
 import { useStableRaiseUsdPrice } from '~/pages/Liquidity/CreateAuction/hooks/useStableRaiseUsdPrice'
 import {
   applyQuickLaunchAuctionWindow,
+  getQuickLaunchGraduationPricePerToken,
   applyQuickLaunchPoolPreset,
   getQuickLaunchFloorPricePerToken,
+  QUICK_LAUNCH_DURATION_HOURS,
   QUICK_LAUNCH_FLOOR_FDV_USD,
 } from '~/pages/Liquidity/CreateAuction/quickLaunch/quickLaunchPreset'
-import { CreateAuctionStep, TimeLockPreset, TokenMode } from '~/pages/Liquidity/CreateAuction/types'
+import { CreateAuctionStep, RaiseCurrency, TimeLockPreset, TokenMode } from '~/pages/Liquidity/CreateAuction/types'
 
 /** Emphasis inside story copy is color-only (neutral1 on a neutral2 line), per the design spec. */
 const STORY_HIGHLIGHT = <Text variant="body3" color="$neutral1" />
@@ -41,7 +45,7 @@ function useLaunchParams(): { label: string; value: string; hint?: string }[] {
     },
     {
       label: t('toucan.createAuction.quickLaunch.params.duration'),
-      value: t('toucan.createAuction.quickLaunch.duration.fourHours'),
+      value: t('toucan.createAuction.quickLaunch.duration.hours', { count: QUICK_LAUNCH_DURATION_HOURS }),
     },
     {
       label: t('toucan.createAuction.quickLaunch.params.raiseDenomination'),
@@ -227,7 +231,11 @@ function HowQuickLaunchesWork(): JSX.Element {
           <StoryBeat index={1} title={t('toucan.createAuction.quickLaunch.story.auction.title')}>
             <Trans
               i18nKey="toucan.createAuction.quickLaunch.story.auction.description"
-              values={{ duration: t('toucan.createAuction.quickLaunch.story.duration.fourHours') }}
+              values={{
+                duration: t('toucan.createAuction.quickLaunch.story.duration.hours', {
+                  count: QUICK_LAUNCH_DURATION_HOURS,
+                }),
+              }}
               components={{ highlight: STORY_HIGHLIGHT }}
             />
           </StoryBeat>
@@ -278,7 +286,7 @@ function HowQuickLaunchesWork(): JSX.Element {
 /**
  * QuickLaunch (flag-gated): the in-card quick-launch content on the Token info step — the "How quick
  * launches work" story and the Review-and-launch CTA that jumps straight to Review with everything
- * locked to the SDK preset (fixed 4h auction). Renders nothing when quick-launch mode is off (flag
+ * locked to the SDK preset (fixed 1h auction). Renders nothing when quick-launch mode is off (flag
  * off, existing token, or the switch toggled off).
  */
 export function QuickLaunchSection(): JSX.Element | null {
@@ -304,6 +312,15 @@ export function QuickLaunchSection(): JSX.Element | null {
     // Quick launch defaults to on, so the pool preset is applied at handoff rather than on toggle.
     applyQuickLaunchPoolPreset(actions)
     actions.setFloorPrice(getQuickLaunchFloorPricePerToken(stableRaiseUsdPrice))
+    // Graduation price uses the same price snapshot as the floor so the preset 10x graduation/floor
+    // FDV ratio holds exactly. But the oracle-less fallback is ETH-denominated (~$2.5k/ETH), so it is
+    // only valid for a native-ETH raise. If the price is unresolved AND the raise is a non-ETH
+    // currency, we can't compute a correct graduation price — omit the pin and let the backend
+    // floor-derive the threshold rather than send a wrong, immutable graduation gate.
+    const canComputeGraduationPrice = stableRaiseUsdPrice !== null || raiseCurrency === RaiseCurrency.NATIVE
+    actions.setGraduationPrice(
+      canComputeGraduationPrice ? getQuickLaunchGraduationPricePerToken(stableRaiseUsdPrice) : undefined,
+    )
     applyQuickLaunchAuctionWindow(actions)
     actions.setStep(CreateAuctionStep.REVIEW_LAUNCH)
   }

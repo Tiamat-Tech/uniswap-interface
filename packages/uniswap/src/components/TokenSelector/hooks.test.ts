@@ -1,7 +1,6 @@
-import { ConnectError } from '@connectrpc/connect'
-import { UseQueryResult } from '@tanstack/react-query'
 import { TokenRankingsResponse, TokenRankingsStat } from '@uniswap/client-explore/dist/uniswap/explore/v1/service_pb'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { toIncludeSameMembers } from 'jest-extended'
 import { PreloadedState } from 'redux'
 import { OnchainItemListOptionType, TokenOption } from 'uniswap/src/components/lists/items/types'
@@ -17,8 +16,6 @@ import { usePortfolioBalancesForAddressById } from 'uniswap/src/components/Token
 import { usePortfolioTokenOptions } from 'uniswap/src/components/TokenSelector/hooks/usePortfolioTokenOptions'
 import { useRecentlySearchedTokens } from 'uniswap/src/components/TokenSelector/hooks/useRecentlySearchedTokens'
 import { useTrendingTokensOptions } from 'uniswap/src/components/TokenSelector/hooks/useTrendingTokensOptions'
-import { BRIDGED_BASE_ADDRESSES } from 'uniswap/src/constants/addresses'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { tokenProjectToCurrencyInfos } from 'uniswap/src/features/dataApi/tokenProjects/utils/tokenProjectToCurrencyInfos'
 import { SearchHistoryResultType } from 'uniswap/src/features/search/SearchHistoryResult'
@@ -149,14 +146,49 @@ function mockPortfolioBalancesHook(result: ReturnType<typeof tokenBalance>[] | E
 }
 
 describe(useAllCommonBaseCurrencies, () => {
-  const projects = createArray(3, tokenProject)
+  const tokenOnlyProject = tokenProject({
+    tokens: [daiToken(), usdcToken(), usdcBaseToken(), usdcArbitrumToken()],
+  })
 
-  const nonBridgedTokens = [ethToken(), daiToken(), usdcToken(), usdcBaseToken(), usdcArbitrumToken()]
-  const bridgedTokens = BRIDGED_BASE_ADDRESSES.map((address) => token({ address, chain: GraphQLApi.Chain.Ethereum }))
-  const projectWithBridged = tokenProject({ tokens: [...nonBridgedTokens, ...bridgedTokens] })
-  const tokenProjectWithoutBridged = {
-    ...projectWithBridged, // Copy all props except tokens (leave only non-bridged tokens)
-    tokens: nonBridgedTokens,
+  // Nativeness is derived from the address, not from `standard` — the bridged copies get a
+  // random (non-native) address from the token fixture, while an absent address is native.
+  // The project carries a native on more than one chain, as the real ETH project does, so
+  // that collapsing multiple natives down to one is caught here.
+  const nativeEthTokens = [ethToken(), token({ chain: GraphQLApi.Chain.Base, address: undefined, decimals: 18 })]
+  const bridgedNativeCopies = [token({ chain: GraphQLApi.Chain.Polygon }), token({ chain: GraphQLApi.Chain.Arbitrum })]
+  const nativeProjectWithBridgedCopies = tokenProject({ tokens: [...nativeEthTokens, ...bridgedNativeCopies] })
+  const nativeProjectWithoutBridgedCopies = {
+    ...nativeProjectWithBridgedCopies, // Copy all props except tokens (leave only the native tokens)
+    tokens: nativeEthTokens,
+  }
+
+  // Real shape of the SOL project: native SOL is returned without an address, alongside
+  // wrapped/bridged ERC20 copies on EVM chains. Native last, mirroring the API, so that
+  // keeping only the project's first token is caught here.
+  const nativeSolToken = token({
+    chain: GraphQLApi.Chain.Solana,
+    address: undefined,
+    decimals: 9,
+    symbol: 'SOL',
+  })
+  const bridgedSolCopies = [
+    token({
+      chain: GraphQLApi.Chain.Ethereum,
+      address: '0xD31a59c85aE9D8edEFeC411D448f90841571b89c',
+      decimals: 9,
+      symbol: 'SOL',
+    }),
+    token({
+      chain: GraphQLApi.Chain.Unichain,
+      address: '0xbdE8A5331E8Ac4831cf8Ea9e42E229219eafab97',
+      decimals: 9,
+      symbol: 'SOL',
+    }),
+  ]
+  const solProject = tokenProject({ tokens: [...bridgedSolCopies, nativeSolToken] })
+  const solProjectNativeOnly = {
+    ...solProject, // Copy all props except tokens (leave only native SOL)
+    tokens: [nativeSolToken],
   }
 
   const cases = [
@@ -171,14 +203,23 @@ describe(useAllCommonBaseCurrencies, () => {
       output: { error: expect.objectContaining({ message: 'Test', name: 'ApolloError' }) },
     },
     {
-      test: 'returns all currencies when there is no currency with a bridged version on other networks',
-      input: projects,
-      output: { data: convertUndefinedToNull(tokenProjectToCurrencyInfos(projects)) },
+      test: 'returns all currencies for projects without a native asset',
+      input: [tokenOnlyProject],
+      output: { data: convertUndefinedToNull(tokenProjectToCurrencyInfos([tokenOnlyProject])) },
     },
     {
-      test: 'filters out currencies that have a bridged version on other networks',
-      input: [projectWithBridged],
-      output: { data: convertUndefinedToNull(tokenProjectToCurrencyInfos([tokenProjectWithoutBridged])) },
+      test: 'filters out bridged copies of native assets on other networks',
+      input: [nativeProjectWithBridgedCopies, tokenOnlyProject],
+      output: {
+        data: convertUndefinedToNull(
+          tokenProjectToCurrencyInfos([nativeProjectWithoutBridgedCopies, tokenOnlyProject]),
+        ),
+      },
+    },
+    {
+      test: 'keeps native SOL and drops its wrapped copies on EVM chains',
+      input: [solProject],
+      output: { data: convertUndefinedToNull(tokenProjectToCurrencyInfos([solProjectNativeOnly])) },
     },
   ]
 
@@ -742,6 +783,16 @@ describe(useTrendingTokensOptions, () => {
     }))
   })
 
+  // useTrendingTokensCurrencyInfos derives its data through TanStack `select`, so the mock applies the select it receives.
+  function mockTokenRankings({ data, error }: { data: TokenRankingsResponse | undefined; error: Error | null }): void {
+    mockUseTokenRankingsQuery.mockImplementation((_input, { select }) => ({
+      data: data && select ? select(data) : data,
+      isLoading: false,
+      isFetching: false,
+      error,
+    }))
+  }
+
   const topTokens = createArray(3, token)
   const tokenRankingsResponse = {
     tokenRankings: {
@@ -760,18 +811,10 @@ describe(useTrendingTokensOptions, () => {
   const portfolios = [portfolio({ tokenBalances })]
 
   it('returns undefined when there is no data', async () => {
-    mockUseTokenRankingsQuery.mockReturnValue({
-      data: {
-        tokenRankings: {
-          TRENDING: {
-            tokens: [],
-          },
-        },
-      } as unknown as TokenRankingsResponse,
-      isLoading: false,
-      isFetching: false,
+    mockTokenRankings({
+      data: { tokenRankings: { TRENDING: { tokens: [] } } } as unknown as TokenRankingsResponse,
       error: null,
-    } as UseQueryResult<TokenRankingsResponse, ConnectError>)
+    })
 
     const { result } = renderHook(() =>
       useTrendingTokensOptions({
@@ -792,12 +835,7 @@ describe(useTrendingTokensOptions, () => {
 
   it('returns error and empty balance options if portfolios query fails', async () => {
     // Mock the REST API to return success with data
-    mockUseTokenRankingsQuery.mockReturnValue({
-      data: tokenRankingsResponse,
-      isLoading: false,
-      isFetching: false,
-      error: null,
-    })
+    mockTokenRankings({ data: tokenRankingsResponse, error: null })
 
     const { result } = renderHook(() =>
       useTrendingTokensOptions({
@@ -820,12 +858,7 @@ describe(useTrendingTokensOptions, () => {
 
   it('returns error if token rankings query fails', async () => {
     // Mock the REST API to return an error
-    mockUseTokenRankingsQuery.mockReturnValue({
-      data: undefined,
-      isLoading: false,
-      isFetching: false,
-      error: new Error('Failed to fetch trending tokens'),
-    })
+    mockTokenRankings({ data: undefined, error: new Error('Failed to fetch trending tokens') })
 
     const { result } = renderHook(() =>
       useTrendingTokensOptions({
@@ -845,12 +878,7 @@ describe(useTrendingTokensOptions, () => {
   })
 
   it('returns trending token options when there is data', async () => {
-    mockUseTokenRankingsQuery.mockReturnValue({
-      data: tokenRankingsResponse,
-      isLoading: false,
-      isFetching: false,
-      error: null,
-    })
+    mockTokenRankings({ data: tokenRankingsResponse, error: null })
 
     const { result } = renderHook(() =>
       useTrendingTokensOptions({
@@ -876,7 +904,9 @@ describe(useTrendingTokensOptions, () => {
 })
 
 describe(useCommonTokensOptionsWithFallback, () => {
-  const tokens = [eth, dai, usdc_base]
+  // One project per asset, mirroring the API — mixing a native token into a project
+  // with other assets would cause the non-natives to be dropped as bridged copies
+  const projects = [tokenProject({ tokens: [eth] }), tokenProject({ tokens: [dai, usdc_base] })]
   const tokenBalances = [ethBalance, daiBalance, usdcBaseBalance]
 
   const cases = [
@@ -890,7 +920,7 @@ describe(useCommonTokensOptionsWithFallback, () => {
     {
       test: 'returns error if portfolios query fails',
       portfolioInput: new Error('Test'),
-      tokenProjectsInput: [tokenProject({ tokens })],
+      tokenProjectsInput: projects,
       chainFilter: null,
       output: {
         data: expect.anything(), // Returns fallback tokens from tokenProjects
@@ -907,7 +937,7 @@ describe(useCommonTokensOptionsWithFallback, () => {
     {
       test: 'return balances for all tokens if no chain filter is specified',
       portfolioInput: tokenBalances,
-      tokenProjectsInput: [tokenProject({ tokens })],
+      tokenProjectsInput: projects,
       chainFilter: null,
       output: {
         data: expect.toIncludeSameMembers(
@@ -922,7 +952,7 @@ describe(useCommonTokensOptionsWithFallback, () => {
     {
       test: 'returns balances for tokens in the tokenProject filtered by chain',
       portfolioInput: tokenBalances,
-      tokenProjectsInput: [tokenProject({ tokens })],
+      tokenProjectsInput: projects,
       chainFilter: UniverseChainId.Mainnet as UniverseChainId,
       output: {
         data: expect.toIncludeSameMembers([

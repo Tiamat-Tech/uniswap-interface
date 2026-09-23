@@ -65,7 +65,6 @@ type ListTransactionsInfiniteQueryKey = readonly [
   string | undefined,
   Record<string, unknown>,
   boolean,
-  boolean,
 ]
 
 type GetListTransactionsInfiniteQuery = InfiniteQueryOptionsResult<
@@ -83,7 +82,6 @@ export const getListTransactionsInfiniteQuery = ({
 }: GetListTransactionsInfiniteInput): GetListTransactionsInfiniteQuery => {
   const transformedInput = transformInput(input)
   const includePlans = getFeatureFlag(FeatureFlags.ChainedActions)
-  const isV2TokensEnabled = getFeatureFlag(FeatureFlags.V2EndpointsTokens)
 
   const { walletAccount, ...inputWithoutAddress } = transformedInput ?? {}
   const address = walletAccount?.platformAddresses[0]?.address
@@ -94,7 +92,6 @@ export const getListTransactionsInfiniteQuery = ({
       address,
       inputWithoutAddress as Record<string, unknown>,
       includePlans,
-      isV2TokensEnabled,
     ] as const,
     queryFn: async ({ pageParam }: { pageParam?: string }) => {
       if (!transformedInput) {
@@ -105,7 +102,7 @@ export const getListTransactionsInfiniteQuery = ({
         ...transformedInput,
         pageToken: pageParam,
         includePlans,
-        ...(isV2TokensEnabled && { useSubstreamData: true }),
+        useSubstreamData: true,
       }
 
       return toPlainMessage(await dataApiServiceClientV1.listTransactions(requestWithPageToken))
@@ -130,11 +127,10 @@ export const getListTransactionsQuery = <TSelectData = ListTransactionsResponse>
 }: GetListTransactionsInput<TSelectData>): GetListTransactionsQuery<TSelectData> => {
   const accountAddressesByPlatform = buildAccountAddressesByPlatform(input)
   const includePlans = getFeatureFlag(FeatureFlags.ChainedActions)
-  const isV2TokensEnabled = getFeatureFlag(FeatureFlags.V2EndpointsTokens)
   const transformedInput = transformInput({
     ...input,
     includePlans,
-    ...(isV2TokensEnabled && { useSubstreamData: true }),
+    useSubstreamData: true,
   })
 
   const { walletAccount: _walletAccount, ...inputWithoutWalletAccount } = transformedInput ?? {}

@@ -1,9 +1,18 @@
+import { UniverseChainId } from '@universe/chains'
 import { isWebApp } from '@universe/environment'
+import {
+  Flex as MyceliumFlex,
+  type FlexCompatProps,
+  type TextCompatProps,
+  Flex,
+  Text,
+  type TextProps,
+} from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import type { Dispatch, SetStateAction } from 'react'
 import { memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, useMedia } from 'ui/src'
-import type { FlexProps, TextProps } from 'ui/src'
 import { iconSizes } from 'ui/src/theme'
 import Badge from 'uniswap/src/components/badge/Badge'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
@@ -13,7 +22,6 @@ import { NetworkOption } from 'uniswap/src/components/network/NetworkOption'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useNewChainIds } from 'uniswap/src/features/chains/hooks/useNewChainIds'
 import { useIsSupportedChainIdCallback } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { UniverseChainInfo } from 'uniswap/src/features/chains/types'
 import { isBackendSupportedChainId, toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { InterfacePageName, ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -25,10 +33,8 @@ import { ChainLogo } from '~/components/Logo/ChainLogo'
 import { useFilteredChainIds } from '~/components/NetworkFilter/useFilteredChains'
 import { ExploreTab } from '~/types/explore'
 
-const NetworkLabel = styled(Flex, {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: '$gap8',
+const NetworkLabel = styled(MyceliumFlex, {
+  base: 'flex-row items-center gap-[8px]',
 })
 
 // dropdown sizes per design
@@ -49,11 +55,13 @@ export const NETWORK_FILTER_DROPDOWN_STYLE = {
   py: 0,
   flexDirection: 'column',
   minHeight: 0,
-} satisfies FlexProps
+  paddingTop: '$spacing4',
+  borderRadius: '$rounded20',
+} satisfies FlexCompatProps
 const StyledDropdown = NETWORK_FILTER_DROPDOWN_STYLE
 
 // Exported so sibling filters (e.g. the Launches launchpad selector) reuse the exact chrome.
-export const NETWORK_FILTER_BUTTON_STYLES: Record<DropdownSizeVariants, FlexProps> = {
+export const NETWORK_FILTER_BUTTON_STYLES: Record<DropdownSizeVariants, TextCompatProps> = {
   [DropdownSizeVariants.Large]: {
     height: 48,
     pl: '$spacing16',
@@ -67,7 +75,7 @@ export const NETWORK_FILTER_BUTTON_STYLES: Record<DropdownSizeVariants, FlexProp
     height: 32,
     borderRadius: '$rounded12',
     pl: '$spacing12',
-    gap: '$gap6',
+    gap: '$spacing6',
   },
   [DropdownSizeVariants.XSmall]: {
     height: 28,
@@ -105,6 +113,7 @@ export function NetworkFilter({
   networks,
   customTrigger,
   dropdownStyle,
+  buttonStyle,
   isTriggerStyled = true,
   tracePage,
   tab,
@@ -122,10 +131,13 @@ export function NetworkFilter({
   position?: 'left' | 'right'
   onPress: (chainId: UniverseChainId | undefined) => void
   currentChainId: UniverseChainId | undefined
-  transition?: FlexProps['transition']
+  // CSS transition string, forwarded to raw <img>/CSS consumers (same narrowing as NetworkLogo)
+  transition?: string
   networks?: UniverseChainId[]
   customTrigger?: JSX.Element | string
-  dropdownStyle?: FlexProps
+  dropdownStyle?: FlexCompatProps
+  /** Overrides the `size` preset. */
+  buttonStyle?: TextCompatProps
   isTriggerStyled?: boolean
   tracePage?: InterfacePageName
   tab?: ExploreTab
@@ -207,7 +219,7 @@ export function NetworkFilter({
             )
           }
           isTriggerStyled={isTriggerStyled}
-          buttonStyle={ButtonStyles[size]}
+          buttonStyle={{ ...ButtonStyles[size], ...buttonStyle }}
           dropdownStyle={{ ...StyledDropdown, ...dropdownStyle, ...(showSearch ? { overflow: 'hidden' } : {}) }}
           adaptToSheet
           allowFlip
@@ -216,7 +228,7 @@ export function NetworkFilter({
           alignRight={position === 'right'}
         >
           {showSearch ? (
-            <Flex flex={1} minHeight={0} p="$spacing4" pb="$spacing4">
+            <Flex flex={1} minHeight={0} p="$spacing4">
               <NetworkFilterDropdownContent
                 autoFocus={!isMobileSheet}
                 chainIds={filteredChainIds}

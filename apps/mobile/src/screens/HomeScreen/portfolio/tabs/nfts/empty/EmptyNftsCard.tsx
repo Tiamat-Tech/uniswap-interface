@@ -1,5 +1,5 @@
+import { NoNfts } from '@universe/mycelium/icons/NoNfts'
 import { useTranslation } from 'react-i18next'
-import { NoNfts } from 'ui/src/components/icons/NoNfts'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 
 export function EmptyNftsCard(): JSX.Element {

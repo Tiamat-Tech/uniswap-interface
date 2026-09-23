@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { DAI, USDT } from 'uniswap/src/constants/tokens'
 import { usePermissionedSwapPair } from 'uniswap/src/features/permissionedTokens/usePermissionedSwapPair'
@@ -74,7 +75,7 @@ describe('usePoolLookupTokenAddresses', () => {
 
     const { result } = renderHook(() => usePoolLookupTokenAddresses({ token0: DAI, token1: USDT }))
 
-    expect(result.current.lookupAddress0).toBe(USDT.address.toLowerCase())
+    expect(result.current.lookupAddress0).toBe(normalizeTokenAddressForCache(USDT.address))
     expect(result.current.lookupAddress1).toBe(adapter)
     expect(result.current.orientationFlipped).toBe(true)
   })

@@ -11,7 +11,6 @@ export const rootIgnorePatterns = [
   'tsconfig.json',
   '*.tsbuildinfo',
   '.bun/**',
-  '.tamagui/**',
   '@types/**',
   'types/**',
   '**/lcov-report/**',
@@ -173,10 +172,6 @@ export const sharedRestrictedImportPaths = [
     message: "Please use the typed `sendAnalyticsEvent` in 'uniswap/src/features/telemetry/send'",
   },
   {
-    name: '@tamagui/core',
-    message: "Please import from 'tamagui' directly to prevent mismatches.",
-  },
-  {
     name: 'i18next',
     importNames: ['t'],
     message: 'Use `useTranslation()` hook or `i18n.t` instead of importing `t` directly from i18next.',
@@ -253,6 +248,18 @@ export const labsRestrictedImportPattern = {
     'labs/ projects are experimental and must not be imported outside labs/. Move shared code into packages/ instead.',
 } as const
 
+/**
+ * Pattern that blocks direct virtualized-list library imports in favor of
+ * UniversalList from @universe/mycelium, which wraps @legendapp/list and adds
+ * cross-platform behavior. packages/mycelium owns that wrapper and is the only
+ * project allowed to import the library directly: its override below redefines
+ * no-restricted-imports without this pattern.
+ */
+export const universalListRestrictedImportPattern = {
+  group: ['@legendapp/list', '@legendapp/list/**'],
+  message: 'Use `UniversalList` from `@universe/mycelium` instead of importing @legendapp/list directly.',
+} as const
+
 export const sharedRestrictedImportPatterns = [
   {
     group: ['ui/src/assets/icons/*.svg'],
@@ -261,6 +268,7 @@ export const sharedRestrictedImportPatterns = [
   },
   crossPackageDeepImportPattern,
   labsRestrictedImportPattern,
+  universalListRestrictedImportPattern,
 ] as const
 
 /**
@@ -376,22 +384,24 @@ export default defineConfig({
   rules: {
     // ── complexity ──────────────────────────────────────────────────────
     complexity: ['error', { max: 30 }],
-    'no-regex-spaces': 'warn',
+    'no-regex-spaces': 'error',
     'prefer-rest-params': 'error',
     'typescript/no-restricted-types': 'error',
     'max-depth': ['error', 4],
     'max-nested-callbacks': ['error', 3],
-    'no-sequences': 'warn',
-    'no-extra-boolean-cast': 'warn',
+    'no-sequences': 'error',
+    'no-extra-boolean-cast': 'error',
     'no-useless-catch': 'error',
-    'no-useless-escape': 'warn',
-    'no-lone-blocks': 'warn',
+    'no-useless-escape': 'error',
+    'no-lone-blocks': 'error',
     'typescript/no-unnecessary-type-constraint': 'error',
-    'no-void': 'warn',
+    // `void promise` statements are the idiom no-floating-promises requires for
+    // intentionally-floating promises; only expression-position `void` is flagged.
+    'no-void': ['error', { allowAsStatement: true }],
 
     // ── correctness ────────────────────────────────────────────────────
     'react/no-children-prop': 'error',
-    'no-empty-character-class': 'warn',
+    'no-empty-character-class': 'error',
     'no-empty-pattern': 'error',
     'no-nonoctal-decimal-escape': 'error',
     'no-loss-of-precision': 'error',
@@ -427,13 +437,21 @@ export default defineConfig({
     'no-unused-labels': 'error',
     'react/exhaustive-deps': ['error', { additionalHooks: '(useAnimatedStyle|useDerivedValue|useAnimatedProps)' }],
     'react/rules-of-hooks': 'error',
-    'use-isnan': 'warn',
+    'use-isnan': 'error',
     'react/jsx-key': 'error',
     'for-direction': 'error',
-    'valid-typeof': 'warn',
+    'valid-typeof': 'error',
     'require-yield': 'error',
     'typescript/explicit-function-return-type': ['error', { allowExpressions: true }],
+    'typescript/require-array-sort-compare': 'error',
+    'typescript/no-duplicate-type-constituents': 'error',
+    'typescript/await-thenable': 'error',
+    'typescript/no-useless-default-assignment': 'error',
     'jest/no-disabled-tests': 'error',
+    'vitest/no-disabled-tests': 'error',
+    // maxArgs: 2 allows vitest's `expect(actual, message)` form; all suites here run vitest.
+    'jest/valid-expect': ['error', { maxArgs: 2 }],
+    'vitest/valid-expect': ['error', { maxArgs: 2 }],
     // assertFunctionNames covers redux-saga-test-plan assertions (expectSaga/testSaga),
     // which oxlint does not recognize implicitly.
     'jest/expect-expect': ['error', { assertFunctionNames: ['expect*', 'testSaga'] }],
@@ -530,10 +548,10 @@ export default defineConfig({
       { name: 'open', message: 'Use of this global variable is restricted.' },
       { name: 'print', message: 'Use of this global variable is restricted.' },
     ],
-    yoda: 'warn',
+    yoda: 'error',
     'no-array-constructor': 'error',
     'typescript/prefer-as-const': 'error',
-    curly: 'warn',
+    curly: 'error',
     'prefer-const': 'error',
     'typescript/prefer-enum-initializers': 'error',
 
@@ -556,41 +574,41 @@ export default defineConfig({
     'typescript/no-base-to-string': 'off',
 
     // ── suspicious ─────────────────────────────────────────────────────
-    'no-alert': 'warn',
+    'no-alert': 'error',
     'no-async-promise-executor': 'error',
-    'no-bitwise': 'warn',
-    'no-ex-assign': 'warn',
+    'no-bitwise': 'error',
+    'no-ex-assign': 'error',
     'no-class-assign': 'error',
     'react/jsx-no-comment-textnodes': 'error',
     'no-compare-neg-zero': 'error',
     'no-console': 'error',
-    'no-control-regex': 'warn',
-    'no-debugger': 'warn',
+    'no-control-regex': 'error',
+    'no-debugger': 'error',
     'no-new': 'error',
     'no-script-url': 'error',
-    eqeqeq: ['warn', 'smart'],
+    eqeqeq: ['error', 'smart'],
     'no-duplicate-case': 'error',
     'react/jsx-no-duplicate-props': 'error',
     'typescript/no-empty-interface': 'error',
     'typescript/no-explicit-any': 'error',
     'typescript/no-extra-non-null-assertion': 'error',
     'typescript/no-var-requires': 'error',
-    'no-fallthrough': 'warn',
+    'no-fallthrough': 'error',
     'no-global-assign': 'error',
     'no-irregular-whitespace': 'error',
-    'no-label-var': 'warn',
+    'no-label-var': 'error',
     'no-misleading-character-class': 'error',
     'typescript/no-misused-new': 'error',
     'no-prototype-builtins': 'error',
-    'no-self-compare': 'warn',
+    'no-self-compare': 'error',
     'no-shadow': 'error',
-    'no-shadow-restricted-names': 'warn',
-    'no-sparse-arrays': 'warn',
+    'no-shadow-restricted-names': 'error',
+    'no-sparse-arrays': 'error',
     'typescript/no-unsafe-declaration-merging': 'error',
     'typescript/triple-slash-reference': 'error',
     'no-useless-backreference': 'error',
     'no-var': 'error',
-    'no-with': 'warn',
+    'no-with': 'error',
     'unicorn/explicit-timer-delay': 'error',
     'unicorn/no-confusing-array-with': 'error',
 
@@ -618,8 +636,8 @@ export default defineConfig({
       // (https://github.com/oxc-project/oxc/pull/17688)
       'eslint-js/object-shorthand': ['error', 'always'],
       // Not implemented natively by oxlint; provided via oxlint-plugin-eslint.
-      'eslint-js/no-octal-escape': 'warn',
-      'eslint-js/no-undef-init': 'warn',
+      'eslint-js/no-octal-escape': 'error',
+      'eslint-js/no-undef-init': 'error',
       'eslint-js/no-restricted-syntax': [
         'error',
         ...sharedRestrictedSyntaxSelectors,
@@ -638,9 +656,10 @@ export default defineConfig({
         { importPath: 'utilities/src/reactQuery/queryOptions' },
       ],
       'universe-custom/no-redux-modals': 'error',
-      'universe-custom/no-tolowercase-address-currencyid': 'warn',
+      'universe-custom/no-tolowercase-address-currencyid': 'error',
       'universe-custom/no-platform-gate-in-chain-flags': 'error',
-      'universe-custom/no-tamagui-styling': 'error',
+      'universe-custom/styled-factory-literal-classes': 'error',
+      'universe-custom/prefer-use-is-mounted': 'error',
       // typed-redux-saga
       '@jambit/typed-redux-saga/use-typed-effects': 'error',
       '@jambit/typed-redux-saga/delegate-effects': 'error',
@@ -704,6 +723,75 @@ export default defineConfig({
       },
     },
 
+    // ── Mycelium platform-leg gate (INFRA-3517) ───────────────────────
+    // A wrong-platform import of a mycelium entry point whose leg for that
+    // platform throws by design (or is missing) builds, typechecks, and lints
+    // green, then throws at render time — the 2026-08-12 /positions crash.
+    // Leg statuses live in packages/mycelium/platform-legs.json; these
+    // overrides declare each project's platform reachability. The shared
+    // dual-bundled packages (uniswap, wallet, ui) ship in the web AND native
+    // bundles, so their non-suffixed files must clear both legs, while their
+    // .web./.native./.ios./.android. files get exactly their own platform's
+    // check (extends INFRA-3235's census notion beyond the codemod's
+    // apps/mobile prefix). Unlisted projects are deliberate: apps/cli and
+    // labs/* don't ship mycelium surfaces, and packages/mycelium's own
+    // internals legitimately reference its stubs.
+    //
+    // This project list is a hand-maintained allowlist, not derived from the
+    // nx project graph — a project that starts shipping mycelium imports
+    // without being added here would go unchecked with no failing test to
+    // catch the gap. Tracked as a known limitation rather than fixed here,
+    // since deriving reachability programmatically is a separate design
+    // decision from this gate.
+    ...(!isFastLint
+      ? [
+          {
+            files: [
+              'apps/web/**/*.ts',
+              'apps/web/**/*.tsx',
+              'apps/extension/**/*.ts',
+              'apps/extension/**/*.tsx',
+              'apps/dev-portal/**/*.ts',
+              'apps/dev-portal/**/*.tsx',
+              'apps/mission-control/**/*.ts',
+              'apps/mission-control/**/*.tsx',
+            ],
+            rules: {
+              'universe-custom/no-throwing-stub-imports': ['error' as const, { platform: 'web' }],
+            },
+          },
+          {
+            files: ['apps/mobile/**/*.ts', 'apps/mobile/**/*.tsx'],
+            rules: {
+              'universe-custom/no-throwing-stub-imports': ['error' as const, { platform: 'native' }],
+            },
+          },
+          {
+            files: [
+              'packages/uniswap/**/*.ts',
+              'packages/uniswap/**/*.tsx',
+              'packages/wallet/**/*.ts',
+              'packages/wallet/**/*.tsx',
+              'packages/ui/**/*.ts',
+              'packages/ui/**/*.tsx',
+              // packages/tailwind is dual-bundled like the three packages
+              // above, not web-only: apps/mobile imports
+              // @universe/tailwind/native and
+              // @universe/tailwind/native-dev/class-map-miss directly
+              // (apps/mobile/src/global.css:16,
+              // apps/mobile/src/app/uniwindClassMapMissDevWarning.ts:18), and
+              // packages/ui itself (already 'both' here) imports
+              // @universe/tailwind in 4 files.
+              'packages/tailwind/**/*.ts',
+              'packages/tailwind/**/*.tsx',
+            ],
+            rules: {
+              'universe-custom/no-throwing-stub-imports': ['error' as const, { platform: 'both' }],
+            },
+          },
+        ]
+      : []),
+
     // ═══════════════════════════════════════════════════════════════════
     // PER-PROJECT OVERRIDES
     // ═══════════════════════════════════════════════════════════════════
@@ -750,6 +838,10 @@ export default defineConfig({
       : []),
 
     // ── apps/dev-portal ───────────────────────────────────────────────
+    {
+      files: ['packages/uniswap/src/data/apiClients/liquidityService/liquidityQueries.ts'],
+      rules: { 'max-lines': 'off' },
+    },
     {
       files: ['apps/dev-portal/**'],
       rules: {
@@ -895,6 +987,16 @@ export default defineConfig({
       },
     },
     {
+      // The parity tree compiles under packages/tailwind/tsconfig.parity.json
+      // (noUncheckedIndexedAccess from tsconfig.base.json), whose undefined-on-
+      // index-access guards the type-aware lint program does not model — the
+      // rule would call every one of them unnecessary.
+      files: ['packages/tailwind/src/parity/**/*.ts', 'packages/tailwind/src/parity/**/*.tsx'],
+      rules: {
+        'typescript/no-unnecessary-condition': 'off',
+      },
+    },
+    {
       files: ['apps/mission-control/**/*.ts', 'apps/mission-control/**/*.tsx'],
       rules: {
         'typescript/no-floating-promises': 'off',
@@ -1037,6 +1139,18 @@ export default defineConfig({
               'universe-custom/no-direct-viem-ethers-import': 'error' as const,
             },
           },
+          {
+            // Activates the swap-ui-views fence (import-boundaries.json):
+            // files under a views/ directory in the swap tree must stay
+            // presentational. See scripts/swap-ui/POLICIES.md.
+            files: [
+              'packages/uniswap/src/features/transactions/swap/**/*.ts',
+              'packages/uniswap/src/features/transactions/swap/**/*.tsx',
+            ],
+            rules: {
+              'universe-custom/import-boundary': 'error' as const,
+            },
+          },
         ]
       : []),
     ...(!isFastLint
@@ -1115,10 +1229,6 @@ export default defineConfig({
               {
                 name: '@playwright/test',
                 message: 'Import test and expect from playwright/fixtures instead.',
-              },
-              {
-                name: 'styled-components',
-                message: 'Styled components is deprecated, please use Flex or styled from "ui/src" instead.',
               },
               {
                 name: 'ui/src/components/icons',
@@ -1215,11 +1325,20 @@ export default defineConfig({
             patterns: sharedRestrictedImportPatterns.filter((p) => p !== labsRestrictedImportPattern),
           },
         ],
-        // labs/ is experimental and outside the Tamagui → Tailwind migration
-        // surface; the generated baseline only covers apps/ + packages/.
         ...(!isFastLint && {
-          'universe-custom/no-tamagui-styling': 'off' as const,
+          // Temporary: labs/ still hand-rolls the mount flag the rule replaces.
+          // The prototypes were left out of the useIsMounted migration, so the
+          // exclusion goes away with them (or with a follow-up labs sweep).
+          'universe-custom/prefer-use-is-mounted': 'off' as const,
+          // Promoted to error at root; labs/ has not been cleaned up yet.
+          'eslint-js/no-undef-init': 'warn' as const,
         }),
+        // Rules promoted to error at root that labs/ (experimental,
+        // .nxignore'd) has not been cleaned up for yet.
+        curly: 'warn',
+        'typescript/no-useless-default-assignment': 'warn',
+        'no-alert': 'warn',
+        'no-bitwise': 'warn',
       },
     },
 
@@ -1260,9 +1379,9 @@ export default defineConfig({
       // Runtime boundaries read process.env directly (SERVER_RUNTIME/PORT are
       // deploy-time, not app config) and implement react-router's 4-param
       // handleRequest contract — same relaxations dev-portal's boundary gets.
-      // teaserMode.ts is the build-time teaser switch: Node-only, resolved
-      // before Vite exists, so getConfig() can't serve it.
-      files: ['labs/rh-cca/server.ts', 'labs/rh-cca/app/entry.server.tsx', 'labs/rh-cca/teaserMode.ts'],
+      // deployTarget.ts resolves the deploy target at build time: Node-only,
+      // resolved before Vite exists, so getConfig() can't serve it.
+      files: ['labs/rh-cca/server.ts', 'labs/rh-cca/app/entry.server.tsx', 'labs/rh-cca/deployTarget.ts'],
       rules: {
         'max-params': 'off',
         ...(!isFastLint && {
@@ -1391,6 +1510,20 @@ export default defineConfig({
       },
     },
 
+    // ── packages/mycelium ─────────────────────────────────────────────
+    {
+      files: ['packages/mycelium/**'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            paths: [...sharedRestrictedImportPaths],
+            patterns: sharedRestrictedImportPatterns.filter((p) => p !== universalListRestrictedImportPattern),
+          },
+        ],
+      },
+    },
+
     // ── packages/prices ───────────────────────────────────────────────
     {
       files: ['packages/prices/**'],
@@ -1487,6 +1620,7 @@ export default defineConfig({
           'universe-custom/custom-map-sort': 'off',
           'universe-custom/no-hex-string-casting': 'off',
           'universe-custom/no-direct-viem-ethers-import': 'off',
+          'universe-custom/no-tolowercase-address-currencyid': 'off',
           'security/detect-non-literal-regexp': 'off',
           'eslint-js/no-restricted-syntax': 'off',
           '@jambit/typed-redux-saga/use-typed-effects': 'off',

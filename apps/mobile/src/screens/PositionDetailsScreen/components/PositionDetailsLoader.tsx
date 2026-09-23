@@ -1,5 +1,4 @@
-import { Flex, FlexLoader, Separator, Skeleton } from 'ui/src'
-import { fonts, iconSizes } from 'ui/src/theme'
+import { Flex, FlexLoader, Separator, Skeleton, fonts, iconSizes } from '@universe/mycelium'
 
 const STAT_ROW_COUNT = 4
 const ALLOCATION_BAR_HEIGHT = 8

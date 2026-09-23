@@ -1,11 +1,10 @@
 import { hasActiveNeckKey as checkHasActiveNeckKey, useEmbeddedWalletState } from '@universe/embedded-wallet'
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { AppleLogo } from '@universe/mycelium/icons/AppleLogo'
+import { Envelope } from '@universe/mycelium/icons/Envelope'
+import { GoogleLogoGradient } from '@universe/mycelium/icons/GoogleLogoGradient'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { AppleLogo } from 'ui/src/components/icons/AppleLogo'
-import { Envelope } from 'ui/src/components/icons/Envelope'
-import { GoogleLogoGradient } from 'ui/src/components/icons/GoogleLogoGradient'
-import { iconSizes } from 'ui/src/theme'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useEvent } from 'utilities/src/react/hooks'
@@ -121,7 +120,7 @@ export function AddBackupLoginCard(): JSX.Element | null {
                 WebkitMaskImage: 'radial-gradient(ellipse at center, black 40%, transparent 100%)',
               }}
             >
-              <Envelope size="$icon.24" color="$DEP_blue400" />
+              <Envelope size="$icon.24" color="$blueBase" />
             </Flex>
             <Flex
               position="absolute"

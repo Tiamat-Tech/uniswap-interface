@@ -1,6 +1,7 @@
 import { PlanActivity, PlanTransaction, TokenAmount } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import { TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { createTransactionDetails } from 'uniswap/src/features/activity/extract/extractPlanUtils'
 import {
   mapDAPIEarnPlanActionToTAPIEarnAction,
@@ -10,7 +11,6 @@ import {
   mapDAPIPlanStepStatusToTXStatus,
 } from 'uniswap/src/features/activity/extract/statusMappers'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { planStepTypeToTradingRoute } from 'uniswap/src/features/transactions/swap/utils/routing'
 import {

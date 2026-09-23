@@ -16,10 +16,13 @@ import type * as React from 'react'
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { cn } from '../cn'
 
+// `transition-[scale,opacity]`: v4 `scale-95` sets the separate CSS `scale`
+// property and an arbitrary transition list is literal — with `transform` in
+// the list the scale-in would snap instead of animate.
 export const POPOVER_RECIPE_CLASS_NAMES = {
   positioner: 'isolate z-50 outline-none',
   content:
-    'z-50 max-h-(--available-height) w-72 origin-(--transform-origin) overflow-y-auto rounded-[16px] border border-surface3 bg-surface1 p-[16px] text-neutral1 shadow-md outline-none transition-[transform,opacity] duration-150 ease-out data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0',
+    'z-50 max-h-(--available-height) w-72 origin-(--transform-origin) overflow-y-auto rounded-[16px] border border-surface3 bg-surface1 p-[16px] text-neutral1 shadow-md outline-none transition-[scale,opacity] duration-150 ease-out data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0',
 } as const
 
 /**
@@ -77,6 +80,7 @@ function PopoverContent({
   sideOffset = 8,
   collisionAvoidance,
   positionerProps,
+  portalContainer,
   className,
   unstyled = false,
   ...props
@@ -84,6 +88,11 @@ function PopoverContent({
   Pick<PopoverPrimitive.Positioner.Props, 'align' | 'alignOffset' | 'side' | 'sideOffset' | 'collisionAvoidance'> & {
     /** Base UI extension point: extra Positioner props (e.g. anchor, positionMethod, data-*). */
     positionerProps?: PopoverPrimitive.Positioner.Props & { [key: `data-${string}`]: string | undefined }
+    /**
+     * Portal target override (default: document.body). A focus-trapping host
+     * passes its content element so the popup can hold focus (SWAP-3309).
+     */
+    portalContainer?: PopoverPrimitive.Portal.Props['container']
     /**
      * Headless popup: skip the recipe chrome and apply `className` verbatim
      * (no tailwind-merge). The compat layers own their popup classes
@@ -93,7 +102,7 @@ function PopoverContent({
   }): React.JSX.Element {
   const contextAnchor = useContext(PopoverAnchorContext)?.anchor
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={portalContainer}>
       <PopoverPrimitive.Positioner
         data-slot="popover-positioner"
         className={POPOVER_RECIPE_CLASS_NAMES.positioner}

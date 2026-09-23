@@ -1,7 +1,7 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Flex, Text } from '@universe/mycelium'
 import { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'

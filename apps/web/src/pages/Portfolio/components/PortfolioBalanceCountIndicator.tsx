@@ -1,4 +1,4 @@
-import { Flex, Text } from 'ui/src'
+import { Flex, Text } from '@universe/mycelium'
 
 export function PortfolioBalanceCountIndicator({ label }: { label: string }): JSX.Element {
   return (

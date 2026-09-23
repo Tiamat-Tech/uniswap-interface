@@ -1,11 +1,11 @@
+import { UniverseChainId, Platform } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { SAMPLE_SEED_ADDRESS_1 } from 'uniswap/src/test/fixtures/gql/assets/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { usePortfolioRoutes } from '~/pages/Portfolio/Header/hooks/usePortfolioRoutes'
+import { usePortfolioSectionTotalValue } from '~/pages/Portfolio/Overview/hooks/usePortfolioSectionTotalValue'
 import { useMiniPoolsTableColumns } from '~/pages/Portfolio/Overview/MiniPoolsTable/hooks/useMiniPoolsTableColumns'
 import { useMiniPoolsTableData } from '~/pages/Portfolio/Overview/MiniPoolsTable/hooks/useMiniPoolsTableData'
 import { MiniPoolsTable } from '~/pages/Portfolio/Overview/MiniPoolsTable/MiniPoolsTable'
@@ -30,12 +30,25 @@ vi.mock('~/pages/Portfolio/Overview/MiniPoolsTable/hooks/useMiniPoolsTableData',
   useMiniPoolsTableData: vi.fn(),
 }))
 
+vi.mock('~/pages/Portfolio/Overview/hooks/usePortfolioSectionTotalValue', () => ({
+  usePortfolioSectionTotalValue: vi.fn(),
+}))
+
 vi.mock('~/components/Table', () => ({
   Table: () => <div data-testid="mini-pools-table" />,
 }))
 
+const tableSectionHeaderMock = vi.hoisted(() =>
+  vi.fn(({ subtitle, children }: { subtitle: string; children: JSX.Element }) => (
+    <div>
+      <span>{subtitle}</span>
+      {children}
+    </div>
+  )),
+)
+
 vi.mock('~/pages/Portfolio/Overview/TableSectionHeader', () => ({
-  TableSectionHeader: ({ children }: { children: JSX.Element }) => <div>{children}</div>,
+  TableSectionHeader: tableSectionHeaderMock,
 }))
 
 vi.mock('~/pages/Portfolio/Overview/ViewAllButton', () => ({
@@ -73,6 +86,12 @@ describe('MiniPoolsTable', () => {
       positions: [MOCK_POSITION],
       showLoading: false,
       hasNoData: false,
+    })
+    mocked(usePortfolioSectionTotalValue).mockReturnValue({
+      totalValueFormatted: undefined,
+      totalValueNumeric: undefined,
+      totalValueLoading: false,
+      count: undefined,
     })
   })
 
@@ -141,5 +160,50 @@ describe('MiniPoolsTable', () => {
     render(<MiniPoolsTable account={SAMPLE_SEED_ADDRESS_1} />)
 
     expect(mocked(useMiniPoolsTableColumns)).toHaveBeenCalledWith({ isLoading: false, readOnly: false })
+  })
+
+  it('should show the wallet-wide open positions count in the subtitle', () => {
+    mocked(usePortfolioSectionTotalValue).mockReturnValue({
+      totalValueFormatted: undefined,
+      totalValueNumeric: undefined,
+      totalValueLoading: false,
+      count: 8,
+    })
+
+    render(<MiniPoolsTable account={SAMPLE_SEED_ADDRESS_1} />)
+
+    expect(screen.getByText('8 open positions')).toBeInTheDocument()
+  })
+
+  it('should fall back to the rendered row count when the count is unavailable', () => {
+    render(<MiniPoolsTable account={SAMPLE_SEED_ADDRESS_1} />)
+
+    expect(screen.getByText('1 open position')).toBeInTheDocument()
+  })
+
+  it('should fall back to the rendered row count when the count is zero', () => {
+    mocked(usePortfolioSectionTotalValue).mockReturnValue({
+      totalValueFormatted: undefined,
+      totalValueNumeric: undefined,
+      totalValueLoading: false,
+      count: 0,
+    })
+
+    render(<MiniPoolsTable account={SAMPLE_SEED_ADDRESS_1} />)
+
+    expect(screen.getByText('1 open position')).toBeInTheDocument()
+  })
+
+  it('should mark the subtitle as loading while the section total is unresolved', () => {
+    mocked(usePortfolioSectionTotalValue).mockReturnValue({
+      totalValueFormatted: undefined,
+      totalValueNumeric: undefined,
+      totalValueLoading: true,
+      count: undefined,
+    })
+
+    render(<MiniPoolsTable account={SAMPLE_SEED_ADDRESS_1} />)
+
+    expect(tableSectionHeaderMock.mock.lastCall?.[0]).toMatchObject({ loading: true })
   })
 })

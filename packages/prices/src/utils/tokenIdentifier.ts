@@ -1,4 +1,5 @@
 import type { Currency, Token } from '@uniswap/sdk-core'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import type { PriceKey, TokenIdentifier, TokenInput, TokenSubscriptionParams } from '@universe/prices'
 import { isEVMAddress } from 'utilities/src/addresses/evm/evm'
 
@@ -41,7 +42,7 @@ export function normalizeToken(token: TokenInput): TokenIdentifier {
   if (isTokenIdentifier(token)) {
     return {
       chainId: token.chainId,
-      address: token.address.toLowerCase(),
+      address: normalizeTokenAddressForCache(token.address),
     }
   }
 
@@ -58,7 +59,7 @@ export function normalizeToken(token: TokenInput): TokenIdentifier {
   const tokenCurrency = currency as Token
   return {
     chainId: tokenCurrency.chainId,
-    address: tokenCurrency.address.toLowerCase(),
+    address: normalizeTokenAddressForCache(tokenCurrency.address),
   }
 }
 
@@ -67,7 +68,7 @@ export function normalizeToken(token: TokenInput): TokenIdentifier {
  * Format matches CurrencyId convention: "chainId-address"
  */
 export function createPriceKey(chainId: number, address: string): PriceKey {
-  return `${chainId}-${address.toLowerCase()}`
+  return `${chainId}-${normalizeTokenAddressForCache(address)}`
 }
 
 /**
@@ -102,7 +103,8 @@ export function parsePriceKey(key: PriceKey): TokenIdentifier | null {
 export function createPriceSubscriptionKey(params: TokenSubscriptionParams): string {
   const tokenKey = createPriceKey(params.chainId, params.tokenAddress)
   return params.poolRoute
-    ? `${tokenKey}#${params.poolRoute.protocolVersion}:${params.poolRoute.poolId.toLowerCase()}`
+    ? // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- pool id (a v4 pool is a 32-byte hash), not a token address
+      `${tokenKey}#${params.poolRoute.protocolVersion}:${params.poolRoute.poolId.toLowerCase()}`
     : tokenKey
 }
 
@@ -112,7 +114,7 @@ export function createPriceSubscriptionKey(params: TokenSubscriptionParams): str
 export function toSubscriptionParams(token: TokenIdentifier): TokenSubscriptionParams {
   return {
     chainId: token.chainId,
-    tokenAddress: token.address.toLowerCase(),
+    tokenAddress: normalizeTokenAddressForCache(token.address),
   }
 }
 

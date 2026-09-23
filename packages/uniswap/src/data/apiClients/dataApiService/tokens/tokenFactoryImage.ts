@@ -1,11 +1,11 @@
 import { createPromiseClient } from '@connectrpc/connect'
-import { DataApiService } from '@uniswap/client-data-api/dist/data/v1/api_connect'
-import type { VerifyTokenFactoryImageResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { TokenFactoryService } from '@uniswap/client-launches/dist/launches/v1/token_factory_connect'
+import type { VerifyTokenFactoryImageResponse } from '@uniswap/client-launches/dist/launches/v1/token_factory_pb'
 import { entryGatewayPostTransport } from 'uniswap/src/data/transport'
 
 // Promise client (not a react-query hook): the token image flow is an imperative
 // presign -> upload -> verify sequence driven from a mutation, not a render-time query.
-const client = createPromiseClient(DataApiService, entryGatewayPostTransport)
+const client = createPromiseClient(TokenFactoryService, entryGatewayPostTransport)
 
 /**
  * Mints a Pinata v3 signed upload URL for a token-factory image. The URL is short-lived and already

@@ -1,5 +1,6 @@
+import { Flex } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { curveCardinal, scaleLinear } from 'd3'
-import { Flex, useSporeColors } from 'ui/src'
 import type { AssetSparklineChartPoint } from 'uniswap/src/data/apiClients/dataApiService/rwa/sparklineUtils'
 import { LineChart } from '~/components/Charts/SparklineChart/LineChart'
 

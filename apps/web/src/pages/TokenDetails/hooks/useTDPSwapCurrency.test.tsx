@@ -1,9 +1,9 @@
 import { renderHook } from '@testing-library/react'
 import { Token } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import type { PropsWithChildren, ReactElement } from 'react'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { currencyForSelectedMultichainDeployment } from '~/pages/TokenDetails/components/header/currencyForSelectedMultichainDeployment'
 import { createTDPStore, type TDPState } from '~/pages/TokenDetails/context/createTDPStore'
 import { TDPStoreContext, type MultiChainMap } from '~/pages/TokenDetails/context/TDPContext'
@@ -87,13 +87,13 @@ describe('useTDPSwapCurrency', () => {
   it('returns highest-balance deployment when no filter and balances exist', () => {
     mocked(currencyForSelectedMultichainDeployment).mockReturnValue(BASE_CURRENCY_ON_BASE)
     const multiChainMap: MultiChainMap = {
-      [GraphQLApi.Chain.Ethereum]: {
+      [UniverseChainId.Mainnet]: {
         address: '0x111',
-        balance: { balanceUSD: 100 } as NonNullable<MultiChainMap[GraphQLApi.Chain]>['balance'],
+        balance: { balanceUSD: 100 } as NonNullable<MultiChainMap[UniverseChainId]>['balance'],
       },
-      [GraphQLApi.Chain.Base]: {
+      [UniverseChainId.Base]: {
         address: '0x222',
-        balance: { balanceUSD: 5000 } as NonNullable<MultiChainMap[GraphQLApi.Chain]>['balance'],
+        balance: { balanceUSD: 5000 } as NonNullable<MultiChainMap[UniverseChainId]>['balance'],
       },
     }
     mocked(useTDPPerChainVolume).mockReturnValue({

@@ -1,16 +1,39 @@
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { PositionInfo } from 'uniswap/src/features/positions/types'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { LiquidityPositionInfo } from '~/features/Liquidity/LiquidityPositionInfo'
 import { TEST_TOKEN_1, TEST_TOKEN_2, toCurrencyAmount } from '~/test-utils/constants'
-import { fireEvent, render } from '~/test-utils/render'
+import { fireEvent, render, within } from '~/test-utils/render'
 
-const { mockNavigate } = vi.hoisted(() => ({ mockNavigate: vi.fn() }))
+const { mockNavigate, mockUseMedia } = vi.hoisted(() => ({
+  mockNavigate: vi.fn(),
+  mockUseMedia: vi.fn((): Record<string, boolean> => ({})),
+}))
 
 vi.mock('react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router')>()),
   useNavigate: () => mockNavigate,
 }))
+
+// LiquidityPositionInfo reads `useMedia` from the mycelium compat hook (INFRA-3160 took this file off
+// Tamagui). Nested children are still on `ui/src`, so both are mocked from the same fake to keep every
+// consumer on one media state.
+vi.mock('@universe/mycelium/theme-hooks-compat', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@universe/mycelium/theme-hooks-compat')>()
+  return {
+    ...actual,
+    useMedia: () => mockUseMedia(),
+  }
+})
+
+vi.mock('ui/src', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('ui/src')>()
+  return {
+    ...actual,
+    useMedia: () => mockUseMedia(),
+  }
+})
 
 vi.mock('~/features/Liquidity/utils')
 
@@ -84,5 +107,56 @@ describe('LiquidityPositionInfo', () => {
     fireEvent.click(migrateBadge)
 
     expect(mockNavigate).toHaveBeenCalledWith(`/migrate/v2/${getChainInfo(TEST_TOKEN_1.chainId).urlParam}/0xpair`)
+  })
+
+  describe('detail header (stackedLogo)', () => {
+    afterEach(() => {
+      mockUseMedia.mockReturnValue({})
+    })
+
+    const positionInfo: PositionInfo = {
+      chainId: TEST_TOKEN_1.chainId,
+      currency0Amount: toCurrencyAmount(TEST_TOKEN_1, 1),
+      currency1Amount: toCurrencyAmount(TEST_TOKEN_2, 1),
+      status: PositionStatus.IN_RANGE,
+      version: ProtocolVersion.V3,
+      poolId: '1',
+      tokenId: '1',
+      v4hook: undefined,
+      owner: '0x50EC05ADe8280758E2077fcBC08D878D4aef79C3',
+    }
+
+    it('keeps the badges in the title row (not the status row) on desktop', () => {
+      const { getByText, getByTestId } = render(
+        <LiquidityPositionInfo positionInfo={positionInfo} stackedLogo includeNetwork />,
+      )
+      expect(getByText('In range')).toBeInTheDocument()
+      // On desktop the version/fee badges stay up in the title row, so row 2 has no version badge.
+      expect(within(getByTestId(TestID.PositionInfoStatusRow)).queryByText('v3')).not.toBeInTheDocument()
+    })
+
+    // The mobile treatment is gated on media.md (≤640). The two cases below straddle that
+    // boundary one token apart, so a gate on media.sm (badges would not move at 641) or
+    // media.lg (badges would move in the 641–768 band) fails one of them.
+    it('moves the badges onto the status row with the range indicator at ≤640 (media.md)', () => {
+      mockUseMedia.mockReturnValue({ sm: false, md: true, lg: true })
+      const statusRow = within(
+        render(<LiquidityPositionInfo positionInfo={positionInfo} stackedLogo includeNetwork />).getByTestId(
+          TestID.PositionInfoStatusRow,
+        ),
+      )
+      // Mobile parity with the pool header: badges drop to row 2 alongside the range indicator.
+      expect(statusRow.getByText('In range')).toBeInTheDocument()
+      expect(statusRow.getByText('v3')).toBeInTheDocument()
+    })
+
+    it('keeps the badges in the title row across the 641–768 band (media.lg only)', () => {
+      mockUseMedia.mockReturnValue({ sm: false, md: false, lg: true })
+      const { getByText, getByTestId } = render(
+        <LiquidityPositionInfo positionInfo={positionInfo} stackedLogo includeNetwork />,
+      )
+      expect(getByText('In range')).toBeInTheDocument()
+      expect(within(getByTestId(TestID.PositionInfoStatusRow)).queryByText('v3')).not.toBeInTheDocument()
+    })
   })
 })

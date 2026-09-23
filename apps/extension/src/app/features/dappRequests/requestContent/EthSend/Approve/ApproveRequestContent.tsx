@@ -1,24 +1,24 @@
-import { BigNumber } from '@ethersproject/bignumber'
 import { GasFeeResult } from '@universe/api'
+import { Flex, Text, iconSizes } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
 import { useDappLastChainId } from 'src/app/features/dapp/hooks'
 import { DappRequestContent } from 'src/app/features/dappRequests/DappRequestContent'
 import { useDappRequestQueueContext } from 'src/app/features/dappRequests/DappRequestQueueContext'
 import {
+  isApproveRevoke,
+  parseSpenderAddress,
+} from 'src/app/features/dappRequests/requestContent/EthSend/Approve/utils'
+import {
   ApproveSendTransactionRequest,
   DappRequest as DappRequestBaseType,
 } from 'src/app/features/dappRequests/types/DappRequestTypes'
-import { Flex, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { LearnMoreLink } from 'uniswap/src/components/text/LearnMoreLink'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { DappRequestType } from 'uniswap/src/features/dappRequests/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { TransactionType, TransactionTypeInfo } from 'uniswap/src/features/transactions/types/transactionDetails'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 
 function useDappRequestTokenRecipientInfo(request: DappRequestBaseType, dappUrl: string): Maybe<CurrencyInfo> {
@@ -30,31 +30,6 @@ function useDappRequestTokenRecipientInfo(request: DappRequestBaseType, dappUrl:
     activeChain && type === DappRequestType.SendTransaction && to ? buildCurrencyId(activeChain, to) : undefined
 
   return useCurrencyInfo(identifier)
-}
-
-// approve(address,uint256) calldata layout:
-// 0x | 8 hex selector | 64 hex address (24 left-pad zeros + 40 hex address) | 64 hex amount
-const APPROVE_CALLDATA_LENGTH = 10 + 64 * 2
-
-function parseSpenderAddress(data: string): string | undefined {
-  if (data.length !== APPROVE_CALLDATA_LENGTH) {
-    return undefined
-  }
-
-  const address = `0x${data.slice(34, 74)}`
-  return getValidAddress({ address, platform: Platform.EVM }) ?? undefined
-}
-
-function isApproveAmountZero(data: string): boolean {
-  if (data.length !== APPROVE_CALLDATA_LENGTH) {
-    return false
-  }
-  try {
-    // Read the uint256 amount arg: skip "0x" + selector + address arg (74 chars), take the next 64.
-    return BigNumber.from(`0x${data.slice(74, 138)}`).isZero()
-  } catch {
-    return false
-  }
 }
 
 interface ApproveRequestContentProps {
@@ -74,7 +49,7 @@ export function ApproveRequestContent({
   const { dappUrl } = useDappRequestQueueContext()
 
   // To detect a revoke, both the transaction value and the approve() amount must be zero
-  const isRevoke = dappRequest.transaction.value === '0x0' && isApproveAmountZero(dappRequest.transaction.data ?? '')
+  const isRevoke = isApproveRevoke(dappRequest.transaction)
 
   const tokenInfo = useDappRequestTokenRecipientInfo(dappRequest, dappUrl)
   const tokenSymbol = tokenInfo?.currency.symbol

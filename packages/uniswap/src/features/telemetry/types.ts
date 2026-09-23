@@ -17,11 +17,15 @@ import type { PresetPercentage } from 'uniswap/src/components/CurrencyInputPanel
 import type { PriceSourceTag } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 
 export type { PriceSourceTag } from 'uniswap/src/features/prices/getDisplayedPriceSource'
+import type { UniverseChainId, Platform } from '@universe/chains'
 import { type OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
-import { type EthMethod } from 'uniswap/src/features/dappRequests/types'
+import {
+  type BlockaidScanFailureKind,
+  type BlockaidScanFailureReason,
+  type BlockaidScanType,
+  type EthMethod,
+} from 'uniswap/src/features/dappRequests/types'
 import { type FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
-import { type Platform } from 'uniswap/src/features/platforms/types/Platform'
 import {
   type AuctionEventName,
   type EarnEventName,
@@ -33,6 +37,7 @@ import {
   type LiquidityEventName,
   type MobileAppsFlyerEvents,
   type MobileEventName,
+  type SectionName,
   type SessionsEventName,
   type SwapBlockedCategory,
   type SwapEventName,
@@ -41,6 +46,7 @@ import {
   type WalletEventName,
 } from 'uniswap/src/features/telemetry/constants'
 import { type TokenProtectionWarning } from 'uniswap/src/features/tokens/warnings/types'
+import type { MarginManageAction } from 'uniswap/src/features/transactions/margin/types'
 import type { SponsoredApprovalType } from 'uniswap/src/features/transactions/swap/types/swapTxAndGasInfo'
 import { type TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { type WrapType } from 'uniswap/src/features/transactions/types/wrap'
@@ -115,6 +121,7 @@ export type PendingTransactionTimeoutProperties = {
   flashbots_refund_percent: number
   calldata_hints_enabled: boolean
   private_rpc: boolean
+  private_rpc_provider?: 'flashbots' | 'mevblocker' | 'unirpc'
   chain_id: number
   address: string
   tx_hash?: string
@@ -225,6 +232,10 @@ export type SwapTradeBaseProperties = {
   // Which pricing pipeline produced the displayed USD values on this trade.
   // See `PriceSourceTag` in packages/uniswap/src/features/prices/getDisplayedPriceSource.ts.
   price_source?: PriceSourceTag
+  // Whether either token of the pair is permissioned, from cached `/permissions` results.
+  // `undefined` (stripped from the emitted payload) when the cache has no resolved answer,
+  // so `false` never means "not checked". See `getIsPermissionedForAnalytics`.
+  is_permissioned: boolean | undefined
   // RWA: whether the US equity market was off-hours, the large-price-difference warning showed, and whether
   // the input/output token is a tokenized stock. See `getRwaSwapAnalyticsProperties`.
   market_closed?: boolean
@@ -233,14 +244,29 @@ export type SwapTradeBaseProperties = {
   token_out_stocks?: boolean
 } & ITraceContext
 
+/** Lifecycle (open/closed) positions filter: web's Status dropdown and the mobile/extension pill. */
+export type PositionsLifecycleFilter = 'all' | 'open' | 'closed'
+
+/** Range positions filter: web's in/out-of-range chips. Mobile/extension have no range control. */
+export type PositionsRangeFilter = 'all' | 'in_range' | 'out_of_range'
+
+/**
+ * Which table an Explore-style sort or filter was used on. Shared by the sort and filter events and
+ * by the filter components themselves, so a component can't declare a narrower set than it emits.
+ */
+export type ExploreTableSurface = 'explore' | 'tdp' | 'add-liquidity-pool-browser' | 'positions-discovery'
+
 export type EarnAnalyticsSurface = 'web' | 'mobile' | 'extension'
 
 export type EarnAnalyticsAction = 'deposit' | 'withdraw'
+
+export type EarnAmountInputMethod = 'manual' | 'preset'
 
 export type EarnAnalyticsEntryPoint =
   | 'activity'
   | 'explore_chip'
   | 'global_modal'
+  | 'home_unfunded_earn_card'
   | 'portfolio_earn_get_token'
   | 'portfolio_earn_section'
   | 'post_swap_upsell_toast'
@@ -265,6 +291,24 @@ export type EarnAnalyticsBaseProperties = ITraceContext & {
   position_balance_usd?: number
 }
 
+export type EarnSurfaceViewedAnalyticsProperties = Pick<EarnAnalyticsBaseProperties, 'entry_point' | 'surface'> & {
+  is_read_only?: boolean
+}
+
+export type EarnAmountPresetAnalyticsProperties = EarnAnalyticsBaseProperties & {
+  action: EarnAnalyticsAction
+  /** Percent for the pressed pill (25 | 50 | 75 | 100). The Max pill sends 100 but can apply less than the full balance. */
+  preset_percent: number
+}
+
+export type EarnAmountEnteredAnalyticsProperties = EarnAnalyticsBaseProperties & {
+  action: EarnAnalyticsAction
+  /** Source of the first value: 'manual' (typed) or 'preset' (percent pill). */
+  input_method: EarnAmountInputMethod
+  /** Set when input_method is 'preset'. */
+  preset_percent?: number
+}
+
 export type EarnTransactionAnalyticsProperties = EarnAnalyticsBaseProperties & {
   action: EarnAnalyticsAction
   amount_usd?: number
@@ -279,10 +323,27 @@ export type EarnTransactionAnalyticsProperties = EarnAnalyticsBaseProperties & {
   request_id?: string
   quote_id?: string
   plan_id?: string
+  attempt_id?: string
+  step_status?: TradingApi.PlanStepStatus
+  failure_phase?: EarnFailurePhase
+  failure_reason?: EarnFailureReason
+  failure_duration_ms?: number
   withdraw_mode?: string
   error_name?: string
   error_message?: string
 }
+
+export type EarnFailurePhase = 'validation' | 'init' | 'execution' | 'finalization'
+
+export type EarnFailureReason =
+  | 'pre_submission_interrupted'
+  | 'price_changed'
+  | 'initialization_error'
+  | 'execution_error'
+  | 'plan_step_failed'
+  | 'plan_cancelled'
+  | 'plan_finalized_failed'
+  | 'finalization_unresolved'
 
 export type EarnSwapUpsellAnalyticsProperties = EarnAnalyticsBaseProperties & {
   output_currency_id?: string
@@ -397,6 +458,7 @@ type TransferProperties = {
 export enum NavBarSearchTypes {
   AuctionSuggestion = 'auction-suggestion',
   AuctionTrending = 'auction-trending',
+  CategorySuggestion = 'category-suggestion',
   CollectionSuggestion = 'collection-suggestion',
   CollectionTrending = 'collection-trending',
   PoolSuggestion = 'pool-suggestion',
@@ -482,7 +544,6 @@ export enum LiquiditySource {
 
 export enum FeePoolSelectAction {
   Manual = 'Manual',
-  Recommended = 'Recommended',
   Search = 'Search',
 }
 
@@ -607,6 +668,10 @@ export type LiquidityAnalyticsProperties = ITraceContext & {
   currencyInfo0Decimals: number
   currencyInfo1Decimals: number
   price_source?: PriceSourceTag
+  // Whether either pool token is permissioned, from cached `/permissions` results.
+  // `undefined` (stripped from the emitted payload) when the cache has no resolved answer.
+  // See `getIsPermissionedForAnalytics`.
+  is_permissioned: boolean | undefined
 }
 
 export type AuctionWithdrawAnalyticsProperties = ITraceContext & {
@@ -892,18 +957,25 @@ export type UniverseEventProperties = {
   [ExtensionEventName.SidebarConnect]: Pick<DappContextProperties, 'dappUrl'>
   [ExtensionEventName.SidebarDisconnect]: undefined
   [ExtensionEventName.UnknownMethodRequest]: WindowEthereumRequestProperties
+  [EarnEventName.EarnAmountEntered]: EarnAmountEnteredAnalyticsProperties
+  [EarnEventName.EarnAmountPresetSelected]: EarnAmountPresetAnalyticsProperties
   [EarnEventName.EarnHowItWorksAcknowledged]: EarnAnalyticsBaseProperties
-  [EarnEventName.EarnSurfaceViewed]: Pick<EarnAnalyticsBaseProperties, 'entry_point' | 'surface'>
+  [EarnEventName.EarnHowItWorksViewed]: EarnAnalyticsBaseProperties
+  [EarnEventName.EarnSurfaceViewed]: EarnSurfaceViewedAnalyticsProperties
   [EarnEventName.EarnVaultCardShowMoreClicked]: EarnAnalyticsBaseProperties
   [EarnEventName.EarnVaultDetailViewed]: EarnAnalyticsBaseProperties
   [EarnEventName.EarnVaultSelected]: EarnAnalyticsBaseProperties
   [EarnEventName.EarnDepositStarted]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnDepositReviewed]: EarnTransactionAnalyticsProperties
+  [EarnEventName.EarnDepositReviewReady]: EarnTransactionAnalyticsProperties
+  [EarnEventName.EarnDepositSubmitButtonClicked]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnDepositSubmitted]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnDepositCompleted]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnDepositFailed]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnWithdrawStarted]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnWithdrawReviewed]: EarnTransactionAnalyticsProperties
+  [EarnEventName.EarnWithdrawReviewReady]: EarnTransactionAnalyticsProperties
+  [EarnEventName.EarnWithdrawSubmitButtonClicked]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnWithdrawSubmitted]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnWithdrawCompleted]: EarnTransactionAnalyticsProperties
   [EarnEventName.EarnWithdrawFailed]: EarnTransactionAnalyticsProperties
@@ -1040,6 +1112,64 @@ export type UniverseEventProperties = {
   [InterfaceEventName.SwapTabClicked]: {
     tab: SwapTab
   }
+  [InterfaceEventName.MarginTerminalEntered]: {
+    pairKey: string
+  }
+  // `intent` is the coarse plan mode (OPEN/CLOSE/ADJUST/RECOVER) the plan envelope still carries;
+  // `action` is the ten-key the quote was priced under, which every non-open/close mode collapses
+  // into ADJUST. Both ride so existing intent-keyed dashboards keep working.
+  [InterfaceEventName.MarginPlanCreated]: {
+    intent: string
+    // Absent on the RECOVER leg, the one create that prices nothing.
+    action?: string
+    venue?: string
+    // `open` only — a manage request never names a venue, the position's own is already pinned.
+    allowlistSent?: string[]
+    excludedCount?: number
+  }
+  [InterfaceEventName.MarginPlanStepCompleted]: {
+    intent: string
+    action?: string
+    stepType: string
+    stepIndex: number
+  }
+  [InterfaceEventName.MarginPlanStepFailed]: {
+    intent: string
+    action?: string
+    stepType: string
+    stepIndex: number
+    errorCode?: string
+  }
+  // Fired when the ROUTING OUTCOME changes (a different venue, or a rejection), never per quote poll.
+  [InterfaceEventName.MarginVenueRouted]: {
+    pairKey: string
+    direction: string
+    // Absent when the whole allowlist was rejected — rejectedReasons says why.
+    venue?: string
+    allowlistSent: string[]
+    excludedCount: number
+    leverage: number
+    notionalUsd?: number
+    rejectedReasons?: string[]
+  }
+  [InterfaceEventName.MarginVenuePreferenceToggled]: {
+    venue: string
+    excluded: boolean
+    excludedCount: number
+    // The preference is an opt-out set, so this is just "nothing excluded".
+    isDefault: boolean
+  }
+  [InterfaceEventName.MarginPaymentTokenSelected]: {
+    symbol: string
+    marketKey: string
+  }
+  [InterfaceEventName.MarginPositionActionSelected]: {
+    action: MarginManageAction
+    surface: 'menu' | 'drawer'
+  }
+  [InterfaceEventName.MarginPositionClosed]: {
+    realizedPnl?: string
+  }
   [InterfaceEventName.SlideoutChartCardToggled]: {
     is_open: boolean
     tab: SwapTab
@@ -1110,7 +1240,10 @@ export type UniverseEventProperties = {
   [InterfaceEventName.OnChainAddLiquidityFailed]: {
     message: string
   } & (PartialMessage<CreatePositionRequest> | PartialMessage<IncreasePositionRequest>)
-  [InterfaceEventName.EmbeddedWalletCreated]: { unitag_source?: EmbeddedWalletUnitagSource }
+  [InterfaceEventName.EmbeddedWalletCreated]: {
+    wallet_address: string
+    unitag_source?: EmbeddedWalletUnitagSource
+  }
   [InterfaceEventName.ExtensionUninstallFeedback]: {
     reason: ExtensionUninstallFeedbackOptions
   }
@@ -1153,11 +1286,13 @@ export type UniverseEventProperties = {
     table_type: 'tokens' | 'pools'
     sort_method: string
     sort_direction: 'asc' | 'desc'
-    surface: 'explore' | 'tdp' | 'add-liquidity-pool-browser' | 'positions-discovery'
+    surface: ExploreTableSurface
   }
   [InterfaceEventName.ExploreTableFilterSelected]: {
     filter_type: 'volume_time_period' | 'protocol'
     filter_value: string
+    /** Where the filter was used. */
+    surface?: ExploreTableSurface
   }
   [InterfaceEventName.LanguageSelected]: {
     previous_language: string
@@ -1170,6 +1305,18 @@ export type UniverseEventProperties = {
     recipient: string
     price_source?: PriceSourceTag
   }
+  [InterfaceEventName.AuctionHoverCardDataLoaded]: ITraceContext & {
+    token_symbol?: string
+    chain_id?: number
+    auction_address?: string
+    token_address?: string
+  }
+  [InterfaceEventName.AuctionHoverCardOpened]: ITraceContext & {
+    token_symbol?: string
+    chain_id?: number
+    auction_address?: string
+    token_address?: string
+  }
   [InterfaceEventName.TokenHoverCardDataLoaded]: ITraceContext & {
     token_symbol?: string
     chain_id?: number
@@ -1181,6 +1328,8 @@ export type UniverseEventProperties = {
     chain_id?: number
     token_address?: string
     is_multichain?: boolean
+    /** Web search auto-focuses the first result, opening its card without a hover. */
+    open_trigger?: 'hover' | 'focus'
   }
   [InterfaceEventName.TokenSelectorOpened]: undefined
   [InterfaceEventName.LimitedWalletSupportToastDismissed]: {
@@ -1208,6 +1357,10 @@ export type UniverseEventProperties = {
   } & ITraceContext
   [LiquidityEventName.MigrateLiquiditySubmitted]: {
     action: string
+    createPool?: boolean
+    outputPoolAddress?: string
+    // hook address of the destination v4 pool (v3->v4 migrations only)
+    outputPoolHookAddress?: string
   } & LiquidityAnalyticsProperties
   [LiquidityEventName.AddLiquiditySubmitted]: {
     createPool?: boolean
@@ -1219,6 +1372,11 @@ export type UniverseEventProperties = {
     expectedAmountBaseRaw: string
     expectedAmountQuoteRaw: string
     closePosition?: boolean
+    // uncollected fees claimed by the removal, per token
+    feeToken0AmountRaw?: string
+    feeToken1AmountRaw?: string
+    feeToken0AmountUSD?: number
+    feeToken1AmountUSD?: number
   } & LiquidityAnalyticsProperties
   [LiquidityEventName.TransactionModifiedInWallet]: {
     expected?: string
@@ -1260,6 +1418,11 @@ export type UniverseEventProperties = {
     screen: 'swap' | 'transaction'
     is_cold_start: boolean
   }
+  [MobileEventName.ExploreCategoryPillSelected]: {
+    category_id: string
+    position: number
+  }
+  [MobileEventName.ExploreCollectionsViewAllSelected]: undefined
   [MobileEventName.ExploreFilterSelected]: {
     filter_type: string
   }
@@ -1275,9 +1438,14 @@ export type UniverseEventProperties = {
     }
   [MobileEventName.ExploreTokenItemSelected]: AssetDetailsBaseProperties & {
     position: number
+    section?: SectionName
+  }
+  [MobileEventName.ExploreTrendingHeaderSelected]: {
+    category_id: string
   }
   [MobileEventName.HomeExploreTokenItemSelected]: AssetDetailsBaseProperties & {
     position: number
+    section?: SectionName
   }
   [MobileEventName.FavoriteItem]: AssetDetailsBaseProperties & {
     type: 'token' | 'wallet'
@@ -1334,6 +1502,10 @@ export type UniverseEventProperties = {
     | {
         service_worker: string
         cache: string
+        /** Web only: whether this load ran inside an iframe (per-load record of the embed context). */
+        is_iframed: boolean
+        /** Web only: parent frame origin, or the 'none' / 'unknown' sentinels from getIframeParentOriginUserProperty. */
+        iframe_parent_origin: string
       }
   [SharedEventName.ELEMENT_CLICKED]: ITraceContext & {
     // Covering ElementName.PortfolioNftItem
@@ -1352,12 +1524,17 @@ export type UniverseEventProperties = {
     chain_name?: string
     /** ElementName.ExploreRwaCategoryView — selected Explore category tab (popular/stocks/commodities/etfs) */
     tab?: string
+    /** Token category chips on the TDP (Collections pills, Related tokens) */
+    category_id?: string
+    category_index?: number
     /** ElementName.ExploreRwaStocksCarousel — clicked RWA asset on the Explore stocks carousel */
     token_address?: string
     token_symbol?: string
     token_list_length?: number
     /** ElementName.TDPRwaTokenVariant — issuer of the clicked tokenized-stock variant on the TDP (ondo/dinari/xstocks) */
     issuer?: string
+    /** ElementName.PositionsHiddenToggle — resulting state of the hidden-positions view toggle (web) */
+    enabled?: boolean
     /** ElementName.Continue on the launch-auction flow — new (factory-deployed) vs existing token */
     token_source?: AuctionCreateTokenSource
     /** ElementName.AuctionRaiseCurrency — selected raise currency on the launch-auction flow (ETH / USDC). */
@@ -1370,12 +1547,12 @@ export type UniverseEventProperties = {
     timelock_enabled?: boolean
     /** ElementName.TokenHoverCard* — whether the token exists on multiple chains */
     is_multichain?: boolean
+    /** ElementName.AuctionHoverCardCopyAddress / AuctionHoverCardExpand — the hovered auction's contract address */
+    auction_address?: string
     /** ElementName.CollectFeesButton — collected pool + token symbols. */
     pool_address?: string
     token0_symbol?: string
     token1_symbol?: string
-    /** ElementName.CreatePositionButton — selected protocol version ('v2' | 'v3' | 'v4'). */
-    protocol_version?: string
     /** ElementName.LaunchesTableRow / LaunchesTrendingCarouselCard — clicked launch's launchpad id. */
     launchpad_id?: string
     /** ElementName.LaunchesTableRow / LaunchesTrendingCarouselCard — true for Uniswap CCA quick launches. */
@@ -1501,6 +1678,9 @@ export type UniverseEventProperties = {
     pollInterval?: number
     time_to_first_quote_request?: number
     time_to_first_quote_request_since_first_input?: number
+    // `undefined` (stripped from the emitted payload) when the cached `/permissions`
+    // results have no resolved answer for the pair.
+    is_permissioned: boolean | undefined
   }
   [SwapEventName.SwapSigned]: SwapTradeBaseProperties & {
     transaction_hash?: string
@@ -1570,11 +1750,17 @@ export type UniverseEventProperties = {
     in_range_count: number
     out_of_range_count: number
     closed_count: number
+    lifecycle_filter: PositionsLifecycleFilter
+    /** Undefined on surfaces without a range control (mobile/extension). */
+    range_filter?: PositionsRangeFilter
     pages_loaded: number
     has_more: boolean
   } & Partial<ITraceContext>
+  [UniswapEventName.PoolsRangeFilterSelected]: {
+    filter: PositionsRangeFilter
+  } & Partial<ITraceContext>
   [UniswapEventName.PoolsStatusFilterSelected]: {
-    filter: 'all' | 'open' | 'closed'
+    filter: PositionsLifecycleFilter
   }
   [UniswapEventName.MultichainExploreMetrics]: {
     total_token_row_count: number
@@ -1656,6 +1842,15 @@ export type UniverseEventProperties = {
     blockaidSellFeePercent?: number
     attackType?: string
     protectionResult?: string
+  }
+  [UniswapEventName.RWASiblingExpanded]: ITraceContext & {
+    tokenAddress?: string
+    tokenSymbol?: string
+    chainId?: UniverseChainId
+    /** Issuer of the RWA token whose TDP rendered the module (e.g. ondo, dinari, xstocks). */
+    issuer?: string
+    /** Total number of sibling issuer variants listed in the module. */
+    variantCount: number
   }
   [UniswapEventName.RWATokenDetailsViewed]: ITraceContext & {
     tokenAddress?: string
@@ -1772,6 +1967,21 @@ export type UniverseEventProperties = {
   }
   [WalletEventName.DappRequestCardPressed]: DappRequestCardEventProperties
   [WalletEventName.DappRequestCardClosed]: DappRequestCardEventProperties
+  [WalletEventName.DappRequestScanFailed]: {
+    /** dApp origin that requested the scan — the primary grouping key for finding recurring offenders. */
+    dapp_url?: string
+    /** Chain the scan targeted (Blockaid chain identifier). */
+    chain?: string
+    scan_type: BlockaidScanType
+    /** Coarse failed stage; use `reason` to distinguish HTTP rejection from validation-leg failures. */
+    failure_kind: BlockaidScanFailureKind
+    /** True when retrying the same request can never succeed (oversized/unsupported). */
+    is_permanent: boolean
+    /** Bounded specific cause (e.g. request_too_large, transport_error, validation_error). */
+    reason: BlockaidScanFailureReason
+    /** JSON-RPC method for signature/sendCalls scans; undefined for transaction scans. */
+    request_method?: string
+  }
   [WalletEventName.ExternalLinkOpened]: {
     url: string
   }

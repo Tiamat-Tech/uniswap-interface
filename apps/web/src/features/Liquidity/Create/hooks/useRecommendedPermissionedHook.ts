@@ -1,19 +1,23 @@
-import type { ListPoolsResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { CHAIN_TO_ADDRESSES_MAP, type Currency } from '@uniswap/sdk-core'
+import { Platform, areEvmAddressesEqual, getValidAddress } from '@universe/chains'
 import type { Dispatch, SetStateAction } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
-import { useGetPoolsByTokens } from 'uniswap/src/data/apiClients/dataApiService/pools/getPools'
+import { getListPoolsQueryOptions } from 'uniswap/src/data/apiClients/dataApiService/pools/queries'
 import { usePermissionedSwapPair } from 'uniswap/src/features/permissionedTokens/usePermissionedSwapPair'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { currencyId } from 'uniswap/src/utils/currencyId'
 import { useActiveAddress } from '~/features/accounts/store/hooks'
 import type { PositionState } from '~/features/Liquidity/Create/types'
 import { getTokenOrZeroAddress } from '~/features/Liquidity/utils/currency'
+import { getPairListPoolsParams } from '~/features/Liquidity/utils/getPairListPoolsParams'
+import { normalizeRankedPool } from '~/features/Liquidity/utils/normalizeRankedPool'
+import { type Pool } from '~/features/Liquidity/utils/pool'
 
-const INTEGER_STRING_REGEX = /^\d+$/
+// One TVL-sorted page is enough: "deepest pool wins" below, so the winner is on page 1 by
+// construction. The size only needs to keep hooked pools visible among hookless ones.
+const LIST_POOLS_PAGE_SIZE = 100
 
 type RecommendedPermissionedHookResult = {
   recommendedHook: string | undefined
@@ -29,22 +33,41 @@ function getPermissionedV4HooksAddress(chainId: number): string | undefined {
   return getValidAddress({ address, withEVMChecksum: true, platform: Platform.EVM }) ?? undefined
 }
 
+/**
+ * Server-side `tokenFilter` is unverified — the discovered hook is prefilled into the
+ * create-position form as a transaction parameter, so the pair and chain are re-checked
+ * explicitly rather than trusting the response's narrowing. Token addresses can collide across
+ * chains, so the pair check alone isn't sufficient.
+ */
+function poolMatchesPair(
+  pool: Pool,
+  { chainId, addresses }: { chainId: number | undefined; addresses: readonly [string | undefined, string | undefined] },
+): boolean {
+  const [addressA, addressB] = addresses
+  if (!addressA || !addressB || pool.chainId !== chainId) {
+    return false
+  }
+  return (
+    (areEvmAddressesEqual(pool.token0Address, addressA) && areEvmAddressesEqual(pool.token1Address, addressB)) ||
+    (areEvmAddressesEqual(pool.token0Address, addressB) && areEvmAddressesEqual(pool.token1Address, addressA))
+  )
+}
+
 /** Deepest hooked pool wins (mirrors the mostUsedFeeTier heuristic); raw liquidity breaks TVL ties. */
-function findDeepestHookedPool(data: ListPoolsResponse | undefined): string | undefined {
-  if (!data) {
+function findDeepestHookedPool(pools: Pool[] | undefined): string | undefined {
+  if (!pools) {
     return undefined
   }
-  const hookedPools = data.pools.flatMap((pool) => {
-    const hookAddress = pool.hooks?.address
-    if (!hookAddress || hookAddress.toLowerCase() === ZERO_ADDRESS) {
+  const hookedPools = pools.flatMap((pool) => {
+    const { hookAddress } = pool
+    if (!hookAddress || areEvmAddressesEqual(hookAddress, ZERO_ADDRESS)) {
       return []
     }
-    const tvl = Number(pool.totalLiquidityUsd)
     return [
       {
         hookAddress,
-        tvl: Number.isFinite(tvl) ? tvl : 0,
-        liquidity: INTEGER_STRING_REGEX.test(pool.liquidity) ? BigInt(pool.liquidity) : 0n,
+        tvl: pool.tvl,
+        liquidity: pool.liquidity,
       },
     ]
   })
@@ -104,38 +127,56 @@ export function useRecommendedPermissionedHook({
 
   const shouldFetch = enabled && isPermissioned && sameChain && !!sorted0 && !!sorted1 && sorted0 !== sorted1
   // No `hooks` filter: the point is discovering which hook the existing pool uses.
+  const listPoolsParams = useMemo(
+    () =>
+      getPairListPoolsParams({
+        chainId: tokenA?.chainId,
+        addresses: [sorted0, sorted1],
+        protocolVersions: [ProtocolVersion.V4],
+      }),
+    [tokenA?.chainId, sorted0, sorted1],
+  )
+
   const {
-    data,
+    data: poolsData,
     isLoading: isPoolsLoading,
     isError: isPoolsError,
-  } = useGetPoolsByTokens(
-    {
-      chainId: tokenA?.chainId,
-      protocolVersions: [ProtocolVersion.V4],
-      token0: sorted0,
-      token1: sorted1,
-    },
-    shouldFetch,
+  } = useInfiniteQuery(
+    getListPoolsQueryOptions({
+      params: listPoolsParams,
+      pageSize: LIST_POOLS_PAGE_SIZE,
+      enabled: shouldFetch,
+      // Unpersisted: a restored disk entry would prefill a hook the backend no longer recommends.
+      persist: false,
+    }),
   )
+
+  // The canonical Pool shape from the data.v2 ListPools response.
+  const pools = useMemo(() => {
+    const rankedPools = poolsData?.pages.flatMap((page) => page.pools)
+    return rankedPools
+      ?.flatMap((rankedPool) => normalizeRankedPool(rankedPool) ?? [])
+      .filter((pool) => poolMatchesPair(pool, { chainId: tokenA?.chainId, addresses: [sorted0, sorted1] }))
+  }, [poolsData, sorted0, sorted1, tokenA?.chainId])
 
   const chainId = tokenA?.chainId
   const recommendedHook = useMemo(() => {
     if (!shouldFetch) {
       return undefined
     }
-    const discovered = findDeepestHookedPool(data)
+    const discovered = findDeepestHookedPool(pools)
     if (discovered) {
       return discovered
     }
     // Last-resort fallback: discovery settled empty (query succeeded with no hooked pools, or
     // errored), so recommend the canonical deployment. Never applied while the query is loading —
     // an existing pool's hook must win.
-    const settledEmpty = !isPoolsLoading && (data !== undefined || isPoolsError)
+    const settledEmpty = !isPoolsLoading && (pools !== undefined || isPoolsError)
     if (!settledEmpty || chainId === undefined) {
       return undefined
     }
     return getPermissionedV4HooksAddress(chainId)
-  }, [shouldFetch, data, isPoolsLoading, isPoolsError, chainId])
+  }, [shouldFetch, pools, isPoolsLoading, isPoolsError, chainId])
 
   return {
     recommendedHook,

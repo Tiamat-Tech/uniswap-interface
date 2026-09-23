@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
+import { UniverseChainId } from '@universe/chains'
 import React from 'react'
 import type { SignTypedDataRequest } from 'src/app/features/dappRequests/types/DappRequestTypes'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 // The chain the preview is classified against must be wallet-owned. Feeding it the payload's own
 // domain.chainId would make the check self-referential. These pin that it comes from the queued
@@ -49,7 +49,7 @@ vi.mock('wallet/src/components/ErrorBoundary/ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }))
 
-vi.mock('ui/src', async (importOriginal) => ({
+vi.mock('@universe/mycelium', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   Flex: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }))
@@ -64,7 +64,7 @@ vi.mock('wallet/src/components/dappRequests/SignTypedData/StandardTypedDataConte
 
 import { SignTypedDataRequestContent } from 'src/app/features/dappRequests/requestContent/SignTypeData/SignTypedDataRequestContent'
 
-function typedDataRequest(domainChainId: number): SignTypedDataRequest {
+function typedDataRequest(domainChainId: number | string): SignTypedDataRequest {
   return {
     type: 'SignTypedData',
     requestId: 'sig-1',
@@ -90,8 +90,12 @@ describe('SignTypedDataRequestContent chain binding', () => {
     mockSnapshotChainId = UniverseChainId.Mainnet
   })
 
-  it('scans against the authorized snapshot chain, not the payload domain', () => {
-    render(<SignTypedDataRequestContent dappRequest={typedDataRequest(UniverseChainId.Mainnet)} />)
+  it.each([
+    ['numeric', UniverseChainId.Mainnet],
+    ['decimal string', String(UniverseChainId.Mainnet)],
+    ['hex string', `0x${UniverseChainId.Mainnet.toString(16)}`],
+  ] as const)('scans a %s domain.chainId against the authorized snapshot chain', (_label, domainChainId) => {
+    render(<SignTypedDataRequestContent dappRequest={typedDataRequest(domainChainId)} />)
 
     expect(screen.getByTestId('scan-path').getAttribute('data-chain-id')).toBe(String(UniverseChainId.Mainnet))
   })
@@ -101,6 +105,13 @@ describe('SignTypedDataRequestContent chain binding', () => {
 
     expect(screen.queryByTestId('scan-path')).toBeNull()
     // Fell back rather than rendering nothing.
+    expect(screen.getByTestId('standard-path')).toBeTruthy()
+  })
+
+  it('falls back to the raw view when the payload domain chain ID is malformed', () => {
+    render(<SignTypedDataRequestContent dappRequest={typedDataRequest('abc')} />)
+
+    expect(screen.queryByTestId('scan-path')).toBeNull()
     expect(screen.getByTestId('standard-path')).toBeTruthy()
   })
 

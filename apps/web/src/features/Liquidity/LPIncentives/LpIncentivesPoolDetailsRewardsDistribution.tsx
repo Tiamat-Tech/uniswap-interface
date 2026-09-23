@@ -1,16 +1,16 @@
 import { CurrencyAmount } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
+import { Flex, Text } from '@universe/mycelium'
 import { TFunction } from 'i18next'
 import JSBI from 'jsbi'
 import ms from 'ms'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { useCurrentLanguage } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { useUSDCPrice } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import { NumberType } from 'utilities/src/format/types'
-import { LP_INCENTIVES_REWARD_TOKEN } from '~/features/Liquidity/LPIncentives/constants'
+import type { RewardsCampaign } from '~/data/pools/poolData'
+import { LpIncentivesInfoTooltip } from '~/features/Liquidity/LPIncentives/LpIncentivesInfoTooltip'
 
 function formatDateRange({
   startTimestamp,
@@ -72,10 +72,13 @@ const BarChartSide = ({ percent, color, isLeft }: BarChartSideProps) => {
 export const LpIncentivesPoolDetailsRewardsDistribution = ({
   rewardsCampaign,
 }: {
-  rewardsCampaign?: GraphQLApi.RewardsCampaign
+  rewardsCampaign?: RewardsCampaign
 }) => {
   const { formatCurrencyAmount, convertFiatAmountFormatted } = useLocalizationContext()
-  const { price: uniPrice } = useUSDCPrice(LP_INCENTIVES_REWARD_TOKEN)
+  // The totals are raw amounts in the campaign's own served token — there is no stand-in for it,
+  // since scaling and pricing them at another token's decimals would print a different number.
+  const rewardToken = rewardsCampaign?.token
+  const { price: rewardTokenPrice } = useUSDCPrice(rewardToken)
   const { t } = useTranslation()
   const currentLanguage = useCurrentLanguage()
 
@@ -122,22 +125,23 @@ export const LpIncentivesPoolDetailsRewardsDistribution = ({
     return elapsed / duration
   }, [rewardsCampaign])
 
-  if (!rewardsCampaign) {
+  // Without a total there is nothing to distribute against — both amounts read 0 and the bar sits
+  // empty. The token is checked alongside it (the parser drops the total whenever it can't name the
+  // token, so this is one condition in practice) because the amounts are meaningless without it.
+  if (!rewardsCampaign?.totalRewardAllocation || !rewardToken) {
     return null
   }
 
   const distributedRewardsRaw = rewardsCampaign.distributedRewards
     ? JSBI.BigInt(rewardsCampaign.distributedRewards)
     : JSBI.BigInt(0)
-  const totalRewardAllocationRaw = rewardsCampaign.totalRewardAllocation
-    ? JSBI.BigInt(rewardsCampaign.totalRewardAllocation)
-    : JSBI.BigInt(0)
+  const totalRewardAllocationRaw = JSBI.BigInt(rewardsCampaign.totalRewardAllocation)
 
-  const distributedRewardsAmount = CurrencyAmount.fromRawAmount(LP_INCENTIVES_REWARD_TOKEN, distributedRewardsRaw)
-  const totalRewardAllocationAmount = CurrencyAmount.fromRawAmount(LP_INCENTIVES_REWARD_TOKEN, totalRewardAllocationRaw)
+  const distributedRewardsAmount = CurrencyAmount.fromRawAmount(rewardToken, distributedRewardsRaw)
+  const totalRewardAllocationAmount = CurrencyAmount.fromRawAmount(rewardToken, totalRewardAllocationRaw)
 
-  const distributedRewardsFiat = uniPrice?.quote(distributedRewardsAmount)
-  const totalRewardAllocationFiat = uniPrice?.quote(totalRewardAllocationAmount)
+  const distributedRewardsFiat = rewardTokenPrice?.quote(distributedRewardsAmount)
+  const totalRewardAllocationFiat = rewardTokenPrice?.quote(totalRewardAllocationAmount)
 
   const formattedDistributedToken = formatCurrencyAmount({
     value: distributedRewardsAmount,
@@ -163,17 +167,21 @@ export const LpIncentivesPoolDetailsRewardsDistribution = ({
   })
 
   return (
-    <Flex padding="$spacing20" borderRadius="$spacing20" backgroundColor="$surface2" width="100%">
+    <Flex padding="$spacing20" borderRadius="$rounded20" backgroundColor="$surface2" width="100%">
       <Flex flex={1} gap="$gap8" minWidth={180} $md={{ minWidth: 150 }}>
-        <Text color="$neutral2" variant="body2">
-          {t('pool.incentives.rewardsDistribution')}
-        </Text>
+        <Flex row justifyContent="space-between" alignItems="center">
+          <Text color="$neutral2" variant="body2">
+            {t('pool.incentives.rewardsDistribution')}
+          </Text>
+          {/* The card only renders off a served campaign, so there is no fetch of its own to fail. */}
+          <LpIncentivesInfoTooltip hasError={false} />
+        </Flex>
         <Flex row justifyContent="space-between" alignItems="flex-end">
           <Text variant="body3" color="$neutral1">
-            {formattedDistributedToken} {LP_INCENTIVES_REWARD_TOKEN.symbol} ({formattedDistributedFiat})
+            {formattedDistributedToken} {rewardToken.symbol} ({formattedDistributedFiat})
           </Text>
           <Text variant="body3" color="$neutral2">
-            / {formattedTotalToken} {LP_INCENTIVES_REWARD_TOKEN.symbol} ({formattedTotalFiat})
+            / {formattedTotalToken} {rewardToken.symbol} ({formattedTotalFiat})
           </Text>
         </Flex>
         <Flex row width="100%">

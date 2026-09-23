@@ -73,6 +73,7 @@ import {
   addActivityVisibility,
   addDismissedBridgedAndCompatibleWarnings,
   addEnableCustomGasFeeEntry,
+  markPoolsBalanceCoachmarkEligible,
   migrateDismissedTokenWarnings,
   migrateSearchHistory,
   removeThaiBahtFromFiatCurrency,
@@ -206,6 +207,7 @@ export const migrations = {
   97: setWalletDeviceLanguage,
   98: addEnableCustomGasFeeEntry,
   99: removeUniswapWrapped2025BehaviorHistory,
+  100: markPoolsBalanceCoachmarkEligible,
 }
 
-export const MOBILE_STATE_VERSION = 99
+export const MOBILE_STATE_VERSION = 100

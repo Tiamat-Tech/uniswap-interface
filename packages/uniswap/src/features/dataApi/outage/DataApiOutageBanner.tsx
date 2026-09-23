@@ -1,12 +1,14 @@
 import { isWebApp } from '@universe/environment'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import type { SporeColorToken } from '@universe/mycelium/compat'
 import { useTranslation } from 'react-i18next'
-import { ColorTokens, Flex, Text, TouchableArea } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 
 type DataApiOutageBannerProps = {
   onPress?: () => void
   title?: string
-  backgroundColor?: ColorTokens
+  /** Only the tokens the compat primitives resolve; every other `$` colour throws at render. */
+  backgroundColor?: SporeColorToken
 }
 
 export function DataApiOutageBanner({

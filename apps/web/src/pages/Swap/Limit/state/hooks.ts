@@ -1,11 +1,12 @@
 import { Currency, CurrencyAmount, Price, TradeType } from '@uniswap/sdk-core'
+import { isEVMChain, isSVMChain } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import JSBI from 'jsbi'
 import { useEffect, useMemo, useState } from 'react'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { LIMIT_SUPPORTED_CHAINS } from 'uniswap/src/features/chains/chainInfo'
 import { getStablecoinsForChain, isUniverseChainId } from 'uniswap/src/features/chains/utils'
-import { isEVMChain, isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
+import { useUSDCPrice } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import { useTrade } from 'uniswap/src/features/transactions/swap/hooks/useTrade'
 import { SwapFee, Trade } from 'uniswap/src/features/transactions/swap/types/trade'
 import { isClassic } from 'uniswap/src/features/transactions/swap/utils/routing'
@@ -15,6 +16,11 @@ import { useAccount } from '~/hooks/useAccount'
 import { useCurrencyBalances } from '~/lib/hooks/useCurrencyBalance'
 import { tryParseCurrencyAmount } from '~/lib/utils/tryParseCurrencyAmount'
 import { expiryToDeadlineSeconds } from '~/pages/Swap/Limit/state/expiryToDeadlineSeconds'
+import {
+  computeLimitMarketPrice,
+  LimitMarketPriceResult,
+  useLogMarketPriceReferenceChecks,
+} from '~/pages/Swap/Limit/state/limitMarketPrice'
 import { LimitInfo, LimitState } from '~/pages/Swap/Limit/state/types'
 import { getWrapInfo } from '~/state/routing/gas'
 import { LimitOrderTrade, SwapFeeInfo, WrapInfo } from '~/state/routing/types'
@@ -119,7 +125,7 @@ export function useDerivedLimitInfo(state: LimitState): LimitInfo {
     state.isInputAmountFixed,
   ])
 
-  const { marketPrice, fee: swapFee } = useMarketPriceAndFee(inputCurrency, outputCurrency)
+  const { marketPrice, marketPriceRejected, fee: swapFee } = useMarketPriceAndFee(inputCurrency, outputCurrency)
 
   const skip =
     !(inputCurrency && outputCurrency) || isSVMChain(inputCurrency.chainId) || isSVMChain(outputCurrency.chainId)
@@ -147,6 +153,7 @@ export function useDerivedLimitInfo(state: LimitState): LimitInfo {
     parsedLimitPrice,
     limitOrderTrade,
     marketPrice,
+    marketPriceRejected,
   }
 }
 
@@ -222,10 +229,6 @@ function useLimitOrderTrade({
   return limitOrderTrade
 }
 
-function isNativeOrWrappedNative(currency: Currency) {
-  return currency.isNative || nativeOnChain(currency.chainId).wrapped.equals(currency)
-}
-
 // Convert from SwapFee (from quote) to SwapFeeInfo (deprecated type used in LimitOrderTrade)
 const toSwapFeeInfo = (swapFee: SwapFee | undefined): SwapFeeInfo | undefined =>
   swapFee ? { ...swapFee, recipient: swapFee.recipient ?? '' } : undefined
@@ -233,7 +236,7 @@ const toSwapFeeInfo = (swapFee: SwapFee | undefined): SwapFeeInfo | undefined =>
 function useMarketPriceAndFee(
   inputCurrency: Currency | undefined,
   outputCurrency: Currency | undefined,
-): { marketPrice?: Price<Currency, Currency>; fee?: SwapFeeInfo } {
+): { marketPrice?: Price<Currency, Currency>; marketPriceRejected: boolean; fee?: SwapFeeInfo } {
   const skip =
     !(inputCurrency && outputCurrency) ||
     !LIMIT_SUPPORTED_CHAINS.includes(inputCurrency.chainId) ||
@@ -259,75 +262,66 @@ function useMarketPriceAndFee(
     isUSDQuote: true, // request classic quotes only for market price quote
   })
 
-  const marketPrice: Price<Currency, Currency> | undefined = useMemo(() => {
+  // USD prices feed the market-price cross-check in computeLimitMarketPrice; the loading flags
+  // let it defer the reference (rather than fail open) while a price is still resolving.
+  // A withheld-stale price mid-refetch (isStaleRefreshing: a returning user's rehydrated cache
+  // entry during its mount refetch) reports price: undefined with isLoading: false, but it is
+  // provisional, not settled-missing — fold it into the loading flag so that window defers too
+  // instead of skipping the cross-check open for one round-trip.
+  const {
+    price: usdPriceIn,
+    isLoading: usdPriceInIsLoading,
+    isStaleRefreshing: usdPriceInStaleRefreshing,
+  } = useUSDCPrice(skip ? undefined : inputCurrency)
+  const {
+    price: usdPriceOut,
+    isLoading: usdPriceOutIsLoading,
+    isStaleRefreshing: usdPriceOutStaleRefreshing,
+  } = useUSDCPrice(skip ? undefined : outputCurrency)
+  const usdPriceInLoading = usdPriceInIsLoading || usdPriceInStaleRefreshing
+  const usdPriceOutLoading = usdPriceOutIsLoading || usdPriceOutStaleRefreshing
+
+  const {
+    marketPrice,
+    referenceRejected: marketPriceRejected,
+    swapFee,
+    checkLogs,
+  } = useMemo((): LimitMarketPriceResult => {
     if (skip) {
-      return undefined
+      return { referenceRejected: false, checkLogs: [] }
     }
 
-    // if one of the currencies is ETH or WETH, just use the spot price from one of the Trade objects
-    if (isNativeOrWrappedNative(inputCurrency)) {
-      if (!tradeB?.outputAmount.currency.equals(outputCurrency) || !isClassic(tradeB)) {
-        return undefined
-      }
+    return computeLimitMarketPrice({
+      inputCurrency,
+      outputCurrency,
+      tradeA,
+      tradeB,
+      usdPriceIn,
+      usdPriceOut,
+      usdPriceInLoading,
+      usdPriceOutLoading,
+    })
+  }, [
+    inputCurrency,
+    outputCurrency,
+    skip,
+    tradeA,
+    tradeB,
+    usdPriceIn,
+    usdPriceOut,
+    usdPriceInLoading,
+    usdPriceOutLoading,
+  ])
 
-      const referencePrice = tradeB.executionPrice
-      // reconstruct Price object using correct currency between ETH or WETH
-      return new Price(inputCurrency, outputCurrency, referencePrice.denominator, referencePrice.numerator)
-    }
-
-    // same thing but for output currency being ETH or WETH
-    if (isNativeOrWrappedNative(outputCurrency)) {
-      if (!tradeA?.inputAmount.currency.equals(inputCurrency) || !isClassic(tradeA)) {
-        return undefined
-      }
-
-      const referencePrice = tradeA.executionPrice
-      return new Price(inputCurrency, outputCurrency, referencePrice.denominator, referencePrice.numerator)
-    }
-
-    // trade objects are still loading
-    if (!tradeA?.inputAmount.currency.equals(inputCurrency) || !tradeB?.outputAmount.currency.equals(outputCurrency)) {
-      return undefined
-    }
-
-    if (!isClassic(tradeA) || !isClassic(tradeB)) {
-      return undefined
-    }
-
-    // Combine spot prices of A -> ETH and ETH -> B to get a price for A -> B
-    return tradeA.executionPrice.multiply(tradeB.executionPrice)
-  }, [inputCurrency, outputCurrency, skip, tradeA, tradeB])
+  useLogMarketPriceReferenceChecks(checkLogs)
 
   const feesEnabled = useFeatureFlag(FeatureFlags.LimitsFees)
-  const fee = useMemo(() => {
-    if (!marketPrice || !inputCurrency || !outputCurrency || !feesEnabled) {
-      return undefined
-    }
+  // Which trade's fee applies is decided by the same branch that composed the market price
+  // (computeLimitMarketPrice.swapFee), so the two can't silently diverge.
+  const fee = useMemo(
+    () => (feesEnabled && marketPrice ? toSwapFeeInfo(swapFee) : undefined),
+    [feesEnabled, marketPrice, swapFee],
+  )
 
-    if (isNativeOrWrappedNative(inputCurrency)) {
-      if (!tradeB?.outputAmount.currency.equals(outputCurrency) || !isClassic(tradeB)) {
-        return undefined
-      }
-
-      return toSwapFeeInfo(tradeB.swapFee)
-    }
-
-    if (isNativeOrWrappedNative(outputCurrency)) {
-      if (!tradeA?.inputAmount.currency.equals(inputCurrency) || !isClassic(tradeA)) {
-        return undefined
-      }
-
-      return toSwapFeeInfo(tradeA.swapFee)
-    }
-
-    if (!tradeA || !tradeB) {
-      return undefined
-    }
-
-    // This currency pair is only eligible for fees iff both tradeA and tradeB are eligible for fees
-    const canTakeFees = tradeA.swapFee?.percent.greaterThan(0) && tradeB.swapFee?.percent.greaterThan(0)
-    return canTakeFees ? toSwapFeeInfo(tradeB.swapFee) : undefined
-  }, [inputCurrency, outputCurrency, marketPrice, tradeA, tradeB, feesEnabled])
-
-  return useMemo(() => ({ marketPrice, fee }), [marketPrice, fee])
+  return useMemo(() => ({ marketPrice, marketPriceRejected, fee }), [marketPrice, marketPriceRejected, fee])
 }

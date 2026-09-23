@@ -1,4 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
+import { Flex, iconSizes, SpinningLoader, Text, TouchableArea } from '@universe/mycelium'
+import { CheckboxCompat as Checkbox } from '@universe/mycelium/checkbox-compat'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { FileListCheck } from '@universe/mycelium/icons/FileListCheck'
+import { FileListLock } from '@universe/mycelium/icons/FileListLock'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
@@ -10,9 +15,6 @@ import { EnterPasswordModal } from 'src/app/features/settings/password/EnterPass
 import { SeedPhraseDisplay } from 'src/app/features/settings/SettingsRecoveryPhraseScreen/SeedPhraseDisplay'
 import { SettingsRecoveryPhrase } from 'src/app/features/settings/SettingsRecoveryPhraseScreen/SettingsRecoveryPhrase'
 import { useExtensionNavigation } from 'src/app/navigation/utils'
-import { Checkbox, Flex, SpinningLoader, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled, FileListCheck, FileListLock } from 'ui/src/components/icons'
-import { iconSizes } from 'ui/src/theme'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
 import { EditAccountAction, editAccountActions } from 'wallet/src/features/wallet/accounts/editAccountSaga'
@@ -130,7 +132,14 @@ function BackupRecoveryPhraseScreenSteps(): JSX.Element {
             <SeedPhraseDisplay mnemonicId={mnemonicId} expectedWordCount={expectedWordCount} />
 
             <TouchableArea onPress={toggleDisclaimer}>
-              <Flex gap="$spacing12" row backgroundColor="$surface2" borderRadius="$rounded12" p="$spacing12">
+              <Flex
+                alignItems="center"
+                gap="$spacing12"
+                row
+                backgroundColor="$surface2"
+                borderRadius="$rounded12"
+                p="$spacing12"
+              >
                 <Checkbox checked={isDisclaimerChecked} />
 
                 <Text color="$neutral2" variant="body3">

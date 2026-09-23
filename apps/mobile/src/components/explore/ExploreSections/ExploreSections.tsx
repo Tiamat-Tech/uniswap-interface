@@ -1,28 +1,29 @@
-import { LegendList, type LegendListRef } from '@legendapp/list/react-native'
 import { useScrollToTop } from '@react-navigation/native'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import type { UniverseChainId } from '@universe/chains'
+import { useIsTokenCategoriesEnabled } from '@universe/gating'
+import {
+  Flex,
+  Loader,
+  Text,
+  UniversalList,
+  type UniversalListRef,
+  type UniversalListScrollEvent,
+  type UniversalListStyle,
+} from '@universe/mycelium'
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-} from 'react-native'
+import { ScrollView, StyleSheet, useWindowDimensions } from 'react-native'
 import type { AnimatedRef } from 'react-native-reanimated'
 import Sortable from 'react-native-sortables'
 import { useDispatch, useSelector } from 'react-redux'
 import { ESTIMATED_BOTTOM_TABS_HEIGHT } from 'src/app/navigation/tabs/CustomTabBar/constants'
 import { ExploreScreenParams } from 'src/app/navigation/types'
 import { StartEarningSection } from 'src/components/earn/StartEarningSection'
+import { CollectionsSection } from 'src/components/explore/ExploreSections/CollectionsSection'
 import {
-  type ExploreListItem,
-  EXPLORE_LIST_DRAW_ROWS,
-  EXPLORE_LIST_INITIAL_ITEM_COUNT,
-  EXPLORE_LIST_ITEM_REVEAL_STEP,
   EXPLORE_LIST_TRAILING_SKELETON_COUNT,
   EXPLORE_SKELETON_LIST_ITEMS,
+  EXPLORE_TOKEN_CONTAINER_PROPS,
   EXPLORE_TOKEN_ROW_HEIGHT,
   exploreListItemKey,
   exploreListItemsAreEqual,
@@ -30,18 +31,20 @@ import {
   getExploreListItemType,
   scheduleAfterPaint,
   tokenItemDataKey,
+  WINDOW_MULTIPLIER,
+  type ExploreListItem,
 } from 'src/components/explore/ExploreSections/exploreListItems'
+import { ExploreSectionHeader } from 'src/components/explore/ExploreSections/ExploreSectionHeader'
 import { FavoritesSection } from 'src/components/explore/ExploreSections/FavoritesSection'
 import { NetworkPills, NetworkPillsProps } from 'src/components/explore/ExploreSections/NetworkPillsRow'
+import { TrendingSection } from 'src/components/explore/ExploreSections/TrendingSection'
 import { useExploreTokenItems } from 'src/components/explore/ExploreSections/useExploreTokenItems'
 import { FavoritesSortingStoreProvider, useIsSortingFavorites } from 'src/components/explore/favoritesSortingStore'
 import { SortButton } from 'src/components/explore/SortButton'
 import { TokenItem } from 'src/components/explore/TokenItem'
-import { Flex, Loader, Text } from 'ui/src'
 import { NoTokens } from 'ui/src/components/icons'
 import { spacing } from 'ui/src/theme'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useMultichainExploreMetricsAnalytics } from 'uniswap/src/features/explore/useMultichainExploreMetricsAnalytics'
 import { MobileEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -77,11 +80,10 @@ function ExploreSectionsInner({
   // Network filtering
   const [selectedNetwork, setSelectedNetwork] = useState<UniverseChainId | null>(null)
 
-  const [drawnItemCount, setDrawnItemCount] = useState(EXPLORE_LIST_INITIAL_ITEM_COUNT)
   const [hasPaintedSkeleton, setHasPaintedSkeleton] = useState(false)
 
   // Track scroll position for double-tap behavior
-  const handleScroll = useEvent((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const handleScroll = useEvent((event: UniversalListScrollEvent) => {
     if (!setIsAtTopOnScroll) {
       return
     }
@@ -97,11 +99,8 @@ function ExploreSectionsInner({
     }
   }, [chainId, onOrderByChange, orderByMetric])
 
-  const isMultichainPath = selectedNetwork === null
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
-
   const { topTokenItems, hasData, isLoading, error, refetch, isFetching, fetchNextPage, hasNextPage } =
-    useExploreTokenItems({ selectedNetwork, isMultichainPath, orderBy, isV2TokensEnabled })
+    useExploreTokenItems({ selectedNetwork, orderBy })
 
   const isInitialLoading = useInitialLoadingState(isLoading)
   const isSortingFavorites = useIsSortingFavorites()
@@ -118,13 +117,13 @@ function ExploreSectionsInner({
 
   usePerformanceLogger(DDRumManualTiming.RenderExploreSections, [selectedNetwork, orderBy])
 
-  const legendListRef = useRef<LegendListRef>(null)
+  const universalListRef = useRef<UniversalListRef>(null)
 
   const scrollToTop = useEvent(() => {
-    void legendListRef.current?.scrollToOffset({ offset: 0, animated: true })
+    universalListRef.current?.scrollToOffset({ offset: 0, animated: true })
   })
 
-  useScrollToTop(legendListRef)
+  useScrollToTop(universalListRef)
 
   useEffect(() => {
     onScrollToTopReady?.(scrollToTop)
@@ -150,19 +149,8 @@ function ExploreSectionsInner({
   const showFullScreenLoadingState =
     !hasPaintedSkeleton || (!hasData && isLoadingOrFetching) || (!!error && isLoadingOrFetching)
 
-  useEffect(() => {
-    setDrawnItemCount(EXPLORE_LIST_INITIAL_ITEM_COUNT)
-  }, [orderBy, selectedNetwork])
-
-  // Reduce initial load time by partially drawing items
-  const allItemsRevealed = drawnItemCount >= topTokenItems.length
-
   const onEndReached = useEvent((): void => {
     if (showFullScreenLoadingState) {
-      return
-    }
-    if (!allItemsRevealed) {
-      setDrawnItemCount((count) => Math.min(count + EXPLORE_LIST_ITEM_REVEAL_STEP, topTokenItems.length))
       return
     }
     // v1's hasNextPage is always false, so this only ever fires under v2 ListTokens' real pagination.
@@ -178,7 +166,7 @@ function ExploreSectionsInner({
 
     // Generate unique key; using an index in it causes recycling state bugs.
     const seenCounts = new Map<string, number>()
-    return topTokenItems.slice(0, drawnItemCount).map((item): ExploreListItem => {
+    return topTokenItems.map((item): ExploreListItem => {
       const baseKey = tokenItemDataKey(item.tokenItemData)
       const count = seenCounts.get(baseKey) ?? 0
       seenCounts.set(baseKey, count + 1)
@@ -189,13 +177,14 @@ function ExploreSectionsInner({
         ...item,
       }
     })
-  }, [showFullScreenLoadingState, topTokenItems, drawnItemCount])
+  }, [showFullScreenLoadingState, topTokenItems])
 
-  const contentContainerStyle = useMemo(() => {
-    return {
-      paddingBottom: ESTIMATED_BOTTOM_TABS_HEIGHT + spacing.spacing32 + insets.bottom,
-    }
-  }, [insets.bottom])
+  // Memoized at the wrapper, not its contents: the prop receives this object, so memoizing only the
+  // inner style would hand `UniversalList` a fresh identity every render anyway.
+  const contentContainerStyle = useMemo<UniversalListStyle>(
+    () => ({ style: { paddingBottom: ESTIMATED_BOTTOM_TABS_HEIGHT + spacing.spacing32 + insets.bottom } }),
+    [insets.bottom],
+  )
 
   const listEmptyComponent = useMemo(() => {
     if (showFullScreenLoadingState || topTokenItems.length > 0) {
@@ -205,8 +194,9 @@ function ExploreSectionsInner({
     return <TokenListEmptyComponent />
   }, [showFullScreenLoadingState, topTokenItems.length])
 
+  // Trailing skeletons while v2 is fetching the next page
   const listFooter = useMemo(() => {
-    if (showFullScreenLoadingState || allItemsRevealed) {
+    if (showFullScreenLoadingState || !hasNextPage || !isFetching) {
       return null
     }
 
@@ -219,7 +209,7 @@ function ExploreSectionsInner({
         ))}
       </Flex>
     )
-  }, [showFullScreenLoadingState, allItemsRevealed])
+  }, [showFullScreenLoadingState, hasNextPage, isFetching])
 
   const renderItem = useCallback(({ item, index }: { item: ExploreListItem; index: number }): JSX.Element => {
     if (item.rowType === 'skeleton') {
@@ -236,6 +226,7 @@ function ExploreSectionsInner({
         index={index}
         metadataDisplayType={item.tokenMetadataDisplayType}
         tokenItemData={item.tokenItemData}
+        containerProps={EXPLORE_TOKEN_CONTAINER_PROPS}
       />
     )
   }, [])
@@ -269,30 +260,30 @@ function ExploreSectionsInner({
 
   return (
     <Flex fill animation="100ms">
-      <LegendList
-        ref={legendListRef}
+      <UniversalList
+        ref={universalListRef}
         recycleItems
-        refScrollView={listRef}
-        scrollEnabled={!isSortingFavorites}
+        contentContainerStyle={contentContainerStyle}
+        data={listData}
+        drawDistance={dimensions.height * WINDOW_MULTIPLIER}
+        estimatedItemSize={EXPLORE_TOKEN_ROW_HEIGHT}
+        estimatedListSize={dimensions}
+        getFixedItemSize={getExploreListItemSize}
+        getItemType={getExploreListItemType}
         itemsAreEqual={exploreListItemsAreEqual}
+        keyExtractor={exploreListItemKey}
         ListEmptyComponent={listEmptyComponent}
         ListFooterComponent={listFooter}
         ListHeaderComponent={listHeader}
-        ListHeaderComponentStyle={styles.foreground}
-        contentContainerStyle={contentContainerStyle}
-        data={listData}
-        keyExtractor={exploreListItemKey}
+        ListHeaderComponentStyle={LIST_HEADER_STYLE}
+        refScrollView={listRef}
         renderItem={renderItem}
-        getItemType={getExploreListItemType}
-        getFixedItemSize={getExploreListItemSize}
+        scrollEnabled={!isSortingFavorites}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        estimatedItemSize={EXPLORE_TOKEN_ROW_HEIGHT}
-        drawDistance={EXPLORE_TOKEN_ROW_HEIGHT * EXPLORE_LIST_DRAW_ROWS}
-        estimatedListSize={dimensions}
-        onScroll={handleScroll}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.3}
+        onScroll={handleScroll}
       />
     </Flex>
   )
@@ -303,6 +294,9 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 })
+
+/** Module-level so the prop identity is fixed for the process — nothing in it depends on render state. */
+const LIST_HEADER_STYLE: UniversalListStyle = { style: styles.foreground }
 
 type ListHeaderProps = {
   listRef: AnimatedRef<ScrollView>
@@ -320,19 +314,35 @@ const ListHeader = memo(function ListHeader({
   onOrderByChange,
 }: ListHeaderProps): JSX.Element {
   const { t } = useTranslation()
+  // Flag off preserves today's exact section layout; on switches to the standardized
+  // Favorites / Trending / Collections / Top tokens order and header treatment.
+  const tokenCategoriesEnabled = useIsTokenCategoriesEnabled()
 
   return (
     <Sortable.Layer>
       {showFavorites && <FavoritesSection showLoading={showLoading} listRef={listRef} />}
       <StartEarningSection />
-      <Flex row alignItems="center" justifyContent="space-between" px="$spacing12">
-        <Text color="$neutral2" flexShrink={0} paddingEnd="$spacing8" variant="subheading1">
-          {t('explore.tokens.top.title')}
-        </Text>
-        <Flex flexShrink={1}>
-          <SortButton orderBy={orderBy} onOrderByChange={onOrderByChange} />
+      <TrendingSection />
+      <CollectionsSection />
+      {tokenCategoriesEnabled ? (
+        <ExploreSectionHeader
+          title={t('explore.tokens.top.title')}
+          rightElement={
+            <Flex flexShrink={1}>
+              <SortButton orderBy={orderBy} onOrderByChange={onOrderByChange} />
+            </Flex>
+          }
+        />
+      ) : (
+        <Flex row alignItems="center" justifyContent="space-between" px="$spacing12">
+          <Text color="$neutral2" flexShrink={0} paddingEnd="$spacing8" variant="subheading1">
+            {t('explore.tokens.top.title')}
+          </Text>
+          <Flex flexShrink={1}>
+            <SortButton orderBy={orderBy} onOrderByChange={onOrderByChange} />
+          </Flex>
         </Flex>
-      </Flex>
+      )}
     </Sortable.Layer>
   )
 })

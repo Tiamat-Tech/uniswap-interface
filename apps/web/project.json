@@ -65,8 +65,14 @@
       }
     },
     "check": {},
-    "check:bundle-size": {
-      "command": "bun ./scripts/check-bundle-size.ts",
+    "check:client-build": {
+      "command": "bun ./scripts/check-client-build.ts",
+      "options": {
+        "cwd": "{projectRoot}"
+      }
+    },
+    "parity": {
+      "command": "bun ./functions/parity/runParity.ts",
       "options": {
         "cwd": "{projectRoot}"
       }

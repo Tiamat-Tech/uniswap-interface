@@ -2,7 +2,7 @@ import React from 'react'
 import { useParams } from 'react-router'
 import { dismissTokenWarning } from 'uniswap/src/features/tokens/warnings/slice/slice'
 import { TokenProtectionWarning } from 'uniswap/src/features/tokens/warnings/types'
-import { usePoolData } from '~/data/pools/usePoolData'
+import { useLiquidityServicePoolData } from '~/data/pools/useLiquidityServicePoolData'
 import { PoolDetailsPage as PoolDetails } from '~/pages/PoolDetails'
 import store from '~/state'
 import { mocked } from '~/test-utils/mocked'
@@ -22,11 +22,11 @@ vi.mock('react-router', async () => {
   }
 })
 
-vi.mock('~/data/pools/usePoolData', async () => {
-  const actual = await vi.importActual('~/data/pools/usePoolData')
+vi.mock('~/data/pools/useLiquidityServicePoolData', async () => {
+  const actual = await vi.importActual('~/data/pools/useLiquidityServicePoolData')
   return {
     ...actual,
-    usePoolData: vi.fn(),
+    useLiquidityServicePoolData: vi.fn(),
   }
 })
 
@@ -57,7 +57,7 @@ describe('PoolDetailsPage', () => {
     vi.clearAllMocks()
 
     mocked(useParams).mockReturnValue(validParams)
-    mocked(usePoolData).mockReturnValue(validPoolDataResponse)
+    mocked(useLiquidityServicePoolData).mockReturnValue(validPoolDataResponse)
     store.dispatch(
       dismissTokenWarning({
         token: {
@@ -124,7 +124,7 @@ describe('PoolDetailsPage', () => {
   })
 
   it('navigates to not found page when no data is received from backend', async () => {
-    mocked(usePoolData).mockReturnValue({
+    mocked(useLiquidityServicePoolData).mockReturnValue({
       data: undefined,
       loading: false,
       error: false,

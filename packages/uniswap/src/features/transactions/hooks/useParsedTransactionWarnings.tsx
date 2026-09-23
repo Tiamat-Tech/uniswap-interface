@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { Wifi } from 'ui/src/components/icons/Wifi'
-import { AppTFunction } from 'ui/src/i18n/types'
 import { getAlertColor } from 'uniswap/src/components/modals/WarningModal/getAlertColor'
 import {
   ParsedWarnings,
@@ -10,6 +9,7 @@ import {
   WarningSeverity,
   WarningWithStyle,
 } from 'uniswap/src/components/modals/WarningModal/types'
+import { AppTFunction } from 'utilities/src/i18n/types'
 
 export function isPriceImpactWarning(warning: Warning): boolean {
   return warning.type === WarningLabel.PriceDifferenceMedium || warning.type === WarningLabel.PriceDifferenceHigh

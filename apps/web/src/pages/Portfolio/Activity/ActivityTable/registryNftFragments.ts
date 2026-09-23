@@ -1,9 +1,9 @@
+import { getValidAddress } from '@universe/chains'
 import {
   NFTMintTransactionInfo,
   NFTTradeTransactionInfo,
   NFTTradeType,
 } from 'uniswap/src/features/transactions/types/transactionDetails'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { ActivityRowFragments } from '~/pages/Portfolio/Activity/ActivityTable/activityTableModels'
 import { toProtocolInfo } from '~/pages/Portfolio/Activity/ActivityTable/protocolInfo'
 import { ActivityFilterType } from '~/pages/Portfolio/Activity/Filters/activityFilterTypes'

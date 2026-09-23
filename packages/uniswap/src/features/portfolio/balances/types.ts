@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { PollingInterval } from 'uniswap/src/constants/misc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { BaseResult, PortfolioBalance, PortfolioMultichainBalance } from 'uniswap/src/features/dataApi/types'
 
 export type SortedPortfolioBalances = {

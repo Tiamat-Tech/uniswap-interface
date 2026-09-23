@@ -1,10 +1,12 @@
-import { Currency, CurrencyAmount, Percent, Price } from '@uniswap/sdk-core'
+import { Currency, CurrencyAmount, Price } from '@uniswap/sdk-core'
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
-import { Flex, Text, useExtractedTokenColor, useSporeColors } from 'ui/src'
+import { useExtractedTokenColor, useSporeColors } from 'ui/src'
 import { iconSizes } from 'ui/src/theme'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { getExactSharePercent } from 'uniswap/src/features/positions/utils'
 import { NumberType } from 'utilities/src/format/types'
 
 interface PositionTokenBreakdownProps {
@@ -37,11 +39,9 @@ function getToken0Percent({
   }
   try {
     const amount0InToken1 = token0Price.quote(amount0)
-    const total = amount0InToken1.add(amount1)
-    if (!total.greaterThan(0)) {
-      return undefined
-    }
-    return Number(new Percent(amount0InToken1.quotient, total.quotient).toFixed(4))
+    // getExactSharePercent already returns undefined for a non-positive total.
+    const percent = getExactSharePercent(amount0InToken1, amount0InToken1.add(amount1))
+    return percent === undefined ? undefined : Number(percent.toFixed(4))
   } catch {
     return undefined
   }
@@ -108,8 +108,12 @@ export function PositionTokenBreakdown({
               </Flex>
 
               <Flex row borderRadius="$roundedFull" gap="$spacing2" height={8} overflow="hidden" width="100%">
-                <Flex height="100%" style={{ backgroundColor: color0, width: `${percent0}%` }} />
-                <Flex flex={1} height="100%" style={{ backgroundColor: color1 }} />
+                {amount0.greaterThan(0) && (
+                  <Flex flex={percent0} height="100%" minWidth="$spacing4" style={{ backgroundColor: color0 }} />
+                )}
+                {amount1.greaterThan(0) && (
+                  <Flex flex={percent1} height="100%" minWidth="$spacing4" style={{ backgroundColor: color1 }} />
+                )}
               </Flex>
             </>
           )}

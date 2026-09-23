@@ -1,34 +1,27 @@
 import { ErrorBoundary as DatadogErrorBoundary } from '@datadog/browser-rum-react'
+import { Button, Flex, Switch, Text, TouchableArea } from '@universe/mycelium'
+import { CopyAlt } from '@universe/mycelium/icons/CopyAlt'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
+import { styled } from '@universe/mycelium/styled'
 import { type PropsWithChildren, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Switch, Text, TouchableArea } from 'ui/src'
-import { CopyAlt } from 'ui/src/components/icons/CopyAlt'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { CopyToClipboard } from 'uniswap/src/components/CopyHelper/CopyHelper'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { logger } from 'utilities/src/logger/logger'
 import { useIsMobile } from '~/hooks/screenSize/useIsMobile'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 import { persistor } from '~/state'
 import { useAppStateResetter } from '~/state/reset/appResetter'
 import { ExternalLink } from '~/theme/components/Links'
 
-const Code = deprecatedStyled.code`
-  font-weight: 485;
-  font-size: 12px;
-  line-height: 16px;
-  word-wrap: break-word;
-  width: 100%;
-  color: ${({ theme }) => theme.neutral1};
-  font-family: ${({ theme }) => theme.fonts.code};
-  overflow: scroll;
-  max-height: calc(100vh - 450px);
-  -webkit-overflow-scrolling: touch;
-`
+const Code = styled('code', {
+  platform: 'web',
+  base: 'font-[485] text-[12px] [line-height:16px] [word-wrap:break-word] w-full text-neutral1 [font-family:courier,courier_new,serif] overflow-scroll max-h-[calc(100vh-450px)] [-webkit-overflow-scrolling:touch]',
+})
 
-const Separator = deprecatedStyled.div`
-  border-bottom: 1px solid ${({ theme }) => theme.surface3};
-`
+const Separator = styled('div', {
+  platform: 'web',
+  base: 'border-b border-surface3',
+})
 
 const Fallback = ({ error, eventId }: { error: Error; eventId: string | null }) => {
   const { t } = useTranslation()
@@ -146,7 +139,7 @@ function ErrorDetailsSection({ errorDetails, eventId }: { errorDetails: string; 
           </CopyToClipboard>
         </Flex>
         <Separator />
-        <Flex my="spacing12" gap="$spacing8">
+        <Flex my="$spacing12" gap="$spacing8">
           <Code>{errorDetails.split('\n').slice(0, isExpanded ? undefined : 4)}</Code>
           <Separator />
         </Flex>

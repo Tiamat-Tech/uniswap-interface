@@ -1,5 +1,5 @@
 import { TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import {
   NFTTradeType,
   TransactionOriginType,
@@ -129,53 +129,6 @@ describe('buildActivityRowFragments', () => {
     expect(fragments.typeLabel).toEqual({
       baseGroup: ActivityFilterType.Receives,
       overrideLabelKey: 'transaction.status.withdraw.interrupted',
-    })
-  })
-
-  it('falls back to generic plan fragments when Earn activity display is disabled', () => {
-    const fragments = buildActivityRowFragments(
-      createEarnPlanTransaction({ earnAction: TradingApi.EarnAction.DEPOSIT }),
-      { isEarnActivityDisplayEnabled: false },
-    )
-
-    const currencyId = buildCurrencyId(UniverseChainId.Mainnet, DAI_ADDRESS)
-    expect(fragments.amount).toEqual({
-      kind: 'pair',
-      inputCurrencyId: currencyId,
-      outputCurrencyId: currencyId,
-      inputAmountRaw: '1000000',
-      outputAmountRaw: '900000',
-    })
-    expect(fragments.typeLabel).toEqual({
-      baseGroup: ActivityFilterType.Swaps,
-      overrideLabelKey: 'transaction.status.plan.interruptedShort',
-    })
-  })
-
-  it('does not reuse cached Earn fragments after the display gate changes', () => {
-    const id = 'plan-cache-display-gate'
-    const earnFragments = buildActivityRowFragments(
-      createEarnPlanTransaction({
-        earnAction: TradingApi.EarnAction.DEPOSIT,
-        id,
-      }),
-      { isEarnActivityDisplayEnabled: true },
-    )
-    const genericFragments = buildActivityRowFragments(
-      createEarnPlanTransaction({
-        earnAction: TradingApi.EarnAction.DEPOSIT,
-        id,
-      }),
-      { isEarnActivityDisplayEnabled: false },
-    )
-
-    expect(earnFragments.typeLabel).toEqual({
-      baseGroup: ActivityFilterType.Sends,
-      overrideLabelKey: 'transaction.status.deposit.interrupted',
-    })
-    expect(genericFragments.typeLabel).toEqual({
-      baseGroup: ActivityFilterType.Swaps,
-      overrideLabelKey: 'transaction.status.plan.interruptedShort',
     })
   })
 

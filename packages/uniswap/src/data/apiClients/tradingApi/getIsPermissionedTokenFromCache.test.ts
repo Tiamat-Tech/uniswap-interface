@@ -1,6 +1,9 @@
 import { QueryClient } from '@tanstack/react-query'
 import { V1_TRADING_API_PATHS, type CheckPermissionsResponse } from '@universe/api'
-import { getIsPermissionedTokenFromCache } from 'uniswap/src/data/apiClients/tradingApi/getIsPermissionedTokenFromCache'
+import {
+  getIsPermissionedStatusFromCache,
+  getIsPermissionedTokenFromCache,
+} from 'uniswap/src/data/apiClients/tradingApi/getIsPermissionedTokenFromCache'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
 const CHAIN_ID = 11155111
@@ -199,5 +202,115 @@ describe('getIsPermissionedTokenFromCache', () => {
     expect(
       getIsPermissionedTokenFromCache({ queryClient, tokenAddresses: [PERMISSIONED_TOKEN], chainId: undefined }),
     ).toBe(false)
+  })
+})
+
+describe('getIsPermissionedStatusFromCache', () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    queryClient = new QueryClient()
+  })
+
+  it('returns true when a request token is resolved permissioned', () => {
+    seedPermissions({ queryClient, tokens: [PERMISSIONED_TOKEN], chainId: CHAIN_ID, response: permissionedResponse })
+
+    expect(
+      getIsPermissionedStatusFromCache({ queryClient, tokenAddresses: [PERMISSIONED_TOKEN], chainId: CHAIN_ID }),
+    ).toBe(true)
+  })
+
+  it('returns true when one token is permissioned even if the other is unresolved', () => {
+    seedPermissions({ queryClient, tokens: [PERMISSIONED_TOKEN], chainId: CHAIN_ID, response: permissionedResponse })
+
+    expect(
+      getIsPermissionedStatusFromCache({
+        queryClient,
+        tokenAddresses: [PERMISSIONED_TOKEN, STANDARD_TOKEN],
+        chainId: CHAIN_ID,
+      }),
+    ).toBe(true)
+  })
+
+  it('returns true from the persisted known-permissioned cache', () => {
+    queryClient.setQueryData<boolean>(
+      [ReactQueryCacheKey.PermissionedTokenStatus, CHAIN_ID, PERMISSIONED_TOKEN.toLowerCase()],
+      true,
+    )
+
+    expect(
+      getIsPermissionedStatusFromCache({ queryClient, tokenAddresses: [PERMISSIONED_TOKEN], chainId: CHAIN_ID }),
+    ).toBe(true)
+  })
+
+  it('returns false when every token is resolved and none is permissioned', () => {
+    seedPermissions({
+      queryClient,
+      tokens: [STANDARD_TOKEN, PERMISSIONED_TOKEN_2],
+      chainId: CHAIN_ID,
+      response: {
+        requestId: 'req-4',
+        results: [
+          { token: STANDARD_TOKEN, isPermissioned: false },
+          { token: PERMISSIONED_TOKEN_2, isPermissioned: false },
+        ],
+      },
+    })
+
+    expect(
+      getIsPermissionedStatusFromCache({
+        queryClient,
+        tokenAddresses: [STANDARD_TOKEN, PERMISSIONED_TOKEN_2],
+        chainId: CHAIN_ID,
+      }),
+    ).toBe(false)
+  })
+
+  it('returns undefined when nothing is cached', () => {
+    expect(
+      getIsPermissionedStatusFromCache({ queryClient, tokenAddresses: [STANDARD_TOKEN], chainId: CHAIN_ID }),
+    ).toBeUndefined()
+  })
+
+  it('returns undefined when only some tokens are resolved (and none permissioned)', () => {
+    seedPermissions({
+      queryClient,
+      tokens: [STANDARD_TOKEN],
+      chainId: CHAIN_ID,
+      response: { requestId: 'req-5', results: [{ token: STANDARD_TOKEN, isPermissioned: false }] },
+    })
+
+    expect(
+      getIsPermissionedStatusFromCache({
+        queryClient,
+        tokenAddresses: [STANDARD_TOKEN, PERMISSIONED_TOKEN_2],
+        chainId: CHAIN_ID,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('ignores results cached for a different chain', () => {
+    seedPermissions({
+      queryClient,
+      tokens: [STANDARD_TOKEN],
+      chainId: 1,
+      response: { requestId: 'req-6', results: [{ token: STANDARD_TOKEN, isPermissioned: false }] },
+    })
+
+    expect(
+      getIsPermissionedStatusFromCache({ queryClient, tokenAddresses: [STANDARD_TOKEN], chainId: CHAIN_ID }),
+    ).toBeUndefined()
+  })
+
+  it('returns undefined for empty token list or missing chainId', () => {
+    seedPermissions({ queryClient, tokens: [PERMISSIONED_TOKEN], chainId: CHAIN_ID, response: permissionedResponse })
+
+    expect(getIsPermissionedStatusFromCache({ queryClient, tokenAddresses: [], chainId: CHAIN_ID })).toBeUndefined()
+    expect(
+      getIsPermissionedStatusFromCache({ queryClient, tokenAddresses: [undefined], chainId: CHAIN_ID }),
+    ).toBeUndefined()
+    expect(
+      getIsPermissionedStatusFromCache({ queryClient, tokenAddresses: [PERMISSIONED_TOKEN], chainId: undefined }),
+    ).toBeUndefined()
   })
 })

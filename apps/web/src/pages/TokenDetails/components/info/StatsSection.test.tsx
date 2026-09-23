@@ -1,29 +1,25 @@
-import { useFeatureFlag } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
 import { USDC_MAINNET } from 'uniswap/src/constants/tokens'
 import { useTokenMarketStats, useTokenSpotPrice } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { StatsSection } from '~/pages/TokenDetails/components/info/StatsSection'
+import type { TDPState } from '~/pages/TokenDetails/context/createTDPStore'
+import { useTDPStore } from '~/pages/TokenDetails/context/useTDPStore'
 import { useTDPEffectiveCurrency } from '~/pages/TokenDetails/hooks/useTDPEffectiveCurrency'
-import { useTDPPreferProjectMarketData } from '~/pages/TokenDetails/hooks/useTDPPreferProjectMarketData'
-import { useTDPStatsMarketSource } from '~/pages/TokenDetails/hooks/useTDPStatsMarketSource'
+import { useTDPMultichainAggregate } from '~/pages/TokenDetails/hooks/useTDPMultichainAggregate'
 import { mocked } from '~/test-utils/mocked'
 import { render, screen } from '~/test-utils/render'
-
-vi.mock('@universe/gating', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@universe/gating')>()),
-  useFeatureFlag: vi.fn(),
-}))
 
 vi.mock('~/pages/TokenDetails/hooks/useTDPEffectiveCurrency', () => ({
   useTDPEffectiveCurrency: vi.fn(),
 }))
 
-vi.mock('~/pages/TokenDetails/hooks/useTDPStatsMarketSource', () => ({
-  useTDPStatsMarketSource: vi.fn(),
+vi.mock('~/pages/TokenDetails/hooks/useTDPMultichainAggregate', () => ({
+  useTDPMultichainAggregate: vi.fn(),
 }))
 
-vi.mock('~/pages/TokenDetails/hooks/useTDPPreferProjectMarketData', () => ({
-  useTDPPreferProjectMarketData: vi.fn(),
+vi.mock('~/pages/TokenDetails/context/useTDPStore', () => ({
+  useTDPStore: vi.fn(),
 }))
 
 vi.mock('uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData', async (importOriginal) => ({
@@ -36,7 +32,6 @@ const POPULATED_STATS = {
   marketCap: 5_000_000_000,
   fdv: 10_000_000_000,
   volume: 250_000_000,
-  volumeSource: 'market' as const,
   high52w: 12.34,
   low52w: 4.56,
   tvl: 1_000_000_000,
@@ -47,29 +42,24 @@ const EMPTY_STATS = {
   marketCap: undefined,
   fdv: undefined,
   volume: undefined,
-  volumeSource: undefined,
   high52w: undefined,
   low52w: undefined,
   tvl: undefined,
   isLoading: false,
 }
 
-const MARKET_SOURCE_AGGREGATED = {
-  showAggregatedStats: true,
-  isMultichainAggregateView: true,
-  filteredDeploymentMarket: undefined,
-  networkFilterName: '',
-  marketStatsInput: undefined,
-  multichainId: undefined,
+function mockTDPState(state: Partial<TDPState>): void {
+  mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
+    selector(state as TDPState)) as typeof useTDPStore)
 }
 
 describe('StatsSection', () => {
   beforeEach(() => {
-    mocked(useFeatureFlag).mockReturnValue(false)
+    vi.clearAllMocks()
     mocked(useTDPEffectiveCurrency).mockReturnValue(USDC_MAINNET)
     mocked(useTokenSpotPrice).mockReturnValue(undefined)
-    mocked(useTDPStatsMarketSource).mockReturnValue(MARKET_SOURCE_AGGREGATED)
-    mocked(useTDPPreferProjectMarketData).mockReturnValue(false)
+    mocked(useTDPMultichainAggregate).mockReturnValue({ isMultichainAggregateView: true })
+    mockTDPState({ selectedMultichainChainId: undefined })
   })
 
   it('renders the stats wrapper and all stat tiles when market data is populated', () => {
@@ -79,11 +69,7 @@ describe('StatsSection', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mocked(useTokenMarketStats).mockReturnValue(POPULATED_STATS)
 
-    const tokenQueryData = {
-      market: { totalValueLocked: { value: 1_000_000_000 } },
-    }
-
-    render(<StatsSection tokenQueryData={tokenQueryData as never} />)
+    render(<StatsSection />)
 
     expect(screen.getByTestId(TestID.TokenDetailsStats)).toBeVisible()
     expect(screen.getByTestId(TestID.TokenDetailsStatsTvl)).toHaveTextContent('$')
@@ -94,36 +80,11 @@ describe('StatsSection', () => {
     expect(screen.getByTestId(TestID.TokenDetailsStats52wLow)).toHaveTextContent('$')
   })
 
-  // The Robinhood fallback: V2 is effectively on (and omits both) while TokenWeb data is still present.
-  it('fills market cap and FDV from the legacy project market when effective V2 omits them', () => {
+  it('renders market cap and FDV from the REST market stats', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    mocked(useFeatureFlag).mockReturnValue(true)
-    mocked(useTokenMarketStats).mockReturnValue({ ...EMPTY_STATS, tvl: 1_000_000_000 })
-
-    const tokenQueryData = {
-      project: {
-        markets: [{ marketCap: { value: 1_234_576 }, fullyDilutedValuation: { value: 234_567 } }],
-      },
-    }
-
-    render(<StatsSection tokenQueryData={tokenQueryData as never} />)
-
-    expect(screen.getByTestId(`${TestID.TokenDetailsStatsMarketCap}-value`)).toHaveTextContent('$1.2M')
-    expect(screen.getByTestId(`${TestID.TokenDetailsStatsFdv}-value`)).toHaveTextContent('$234.6K')
-  })
-
-  it('prefers V2-sourced market cap and FDV over the legacy project market', () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    mocked(useFeatureFlag).mockReturnValue(true)
     mocked(useTokenMarketStats).mockReturnValue({ ...EMPTY_STATS, marketCap: 1_234_576, fdv: 234_567 })
 
-    const tokenQueryData = {
-      project: {
-        markets: [{ marketCap: { value: 9_000_000_000 }, fullyDilutedValuation: { value: 9_000_000_000 } }],
-      },
-    }
-
-    render(<StatsSection tokenQueryData={tokenQueryData as never} />)
+    render(<StatsSection />)
 
     expect(screen.getByTestId(`${TestID.TokenDetailsStatsMarketCap}-value`)).toHaveTextContent('$1.2M')
     expect(screen.getByTestId(`${TestID.TokenDetailsStatsFdv}-value`)).toHaveTextContent('$234.6K')
@@ -132,72 +93,56 @@ describe('StatsSection', () => {
   it('shows the "no stats available" fallback when every stat is missing', () => {
     mocked(useTokenMarketStats).mockReturnValue(EMPTY_STATS)
 
-    render(<StatsSection tokenQueryData={undefined} />)
+    render(<StatsSection />)
 
     expect(screen.queryByTestId(TestID.TokenDetailsStats)).toBeNull()
     expect(screen.getByText('No stats available')).toBeVisible()
   })
 
   it('renders the loading skeleton instead of the "no stats available" fallback while the market query is loading', () => {
-    mocked(useTokenMarketStats).mockReturnValue(EMPTY_STATS)
+    mocked(useTokenMarketStats).mockReturnValue({ ...EMPTY_STATS, isLoading: true })
 
-    render(<StatsSection tokenQueryData={undefined} isLoading />)
+    render(<StatsSection />)
 
     expect(screen.getByTestId('token-details-stats-loading')).toBeVisible()
     expect(screen.queryByTestId(TestID.TokenDetailsStats)).toBeNull()
     expect(screen.queryByText('No stats available')).toBeNull()
   })
 
-  it('prefers project market data for RWA tokens', () => {
+  it('uses the REST spot price directly on the all-networks view', () => {
+    // REST has no cross-chain aggregate price endpoint, so the per-chain REST price is
+    // authoritative even on the aggregate view.
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    mocked(useTDPPreferProjectMarketData).mockReturnValue(true)
     mocked(useTokenSpotPrice).mockReturnValue(123)
     mocked(useTokenMarketStats).mockReturnValue(POPULATED_STATS)
 
-    render(<StatsSection tokenQueryData={undefined} />)
+    render(<StatsSection />)
 
-    expect(useTokenSpotPrice).toHaveBeenCalledWith(expect.any(String), {
-      preferProjectMarketData: true,
-      isMultichainAggregateView: true,
-    })
+    expect(useTokenSpotPrice).toHaveBeenCalledWith(expect.any(String), { isMultichainAggregateView: true })
     expect(useTokenMarketStats).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         currentPriceOverride: 123,
-        preferProjectMarketData: true,
+        isMultichainAggregateView: true,
       }),
     )
   })
 
-  it('discards the per-chain spot price on the all-networks view when V2 tokens are disabled', () => {
-    // Matches the chart header: legacy GraphQL has no cross-chain aggregate price, so the
-    // per-chain price is discarded here too rather than showing an arbitrary chain's price.
+  it('scopes the price and market queries to the selected chain when not on the all-networks view', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    mocked(useTDPMultichainAggregate).mockReturnValue({ isMultichainAggregateView: false })
+    mockTDPState({ selectedMultichainChainId: UniverseChainId.Mainnet })
     mocked(useTokenSpotPrice).mockReturnValue(123)
     mocked(useTokenMarketStats).mockReturnValue(POPULATED_STATS)
 
-    render(<StatsSection tokenQueryData={undefined} />)
+    render(<StatsSection />)
 
-    expect(useTokenMarketStats).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        currentPriceOverride: undefined,
-      }),
-    )
-  })
-
-  it('uses the REST spot price directly on the all-networks view when V2 tokens are enabled', () => {
-    // V2 REST has no cross-chain aggregate price endpoint, so the per-chain REST price is
-    // authoritative even on the aggregate view instead of falling back to legacy GraphQL/CoinGecko.
-    mocked(useFeatureFlag).mockReturnValue(true)
-    mocked(useTokenSpotPrice).mockReturnValue(123)
-    mocked(useTokenMarketStats).mockReturnValue(POPULATED_STATS)
-
-    render(<StatsSection tokenQueryData={undefined} />)
-
+    expect(useTokenSpotPrice).toHaveBeenCalledWith(expect.any(String), { isMultichainAggregateView: false })
     expect(useTokenMarketStats).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         currentPriceOverride: 123,
+        isMultichainAggregateView: false,
       }),
     )
   })

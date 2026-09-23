@@ -1,17 +1,15 @@
+import { FlexLoader, Shine } from '@universe/mycelium'
 import { memo } from 'react'
-import { FlexLoader, Shine } from 'ui/src'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 
 export const StatValue = memo(function StatValueInner({
   isLoading,
   numericValue,
   formattedValue,
-  disableAnimations,
 }: {
   isLoading: boolean
   numericValue: number | undefined
   formattedValue: string
-  disableAnimations: boolean
 }): JSX.Element {
   if (isLoading) {
     return (
@@ -20,13 +18,5 @@ export const StatValue = memo(function StatValueInner({
       </Shine>
     )
   }
-  return (
-    <AnimatedNumber
-      alignRight
-      numericValue={numericValue}
-      value={formattedValue}
-      textVariant="$body2"
-      disableAnimations={disableAnimations}
-    />
-  )
+  return <AnimatedNumber alignRight numericValue={numericValue} value={formattedValue} textVariant="$body2" />
 })

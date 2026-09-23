@@ -10,8 +10,8 @@ import {
   getGetWalletsBalancesQueryOptions,
   type WithoutWalletAccounts,
 } from '@universe/api'
+import { areEvmAddressesEqual } from '@universe/chains'
 import { dataApiServiceClientV1 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClient'
-import { areEvmAddressesEqual } from 'uniswap/src/utils/addresses'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { type QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
 

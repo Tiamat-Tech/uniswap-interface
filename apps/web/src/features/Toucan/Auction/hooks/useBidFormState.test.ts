@@ -68,6 +68,35 @@ describe('useBidFormState', () => {
     })
   })
 
+  describe('showMobileWithdrawButton', () => {
+    // Load-bearing for useWithdrawButtonState: it treats ACTIVE as "outcome not settled" and
+    // disables the button. That is only safe because this flag — the gate on both mobile render
+    // sites (AuctionChartContainer.tsx, pages/Explore/ToucanToken/index.tsx) — requires ENDED, so
+    // the button is never visible while the auction is live. The mid-auction refund is a different
+    // control: the per-bid button in BidDetailsModal, driven by useBidDetails.
+    it('is false while the auction is in progress, so the aggregate withdraw button cannot show', () => {
+      mockStoreState.progress = { state: AuctionProgressState.IN_PROGRESS, isGraduated: true }
+
+      const { result } = renderHook(() => useBidFormState())
+
+      expect(result.current.showMobileWithdrawButton).toBe(false)
+    })
+
+    it('is false before the auction starts', () => {
+      mockStoreState.progress = { state: AuctionProgressState.NOT_STARTED, isGraduated: false }
+
+      const { result } = renderHook(() => useBidFormState())
+
+      expect(result.current.showMobileWithdrawButton).toBe(false)
+    })
+
+    it('is true only once the auction has ended with unclaimed bids', () => {
+      const { result } = renderHook(() => useBidFormState())
+
+      expect(result.current.showMobileWithdrawButton).toBe(true)
+    })
+  })
+
   it('returns the full bid form state shape', () => {
     const { result } = renderHook(() => useBidFormState())
 

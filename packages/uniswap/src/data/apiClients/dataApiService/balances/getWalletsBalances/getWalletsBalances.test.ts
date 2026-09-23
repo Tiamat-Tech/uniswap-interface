@@ -77,21 +77,16 @@ describe('selectTotalsByRequestedAddress', () => {
 })
 
 describe('getWalletBalancesIncludeCategories', () => {
-  it('returns [POOLS] when only the pools balances flag is enabled', () => {
+  it('returns [POOLS, EARN_VAULTS] when the pools balances flag is enabled', () => {
     enableFlags(FeatureFlags.PortfolioPoolsBalances)
-    expect(getWalletBalancesIncludeCategories()).toEqual([WalletBalanceCategory.POOLS])
-  })
-
-  it('includes EARN_VAULTS when the earn flag is enabled', () => {
-    enableFlags(FeatureFlags.PortfolioPoolsBalances, FeatureFlags.Earn)
     expect(getWalletBalancesIncludeCategories()).toEqual([
       WalletBalanceCategory.POOLS,
       WalletBalanceCategory.EARN_VAULTS,
     ])
   })
 
-  it('returns [] when all balance-category flags are disabled', () => {
+  it('always includes EARN_VAULTS even with no flags enabled', () => {
     enableFlags()
-    expect(getWalletBalancesIncludeCategories()).toEqual([])
+    expect(getWalletBalancesIncludeCategories()).toEqual([WalletBalanceCategory.EARN_VAULTS])
   })
 })

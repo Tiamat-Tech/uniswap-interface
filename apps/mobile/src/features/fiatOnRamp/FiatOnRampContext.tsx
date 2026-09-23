@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 /**
  * This context is used to persist Fiat On Ramp related data between Fiat On Ramp screens.
  */
@@ -7,7 +8,6 @@ import { getCountry } from 'react-native-localize'
 import { useSelector } from 'react-redux'
 import { selectModalState } from 'src/features/modals/selectModalState'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { FiatCurrencyInfo, FiatOnRampCurrency, FORFilters, FORQuote } from 'uniswap/src/features/fiatOnRamp/types'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'

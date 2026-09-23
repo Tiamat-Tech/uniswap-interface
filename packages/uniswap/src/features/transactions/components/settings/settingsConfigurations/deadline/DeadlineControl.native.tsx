@@ -1,5 +1,5 @@
+import { Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Text } from 'ui/src'
 import { useDeadlineSettings } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/useDeadlineSettings'
 
 export function DeadlineControl(): JSX.Element {

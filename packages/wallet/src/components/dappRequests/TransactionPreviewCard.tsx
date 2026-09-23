@@ -1,21 +1,19 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { type ReactNode, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { ContractInteraction, RotatableChevron } from 'ui/src/components/icons'
 import { TransactionRequestDetails } from 'uniswap/src/components/transactions/requests/TransactionRequestDetails'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
 import { ApprovalContractRow, type ApprovalContractInfo } from 'wallet/src/components/dappRequests/ApprovalContractRow'
 import { TransactionApprovingSection } from 'wallet/src/components/dappRequests/TransactionApprovingSection'
 import { TransactionDepositingSection } from 'wallet/src/components/dappRequests/TransactionDepositingSection'
-import {
-  TransactionErrorSection,
-  TransactionErrorType,
-} from 'wallet/src/components/dappRequests/TransactionErrorSection'
+import { TransactionErrorSection } from 'wallet/src/components/dappRequests/TransactionErrorSection'
 import { TransactionReceivingSection } from 'wallet/src/components/dappRequests/TransactionReceivingSection'
 import { TransactionSendingSection } from 'wallet/src/components/dappRequests/TransactionSendingSection'
 import { TransactionWithdrawingSection } from 'wallet/src/components/dappRequests/TransactionWithdrawingSection'
 import {
+  type TransactionErrorType,
   TransactionRiskLevel,
   TransactionSection,
   TransactionSectionType,

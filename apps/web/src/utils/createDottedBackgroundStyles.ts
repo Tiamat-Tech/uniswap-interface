@@ -1,5 +1,5 @@
+import { opacifyRaw } from '@universe/mycelium/theme-hooks-compat'
 import { CSSProperties } from 'react'
-import { opacifyRaw } from 'ui/src/theme'
 
 const DOT_SIZE_PX = 1
 const DOT_GRID_SIZE_PX = 10

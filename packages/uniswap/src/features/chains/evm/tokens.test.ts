@@ -1,13 +1,14 @@
 import { Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { buildChainTokens } from 'uniswap/src/features/chains/evm/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { buildDAI, buildUSDC, buildUSDT } from 'uniswap/src/features/tokens/stablecoin'
+import { buildDAI, buildUSDC, buildUSDG, buildUSDT } from 'uniswap/src/features/tokens/stablecoin'
 
 describe('buildChainTokens', () => {
   const chainId = UniverseChainId.Mainnet
   const usdcAddress = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
   const usdtAddress = '0xdAC17F958D2ee523a2206206994597C13D831ec7'
   const daiAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+  const usdgAddress = '0xe343167631d89B6Ffc58B88d6b7fB0228795491D'
 
   const expectToken = (token: Token | undefined, expected: Partial<Token>): void => {
     expect(token).toBeDefined()
@@ -70,6 +71,23 @@ describe('buildChainTokens', () => {
         name: 'Dai Stablecoin',
       })
       expect(result.stablecoins[0]).toBe(result.DAI)
+    })
+
+    it('should build USDG from buildUSDG', () => {
+      const result = buildChainTokens({
+        stables: {
+          USDG: buildUSDG(usdgAddress, chainId),
+        },
+      })
+
+      expectToken(result.USDG, {
+        address: usdgAddress,
+        chainId,
+        decimals: 6,
+        symbol: 'USDG',
+        name: 'Global Dollar',
+      })
+      expect(result.stablecoins[0]).toBe(result.USDG)
     })
 
     it('should build multiple stablecoins and sort them correctly', () => {

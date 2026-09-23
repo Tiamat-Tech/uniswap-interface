@@ -44,4 +44,5 @@ labs/
 
 # Ignore nested git worktrees (e.g. Claude superpowers) — same projects would register twice
 .claude/worktrees
+.worktrees
 

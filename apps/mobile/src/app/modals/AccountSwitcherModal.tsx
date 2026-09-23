@@ -1,5 +1,7 @@
 import { useIsFocused } from '@react-navigation/core'
+import { Platform, areAddressesEqual } from '@universe/chains'
 import { isAndroid } from '@universe/environment'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch, useSelector } from 'react-redux'
@@ -9,21 +11,20 @@ import { checkCloudBackupOrShowAlert } from 'src/components/mnemonic/cloudImport
 import { useReactNavigationModal } from 'src/components/modals/useReactNavigationModal'
 import { WalletRestoreType } from 'src/components/RestoreWalletModal/RestoreWalletModalState'
 import { useWalletRestore } from 'src/features/wallet/useWalletRestore'
-import { Button, Flex, Text, TouchableArea, useSporeColors } from 'ui/src'
+import { Button, useSporeColors } from 'ui/src'
 import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
 import { spacing } from 'ui/src/theme'
 import { AddressDisplay } from 'uniswap/src/components/accounts/AddressDisplay'
 import { ActionSheetModal, MenuItemProp } from 'uniswap/src/components/modals/ActionSheetModal'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { AccountType } from 'uniswap/src/features/accounts/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ElementName, ModalName, WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
+import { useBottomScreenGap } from 'uniswap/src/hooks/useBottomScreenGap'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { ImportType, OnboardingEntryPoint } from 'uniswap/src/types/onboarding'
 import { MobileScreens, OnboardingScreens } from 'uniswap/src/types/screens/mobile'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { PlusCircle } from 'wallet/src/components/icons/PlusCircle'
 import { createOnboardingAccount } from 'wallet/src/features/onboarding/createOnboardingAccount'
 import { BackupType } from 'wallet/src/features/wallet/accounts/types'
@@ -52,6 +53,7 @@ export function AccountSwitcherModal(): JSX.Element {
  */
 export function AccountSwitcher({ onClose }: { onClose: () => void }): JSX.Element | null {
   const insets = useAppInsets()
+  const { bottomScreenExtraGap } = useBottomScreenGap()
   const dimensions = useDeviceDimensions()
   const { t } = useTranslation()
   const activeAccountAddress = useActiveAccountAddress()
@@ -255,7 +257,7 @@ export function AccountSwitcher({ onClose }: { onClose: () => void }): JSX.Eleme
   const fullScreenContentHeight = dimensions.fullHeight - insets.top - insets.bottom - spacing.spacing36 // approximate bottom sheet handle height + padding bottom
 
   return (
-    <Flex $short={{ pb: '$none' }} maxHeight={fullScreenContentHeight} pb="$spacing12">
+    <Flex $short={{ pb: '$none' }} maxHeight={fullScreenContentHeight} pb={bottomScreenExtraGap}>
       <Flex gap="$spacing16" pb="$spacing16" pt="$spacing12" mx="$spacing12">
         <AddressDisplay
           showCopy

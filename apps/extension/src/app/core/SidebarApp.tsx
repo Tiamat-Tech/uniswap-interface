@@ -1,4 +1,3 @@
-import '@tamagui/core/reset.css'
 import 'src/app/Global.css'
 import { SharedEventName } from '@uniswap/analytics-events'
 import { isDevEnv } from '@universe/environment'

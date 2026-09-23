@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
 import { ContractAddressExplainerModal } from 'src/components/TokenDetails/ContractAddressExplainerModal'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
-import { useTokenBasicProjectPartsFragment } from 'uniswap/src/data/graphql/fragments'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import TokenWarningModal from 'uniswap/src/features/tokens/warnings/TokenWarningModal'
@@ -18,7 +17,6 @@ export const TokenDetailsModals = memo(function TokenDetailsModalsInner(): JSX.E
   const {
     chainId,
     address,
-    currencyId,
     activeTransactionType,
     currencyInfo,
     isTokenWarningModalOpen,
@@ -27,10 +25,8 @@ export const TokenDetailsModals = memo(function TokenDetailsModalsInner(): JSX.E
     closeContractAddressExplainerModal,
     openMultichainAddressSheet,
     copyAddressToClipboard,
+    hasMultichainAddresses,
   } = useTokenDetailsContext()
-
-  const project = useTokenBasicProjectPartsFragment({ currencyId }).data.project
-  const isMultichainToken = (project?.tokens?.length ?? 0) > 1
 
   const onAcknowledgeTokenWarning = useEvent(() => {
     closeTokenWarningModal()
@@ -42,7 +38,7 @@ export const TokenDetailsModals = memo(function TokenDetailsModalsInner(): JSX.E
   const onAcknowledgeContractAddressExplainer = useEvent(async (markViewed: boolean) => {
     closeContractAddressExplainerModal(markViewed)
     if (markViewed) {
-      if (isMultichainToken) {
+      if (hasMultichainAddresses) {
         openMultichainAddressSheet()
       } else {
         await copyAddressToClipboard(address)

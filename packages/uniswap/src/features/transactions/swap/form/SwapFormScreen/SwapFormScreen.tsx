@@ -1,9 +1,8 @@
 import type { BottomSheetView } from '@gorhom/bottom-sheet'
 import { isExtensionApp, isMobileApp, isWebApp } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
 import type { ComponentProps } from 'react'
 import { useEffect } from 'react'
-import type { FlexProps } from 'ui/src'
-import { Flex } from 'ui/src'
 import { PermissionedSwapBanner } from 'uniswap/src/features/permissionedTokens/PermissionedSwapBanner'
 import type { TransactionSettingConfig } from 'uniswap/src/features/transactions/components/settings/types'
 import { TransactionModalInnerContainer } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModal'
@@ -34,14 +33,13 @@ interface SwapFormScreenProps {
   onCurrencyPanelsLayout?: (height: number) => void
 }
 
-const EXIT_STYLE: FlexProps['exitStyle'] = { opacity: 0 }
-
 /**
  * IMPORTANT: In the Extension, this component remains mounted when the user moves to the `SwapReview` screen.
  *            Make sure you take this into consideration when adding/modifying any hooks that run on this component.
  */
 export function SwapFormScreen({
   hideContent,
+  // oxlint-disable-next-line typescript/no-useless-default-assignment -- defensive default
   settings = [Slippage, TradeRoutingPreference],
   tokenColor,
   focusHook,
@@ -86,7 +84,7 @@ function SwapFormContent({
 
   return (
     <Flex grow gap="$spacing8" justifyContent="space-between">
-      <Flex gap="$spacing4" animation="quick" exitStyle={EXIT_STYLE} grow={isExtensionApp}>
+      <Flex gap="$spacing4" grow={isExtensionApp}>
         <Flex gap="$spacing2" onLayout={(e) => onCurrencyPanelsLayout?.(e.nativeEvent.layout.height)}>
           <SwapFormCurrencyInputPanel />
           <SwitchCurrenciesButton />

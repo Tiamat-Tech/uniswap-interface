@@ -1,9 +1,10 @@
 import { fireEvent } from '@testing-library/react-native'
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { PositionItem } from 'uniswap/src/components/portfolio/PositionItem/PositionItem'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { PositionInfo, V3PositionInfo, V4PositionInfo } from 'uniswap/src/features/positions/types'
+import { asTextMatch, withText } from 'uniswap/src/test/matchers'
 import { renderWithProviders } from 'uniswap/src/test/render'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -94,7 +95,7 @@ describe('PositionItem', () => {
     expect(getByText('WETH / USDC')).toBeTruthy()
     expect(getByText('v4')).toBeTruthy()
     expect(getByText('0.05%')).toBeTruthy()
-    expect(getByText('$2852.43')).toBeTruthy()
+    expect(getByText(asTextMatch(withText('$2852.43')))).toBeTruthy()
     expect(getByText('In range')).toBeTruthy()
   })
 
@@ -110,7 +111,7 @@ describe('PositionItem', () => {
       <PositionItem positionInfo={buildV4Position({ status: PositionStatus.CLOSED, totalValueUsd: 0 })} />,
     )
     expect(getByText('Closed')).toBeTruthy()
-    expect(getByText('$0.00')).toBeTruthy()
+    expect(getByText(asTextMatch(withText('$0.00')))).toBeTruthy()
   })
 
   it('omits the USD value text when totalValueUsd is undefined', () => {

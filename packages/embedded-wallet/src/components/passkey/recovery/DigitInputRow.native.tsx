@@ -1,10 +1,10 @@
 import type { DigitInputRowProps } from '@universe/embedded-wallet/src/components/passkey/recovery/DigitInputRow.types'
+import { Flex, Input } from '@universe/mycelium'
 import { useEffect } from 'react'
 import type { TextInput } from 'react-native'
-import { Flex, Input } from 'ui/src'
 
 /**
- * Native digit input row. Each cell is a single-character controlled Tamagui `Input`.
+ * Native digit input row. Each cell is a single-character controlled `Input`.
  * Focus forwarding and Backspace navigation work through `useDigitInput`'s shared
  * handlers — the row just wires React Native events to the platform-agnostic callbacks.
  *

@@ -1,11 +1,10 @@
 /* oxlint-disable max-lines */
 import type { BigNumberish } from '@ethersproject/bignumber'
 import type { BaseProvider, Provider } from '@ethersproject/providers'
+import { UniverseChainId } from '@universe/chains'
 import { utils } from 'ethers'
 import { type AccountMeta } from 'uniswap/src/features/accounts/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel, toSupportedDappChainId } from 'uniswap/src/features/chains/utils'
-import { FlashbotsRpcProvider } from 'uniswap/src/features/providers/FlashbotsRpcProvider'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import { GasSponsorshipNotAppliedError } from 'uniswap/src/features/transactions/swap/errors'
 import { validateTransactionRequest } from 'uniswap/src/features/transactions/swap/utils/trade'
@@ -95,10 +94,6 @@ export function createTransactionService(ctx: {
 }): TransactionService {
   const { transactionRepository, analyticsService, logger } = ctx
 
-  function isPrivateRpc(provider: Provider): provider is FlashbotsRpcProvider {
-    return provider instanceof FlashbotsRpcProvider
-  }
-
   /**
    * Calculate the next nonce for an account on a chain
    * @param input - Configuration object for nonce calculation
@@ -121,9 +116,12 @@ export function createTransactionService(ctx: {
     const onChainPendingNonce = await provider.getTransactionCount(account.address, 'pending')
     const privateRpcSupported = isPrivateRpcSupportedOnChain(chainId)
 
-    // If using Flashbots with auth, it already accounts for pending private transactions.
-    // Otherwise (non-private on a private-supported chain), add the local pending private count.
-    const shouldAddLocalPendingPrivateCount = !usePrivate && privateRpcSupported
+    // Only Flashbots' signature-authenticated pending count already includes private pending
+    // transactions. Every other route (public submit, UniRPC swap protection, MEV-blocker)
+    // can't see them, so add the locally-tracked pending private count.
+    const flashbotsAccountsForPrivatePending =
+      usePrivate && ctx.configService.getPrivateRpcProviderType({ chainId }) === 'flashbots'
+    const shouldAddLocalPendingPrivateCount = !flashbotsAccountsForPrivatePending && privateRpcSupported
     const pendingPrivateTxCount = shouldAddLocalPendingPrivateCount
       ? await transactionRepository.getPendingPrivateTransactionCount({ address: account.address, chainId })
       : 0
@@ -308,7 +306,7 @@ export function createTransactionService(ctx: {
       const getUpdatedTransactionDetails = createGetUpdatedTransactionDetails({
         // Fetches the blockNumber, but will reuse any result that is less than 1000ms old
         getBlockNumber: () => baseProvider._getInternalBlockNumber(ONE_SECOND_MS),
-        isPrivateRpc: isPrivateRpc(provider),
+        privateRpcProviderType: ctx.configService.getPrivateRpcProviderType({ chainId: submitParams.chainId }),
       })
 
       // Update the transaction with the hash and populated request
@@ -373,7 +371,7 @@ export function createTransactionService(ctx: {
       const getUpdatedTransactionDetails = createGetUpdatedTransactionDetails({
         // Fetches the blockNumber, but will reuse any result that is less than 1000ms old
         getBlockNumber: () => baseProvider._getInternalBlockNumber(ONE_SECOND_MS),
-        isPrivateRpc: isPrivateRpc(provider),
+        privateRpcProviderType: ctx.configService.getPrivateRpcProviderType({ chainId: submitParams.chainId }),
       })
 
       logger.debug('TransactionService', 'submitTransactionSync', 'Calling sendTransactionSync...')
@@ -538,7 +536,7 @@ export function createTransactionService(ctx: {
         // a delegated account; signUserOp throws if a delegation-needing userOp arrives without one
         // (it's never attached post-paymaster).
         const timestampBeforeSign = Date.now()
-        const signedUserOp = await userOpSigner.signUserOp(userOpReadyToSign)
+        const signedUserOp = await userOpSigner.signUserOp({ userOp: userOpReadyToSign, chainId })
 
         // Step 3: Submit to bundler via UniRPC
         // Bundler handoff is the userOp analog of RPC submission; the sponsorship stage above is excluded.

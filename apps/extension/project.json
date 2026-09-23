@@ -203,6 +203,14 @@
       },
       "dependsOn": ["build"],
       "configurations": { "chrome": {} }
+    },
+    "validate:compat-css": {
+      "command": "bun run scripts/checkCompatCss.ts --prod",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": ["build"],
+      "configurations": { "e2e": {} }
     }
   }
 }

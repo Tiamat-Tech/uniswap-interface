@@ -1,10 +1,10 @@
 import { TradingApi } from '@universe/api'
+import { Flex, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { Ellipsis } from '@universe/mycelium/icons/Ellipsis'
+import { UniswapX } from '@universe/mycelium/icons/UniswapX'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons'
-import { Ellipsis } from 'ui/src/components/icons/Ellipsis'
-import { UniswapX } from 'ui/src/components/icons/UniswapX'
 import { TransactionDetailsHeaderLogo } from 'uniswap/src/components/activity/details/TransactionDetailsHeaderLogo'
 import { ContextMenu, MenuOptionItem } from 'uniswap/src/components/menus/ContextMenu'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
@@ -17,12 +17,10 @@ export function TransactionDetailsHeader({
   transactionDetails,
   transactionActions,
   hideTransactionActions = false,
-  isEarnActivityDisplayEnabled = true,
 }: {
   transactionDetails: TransactionDetails
   transactionActions: MenuOptionItem[]
   hideTransactionActions?: boolean
-  isEarnActivityDisplayEnabled?: boolean
 }): JSX.Element {
   const { t } = useTranslation()
   const { value: isContextMenuOpen, setTrue: openContextMenu, setFalse: closeContextMenu } = useBooleanState(false)
@@ -32,17 +30,13 @@ export function TransactionDetailsHeader({
   const title = getTransactionSummaryTitle({
     tx: transactionDetails,
     t,
-    isEarnActivityDisplayEnabled,
   })
 
   return (
     <Flex centered row justifyContent="space-between">
       <Flex centered row gap="$spacing12" flexShrink={1}>
         <Flex>
-          <TransactionDetailsHeaderLogo
-            transactionDetails={transactionDetails}
-            isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-          />
+          <TransactionDetailsHeaderLogo transactionDetails={transactionDetails} />
         </Flex>
         <Flex flexDirection="column" flexShrink={1}>
           <Flex centered row gap="$spacing4" justifyContent="flex-start">

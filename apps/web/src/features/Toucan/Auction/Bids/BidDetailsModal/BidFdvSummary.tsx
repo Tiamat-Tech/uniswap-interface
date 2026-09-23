@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text } from 'ui/src'
 import { FdvArrowMarker } from '~/features/Toucan/Auction/Bids/BidDetailsModal/FdvArrowMarker'
 import { useBidStatusColors } from '~/features/Toucan/Auction/hooks/useBidStatusColors'
 import { type BidDisplayState } from '~/features/Toucan/Auction/utils/bidDetails'
@@ -9,15 +9,11 @@ import { ProgressBar } from '~/features/Toucan/Shared/ProgressBar'
 interface BidFdvSummaryProps {
   currentFdvDisplay: string
   maxFdvDisplay: string
-  fdvFraction: number
+  /** `null` when FDV is unknown — the range bar renders empty and unmarked rather than at 0%. */
+  fdvFraction: number | null
   displayState: BidDisplayState
   isAuctionEnded?: boolean
 }
-
-const FdvArrow = styled(Flex, {
-  position: 'absolute',
-  top: -10,
-})
 
 export function BidFdvSummary({
   currentFdvDisplay,
@@ -34,7 +30,11 @@ export function BidFdvSummary({
     return `linear-gradient(90deg, ${inRangeColor} 0%, ${warningColor} 50%, ${outOfRangeColor} 100%)`
   }, [inRangeColor, outOfRangeColor, warningColor])
 
-  const arrowLeft = useMemo(() => `calc(${Math.min(Math.max(fdvFraction, 0), 1) * 100}% - 6px)`, [fdvFraction])
+  const arrowLeft = useMemo(
+    () => (fdvFraction === null ? undefined : `calc(${Math.min(Math.max(fdvFraction, 0), 1) * 100}% - 6px)`),
+    [fdvFraction],
+  )
+  const hasFdv = fdvFraction !== null
 
   return (
     <Flex flex={1} minWidth={0} flexBasis={0} gap="$spacing12">
@@ -58,18 +58,20 @@ export function BidFdvSummary({
       </Flex>
       <Flex position="relative">
         <ProgressBar
-          percentage={100}
+          percentage={hasFdv ? 100 : 0}
           color={inRangeColor}
           borderColor="$surface3"
           height={8}
           showWhiteDot={false}
           showEndDots={false}
-          customFillStyle={{ backgroundImage: fdvGradient }}
+          customFillStyle={hasFdv ? { backgroundImage: fdvGradient } : undefined}
           shouldAnimate={false}
         />
-        <FdvArrow style={{ left: arrowLeft }}>
-          <FdvArrowMarker />
-        </FdvArrow>
+        {hasFdv && (
+          <Flex position="absolute" top={-10} style={{ left: arrowLeft }}>
+            <FdvArrowMarker />
+          </Flex>
+        )}
       </Flex>
     </Flex>
   )

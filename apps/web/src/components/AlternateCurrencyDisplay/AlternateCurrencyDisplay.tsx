@@ -1,6 +1,6 @@
 import { Currency } from '@uniswap/sdk-core'
-import { Flex, Text } from 'ui/src'
-import { ArrowDownArrowUp } from 'ui/src/components/icons/ArrowDownArrowUp'
+import { Flex, Text } from '@universe/mycelium'
+import { ArrowDownArrowUp } from '@universe/mycelium/icons/ArrowDownArrowUp'
 import { useAppFiatCurrency } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'

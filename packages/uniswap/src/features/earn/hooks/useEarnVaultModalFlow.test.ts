@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { EarnVaultView, useEarnVaultModalFlow } from 'uniswap/src/features/earn/hooks/useEarnVaultModalFlow'
 import type { EarnPositionInfo } from 'uniswap/src/features/earn/types'
 import { hasConfirmedEarnPositionRawBalance, resolveEarnAmountPosition } from 'uniswap/src/features/earn/utils'

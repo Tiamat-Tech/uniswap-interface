@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   AVERAGE_L1_BLOCK_TIME_MS,
   AVERAGE_L2_BLOCK_TIME_MS,

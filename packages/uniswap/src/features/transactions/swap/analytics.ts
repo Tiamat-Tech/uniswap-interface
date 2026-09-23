@@ -3,13 +3,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Protocol } from '@uniswap/router-sdk'
 import type { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import { type ClassicQuoteResponse, TradingApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useEffect } from 'react'
 import type { PresetPercentage } from 'uniswap/src/components/CurrencyInputPanel/AmountInputPresets/types'
 import { useActiveAddresses } from 'uniswap/src/features/accounts/store/hooks'
 import { usePortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import type { LocalizationContextState } from 'uniswap/src/features/language/LocalizationContext'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { getIsPermissionedForAnalytics } from 'uniswap/src/features/permissionedTokens/getIsPermissionedForAnalytics'
 import { getDisplayedPriceSource } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 import type { RWAWhitelist } from 'uniswap/src/features/rwa/types'
 import { useRWAWhitelist } from 'uniswap/src/features/rwa/useRWAWhitelist'
@@ -160,6 +160,12 @@ const STEP_TYPE_TO_IS_TRADE_STEP: Record<TradingApi.PlanStepType, boolean> = {
   [TradingApi.PlanStepType.CHAINED]: true,
   [TradingApi.PlanStepType.VAULT_DEPOSIT]: true,
   [TradingApi.PlanStepType.VAULT_WITHDRAW]: true,
+  [TradingApi.PlanStepType.MARGIN_PRE_SWAP]: true,
+  [TradingApi.PlanStepType.MARGIN_OPEN]: true,
+  [TradingApi.PlanStepType.MARGIN_CLOSE]: true,
+  [TradingApi.PlanStepType.MARGIN_BRIDGE]: true,
+  [TradingApi.PlanStepType.MARGIN_ADJUST]: true,
+  [TradingApi.PlanStepType.MARGIN_RECOVER]: true,
 }
 
 /**
@@ -336,7 +342,6 @@ export function useSwapAnalytics(derivedSwapInfo: DerivedSwapInfo): void {
 
   const { data: portfolioData } = usePortfolioTotalValue({ ...activeAddresses, fetchPolicy: 'cache-first' })
 
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const queryClient = useQueryClient()
   const rwaWhitelist = useRWAWhitelist()
 
@@ -346,8 +351,6 @@ export function useSwapAnalytics(derivedSwapInfo: DerivedSwapInfo): void {
     }
 
     const priceSource = getDisplayedPriceSource({
-      isCentralizedPricesEnabled,
-      surface: 'usdc',
       chainId: trade.inputAmount.currency.chainId,
       address: getCurrencyAddressForAnalytics(trade.inputAmount.currency),
       queryClient,
@@ -475,6 +478,7 @@ export function getBaseTradeAnalyticsProperties({
     token_out_symbol: trade.outputAmount.currency.symbol,
     token_in_address: getCurrencyAddressForAnalytics(trade.inputAmount.currency),
     token_out_address: getCurrencyAddressForAnalytics(trade.outputAmount.currency),
+    is_permissioned: getIsPermissionedForAnalytics([trade.inputAmount.currency, trade.outputAmount.currency]),
     price_impact_basis_points: getPriceImpact(trade),
     ...getRwaSwapAnalyticsProperties({
       inputCurrency: trade.inputAmount.currency,
@@ -570,6 +574,10 @@ export function getBaseTradeAnalyticsPropertiesFromSwapInfo({
     token_out_symbol: outputCurrencyAmount?.currency.symbol,
     token_in_address: inputCurrencyAmount ? getCurrencyAddressForAnalytics(inputCurrencyAmount.currency) : '',
     token_out_address: outputCurrencyAmount ? getCurrencyAddressForAnalytics(outputCurrencyAmount.currency) : '',
+    is_permissioned: getIsPermissionedForAnalytics([
+      derivedSwapInfo.currencies.input?.currency,
+      derivedSwapInfo.currencies.output?.currency,
+    ]),
     price_impact_basis_points: getPriceImpact(trade),
     estimated_network_fee_usd: undefined,
     chain_id: chainId,

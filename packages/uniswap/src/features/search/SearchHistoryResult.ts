@@ -2,7 +2,7 @@
  * Represents the search result types that are saved in Redux.
  */
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { CurrencyId } from 'uniswap/src/types/currency'
 
 export type SearchHistoryResult =

@@ -1,9 +1,9 @@
 import { Actions, URVersion, V4BaseActionsParser } from '@uniswap/v4-sdk'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { EthSendTransactionRPCActions } from 'src/app/features/dappRequests/types/DappRequestTypes'
 import getCalldataInfoFromTransaction from 'src/background/utils/getCalldataInfoFromTransaction'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 // The CommandParser fallback must not absorb the V4 swap detection in these tests; force it
 // to report no swap commands so the V4 path is the only thing that can flag a swap.

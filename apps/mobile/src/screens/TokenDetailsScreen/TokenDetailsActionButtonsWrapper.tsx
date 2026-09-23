@@ -1,6 +1,6 @@
-import { GatedFeature, useIsFeatureGated } from '@universe/compliance'
-import { FeatureFlags } from '@universe/gating'
-import { memo, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { GatedFeature, refetchGatedFeatures, useIsFeatureGated } from '@universe/compliance'
+import { memo, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FadeInDown } from 'react-native-reanimated'
 import { MODAL_OPEN_WAIT_TIME } from 'src/app/navigation/constants'
@@ -8,9 +8,9 @@ import { navigate } from 'src/app/navigation/rootNavigation'
 import { TokenDetailsBuySellButtons } from 'src/components/TokenDetails/TokenDetailsActionButtons'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
 import { useMultichainBuyVariant } from 'src/components/TokenDetails/useTokenDetailsCTAVariant'
-import { useGatedTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
+import { useTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
 import { NetworkBalanceSheetContent } from 'src/screens/TokenDetailsScreen/NetworkBalanceSheetContent'
-import { useHighestTvlChain } from 'src/screens/TokenDetailsScreen/useHighestTvlChain'
+import { useTDPHighestTvlChain } from 'src/screens/TokenDetailsScreen/useHighestTvlChain'
 import { useNetworkBalanceSheet } from 'src/screens/TokenDetailsScreen/useNetworkBalanceSheet'
 import { useIsScreenNavigationReady } from 'src/utils/useIsScreenNavigationReady'
 import { ArrowUpCircle, Bank, QrCode, SendRoundedAirplane } from 'ui/src/components/icons'
@@ -18,7 +18,6 @@ import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import type { MenuOptionItem } from 'uniswap/src/components/menus/ContextMenu'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
-import { useTokenBasicInfoPartsFragment } from 'uniswap/src/data/graphql/fragments'
 import { useBridgingTokenWithHighestBalance } from 'uniswap/src/features/bridging/hooks/tokens'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
@@ -65,8 +64,7 @@ export const TokenDetailsActionButtonsWrapper = memo(
 
     const { navigateToFiatOnRamp, navigateToSwapFlow, navigateToSend, navigateToReceive } = useWalletNavigation()
 
-    const token = useTokenBasicInfoPartsFragment({ currencyId }).data
-    const metadata = useTokenMetadata(currencyId, { legacyToken: { symbol: token.symbol } })
+    const metadata = useTokenMetadata(currencyId)
 
     const isBlocked = currencyInfo?.safetyInfo?.tokenList === TokenList.Blocked
 
@@ -113,8 +111,7 @@ export const TokenDetailsActionButtonsWrapper = memo(
 
     const { currency: highestBalanceFiatCurrency } = useIsSupportedFiatOnRampCurrency(highestBalanceCurrencyId)
 
-    const { chainId: highestTvlChainId, address: highestTvlAddress } = useHighestTvlChain({
-      currencyId,
+    const { chainId: highestTvlChainId, address: highestTvlAddress } = useTDPHighestTvlChain({
       accountAddress: activeAddress,
     })
 
@@ -198,9 +195,19 @@ export const TokenDetailsActionButtonsWrapper = memo(
     // Trading is geo-restricted for whitelisted RWA stocks in blocked regions; the swap flow
     // already enforces this, so surface it on the CTA instead of letting users tap into a dead end.
     // Region comes from compliance v2 (ISSUER_SPECIFIC_RWA); the RWA-token check is the whitelist match.
-    const rwaMatch = useGatedTokenDetailsRWAMatch(FeatureFlags.RWATdp)
+    const queryClient = useQueryClient()
+    const rwaMatch = useTokenDetailsRWAMatch()
+    const isRWA = Boolean(rwaMatch)
     const isRWARegionBlocked = useIsFeatureGated(GatedFeature.ISSUER_SPECIFIC_RWA)
-    const isRWATradeBlocked = Boolean(rwaMatch) && isRWARegionBlocked
+    const isRWATradeBlocked = isRWA && isRWARegionBlocked
+
+    useEffect(() => {
+      if (isRWA) {
+        // The whitelist match can resolve after mount, so refresh when it becomes known instead
+        // of forcing a compliance request on every non-RWA TDP.
+        void refetchGatedFeatures(queryClient)
+      }
+    }, [isRWA, queryClient])
 
     const multichainActionMenuOptions: MenuOptionItem[] = useMemo(() => {
       const actions: MenuOptionItem[] = []
@@ -273,8 +280,8 @@ export const TokenDetailsActionButtonsWrapper = memo(
       onPressBuy,
     })
 
-    const geoRestrictedButtonTitle = token.symbol
-      ? t('swap.geoRestriction.button', { tokenSymbol: token.symbol })
+    const geoRestrictedButtonTitle = metadata.symbol
+      ? t('swap.geoRestriction.button', { tokenSymbol: metadata.symbol })
       : t('common.notAvailableInRegion.error')
 
     return hideActionButtons ? null : (

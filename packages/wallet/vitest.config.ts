@@ -1,9 +1,10 @@
 import path from 'path'
 import react from '@vitejs/plugin-react'
+import { withRnPrimitives } from 'vitest-presets/vitest/rn-primitives.js'
 import vitestPreset from 'vitest-presets/vitest/vitest-preset.js'
 import { defineConfig } from 'vitest/config'
 
-export default defineConfig({
+const config = defineConfig({
   ...vitestPreset,
   plugins: [react()],
   test: {
@@ -47,15 +48,6 @@ export default defineConfig({
       // React Native aliases for testing
       'react-native': 'react-native-web',
       'react-native-gesture-handler': path.resolve(__dirname, '../../node_modules/react-native-gesture-handler'),
-      '@tamagui/core': path.resolve(__dirname, '../../node_modules/@tamagui/core/dist/cjs/index.cjs'),
-      '@tamagui/web': path.resolve(__dirname, '../../node_modules/@tamagui/web/dist/cjs/index.cjs'),
-      '@tamagui/use-direction': path.resolve(__dirname, '../../node_modules/@tamagui/use-direction/dist/cjs/index.cjs'),
-      '@tamagui/use-callback-ref': path.resolve(
-        __dirname,
-        '../../node_modules/@tamagui/use-callback-ref/dist/cjs/index.cjs',
-      ),
-      'tamagui/linear-gradient': path.resolve(__dirname, '../../node_modules/tamagui/dist/cjs/linear-gradient.cjs'),
-      tamagui: path.resolve(__dirname, '../../node_modules/tamagui/dist/cjs/index.cjs'),
     },
   },
   optimizeDeps: {
@@ -63,3 +55,5 @@ export default defineConfig({
     include: ['react-native-web', '@testing-library/react-native'],
   },
 })
+
+export default withRnPrimitives(config, 'web')

@@ -19,13 +19,3 @@ export const DEFAULT_FEE_TIER_PAIRS: readonly DefaultFeeTierPair[] = [
 ]
 
 export const NEW_DEFAULT_LP_FEE_TIERS_BPS: readonly number[] = DEFAULT_FEE_TIER_PAIRS.map((pair) => pair.newBps)
-
-/** Old default LP fee (bps) paired to a new default tier by all-in rate, if any. */
-export function getPairedOldFeeTierBps(newBps: number): number | undefined {
-  return DEFAULT_FEE_TIER_PAIRS.find((pair) => pair.newBps === newBps)?.oldBps
-}
-
-/** New default LP fee (bps) paired to an old default tier by all-in rate, if any. */
-export function getPairedNewFeeTierBps(oldBps: number): number | undefined {
-  return DEFAULT_FEE_TIER_PAIRS.find((pair) => pair.oldBps === oldBps)?.newBps
-}

@@ -1,10 +1,10 @@
 import { FetchError } from '@universe/api'
-import type { AppTFunction } from 'ui/src/i18n/types'
 import {
   EarnTradingApiErrorDetail,
   getEarnTradingApiErrorDetail,
   getEarnWithdrawErrorMessage,
 } from 'uniswap/src/features/earn/errors'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 
 const t = ((key: string) => key) as AppTFunction
 

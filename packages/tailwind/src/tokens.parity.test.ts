@@ -42,6 +42,7 @@ const MYCELIUM_SEMANTIC_COLORS = [
   'accent2',
   'accent2-hovered',
   'accent2-solid',
+  'pools-brand-green',
   'success',
   'success-hovered',
   'success-secondary',
@@ -54,6 +55,8 @@ const MYCELIUM_SEMANTIC_COLORS = [
   'critical-hovered',
   'critical-secondary',
   'critical-secondary-hovered',
+  'shadow-color',
+  'shadow-color-hover',
   'network-arc',
   'network-blast',
   'network-bnb',
@@ -93,12 +96,12 @@ function blockBody(css: string, opener: RegExp): string {
 
 /** Custom-property names declared in a block body (without the leading `--`). */
 function declaredVars(body: string): Set<string> {
-  return new Set([...body.matchAll(/--([\w-]+)\s*:/g)].map((m) => m[1]))
+  return new Set([...body.matchAll(/--([\w-]+)\s*:/g)].map((m) => m[1] as string))
 }
 
 /** `--color-x` bridge entries → bare semantic name `x`. */
 function bridgedColorTokens(themeInlineBody: string): string[] {
-  return [...themeInlineBody.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1])
+  return [...themeInlineBody.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1] as string)
 }
 
 /** Literal value of a custom property declared in a block body. */

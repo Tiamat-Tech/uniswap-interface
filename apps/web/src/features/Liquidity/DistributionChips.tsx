@@ -1,6 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { mix } from 'polished'
 import { useMemo } from 'react'
-import { Flex, Text, useSporeColors } from 'ui/src'
 
 export const DISTRIBUTION_CHART_WIDTH = 160
 
@@ -57,7 +58,6 @@ export function DistributionChips({
           ml={-MARKER_WIDTH / 2}
           zIndex={1}
           color="$surface1"
-          $group-item-hover={{ color: '$surface2' }}
         >
           <svg width={MARKER_WIDTH} height={MARKER_HEIGHT} viewBox="0 0 10 11" fill="none">
             <path

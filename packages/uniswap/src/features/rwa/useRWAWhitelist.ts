@@ -12,9 +12,12 @@ import type { RWAAsset, RWAIssuer, RWAToken, RWAWhitelist } from 'uniswap/src/fe
 
 const DEFAULT_RWA_WHITELIST: RWAWhitelist = []
 
+/** Issuer slug for registry tokens with no issuer (e.g. commodities); not a real issuer to display. */
+export const UNKNOWN_RWA_ISSUER: RWAIssuer = 'unknown'
+
 function fromDataApiIssuer(issuer: string): RWAIssuer {
   const normalizedIssuer = String(issuer).trim().toLowerCase()
-  return normalizedIssuer || 'unknown'
+  return normalizedIssuer || UNKNOWN_RWA_ISSUER
 }
 
 function toRWAToken({
@@ -89,12 +92,9 @@ export function toRWAWhitelistFromDataApi(rwas: ListRwasAssetSource[]): RWAWhite
   return rwas.map(toRWAAssetFromDataApi).filter((asset): asset is RWAAsset => asset !== undefined)
 }
 
-export function useRWAWhitelist(enabled = true): RWAWhitelist {
+export function useRWAWhitelist(): RWAWhitelist {
   const { chains: chainIds } = useEnabledChains({ includeTestnets: true })
-  const { data } = useListRwasQuery({
-    chainIds,
-    enabled,
-  })
+  const { data } = useListRwasQuery({ chainIds })
 
   return useMemo(() => {
     return data?.rwas ? toRWAWhitelistFromDataApi(data.rwas) : DEFAULT_RWA_WHITELIST

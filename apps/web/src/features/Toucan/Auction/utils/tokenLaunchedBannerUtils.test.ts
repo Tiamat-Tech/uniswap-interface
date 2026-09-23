@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  type AuctionDisplayState,
+  AuctionDisplayPhase,
+  AuctionDisplayResult,
+  PoolAvailability,
+} from '~/features/Toucan/Auction/utils/resolveAuctionDisplayState'
+import {
   getTokenLaunchTradeAvailabilityBlock,
   isTokenLaunchTradeAvailable,
   isTokenLaunchTradeLive,
@@ -7,21 +13,70 @@ import {
 } from '~/features/Toucan/Auction/utils/tokenLaunchedBannerUtils'
 
 describe('shouldShowTokenLaunchedBanner', () => {
-  it('returns false before the auction ends', () => {
+  function endedSuccessfully(overrides: Partial<AuctionDisplayState> = {}): AuctionDisplayState {
+    return {
+      phase: AuctionDisplayPhase.Ended,
+      result: AuctionDisplayResult.Successful,
+      poolAvailability: PoolAvailability.HasPool,
+      shouldShowSwap: true,
+      ...overrides,
+    }
+  }
+  const graduatedWithPool = {
+    isAuctionEnded: true,
+    isTokenProvenanceEnabled: true,
+    isGraduated: true,
+    displayState: endedSuccessfully(),
+    tradingRestrictedUntilTge: false,
+  }
+
+  it('never shows before the auction ends', () => {
+    expect(shouldShowTokenLaunchedBanner({ ...graduatedWithPool, isAuctionEnded: false })).toBe(false)
+  })
+
+  it('always shows while provenance is off', () => {
+    expect(
+      shouldShowTokenLaunchedBanner({ ...graduatedWithPool, isTokenProvenanceEnabled: false, displayState: undefined }),
+    ).toBe(true)
+  })
+
+  it('yields once the now-trading card renders', () => {
+    expect(shouldShowTokenLaunchedBanner(graduatedWithPool)).toBe(false)
+  })
+
+  it('shows neither while the pool lookup is loading', () => {
     expect(
       shouldShowTokenLaunchedBanner({
-        isAuctionEnded: false,
+        ...graduatedWithPool,
+        displayState: endedSuccessfully({ poolAvailability: PoolAvailability.Loading }),
       }),
     ).toBe(false)
   })
 
-  it('returns true after the auction ends', () => {
-    expect(
-      shouldShowTokenLaunchedBanner({
-        isAuctionEnded: true,
-      }),
-    ).toBe(true)
-  })
+  it.each([PoolAvailability.NoPool, PoolAvailability.Error])(
+    'stays when the card cannot show: %s',
+    (poolAvailability) => {
+      expect(
+        shouldShowTokenLaunchedBanner({ ...graduatedWithPool, displayState: endedSuccessfully({ poolAvailability }) }),
+      ).toBe(true)
+    },
+  )
+
+  it.each([AuctionDisplayResult.Unknown, AuctionDisplayResult.Failed])(
+    'stays until the checkpoint confirms the result: %s',
+    (result) => {
+      expect(shouldShowTokenLaunchedBanner({ ...graduatedWithPool, displayState: endedSuccessfully({ result }) })).toBe(
+        true,
+      )
+    },
+  )
+
+  it.each([{ isGraduated: false }, { tradingRestrictedUntilTge: true }])(
+    'preserves exceptional guidance: %j',
+    (override) => {
+      expect(shouldShowTokenLaunchedBanner({ ...graduatedWithPool, ...override })).toBe(true)
+    },
+  )
 })
 
 describe('getTokenLaunchTradeAvailabilityBlock', () => {

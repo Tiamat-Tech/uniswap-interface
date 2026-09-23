@@ -1,11 +1,14 @@
-import { memo } from 'react'
+import { UniverseChainId } from '@universe/chains'
+import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
+import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { Flex, GeneratedIcon, Text } from 'ui/src'
+import { GeneratedIcon } from 'ui/src'
 import { Person } from 'ui/src/components/icons'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useSectionsForNoQuerySearch } from 'uniswap/src/features/search/SearchModal/hooks/useSectionsForNoQuerySearch'
 import { SearchModalList, SearchModalListProps } from 'uniswap/src/features/search/SearchModal/SearchModalList'
+import { SearchModalListSkeleton } from 'uniswap/src/features/search/SearchModal/SearchModalListSkeleton'
 import { useRwaIssuerCurrencyInfos } from 'uniswap/src/features/search/SearchModal/stocks/useRwaIssuerCurrencyInfos'
 import { SearchTab } from 'uniswap/src/features/search/SearchModal/types'
 import { useMultichainSearchModalMetricsAnalytics } from 'uniswap/src/features/search/SearchModal/useMultichainSearchModalMetricsAnalytics'
@@ -42,11 +45,14 @@ export const SearchModalNoQueryList = memo(function SearchModalNoQueryListInner(
 }: SearchModalNoQueryListProps): JSX.Element {
   const { t } = useTranslation()
 
+  const isSearchV2UIEnabled = useFeatureFlag(FeatureFlags.SearchV2UI)
+
   const {
     data: sections,
-    loading,
+    isLoading,
     error,
     refetch,
+    skeletonPillCount,
   } = useSectionsForNoQuerySearch({
     chainFilter,
     activeTab,
@@ -58,32 +64,45 @@ export const SearchModalNoQueryList = memo(function SearchModalNoQueryListInner(
 
   useMultichainSearchModalMetricsAnalytics({
     sections,
-    isSearchResultsLoading: loading,
+    isSearchResultsLoading: isLoading,
     isSearchQueryPending: false,
   })
 
+  // Element and object props are memoized so SearchModalList's memo isn't busted every render.
+  const loadingElement = useMemo(
+    () => (isSearchV2UIEnabled ? <SearchModalListSkeleton pillCount={skeletonPillCount} /> : undefined),
+    [isSearchV2UIEnabled, skeletonPillCount],
+  )
+
+  const searchFilters = useMemo(
+    (): SearchModalListProps['searchFilters'] => ({
+      searchChainFilter: chainFilter,
+      searchTabFilter: activeTab,
+    }),
+    [chainFilter, activeTab],
+  )
+
   // Handle empty pretype cases for assets without default results
-  const getEmptyElementComponent = (): JSX.Element | undefined => {
-    if (activeTab === SearchTab.Wallets) {
-      return <EmptyPretypeSection title={t('search.results.pretype.wallets')} icon={Person} />
-    }
-    return undefined
-  }
+  const emptyElement = useMemo(
+    () =>
+      activeTab === SearchTab.Wallets ? (
+        <EmptyPretypeSection title={t('search.results.pretype.wallets')} icon={Person} />
+      ) : undefined,
+    [activeTab, t],
+  )
 
   return (
     <SearchModalList
       errorText={t('token.selector.search.error')}
       hasError={Boolean(error)}
-      loading={loading}
+      loading={isLoading}
+      loadingElement={loadingElement}
       refetch={refetch}
       sections={sections}
-      searchFilters={{
-        searchChainFilter: chainFilter,
-        searchTabFilter: activeTab,
-      }}
+      searchFilters={searchFilters}
       renderedInModal={renderedInModal}
       contentContainerStyle={contentContainerStyle}
-      emptyElement={getEmptyElementComponent()}
+      emptyElement={emptyElement}
       rowWrapper={rowWrapper}
       rwaIssuerCurrencyInfos={rwaIssuerCurrencyInfos}
       onSelect={onSelect}

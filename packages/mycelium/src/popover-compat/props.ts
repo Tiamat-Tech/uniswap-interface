@@ -9,8 +9,10 @@
  */
 import type * as React from 'react'
 import type { FlexCompatProps } from '../flex-compat/props'
+import type { PopoverCompatHoverableProps } from './hover'
 import type { PopoverCompatOffset, PopoverCompatPlacement } from './position'
 
+export type { PopoverCompatHoverableProps }
 export type { PopoverCompatOffset, PopoverCompatPlacement }
 
 /**
@@ -21,16 +23,15 @@ export type { PopoverCompatOffset, PopoverCompatPlacement }
  * (the leaked Tamagui View style surface, covered here by the Flex compat
  * contract) plus the explicit web-sheet knobs below. NOT the React Native
  * `uniswap/src/components/modals/ModalProps.tsx` contract — the web sheet
- * never accepted those native-only keys. The sheet-adaptation BEHAVIOR is
- * GATED on the Sheet/Dialog migration track — every prop here is
- * accepted-but-inert until that leg lands (see the popover exclusions
- * ledger); typing stays part of the drop-in contract regardless. The parity
- * suite pins key coverage with a nested UncoveredKeys check plus the live
- * call-site shapes (see `parity/popover/type-parity.ts`).
+ * never accepted those native-only keys. Mapped directly onto the mycelium
+ * `WebBottomSheet` (INFRA-3329, `@universe/mycelium/web-bottom-sheet-compat`)
+ * by `AdaptiveWebPopoverContentCompat`'s sheet leg. The parity suite pins key
+ * coverage with a nested UncoveredKeys check plus the live call-site shapes
+ * (see `parity/popover/type-parity.ts`).
  */
 export type WebBottomSheetCompatProps = Omit<FlexCompatProps, 'children'> & {
   onClose?: () => void
-  /** Legacy default true: adapt into a bottom sheet on small viewports (GATED with the sheet leg). */
+  /** Legacy default true: adapt into a bottom sheet on small viewports. */
   adaptToSheet?: boolean
   alignment?: 'center' | 'top'
   hideHandlebar?: boolean
@@ -136,9 +137,9 @@ export interface PopoverContentFocusScopeCompatProps {
 export interface AdaptiveWebPopoverContentOwnProps {
   children: React.ReactNode
   isOpen: boolean
-  /** If true, always render as bottom sheet regardless of screen size. GATED: see the exclusions ledger. */
+  /** If true, always render as bottom sheet regardless of screen size. */
   isSheet?: boolean
-  /** Overrides the default `media.sm` adapt condition. GATED with the sheet leg. */
+  /** Overrides the default `media.sm` adapt condition. */
   adaptWhen?: boolean
   /** Placement of the popover relative to the trigger; drives the enter/exit animation direction. */
   placement?: PopoverCompatPlacement
@@ -171,13 +172,24 @@ export interface PopoverCompatRootProps {
   strategy?: 'absolute' | 'fixed'
   /** Accepted-inert: legacy `stayInFrame` maps to Base UI's default collision handling. */
   stayInFrame?: boolean | Record<string, unknown>
-  /** Accepted-inert: hover-open popovers are out of the compat's scope (ledgered). */
-  hoverable?: boolean | Record<string, unknown>
+  /**
+   * Open on trigger hover; the object form carries floating-ui `useHover`
+   * timing (`delay`/`restMs`), wired onto the Base UI trigger's
+   * `openOnHover`/`delay`/`closeDelay`. Click/tap-open stays.
+   */
+  hoverable?: PopoverCompatHoverableProps
 }
 
 export interface PopoverCompatTriggerProps {
   children?: React.ReactNode
   className?: string
+  /**
+   * Forwarded to the rendered trigger element, like the legacy Tamagui
+   * trigger (`TamaguiElement` = `HTMLElement` on web) — consumers hold a
+   * `RefObject<HTMLElement | null>` to measure the trigger (e.g. viewport-
+   * constrained dropdown heights), so this is deliberately not `HTMLDivElement`.
+   */
+  ref?: React.Ref<HTMLElement>
   onMouseDown?: (event: React.MouseEvent<HTMLDivElement>) => void
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void

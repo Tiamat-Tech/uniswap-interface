@@ -42,7 +42,6 @@ import { UNIVERSAL_ROUTER_ADDRESS, UniversalRouterVersion, WETH_ADDRESS } from '
 import PERMIT2_ABI from 'uniswap/src/abis/permit2'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { DAI as DAI_TOKEN, USDC_MAINNET, USDT as USDT_TOKEN } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { parseEther } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { mainnet } from 'viem/chains'
@@ -64,6 +63,7 @@ import {
   WEETH_ADDRESS,
 } from '~/playwright/anvil/utils'
 import { assume0xAddress } from '~/chains'
+import { UniverseChainId } from '@universe/chains';
 
 const CHAIN_ID = UniverseChainId.Mainnet
 const PORT = 8560 // offset from 8545 so a running e2e anvil is never clobbered

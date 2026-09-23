@@ -22,7 +22,7 @@ export {
 } from '@universe/compliance/src/devComplianceOverride'
 export { useComplianceClient } from '@universe/compliance/src/useComplianceClient'
 export { useSetTokenAcknowledgement, useTokenComplianceStatus } from '@universe/compliance/src/featureGatedTokenQuery'
-export { useGatedFeatures, useIsFeatureGated } from '@universe/compliance/src/gatedFeaturesQuery'
+export { refetchGatedFeatures, useGatedFeatures, useIsFeatureGated } from '@universe/compliance/src/gatedFeaturesQuery'
 export { useIsBlockedAddress } from '@universe/compliance/src/screenAddressQuery'
 export {
   hasUnrecognizedReason,

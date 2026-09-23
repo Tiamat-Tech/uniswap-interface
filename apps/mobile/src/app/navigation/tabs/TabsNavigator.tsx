@@ -1,12 +1,13 @@
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { CustomTabBar } from 'src/app/navigation/tabs/CustomTabBar/CustomTabBar'
+import type { TabsParamList } from 'src/app/navigation/types'
 import { ActivityScreen } from 'src/screens/ActivityScreen'
 import { ExploreScreen } from 'src/screens/ExploreScreen'
 import { WrappedHomeScreen } from 'src/screens/HomeScreen/HomeScreen'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
 
-const Tab = createBottomTabNavigator()
+const Tab = createBottomTabNavigator<TabsParamList>()
 
 const WrappedCustomTabBar = (props: BottomTabBarProps): JSX.Element => <CustomTabBar {...props} />
 

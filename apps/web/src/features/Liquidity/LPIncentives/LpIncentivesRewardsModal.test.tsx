@@ -1,8 +1,11 @@
 import userEvent from '@testing-library/user-event'
 import { Token } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { SAMPLE_SEED_ADDRESS_1 } from 'uniswap/src/test/fixtures/gql/assets/constants'
+import { ETH_CURRENCY_INFO } from 'uniswap/src/test/fixtures/wallet/currencies'
 import type {
   LpIncentiveRewardChainGroup,
   LpIncentiveRewards,
@@ -20,6 +23,13 @@ vi.mock('~/features/Liquidity/LPIncentives/hooks/useLpIncentiveRewards', () => (
 vi.mock('uniswap/src/features/language/LocalizationContext', async (importOriginal) => ({
   ...(await importOriginal<typeof import('uniswap/src/features/language/LocalizationContext')>()),
   useLocalizationContext: vi.fn(),
+}))
+
+// Returns undefined, matching what the real lookup does for these fixture addresses, so the rows
+// keep falling back to `token.symbol` as they did. Mocked to assert the currency id it's handed.
+vi.mock('uniswap/src/features/tokens/useCurrencyInfo', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('uniswap/src/features/tokens/useCurrencyInfo')>()),
+  useCurrencyInfo: vi.fn(),
 }))
 
 vi.mock('~/features/Liquidity/LPIncentives/hooks/useCollectLpRewards', async (importOriginal) => ({
@@ -44,9 +54,10 @@ function row(
   address: string,
   usdValue?: number,
   symbol = 'TKN',
+  isNative = false,
 ): LpIncentiveRewardChainGroup['rows'][number] {
   return {
-    token: new Token({ chainId, address, decimals: 18, symbol, name: 'Token' }),
+    token: new Token({ chainId, address, decimals: 18, symbol, name: 'Token', isNative }),
     usdValue,
   }
 }
@@ -70,6 +81,7 @@ function mockRewards(overrides: Partial<LpIncentiveRewards>): void {
 describe('LpIncentivesRewardsModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocked(useCurrencyInfo).mockReturnValue(undefined)
     mocked(useLocalizationContext).mockReturnValue({
       convertFiatAmountFormatted: (value: number | string) => `$${Number(value).toFixed(2)}`,
     } as unknown as ReturnType<typeof useLocalizationContext>)
@@ -165,6 +177,49 @@ describe('LpIncentivesRewardsModal', () => {
     // The unpriced row's own Collect claims just that token.
     await userEvent.click(screen.getAllByText('Collect')[1])
     expect(collect).toHaveBeenCalledWith({ chainId: UniverseChainId.Mainnet, tokenAddresses: [UNI] })
+  })
+
+  // The liquidity service reports a native reward token at the zero address. Handing that straight
+  // to buildCurrencyId produced an id no token-list entry matches, so the row's logo came out blank.
+  it('resolves a native reward token to the chain native id, not the served zero address', () => {
+    mockRewards({
+      hasRewards: true,
+      totalUsd: 12,
+      groups: [group(UniverseChainId.Mainnet, [row(UniverseChainId.Mainnet, ZERO_ADDRESS, 12, 'ETH', true)])],
+    })
+    render(<LpIncentivesRewardsModal isOpen onClose={vi.fn()} walletAddress={SAMPLE_SEED_ADDRESS_1} />)
+
+    const [currencyId] = mocked(useCurrencyInfo).mock.calls[0]
+    expect(currencyId?.toLowerCase()).toBe(`${UniverseChainId.Mainnet}-0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee`)
+  })
+
+  // The claim contract is handed whatever address the backend served, so resolving the display id
+  // must not rewrite what gets collected.
+  it('still collects a native reward at its served address', async () => {
+    mockRewards({
+      hasRewards: true,
+      totalUsd: 12,
+      groups: [group(UniverseChainId.Mainnet, [row(UniverseChainId.Mainnet, ZERO_ADDRESS, 12, 'ETH', true)])],
+    })
+    render(<LpIncentivesRewardsModal isOpen onClose={vi.fn()} walletAddress={SAMPLE_SEED_ADDRESS_1} />)
+
+    await userEvent.click(screen.getByText('Collect'))
+    expect(collect).toHaveBeenCalledWith({ chainId: UniverseChainId.Mainnet, tokenAddresses: [ZERO_ADDRESS] })
+  })
+
+  // The row prefers the listed symbol so a stale served one can't outrank the token list — and so
+  // the modal and PoolAprTooltip name the same served token identically.
+  it('names an unpriced reward from the token list ahead of the served symbol', () => {
+    mocked(useCurrencyInfo).mockReturnValue(ETH_CURRENCY_INFO)
+    mockRewards({
+      hasRewards: true,
+      totalUsd: 0,
+      groups: [group(UniverseChainId.Mainnet, [row(UniverseChainId.Mainnet, ZERO_ADDRESS, undefined, 'WETH', true)])],
+    })
+    render(<LpIncentivesRewardsModal isOpen onClose={vi.fn()} walletAddress={SAMPLE_SEED_ADDRESS_1} />)
+
+    expect(screen.getByText('ETH')).toBeInTheDocument()
+    expect(screen.queryByText('WETH')).not.toBeInTheDocument()
   })
 
   // `token.symbol` is a protobuf string field, so an unlisted token the backend couldn't name

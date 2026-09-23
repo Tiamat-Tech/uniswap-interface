@@ -1,8 +1,8 @@
 import type { Currency, CurrencyAmount, TradeType } from '@uniswap/sdk-core'
 import { type ClassicQuoteResponse, type DiscriminatedQuoteResponse, TradingApi } from '@universe/api'
+import { type UniverseChainId, areAddressesEqual } from '@universe/chains'
 import { DynamicConfigs, getDynamicConfigValue, SwapConfigKey } from '@universe/gating'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
 import { createEarnChainedActionDisplayAmounts } from 'uniswap/src/features/earn/chainedDisplayAmounts'
 import {
@@ -20,7 +20,6 @@ import type { FrontendSupportedProtocol } from 'uniswap/src/features/transaction
 import { DEFAULT_PROTOCOL_OPTIONS, useProtocols } from 'uniswap/src/features/transactions/swap/utils/protocols'
 import { isClassic } from 'uniswap/src/features/transactions/swap/utils/routing'
 import type { CurrencyField } from 'uniswap/src/types/currency'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { currencyId } from 'uniswap/src/utils/currencyId'
 import { logger } from 'utilities/src/logger/logger'
 

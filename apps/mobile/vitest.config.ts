@@ -1,13 +1,14 @@
 import path from 'path'
 import react from '@vitejs/plugin-react'
 import { transformWithEsbuild } from 'vite'
+import { withRnPrimitives } from 'vitest-presets/vitest/rn-primitives.js'
 import vitestPreset from 'vitest-presets/vitest/vitest-preset.js'
 import { defineConfig } from 'vitest/config'
 
 // Some RN ecosystem packages ship untranspiled JSX in .js files (babel-jest handled these)
 const RN_JSX_PACKAGES = ['react-native-markdown-display']
 
-export default defineConfig({
+const config = defineConfig({
   ...vitestPreset,
   plugins: [
     react(),
@@ -46,7 +47,14 @@ export default defineConfig({
         // react-navigation ships untranspiled .js (Flow "typeof" imports); inline it so vite
         // transforms it and so the vitest-setup vi.mock('@react-navigation/native') applies.
         // Wallet doesn't need this because it doesn't use react-navigation.
-        inline: [/@react-navigation\/core/, /@react-navigation\/native/],
+        // uniwind imports bare `react-native` (raw Flow "typeof" source) at module scope; when
+        // externalized, Node parses react-native directly and dies on `import typeof`. Inlining
+        // routes it through vite, which transforms it and applies the react-native ->
+        // react-native-web alias. Reached via ui/src theme hooks' native legs and
+        // @universe/mycelium's compat .native legs (both resolved by this config's .native-first
+        // extensions). Paired with the uniwind alias in resolve.alias — neither works without
+        // the other.
+        inline: [/@react-navigation\/core/, /@react-navigation\/native/, /node_modules\/uniwind\//],
       },
     },
     reporters: ['verbose'],
@@ -80,25 +88,31 @@ export default defineConfig({
       '.jsx',
       '.json',
     ],
-    alias: {
+    alias: [
       // Mobile absolute imports
-      src: path.resolve(__dirname, './src'),
+      { find: 'src', replacement: path.resolve(__dirname, './src') },
+      // uniwind's `import`/`default` exports are its WEB core, which walks real
+      // CSSOM (CSSRuleList) at initialization — unavailable in this jsdom. Resolve
+      // the package to its native TS source instead (the `react-native` condition
+      // target, same as packages/tailwind's native parity harness). Paired with the
+      // uniwind inline entry in test.server.deps.inline, which routes uniwind through
+      // vite so the react-native -> react-native-web alias below applies inside it —
+      // neither works without the other. Reached via @universe/mycelium's compat
+      // .native legs. Exact match (bare specifier only) so uniwind/<subpath> imports
+      // keep resolving through the package instead of being rewritten unresolvably.
+      { find: /^uniwind$/, replacement: path.resolve(__dirname, '../../node_modules/uniwind/src/index.ts') },
       // React Native aliases for testing
-      'react-native': 'react-native-web',
-      'react-native-gesture-handler': path.resolve(__dirname, '../../node_modules/react-native-gesture-handler'),
-      '@tamagui/core': path.resolve(__dirname, '../../node_modules/@tamagui/core/dist/cjs/index.cjs'),
-      '@tamagui/web': path.resolve(__dirname, '../../node_modules/@tamagui/web/dist/cjs/index.cjs'),
-      '@tamagui/use-direction': path.resolve(__dirname, '../../node_modules/@tamagui/use-direction/dist/cjs/index.cjs'),
-      '@tamagui/use-callback-ref': path.resolve(
-        __dirname,
-        '../../node_modules/@tamagui/use-callback-ref/dist/cjs/index.cjs',
-      ),
-      'tamagui/linear-gradient': path.resolve(__dirname, '../../node_modules/tamagui/dist/cjs/linear-gradient.cjs'),
-      tamagui: path.resolve(__dirname, '../../node_modules/tamagui/dist/cjs/index.cjs'),
-    },
+      { find: 'react-native', replacement: 'react-native-web' },
+      {
+        find: 'react-native-gesture-handler',
+        replacement: path.resolve(__dirname, '../../node_modules/react-native-gesture-handler'),
+      },
+    ],
   },
   optimizeDeps: {
     ...vitestPreset.optimizeDeps,
     include: ['react-native-web', '@testing-library/react-native'],
   },
 })
+
+export default withRnPrimitives(config, 'native')

@@ -17,14 +17,12 @@ function makeCurrencyInfo({
   blockaidBuyFeePercent?: number
   blockaidSellFeePercent?: number
 } = {}) {
+  // A real Token carries the fee fields directly and returns itself from `.wrapped`, so the
+  // fixture self-references rather than modelling `wrapped` as a separate object.
+  const currency = { isNative, isToken: !isNative, buyFeeBps, sellFeeBps }
+
   return {
-    currency: {
-      isNative,
-      wrapped: {
-        buyFeeBps,
-        sellFeeBps,
-      },
-    },
+    currency: Object.assign(currency, { wrapped: currency }),
     safetyInfo: {
       blockaidFees: {
         buyFeePercent: blockaidBuyFeePercent,

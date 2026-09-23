@@ -1,5 +1,6 @@
+import { Flex } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
-import { Flex, useSporeColors } from 'ui/src'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { shuffleArray } from 'uniswap/src/components/IconCloud/utils'
 import { approvedERC20, InteractiveToken } from '~/pages/Landing/assets/approvedTokens'
@@ -60,8 +61,8 @@ export function TokenCarousel(): JSX.Element {
         <Flex
           row
           position="absolute"
-          top="0"
-          left="0"
+          top={0}
+          left={0}
           style={{ animation: 'ew-onboarding-token-scroll 90s linear infinite' }}
         >
           <TokenStrip tokens={tokens} />

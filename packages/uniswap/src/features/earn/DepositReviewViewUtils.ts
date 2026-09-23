@@ -1,6 +1,7 @@
 import { type Currency, type CurrencyAmount } from '@uniswap/sdk-core'
 import { type ChainedQuoteResponse, TradingApi } from '@universe/api'
 import type { ExecuteEarnDepositParams } from 'uniswap/src/features/earn/DepositReviewView'
+import { buildEarnQuoteGasParams } from 'uniswap/src/features/earn/earnQuoteGasParams'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { ValueType, getCurrencyAmount } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { isChainedQuoteResponse } from 'uniswap/src/features/transactions/swap/utils/routing'
@@ -122,5 +123,6 @@ export function getDepositQuoteRequestBase({
     swapper: accountAddress,
     recipient: accountAddress,
     routingPreference: TradingApi.RoutingPreference.BEST_PRICE,
+    ...buildEarnQuoteGasParams(),
   }
 }

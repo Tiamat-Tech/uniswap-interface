@@ -1,8 +1,8 @@
+import { UniverseChainId } from '@universe/chains'
 import type { ReactNode } from 'react'
 import { EarnDepositAmountContent } from 'src/components/earn/EarnDepositAmountContent'
 import { fireEvent, render, screen } from 'src/test/test-utils'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EarnAction, type EarnPositionInfo, type EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 
@@ -68,7 +68,7 @@ vi.mock('uniswap/src/components/modals/BottomSheetContext', () => ({
 
 vi.mock('uniswap/src/components/modals/HandleBar', () => ({ HandleBar: () => null }))
 vi.mock('uniswap/src/components/pill/PillMultiToggle', async () => {
-  const { Text } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Text } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     PillMultiToggle: ({
       options,
@@ -160,7 +160,8 @@ vi.mock('uniswap/src/features/transactions/components/DecimalPadInput/DecimalPad
 })
 
 vi.mock('wallet/src/features/wallet/hooks', () => ({
-  useActiveAccountAddress: () => '0x0000000000000000000000000000000000000001',
+  useActiveAccountAddress: (): string => '0x0000000000000000000000000000000000000001',
+  useIsViewOnlyWallet: (): boolean => false,
 }))
 
 function getStablecoinCurrencyId(chainId: UniverseChainId, symbol: 'USDC' | 'USDT'): string {

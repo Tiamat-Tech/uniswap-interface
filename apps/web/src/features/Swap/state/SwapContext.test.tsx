@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import { SwapTab } from 'uniswap/src/types/screens/interface'
 import { SwapAndLimitContextProvider } from '~/features/Swap/state/SwapContext'
 import { useSwapAndLimitContext } from '~/features/Swap/state/useSwapContext'

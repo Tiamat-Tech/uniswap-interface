@@ -7,10 +7,21 @@ import { TDPTvlChartPanel } from '~/pages/TokenDetails/components/chart/TDPTvlCh
 import { render, screen } from '~/test-utils/render'
 
 vi.mock('~/components/Charts/LoadingState', () => ({
-  ChartSkeleton: function MockChartSkeleton({ errorText }: { errorText?: ReactNode }) {
+  ChartSkeleton: function MockChartSkeleton({
+    errorTitle,
+    errorText,
+  }: {
+    errorTitle?: ReactNode
+    errorText?: ReactNode
+  }) {
     return (
       <div data-testid="mock-chart-skeleton">
-        {errorText ? <div data-cy="chart-error-view">{errorText}</div> : null}
+        {errorText ? (
+          <div data-cy="chart-error-view">
+            <div data-testid="chart-error-title">{errorTitle}</div>
+            <div data-testid="chart-error-text">{errorText}</div>
+          </div>
+        ) : null}
       </div>
     )
   },
@@ -35,19 +46,49 @@ const variables = {
 
 const mockedUseTDPTVLChartData = vi.mocked(useTDPTVLChartData)
 
+function mockInvalid({ isError, loading = false }: { isError: boolean; loading?: boolean }) {
+  mockedUseTDPTVLChartData.mockReturnValue({
+    chartType: ChartType.TVL,
+    entries: [{ time: 1 as UTCTimestamp, values: [1] }],
+    loading,
+    dataQuality: DataQuality.INVALID,
+    isError,
+  })
+}
+
 describe('TDPTvlChartPanel', () => {
   beforeEach(() => {
-    mockedUseTDPTVLChartData.mockReturnValue({
-      chartType: ChartType.TVL,
-      entries: [{ time: 1 as UTCTimestamp, values: [1] }],
-      loading: false,
-      dataQuality: DataQuality.INVALID,
-    })
+    mockInvalid({ isError: false })
   })
 
-  it('shows chart error view when data is invalid and not loading', () => {
+  it('shows the no-data copy when the query succeeded but there is not enough data', () => {
     render(<TDPTvlChartPanel variables={variables} />)
+
     expect(document.querySelector('[data-cy="chart-error-view"]')).toBeInTheDocument()
+    expect(screen.getByTestId('chart-error-title')).toHaveTextContent('No TVL data available')
+    expect(screen.getByTestId('chart-error-text')).toHaveTextContent(
+      'There isn’t enough historical data for this token to show a chart.',
+    )
+  })
+
+  it('keeps the error copy when the query failed', () => {
+    mockInvalid({ isError: true })
+
+    render(<TDPTvlChartPanel variables={variables} />)
+
+    expect(screen.getByTestId('chart-error-title')).toHaveTextContent('Missing chart data')
+    expect(screen.getByTestId('chart-error-text')).toHaveTextContent(
+      'Unable to display historical data for the current token.',
+    )
+  })
+
+  it('renders a bare skeleton while loading', () => {
+    mockInvalid({ isError: false, loading: true })
+
+    render(<TDPTvlChartPanel variables={variables} />)
+
+    expect(screen.getByTestId('mock-chart-skeleton')).toBeInTheDocument()
+    expect(document.querySelector('[data-cy="chart-error-view"]')).not.toBeInTheDocument()
   })
 
   it('renders LineChart when data is valid', () => {

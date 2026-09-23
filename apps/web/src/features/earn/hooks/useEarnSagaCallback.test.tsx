@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { Token } from '@uniswap/sdk-core'
 import { type ChainedQuoteResponse, TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { planActions } from 'uniswap/src/features/transactions/swap/plan/planSaga'
 import { PlanStepFailedError } from 'uniswap/src/features/transactions/swap/plan/types'
 import { activePlanStore } from 'uniswap/src/features/transactions/swap/review/stores/activePlan/activePlanStore'
@@ -48,6 +48,7 @@ vi.mock('~/state/sagas/transactions/utils', () => ({
 const ACCOUNT = {
   address: '0x0000000000000000000000000000000000000001' as Address,
 }
+const ATTEMPT_ID = 'attempt-1'
 const USDC = new Token(UniverseChainId.Mainnet, '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', 6, 'USDC')
 const VAULT_ADDRESS = '0x0000000000000000000000000000000000000002' as Address
 const EARN_INTENT: TradingApi.EarnIntent = {
@@ -108,6 +109,7 @@ describe('useEarnSagaCallback', () => {
     const onSubmitted = vi.fn()
 
     result.current({
+      attemptId: ATTEMPT_ID,
       earnIntent: EARN_INTENT,
       inputCurrency: USDC,
       outputCurrency: USDC,
@@ -124,6 +126,7 @@ describe('useEarnSagaCallback', () => {
     expect(action.payload.swapTxContext.routing).toBe(TradingApi.Routing.CHAINED)
     expect(trade.routing).toBe(TradingApi.Routing.CHAINED)
     expect(trade.earnIntent).toEqual(EARN_INTENT)
+    expect(action.payload.analytics).toEqual(expect.objectContaining({ attempt_id: ATTEMPT_ID }))
     expect(action.payload.modalClosedActionType).toBe(signalEarnModalClosed.type)
     expect(action.payload.onSuccess).toBe(onSuccess)
     expect(action.payload.onFailure).toBe(onFailure)
@@ -134,6 +137,7 @@ describe('useEarnSagaCallback', () => {
     const { result } = renderHook(() => useEarnSagaCallback())
 
     result.current({
+      attemptId: ATTEMPT_ID,
       earnIntent: EARN_INTENT,
       inputCurrency: USDC,
       outputCurrency: USDC,
@@ -161,6 +165,7 @@ describe('useEarnSagaCallback', () => {
     const onSubmitted = vi.fn()
 
     result.current({
+      attemptId: ATTEMPT_ID,
       earnIntent: EARN_INTENT,
       inputCurrency: USDC,
       outputCurrency: USDC,
@@ -194,6 +199,7 @@ describe('useEarnSagaCallback', () => {
     const onFailure = vi.fn()
 
     result.current({
+      attemptId: ATTEMPT_ID,
       earnIntent: EARN_INTENT,
       inputCurrency: USDC,
       outputCurrency: USDC,
@@ -222,6 +228,7 @@ describe('useEarnSagaCallback', () => {
 
     expect(() =>
       result.current({
+        attemptId: ATTEMPT_ID,
         earnIntent: EARN_INTENT,
         inputCurrency: USDC,
         outputCurrency: USDC,

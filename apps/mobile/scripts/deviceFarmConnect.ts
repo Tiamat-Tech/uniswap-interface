@@ -23,8 +23,8 @@
 import { execFileSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
 
-// Provisional default — expected to change; override via --project or AWS_DEVICE_FARM_PROJECT_ARN
-const DEFAULT_PROJECT_NAME = 'uniswap-pr34890'
+// Standing Device Farm project (us-west-2); override via --project or AWS_DEVICE_FARM_PROJECT_ARN
+const DEFAULT_PROJECT_NAME = 'uniswap-mobile'
 const DEFAULT_REGION = 'us-west-2'
 const DEFAULT_DEVICE_FILTER = 'Pixel'
 

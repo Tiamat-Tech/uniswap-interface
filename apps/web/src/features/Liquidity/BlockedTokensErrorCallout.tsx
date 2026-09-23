@@ -1,5 +1,5 @@
+import { Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Text } from 'ui/src'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ErrorCallout } from '~/components/ErrorCallout'
 import { ClickableTamaguiStyle } from '~/theme/components/styles'

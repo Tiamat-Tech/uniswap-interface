@@ -1,12 +1,11 @@
 import { SharedEventName } from '@uniswap/analytics-events'
 import { isMobileWeb } from '@universe/environment'
+import { Flex, iconSizes, Text, TouchableArea, zIndexes } from '@universe/mycelium'
+import { ArrowUpRight } from '@universe/mycelium/icons/ArrowUpRight'
+import { MoreHorizontal } from '@universe/mycelium/icons/MoreHorizontal'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, useSporeColors } from 'ui/src'
-import { ArrowUpRight } from 'ui/src/components/icons/ArrowUpRight'
-import { MoreHorizontal } from 'ui/src/components/icons/MoreHorizontal'
-import { zIndexes } from 'ui/src/theme'
-import { iconSizes } from 'ui/src/theme/iconSizes'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { GroupHoverTransition } from 'uniswap/src/components/GroupHoverTransition'
 import { ContextMenu } from 'uniswap/src/components/menus/ContextMenu'
@@ -176,10 +175,12 @@ function NFTCardInner(props: NftCardProps): JSX.Element {
     [openseaUrl, explorerUrl, props.item.collectionName, props.item.contractAddress, props.item.tokenId, props.onPress],
   )
 
+  const viewOnLinkLabel: string = openseaUrl ? t('common.opensea.link') : t('common.viewOnExplorer')
+
   const cardTestId = `${TestID.PortfolioNftCardPrefix}${nftUniqueId}`
 
   return (
-    <Flex group="item" testID={cardTestId} data-testid={cardTestId}>
+    <Flex testID={cardTestId} data-testid={cardTestId}>
       <TouchableArea
         p="$spacing4"
         borderRadius="$rounded16"
@@ -234,7 +235,8 @@ function NFTCardInner(props: NftCardProps): JSX.Element {
           </Text>
           <GroupHoverTransition
             height={SUBTITLE_HEIGHT}
-            useGroupItemHover
+            // Driven explicitly: the slide must stay off on mobile web (touch, no hover), which the group path cannot express.
+            isHovered={isHovered && !isMobileWeb}
             widthMode="container"
             defaultContent={
               <Flex width="100%" row alignItems="center" gap="$spacing4" height={SUBTITLE_HEIGHT}>
@@ -258,7 +260,7 @@ function NFTCardInner(props: NftCardProps): JSX.Element {
                 testID={TestID.PortfolioNftCardViewOnLink}
               >
                 <Text variant="body4" color="$neutral2">
-                  {openseaUrl ? t('common.opensea.link') : t('common.viewOnExplorer')}
+                  {viewOnLinkLabel}
                 </Text>
                 <ArrowUpRight size="$icon.12" color="$neutral2" />
               </Flex>

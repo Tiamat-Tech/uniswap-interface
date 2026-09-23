@@ -1,8 +1,9 @@
+import { Flex } from '@universe/mycelium'
+import { getTokenValue } from '@universe/mycelium'
 import React, { memo } from 'react'
 import { TransactionLoader } from 'src/components/loading/parts/TransactionLoader'
 import { useChartDimensions } from 'src/components/PriceExplorer/useChartDimensions'
-import { Flex, FlexLoader, FlexLoaderProps, getToken, Skeleton, WaveLoader } from 'ui/src'
-
+import { FlexLoader, FlexLoaderProps, Skeleton, WaveLoader } from 'ui/src'
 function Graph(): JSX.Element {
   const { chartHeight } = useChartDimensions()
 
@@ -39,7 +40,7 @@ function Box(props: FlexLoaderProps): JSX.Element {
 function Image(): JSX.Element {
   return (
     <Skeleton>
-      <FlexLoader aspectRatio={1} borderRadius={getToken('$none', 'radius')} />
+      <FlexLoader aspectRatio={1} borderRadius={getTokenValue('$none', 'radius')} />
     </Skeleton>
   )
 }

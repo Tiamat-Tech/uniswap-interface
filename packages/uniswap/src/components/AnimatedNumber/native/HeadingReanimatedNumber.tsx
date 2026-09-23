@@ -1,7 +1,8 @@
+import { Flex, Shine } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Dimensions, type LayoutChangeEvent } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import { Flex, Shine, useSporeColors } from 'ui/src'
 import type { AnimatedNumberProps } from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { CharRow } from 'uniswap/src/components/AnimatedNumber/native/CharRow'
 import {

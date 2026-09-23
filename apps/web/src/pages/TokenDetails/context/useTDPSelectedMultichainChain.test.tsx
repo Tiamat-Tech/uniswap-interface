@@ -1,11 +1,13 @@
 import { act, renderHook } from '@testing-library/react'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import type { ReactNode } from 'react'
+import { Provider } from 'react-redux'
 import { MemoryRouter, useLocation, useSearchParams } from 'react-router'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { createTDPStore, type TDPState } from '~/pages/TokenDetails/context/createTDPStore'
 import { TDPStoreContext } from '~/pages/TokenDetails/context/TDPContext'
 import { useTDPSelectedMultichainChain } from '~/pages/TokenDetails/context/useTDPSelectedMultichainChain'
+import store from '~/state'
 import { validTokenProjectResponse } from '~/test-utils/tokens/fixtures'
 import { CHAIN_SEARCH_PARAM, TDP_MULTICHAIN_CHAIN_QUERY_VALUE } from '~/utils/params/chainQueryParam'
 
@@ -33,8 +35,8 @@ function createMultichainTDPState(
   return {
     ...createPendingTDPState(overrides),
     multiChainMap: {
-      [GraphQLApi.Chain.Ethereum]: { address: '0x1111111111111111111111111111111111111111' },
-      [GraphQLApi.Chain.Arbitrum]: { address: '0x3333333333333333333333333333333333333333' },
+      [UniverseChainId.Mainnet]: { address: '0x1111111111111111111111111111111111111111' },
+      [UniverseChainId.ArbitrumOne]: { address: '0x3333333333333333333333333333333333333333' },
     },
   } as unknown as TDPState
 }
@@ -58,14 +60,17 @@ function useSelectedMultichainChainWithSearchString(): {
 
 describe('useTDPSelectedMultichainChain', () => {
   function renderWithStore(initialPath: string, initialState: TDPState) {
-    const store = createTDPStore(initialState)
+    const tdpStore = createTDPStore(initialState)
     const wrapper = ({ children }: { children: ReactNode }) => (
-      <MemoryRouter initialEntries={[initialPath]}>
-        <TDPStoreContext.Provider value={store}>{children}</TDPStoreContext.Provider>
-      </MemoryRouter>
+      // Redux Provider: useMultichainTokenEntries reads testnet mode via useEnabledChains
+      <Provider store={store}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <TDPStoreContext.Provider value={tdpStore}>{children}</TDPStoreContext.Provider>
+        </MemoryRouter>
+      </Provider>
     )
     const hook = renderHook(() => useSelectedMultichainChainWithSearchString(), { wrapper })
-    return { store, ...hook }
+    return { store: tdpStore, ...hook }
   }
 
   it('exposes selectedMultichainChainId from the TDP store', () => {

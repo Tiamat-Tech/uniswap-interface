@@ -4,7 +4,7 @@ import {
   RWAIssuerLogosConfigKey,
   useDynamicConfigValue,
 } from '@universe/gating'
-import { useIsDarkMode } from 'ui/src'
+import { useIsDarkMode } from '@universe/mycelium/theme-hooks-compat'
 import { isRWAIssuerLogosMap } from 'uniswap/src/features/gating/typeGuards'
 import type { RWAIssuer } from 'uniswap/src/features/rwa/types'
 

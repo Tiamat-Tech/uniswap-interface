@@ -1,11 +1,11 @@
 import { BigNumber } from '@ethersproject/bignumber'
 import { call } from '@redux-saga/core/effects'
+import { UniverseChainId } from '@universe/chains'
 import { expectSaga } from 'redux-saga-test-plan'
 import * as matchers from 'redux-saga-test-plan/matchers'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import { DAI } from 'uniswap/src/constants/tokens'
 import { AssetType } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   SendTokenTransactionInfo,
   TransactionOriginType,

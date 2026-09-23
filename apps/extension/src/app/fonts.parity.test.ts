@@ -55,7 +55,9 @@ describe('extension font registration', () => {
 
   it('aliases the Tamagui "Basel" family (weights 400/500) to the licensed Basel Grotesk sources', () => {
     const baselFaces = fontFaceBlocks(appTailwindCss).filter((block) => familyOf(block) === 'Basel')
-    const weights = baselFaces.map((block) => block.match(/font-weight:\s*(\d+)/)?.[1]).sort()
+    const weights = baselFaces
+      .map((block) => block.match(/font-weight:\s*(\d+)/)?.[1])
+      .sort((a, b) => (a ?? '').localeCompare(b ?? ''))
 
     expect(weights).toEqual(['400', '500'])
     for (const block of baselFaces) {

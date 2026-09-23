@@ -1,5 +1,5 @@
+import { EVMUniverseChainId } from '@universe/chains'
 import { useMemo, useRef } from 'react'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import { getDurationRemainingString } from 'utilities/src/time/duration'
 import { ONE_MINUTE_MS, ONE_SECOND_MS } from 'utilities/src/time/time'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'

@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import type { RWAToken } from 'uniswap/src/features/rwa/types'
 import { buildRWAIssuerMarketDataMap, rwaTokenMarketDataKey } from 'uniswap/src/features/rwa/useRWAIssuerMarketData'

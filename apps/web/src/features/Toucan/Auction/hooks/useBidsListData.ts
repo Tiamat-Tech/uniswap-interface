@@ -6,7 +6,7 @@ import { logger } from 'utilities/src/logger/logger'
 import { formatUnits } from '~/chains'
 import { q96ToPriceString } from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
 import { useBidTokenInfo } from '~/features/Toucan/Auction/hooks/useBidTokenInfo'
-import { AuctionBidStatus, AuctionProgressState, UserBid } from '~/features/Toucan/Auction/store/types'
+import { AuctionBidStatus, AuctionOutcome, AuctionProgressState, UserBid } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { type BidDisplayState, getBidDisplayInfo } from '~/features/Toucan/Auction/utils/bidDetails'
 import { calculateBidFillFraction } from '~/features/Toucan/Auction/utils/calculateBidFillFraction'
@@ -49,7 +49,8 @@ export interface BidListItem {
   displayState: BidDisplayState
   // Auction state for progress bar styling
   isAuctionInProgress: boolean
-  // Whether auction has ended
+  // Whether the auction is over, derived from `outcome` by getBidDisplayInfo (not from progress
+  // state) so this feature has a single answer to "has this ended"
   isAuctionEnded: boolean
   // Whether the bid is fully filled (100%)
   isComplete: boolean
@@ -57,8 +58,6 @@ export interface BidListItem {
   bidTokenSymbol: string
   // Auction token symbol for display
   auctionTokenSymbol: string
-  // Whether auction has graduated (for conditional display)
-  isGraduated: boolean
 }
 
 interface UseBidsListDataResult {
@@ -72,20 +71,23 @@ export function useBidsListData(): UseBidsListDataResult {
   const { t } = useTranslation()
   const { convertFiatAmountFormatted, formatNumberOrString } = useLocalizationContext()
 
-  const { userBids, auctionDetails, onchainCheckpoint, checkpointData, auctionProgress, isGraduated, optimisticBid } =
+  const { userBids, auctionDetails, onchainCheckpoint, checkpointData, auctionProgress, outcome, optimisticBid } =
     useAuctionStore((state) => ({
       userBids: state.userBids,
       auctionDetails: state.auctionDetails,
       onchainCheckpoint: state.onchainCheckpoint,
       checkpointData: state.checkpointData,
       auctionProgress: state.progress.state,
-      isGraduated: state.progress.isGraduated,
+      outcome: state.progress.outcome,
       optimisticBid: state.optimisticBid,
     }))
 
+  // Only for picking the clearing-price source below. Ended-ness is NOT derived here — it comes
+  // from getBidDisplayInfo, which reads it off `outcome`.
+  const isAuctionInProgress = auctionProgress === AuctionProgressState.IN_PROGRESS
+
   // Use on-chain clearing price during active auction, simulated when ended
-  const isAuctionActive = auctionProgress === AuctionProgressState.IN_PROGRESS
-  const effectiveCheckpoint = isAuctionActive ? onchainCheckpoint : checkpointData
+  const effectiveCheckpoint = isAuctionInProgress ? onchainCheckpoint : checkpointData
   const clearingPriceRaw = getClearingPrice(effectiveCheckpoint, auctionDetails)
 
   const { bidTokenInfo } = useBidTokenInfo({
@@ -93,9 +95,17 @@ export function useBidsListData(): UseBidsListDataResult {
     chainId: auctionDetails?.chainId,
   })
 
-  const isLoading = !bidTokenInfo || !auctionDetails || !clearingPriceRaw
-  const isAuctionInProgress = auctionProgress === AuctionProgressState.IN_PROGRESS
-  const isAuctionEnded = auctionProgress === AuctionProgressState.ENDED
+  // An undecided outcome is a loading state, not a failed auction: keep showing the bids skeleton
+  // rather than telling a bidder their funds are refundable before we know they are.
+  //
+  // TODO | Toucan -- this has no terminal state: if the block number never resolves, the skeleton
+  // (and the disabled withdraw button) stay up indefinitely, and `hasErrors` stays suppressed
+  // because Bids.tsx gates its error banner behind `isLoading`. That is pre-existing to the three
+  // conditions on the left, but it now also covers a settled-but-failed auction whose bidder has
+  // funds to reclaim. #38938 lands `AuctionCheckpointLoadState` (Idle/Loading/Success/Error) on the
+  // store; on the rebase onto it, give this the same in-flight/settled/errored shape and log the
+  // errored case, rather than inventing a second, differently-named load state here.
+  const isLoading = !bidTokenInfo || !auctionDetails || !clearingPriceRaw || outcome === AuctionOutcome.UNKNOWN
 
   // Sort bids by creation time (newest first)
   const sortedBids = useMemo(() => {
@@ -138,13 +148,14 @@ export function useBidsListData(): UseBidsListDataResult {
         const fillFraction = calculateBidFillFraction(bid.baseTokenInitial, bid.currencySpent)
         const isComplete = fillFraction >= COMPLETE_FILL_THRESHOLD
 
-        // Compute unified display state
-        const { displayState } = getBidDisplayInfo({
+        // Compute unified display state. isAuctionEnded comes from here too, so the row and the
+        // status copy can never disagree about whether the auction is over.
+        const { displayState, isAuctionEnded } = getBidDisplayInfo({
           bidStatus: bid.status,
           isInRange,
           isFullyFilled: isComplete,
-          auctionProgressState: isAuctionInProgress ? AuctionProgressState.IN_PROGRESS : AuctionProgressState.ENDED,
-          isGraduated,
+          isAuctionInProgress,
+          outcome,
         })
 
         // Line 1: Budget display values
@@ -286,7 +297,6 @@ export function useBidsListData(): UseBidsListDataResult {
           isComplete,
           bidTokenSymbol: bidTokenInfo!.symbol,
           auctionTokenSymbol: auctionDetails!.token?.currency.symbol ?? '',
-          isGraduated,
         })
       } catch (error) {
         logger.error(error, {
@@ -308,8 +318,7 @@ export function useBidsListData(): UseBidsListDataResult {
     formatNumberOrString,
     convertFiatAmountFormatted,
     isAuctionInProgress,
-    isAuctionEnded,
-    isGraduated,
+    outcome,
     t,
   ])
 
@@ -385,9 +394,8 @@ export function useBidsListData(): UseBidsListDataResult {
       isComplete: false,
       bidTokenSymbol: optimisticBid.bidTokenSymbol,
       auctionTokenSymbol: auctionDetails.token?.currency.symbol ?? '',
-      isGraduated,
     }
-  }, [optimisticBid, bidTokenInfo, auctionDetails, formatNumberOrString, convertFiatAmountFormatted, isGraduated])
+  }, [optimisticBid, bidTokenInfo, auctionDetails, formatNumberOrString, convertFiatAmountFormatted])
 
   // Prepend optimistic bid to list if present
   const finalBidItems = optimisticBidItem ? [optimisticBidItem, ...bidItems] : bidItems

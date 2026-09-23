@@ -1,5 +1,5 @@
+import { Platform } from '@universe/chains'
 import { useCallback, useEffect, useState } from 'react'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useAccountDrawer } from '~/components/AccountDrawer/MiniPortfolio/hooks'
 import { useConnectionStatus } from '~/features/accounts/store/hooks'
 

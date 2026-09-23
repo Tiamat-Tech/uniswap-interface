@@ -1,8 +1,8 @@
+import { AnimatedFlex } from '@universe/mycelium'
+import { HeartWithFill } from '@universe/mycelium/icons/HeartWithFill'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useAnimatedStyle, useDerivedValue, withSequence, withTiming } from 'react-native-reanimated'
-import { useSporeColors } from 'ui/src'
-import { HeartWithFill } from 'ui/src/components/icons'
-import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 
 interface FavoriteButtonProps {
   isFavorited: boolean

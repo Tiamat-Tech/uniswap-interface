@@ -1,7 +1,12 @@
+import {
+  Flex,
+  Text,
+  UniversalImage,
+  type UniversalImageStyleDimensionValue,
+  UniversalImageResizeMode,
+} from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, UniversalImage, type UniversalImageStyleDimensionValue } from 'ui/src'
-import { UniversalImageResizeMode } from 'ui/src/components/UniversalImage/types'
 import { shortenAddress } from 'utilities/src/addresses'
 import { isEVMAddress } from 'utilities/src/addresses/evm/evm'
 import { isGifUri, isSVGUri, uriToHttpUrls } from 'utilities/src/format/urls'
@@ -108,10 +113,8 @@ export function NFTViewer(props: Props): JSX.Element {
 
   return (
     <UniversalImage
-      allowUndefinedSize
-      skipSizeCalculation
       // Skip the cross-fade so we don't hold both old + new bitmaps in memory during
-      // FlashList recycling on the NFT grid.
+      // Legend List recycling on the NFT grid.
       transitionMs={0}
       // Deprioritize NFT thumbnails in the native loading queue so token logos / avatars
       // can preempt them.
@@ -126,7 +129,6 @@ export function NFTViewer(props: Props): JSX.Element {
       style={style}
       autoplay={autoplay}
       fallback={fallback}
-      shouldRasterizeIOS={isGif && Boolean(limitGIFSize)}
       onLoad={releaseGate}
       onError={releaseGate}
     />

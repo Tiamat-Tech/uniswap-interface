@@ -1,4 +1,6 @@
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { areEvmAddressesEqual } from '@universe/chains'
+import { Flex, ScrollView, Separator, Text } from '@universe/mycelium'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { AppStackScreenProp } from 'src/app/navigation/types'
@@ -9,18 +11,14 @@ import { PositionDetailsMenu } from 'src/screens/PositionDetailsScreen/component
 import { PositionDetailsStats } from 'src/screens/PositionDetailsScreen/components/PositionDetailsStats'
 import { PositionFeesUnavailable } from 'src/screens/PositionDetailsScreen/components/PositionFeesUnavailable'
 import { PositionTokenBreakdown } from 'src/screens/PositionDetailsScreen/components/PositionTokenBreakdown'
-import { Flex, ScrollView, Separator, Text } from 'ui/src'
-import { spacing } from 'ui/src/theme'
-import { useGetPositionQuery } from 'uniswap/src/data/apiClients/dataApiService/positions/getPosition'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { useGetPositionInfo } from 'uniswap/src/features/positions/hooks/useGetPositionInfo'
 import { usePriceRangeUsd } from 'uniswap/src/features/positions/hooks/usePriceRangeUsd'
-import { parseRestPosition } from 'uniswap/src/features/positions/parseRestPosition'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useCurrencyInfos } from 'uniswap/src/features/tokens/useCurrencyInfo'
-import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
+import { useBottomScreenGap } from 'uniswap/src/hooks/useBottomScreenGap'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
-import { areEvmAddressesEqual } from 'uniswap/src/utils/addresses'
 import { currencyId } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
 import { useActiveAccountAddressWithThrow } from 'wallet/src/features/wallet/hooks'
@@ -28,22 +26,19 @@ import { useActiveAccountAddressWithThrow } from 'wallet/src/features/wallet/hoo
 export function PositionDetailsScreen({ route }: AppStackScreenProp<MobileScreens.PositionDetails>): JSX.Element {
   const { poolId, tokenId, chainId, protocolVersion, owner: ownerParam, permissioned } = route.params
   const { t } = useTranslation()
-  const insets = useAppInsets()
   const activeAccountAddress = useActiveAccountAddressWithThrow()
   const owner = ownerParam ?? activeAccountAddress
   const isOwnPosition = areEvmAddressesEqual(owner, activeAccountAddress)
 
   const isV2 = protocolVersion === ProtocolVersion.V2
-  const { data, isLoading } = useGetPositionQuery({
+  const { positionInfo, isLoading } = useGetPositionInfo({
     owner,
     chainId,
     protocolVersion,
-    tokenId: tokenId ?? '',
-    pairAddress: isV2 ? poolId : '',
+    tokenId,
+    pairAddress: isV2 ? poolId : undefined,
     permissioned: Boolean(permissioned),
   })
-
-  const positionInfo = useMemo(() => parseRestPosition(data?.position), [data?.position])
 
   return (
     <Trace directFromPage logImpression screen={MobileScreens.PositionDetails}>
@@ -51,7 +46,7 @@ export function PositionDetailsScreen({ route }: AppStackScreenProp<MobileScreen
         rightElement={positionInfo && isOwnPosition ? <PositionDetailsMenu positionInfo={positionInfo} /> : undefined}
       >
         {positionInfo ? (
-          <PositionDetailsContent positionInfo={positionInfo} bottomInset={insets.bottom} />
+          <PositionDetailsContent positionInfo={positionInfo} />
         ) : isLoading ? (
           <PositionDetailsLoader />
         ) : (
@@ -66,14 +61,9 @@ export function PositionDetailsScreen({ route }: AppStackScreenProp<MobileScreen
   )
 }
 
-function PositionDetailsContent({
-  positionInfo,
-  bottomInset,
-}: {
-  positionInfo: PositionInfo
-  bottomInset: number
-}): JSX.Element {
+function PositionDetailsContent({ positionInfo }: { positionInfo: PositionInfo }): JSX.Element {
   const { t } = useTranslation()
+  const { bottomScreenTotalGap } = useBottomScreenGap()
   const { convertFiatAmountFormatted, formatNumberOrString, formatPercent } = useLocalizationContext()
   const [priceInverted, setPriceInverted] = useState(false)
 
@@ -128,7 +118,11 @@ function PositionDetailsContent({
     }
     const baseSymbol = priceInverted ? currency1Amount.currency.symbol : currency0Amount.currency.symbol
     const quoteSymbol = priceInverted ? currency0Amount.currency.symbol : currency1Amount.currency.symbol
-    const formattedPrice = formatNumberOrString({ value: directionalPrice.toSignificant(), type: NumberType.TokenTx })
+    const priceValue = directionalPrice.toSignificant()
+    const formattedPrice = formatNumberOrString({
+      value: priceValue,
+      type: Number(priceValue) >= 1e6 ? NumberType.TokenNonTx : NumberType.TokenTx,
+    })
     return `1 ${baseSymbol} = ${formattedPrice} ${quoteSymbol}`
   }, [
     priceInverted,
@@ -153,7 +147,7 @@ function PositionDetailsContent({
 
   return (
     <ScrollView flex={1} showsVerticalScrollIndicator={false}>
-      <Flex gap="$spacing20" pb={bottomInset + spacing.spacing24} pt="$spacing12" px="$spacing24">
+      <Flex gap="$spacing20" pb={bottomScreenTotalGap} pt="$spacing12" px="$spacing24">
         <PositionDetailsHero
           conversionText={conversionText}
           currency0Info={currency0Info}

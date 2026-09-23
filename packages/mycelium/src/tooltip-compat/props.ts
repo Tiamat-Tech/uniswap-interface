@@ -27,6 +27,20 @@ export type { PopoverCompatOffset, PopoverCompatPlacement }
 
 export type TooltipCompatDelay = number | { open?: number; close?: number }
 
+/**
+ * Shape of the root's config context, shared by both legs: the web leg's real
+ * provider (next to the Base-UI-backed root) and the native leg's stand-in
+ * (export parity; Content/Arrow render null there, so nothing consumes it).
+ */
+export interface TooltipCompatConfigContextValue {
+  placement?: PopoverCompatPlacement
+  offset?: PopoverCompatOffset
+  allowFlip?: boolean | Record<string, unknown>
+  strategy?: 'absolute' | 'fixed'
+  openDelayMs: number
+  closeDelayMs: number
+}
+
 export type TooltipAnimationDirection = 'left' | 'right' | 'top' | 'bottom'
 
 /**

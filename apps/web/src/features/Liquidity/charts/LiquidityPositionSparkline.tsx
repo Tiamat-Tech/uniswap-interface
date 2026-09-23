@@ -1,19 +1,18 @@
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency, Price } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Shine } from '@universe/mycelium'
+import { LoadingPriceCurve } from '@universe/mycelium/icons/LoadingPriceCurve'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
-import { Flex, Shine, useSporeColors } from 'ui/src'
-import { LoadingPriceCurve } from 'ui/src/components/icons/LoadingPriceCurve'
-import { opacify } from 'ui/src/theme'
-import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
 import {
   CHART_HEIGHT,
   CHART_WIDTH,
 } from '~/features/Liquidity/charts/LiquidityPositionRangeChart/LiquidityPositionRangeChart'
 import { priceToNumber } from '~/features/Liquidity/charts/LiquidityPositionRangeChart/utils'
-import { usePoolPriceChartData } from '~/features/Liquidity/charts/usePoolPriceChartData'
+import { useLiquidityServicePoolPriceChartData } from '~/features/Liquidity/charts/useLiquidityServicePoolPriceChartData'
 
 const SPARKLINE_PADDING = 2
 
@@ -72,12 +71,11 @@ function LiquidityPositionSparkline({
   const isV2 = version === ProtocolVersion.V2
   const isV3 = version === ProtocolVersion.V3
   const isV4 = version === ProtocolVersion.V4
-  const chainInfo = getChainInfo(chainId)
 
   const variables = poolAddressOrId
     ? {
         addressOrId: poolAddressOrId,
-        chain: chainInfo.backendChain.chain,
+        chainId,
         duration: GraphQLApi.HistoryDuration.Month,
         isV4,
         isV3,
@@ -85,7 +83,7 @@ function LiquidityPositionSparkline({
       }
     : undefined
 
-  const priceData = usePoolPriceChartData({ variables, priceInverted })
+  const priceData = useLiquidityServicePoolPriceChartData({ variables, priceInverted })
 
   const rangeLower = isV2 ? 0 : priceToNumber(priceOrdering.priceLower, 0)
   const rangeUpper = isV2 ? Number.MAX_SAFE_INTEGER : priceToNumber(priceOrdering.priceUpper, Number.MAX_SAFE_INTEGER)
@@ -132,15 +130,17 @@ function LiquidityPositionSparkline({
 
   if (loading) {
     return (
-      <Shine
+      <Flex
         height={CHART_HEIGHT}
         width={CHART_WIDTH}
         $md={{ width: '100%' }}
         alignItems="center"
         justifyContent="center"
       >
-        <LoadingPriceCurve size={{ width: CHART_WIDTH, height: CHART_HEIGHT }} color="$neutral2" />
-      </Shine>
+        <Shine>
+          <LoadingPriceCurve size={{ width: CHART_WIDTH, height: CHART_HEIGHT }} color="$neutral2" />
+        </Shine>
+      </Flex>
     )
   }
 

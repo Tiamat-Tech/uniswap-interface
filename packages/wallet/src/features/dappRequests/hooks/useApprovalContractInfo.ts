@@ -1,8 +1,7 @@
 import type { BlockaidScanTransactionResponse } from '@universe/api'
+import { AddressStringFormat, normalizeAddress, type UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniswapContract } from 'uniswap/src/features/dappRequests/uniswapContracts'
-import { AddressStringFormat, normalizeAddress } from 'uniswap/src/utils/addresses'
 import type { ApprovalContractInfo } from 'wallet/src/components/dappRequests/ApprovalContractRow'
 import {
   DappVerificationStatus,

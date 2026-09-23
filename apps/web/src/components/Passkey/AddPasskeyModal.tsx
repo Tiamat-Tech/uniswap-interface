@@ -1,22 +1,23 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Platform } from '@universe/chains'
 import {
   AuthenticatorAttachment,
   registerNewAuthenticator,
   startAddAuthenticatorSession,
   useEmbeddedWalletState,
 } from '@universe/embedded-wallet'
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { Chevron } from '@universe/mycelium/icons/Chevron'
+import { Cloud } from '@universe/mycelium/icons/Cloud'
+import { Mobile } from '@universe/mycelium/icons/Mobile'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
+import { ShieldCheck } from '@universe/mycelium/icons/ShieldCheck'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Loader, Text, TouchableArea } from 'ui/src'
-import { Chevron } from 'ui/src/components/icons/Chevron'
-import { Cloud } from 'ui/src/components/icons/Cloud'
-import { Mobile } from 'ui/src/components/icons/Mobile'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { ShieldCheck } from 'ui/src/components/icons/ShieldCheck'
-import { colors } from 'ui/src/theme'
+import { Loader } from 'ui/src'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { useUnitagsAddressQuery } from 'uniswap/src/data/apiClients/unitagsApi/useUnitagsAddressQuery'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { logger } from 'utilities/src/logger/logger'
@@ -32,6 +33,7 @@ type AddPasskeyStep = 'verify' | 'choose'
 
 export function AddPasskeyModal() {
   const { t } = useTranslation()
+  const colors = useSporeColors()
   const queryClient = useQueryClient()
   const { isOpen, onClose } = useModalState(ModalName.AddPasskey)
   const { walletId } = useEmbeddedWalletState()
@@ -97,7 +99,7 @@ export function AddPasskeyModal() {
       <Flex gap="$gap16" alignItems="center" width="100%">
         {step === 'verify' ? (
           <Trace logImpression modal={ModalName.AddPasskey}>
-            <Flex gap="$gap16" alignItems="center" px="$padding4" width="100%">
+            <Flex gap="$gap16" alignItems="center" px="$spacing4" width="100%">
               <Flex
                 p="$spacing12"
                 backgroundColor="$surface2"
@@ -117,10 +119,10 @@ export function AddPasskeyModal() {
                 </Text>
               </Flex>
 
-              <Flex row alignSelf="stretch">
+              <Flex row alignSelf="stretch" mt="$spacing8">
                 <Trace logPress element={ElementName.Confirm}>
                   {/* Arrow wrapper needed: onPress passes GestureResponderEvent, but verifyPasskey expects void */}
-                  <Button variant="default" size="medium" onPress={() => verifyPasskey()} mt="$spacing8">
+                  <Button variant="default" size="medium" onPress={() => verifyPasskey()}>
                     {t('account.passkey.verify.button')}
                   </Button>
                 </Trace>
@@ -132,7 +134,7 @@ export function AddPasskeyModal() {
             <Flex
               alignItems="center"
               justifyContent="center"
-              background="$surface2"
+              backgroundColor="$surface2"
               borderRadius="$rounded12"
               p="$padding12"
               width="min-content"
@@ -157,7 +159,7 @@ export function AddPasskeyModal() {
                   <Loader.Box height={40} width={250} />
                 ) : (
                   <Flex row gap="$gap12" justifyContent="center" alignItems="center" width="100%">
-                    <Flex p="$padding6" background={colors.pinkLight} borderRadius="$rounded6" height="min-content">
+                    <Flex p="$padding6" background={colors.pinkLight.val} borderRadius="$rounded6" height="min-content">
                       <Cloud size="$icon.20" color="$accent1" />
                     </Flex>
                     <Flex>
@@ -181,7 +183,7 @@ export function AddPasskeyModal() {
                   <Loader.Box height={40} width={250} />
                 ) : (
                   <Flex row gap="$gap12" justifyContent="center" alignItems="center" width="100%">
-                    <Flex p="$padding6" background={colors.pinkLight} borderRadius="$rounded6" height="min-content">
+                    <Flex p="$padding6" background={colors.pinkLight.val} borderRadius="$rounded6" height="min-content">
                       <Mobile size="$icon.20" color="$accent1" />
                     </Flex>
                     <Flex>

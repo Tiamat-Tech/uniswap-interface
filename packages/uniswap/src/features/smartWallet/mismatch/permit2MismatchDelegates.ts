@@ -1,5 +1,5 @@
+import { areEvmAddressesEqual } from '@universe/chains'
 import { DynamicConfigs, getDynamicConfigValue, Permit2MismatchDelegatesConfigKey } from '@universe/gating'
-import { areEvmAddressesEqual } from 'uniswap/src/utils/addresses'
 
 /**
  * EIP-7702 delegates whose ERC-1271 validation rejects raw Permit2 ECDSA signatures, so

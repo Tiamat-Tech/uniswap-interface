@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ChartPeriod, WalletBalanceCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Separator, useMedia } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
-import { Flex, Separator, styled, useMedia } from 'ui/src'
 import {
   getPortfolioHistoricalValueChartQuery,
   useGetPortfolioHistoricalValueChartQuery,
@@ -25,7 +26,6 @@ import { EmptyWalletCards } from '~/components/emptyWallet/EmptyWalletCards'
 import { usePortfolioRoutes } from '~/pages/Portfolio/Header/hooks/usePortfolioRoutes'
 import { usePortfolioAddresses } from '~/pages/Portfolio/hooks/usePortfolioAddresses'
 import { OverviewActionTiles } from '~/pages/Portfolio/Overview/ActionTiles'
-import { OVERVIEW_RIGHT_COLUMN_WIDTH } from '~/pages/Portfolio/Overview/constants'
 import { useIsPortfolioZero } from '~/pages/Portfolio/Overview/hooks/useIsPortfolioZero'
 import {
   PortfolioChartCategory,
@@ -36,19 +36,17 @@ import { PortfolioChart } from '~/pages/Portfolio/Overview/PortfolioChart'
 import { PortfolioPerformance } from '~/pages/Portfolio/Overview/PortfolioPerformance'
 import { filterDefinedWalletAddresses } from '~/utils/filterDefinedWalletAddresses'
 
+const ACTIONS_AND_STATS_VARIANTS = {
+  fullWidth: {
+    true: 'w-[100%]',
+    false: 'w-[360px]',
+  },
+} as const
+
+// 360px = OVERVIEW_RIGHT_COLUMN_WIDTH (keep in sync with the other right-column consumers).
 const ActionsAndStatsContainer = styled(Flex, {
-  width: OVERVIEW_RIGHT_COLUMN_WIDTH,
-  gap: '$spacing16',
-  variants: {
-    fullWidth: {
-      true: {
-        width: '100%',
-      },
-      false: {
-        width: OVERVIEW_RIGHT_COLUMN_WIDTH,
-      },
-    },
-  } as const,
+  base: 'gap-[16px] w-[360px]',
+  variants: ACTIONS_AND_STATS_VARIANTS,
 })
 
 // Keep in sync with the rendered PortfolioBalanceHeader height.
@@ -58,8 +56,6 @@ export const PortfolioOverview = memo(function PortfolioOverview() {
   const media = useMedia()
   const isFullWidth = media.xl
   const portfolioPoolsBalancesEnabled = useFeatureFlag(FeatureFlags.PortfolioPoolsBalances)
-  const earnEnabled = useFeatureFlag(FeatureFlags.Earn)
-  const showBalanceHeaderRow = portfolioPoolsBalancesEnabled || earnEnabled
   const { chainId, isExternalWallet } = usePortfolioRoutes()
   const portfolioAddresses = usePortfolioAddresses()
   const { chains: allChainIds } = useEnabledChains()
@@ -123,6 +119,7 @@ export const PortfolioOverview = memo(function PortfolioOverview() {
   const {
     data: portfolioChartData,
     isPending: isChartPending,
+    isPlaceholderData: isChartPlaceholderData,
     error: chartError,
   } = useGetPortfolioHistoricalValueChartQuery({
     input: { ...chartInput, chartPeriod: selectedPeriod },
@@ -145,7 +142,6 @@ export const PortfolioOverview = memo(function PortfolioOverview() {
     selectedPeriod,
     selectedCategory,
     poolsEnabled: portfolioPoolsBalancesEnabled,
-    earnEnabled,
   })
 
   // Reset to total when the selected category is no longer available (selector hidden, or that
@@ -155,7 +151,7 @@ export const PortfolioOverview = memo(function PortfolioOverview() {
       setSelectedCategory(PortfolioChartCategory.Total)
     }
   }, [availableCategories, selectedCategory])
-  const isChartLoading = isChartPending || !series.length
+  const isChartLoading = isChartPending || (isChartPlaceholderData && !series.length)
   const isChartEmpty = useMemo(() => {
     if (!series.length) {
       return true
@@ -222,7 +218,7 @@ export const PortfolioOverview = memo(function PortfolioOverview() {
               portfolioTotalBalanceUSD={portfolioData?.balanceUSD}
               tokensValue={portfolioBreakdown?.tokens}
               poolsValue={portfolioPoolsBalancesEnabled ? portfolioBreakdown?.pools : undefined}
-              earnValue={earnEnabled ? portfolioBreakdown?.earn : undefined}
+              earnValue={portfolioBreakdown?.earn}
               unavailableCategories={unavailableCategories}
               isPortfolioZero={isPortfolioZero}
               series={series}
@@ -240,7 +236,6 @@ export const PortfolioOverview = memo(function PortfolioOverview() {
               setSelectedPeriod={setSelectedPeriod}
               onHoverPeriod={handleHoverPeriod}
               isTotalValueMatch={isTotalValueMatch}
-              showBalanceHeaderRow={showBalanceHeaderRow}
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               availableCategories={availableCategories}
@@ -261,7 +256,7 @@ export const PortfolioOverview = memo(function PortfolioOverview() {
             <Trace section={SectionName.PortfolioOverviewTab} element={ElementName.PortfolioActionTiles}>
               <ActionsAndStatsContainer
                 fullWidth={isFullWidth}
-                pt={showBalanceHeaderRow && !isFullWidth ? ACTIONS_TOP_OFFSET_WITH_BALANCE_HEADER : undefined}
+                pt={!isFullWidth ? ACTIONS_TOP_OFFSET_WITH_BALANCE_HEADER : undefined}
               >
                 <OverviewActionTiles />
                 <PortfolioPerformance />

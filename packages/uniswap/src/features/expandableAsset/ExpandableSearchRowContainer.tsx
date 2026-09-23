@@ -25,15 +25,16 @@ export type ExpandableSearchRowContainerProps = {
   /**
    * Height of the issuer panel alone — `getExpandableIssuerPanelHeightPx({ variant: 'search' })`, NOT the
    * full-row `getExpandableSearchRowHeightPx`. Consumed only by the `.web` split to size the reveal animation;
-   * the `.native` split ignores it (FlashList force-sizes the cell from the layout helper instead).
+   * the `.native` split ignores it (its `HeightAnimator` sizes from content).
    */
   issuerPanelHeightPx: number
 }
 
 /**
  * Search-variant grouped-RWA row. Platform-split: `.web` animates the issuer-panel reveal on expand/collapse,
- * `.native` renders it instantly. The base file is a stub so the extensionless import resolves under
- * `moduleResolution: "bundler"` (the bundlers pick `.web`/`.native`).
+ * `.native` routes it through Mycelium's `HeightAnimator`, whose native leg is instant per INFRA-3289. The base
+ * file is a stub so the extensionless import resolves under `moduleResolution: "bundler"` (the bundlers pick
+ * `.web`/`.native`).
  */
 export function ExpandableSearchRowContainer(_props: ExpandableSearchRowContainerProps): JSX.Element {
   throw new PlatformSplitStubError('ExpandableSearchRowContainer')

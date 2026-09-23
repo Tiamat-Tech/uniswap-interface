@@ -5,15 +5,16 @@ import {
   GetAuctionRequest,
   ListTopAuctionsRequest,
 } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
+import { EVMUniverseChainId, UniverseChainId } from '@universe/chains'
 import { DynamicConfigs, useDynamicConfigValue, VerifiedAuctionsConfigKey } from '@universe/gating'
 import { useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import { auctionQueries } from 'uniswap/src/data/apiClients/dataApiService/auctions/auctionQueries'
-import { EVMUniverseChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isTestnetChain } from 'uniswap/src/features/chains/utils'
 // oxlint-disable-next-line no-restricted-imports -- Direct selector access needed for auction testnet filtering
 import { selectIsTestnetModeEnabled } from 'uniswap/src/features/settings/selectors'
 import { useCurrencyInfos } from 'uniswap/src/features/tokens/useCurrencyInfo'
+import { isHiddenAuction } from 'uniswap/src/features/toucan/hiddenAuctions'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { approximateNumberFromRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
 import { computePreBidEndBlock } from '~/features/Toucan/Auction/utils/preBidEndBlock'
@@ -23,14 +24,6 @@ import { BlockTimestampRequest, useGetBlockTimestamps, useMultiChainBlockInfo } 
 import { useChainIdFromUrlParam } from '~/utils/params/chainParams'
 
 export const AUCTION_LIST_API_PAGE_SIZE = 200
-
-// TEMP frontend stopgap: hide abandoned auctions from the Explore "top auctions" list until the
-// backend excludes them from ListTopAuctions. Direct auction links still resolve. Ids use the same
-// `${chainId}_${checksummedAuctionAddress}` form as DEFAULT_VERIFIED_AUCTION_IDS and are matched
-// exactly against the backend auctionId (mirrors the verified check). Remove once the backend ships.
-const HIDDEN_AUCTION_IDS = new Set<string>([
-  '1_0xD9E8355f9f57185928347a5BdDEe164006b16e58', // Abandoned Interfold (FOLD) auction, superseded by 0x687Cc3...
-])
 
 /** Descending comparator that sorts rows without a sort value to the end. */
 export function compareDescendingMissingLast(a: number | undefined, b: number | undefined): number {
@@ -351,9 +344,7 @@ export function useTopAuctions({
         }
       })
       .filter((auctionWithInfo) => {
-        // TEMP: hide abandoned auctions (see HIDDEN_AUCTION_IDS) pending backend ListTopAuctions exclusion
-        const auctionId = auctionWithInfo.auction?.auctionId
-        if (auctionId && HIDDEN_AUCTION_IDS.has(auctionId)) {
+        if (isHiddenAuction({ auctionId: auctionWithInfo.auction?.auctionId })) {
           return false
         }
         // Filter out testnet chains when testnet mode is not enabled

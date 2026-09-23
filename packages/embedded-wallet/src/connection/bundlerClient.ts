@@ -1,5 +1,4 @@
 import { createFetchClient, getEntryGatewayUrl, provideSessionService } from '@universe/api'
-import { getIsSessionServiceEnabled } from '@universe/gating'
 import { BASE_UNISWAP_HEADERS } from 'uniswap/src/data/apiClients/createUniswapFetchClient'
 import { entryPoint08Address, type RpcUserOperation } from 'viem/account-abstraction'
 
@@ -12,7 +11,7 @@ import { entryPoint08Address, type RpcUserOperation } from 'viem/account-abstrac
 export const bundlerFetchClient = createFetchClient({
   getBaseUrl: getEntryGatewayUrl,
   getHeaders: () => BASE_UNISWAP_HEADERS,
-  getSessionService: () => provideSessionService({ getBaseUrl: getEntryGatewayUrl, getIsSessionServiceEnabled }),
+  getSessionService: () => provideSessionService({ getBaseUrl: getEntryGatewayUrl }),
   defaultOptions: { credentials: 'include' },
 })
 

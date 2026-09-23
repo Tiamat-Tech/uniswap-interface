@@ -1,10 +1,9 @@
+import { areAddressesEqual, Platform } from '@universe/chains'
 import { useTranslation } from 'react-i18next'
 import { useUnitagsUsernameQuery } from 'uniswap/src/data/apiClients/unitagsApi/useUnitagsUsernameQuery'
 import { useENS } from 'uniswap/src/features/ens/useENS'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { UNITAG_VERIFICATION_DEBOUNCE_MS } from 'uniswap/src/features/unitags/constants'
 import { getUnitagFormatError } from 'uniswap/src/features/unitags/getUnitagFormatError'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { ONE_MINUTE_MS } from 'utilities/src/time/time'
 import { useDebounceWithStatus } from 'utilities/src/time/timing'
 
@@ -29,11 +28,17 @@ export const useCanClaimUnitagName = ({
   // Format errors are local, so they surface from the raw input without waiting for the debounce
   const formatError = unitag ? getUnitagFormatError(unitag, t) : undefined
 
-  const [debouncedUnitag, debouncePending] = useDebounceWithStatus({
+  // Derive debouncing status directly from value equality rather than the hook's
+  // internal `isDebouncing` flag: that flag flips inside a useEffect, so it lags
+  // one render behind a value change. During that lagging render this hook would
+  // otherwise read the *previous* debounced value's already-resolved query data as
+  // if it applied to the newly-typed username — letting a taken username flash as
+  // available before its own availability check has even started.
+  const [debouncedUnitag] = useDebounceWithStatus({
     value: unitag,
     delay: UNITAG_VERIFICATION_DEBOUNCE_MS,
   })
-  const isDebouncing = debouncePending && debouncedUnitag !== unitag
+  const isDebouncing = debouncedUnitag !== unitag
 
   const debouncedFormatError = debouncedUnitag ? getUnitagFormatError(debouncedUnitag, t) : undefined
   const unitagToSearch = debouncedFormatError ? undefined : debouncedUnitag

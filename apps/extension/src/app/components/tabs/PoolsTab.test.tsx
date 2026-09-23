@@ -4,7 +4,8 @@ import { render, screen } from 'src/test/test-utils'
 import { useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
 import type { MockedFunction } from 'vitest'
 
-vi.mock('uniswap/src/features/positions/hooks/useWalletPositions', () => ({
+vi.mock('uniswap/src/features/positions/hooks/useWalletPositions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('uniswap/src/features/positions/hooks/useWalletPositions')>()),
   useWalletPositions: vi.fn(),
 }))
 
@@ -21,7 +22,7 @@ vi.mock('utilities/src/react/useInfiniteScroll', () => ({
 }))
 
 vi.mock('uniswap/src/components/portfolio/PositionItem/PositionItem', async () => {
-  const { Text } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Text } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     PositionItem: ({ positionInfo }: { positionInfo: { poolId: string } }) => {
       return <Text testID={`position-${positionInfo.poolId}`}>{positionInfo.poolId}</Text>

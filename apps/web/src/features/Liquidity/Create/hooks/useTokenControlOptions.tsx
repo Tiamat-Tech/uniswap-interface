@@ -1,6 +1,6 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
-import { Flex, Text } from 'ui/src'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { PortfolioLogo } from '~/components/AccountDrawer/MiniPortfolio/PortfolioLogo'
 

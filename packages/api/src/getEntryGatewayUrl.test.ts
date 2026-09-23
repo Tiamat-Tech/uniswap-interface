@@ -3,7 +3,7 @@ import {
   PROD_ENTRY_GATEWAY_API_BASE_URL,
   STAGING_ENTRY_GATEWAY_API_BASE_URL,
 } from '@universe/api/src/clients/base/urls'
-import { getConfig } from '@universe/config'
+import { AppId, type BaseConfig, BaseConfigSchema, getConfig } from '@universe/config'
 import { Environment, getCurrentEnv } from '@universe/environment'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ENTRY_GATEWAY_PROXY_PATH, getEntryGatewayUrl } from './getEntryGatewayUrl'
@@ -27,19 +27,11 @@ vi.mock('@universe/environment', async (importOriginal) => {
 const mockGetConfig = vi.mocked(getConfig)
 const mockGetCurrentEnv = vi.mocked(getCurrentEnv)
 
-interface MockConfig {
-  entryGatewayApiUrlOverride?: string
-  enableEntryGatewayProxy?: boolean
-  isVercelEnvironment?: boolean
-}
+/** Schema defaults give every field a value, so overrides can stay minimal. */
+const baseConfig = BaseConfigSchema.parse({ appId: AppId.Web, environment: Environment.Staging })
 
-function setConfig(overrides: MockConfig = {}) {
-  mockGetConfig.mockReturnValue({
-    entryGatewayApiUrlOverride: '',
-    enableEntryGatewayProxy: false,
-    isVercelEnvironment: false,
-    ...overrides,
-  })
+function setConfig(overrides: Partial<BaseConfig> = {}) {
+  mockGetConfig.mockReturnValue({ ...baseConfig, ...overrides })
 }
 
 describe('getEntryGatewayUrl', () => {

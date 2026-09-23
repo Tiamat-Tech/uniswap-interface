@@ -1,8 +1,8 @@
+import type { UniverseChainId } from '@universe/chains'
+import { AnimateTransition } from '@universe/mycelium/animate-presence-pager'
 import type { ReactNode } from 'react'
-import { AnimateTransition } from 'ui/src'
 import { MultichainContextMenuAddressSubview } from 'uniswap/src/components/MultichainTokenDetails/MultichainContextMenuAddressSubview'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 interface MultichainAddressTransitionPanelProps {
   /** Main view (page 0) — e.g. menu actions or hover-card content. */
@@ -40,7 +40,7 @@ export function MultichainAddressTransitionPanel({
   maxHeight,
 }: MultichainAddressTransitionPanelProps): JSX.Element {
   return (
-    <AnimateTransition currentIndex={viewIndex} animationType={animationType} animation="200ms">
+    <AnimateTransition currentIndex={viewIndex} animationType={animationType} curve="200ms">
       {children}
       <MultichainContextMenuAddressSubview
         orderedEntries={orderedEntries}

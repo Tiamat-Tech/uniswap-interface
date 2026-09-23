@@ -22,6 +22,7 @@ export const getFirestoreUidRef = (
   firestore(firebaseApp)
     .collection(getAddressDataCollectionFromBundleId())
     .doc('address_uid_mapping')
+    // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- Firestore doc paths are keyed by lowercased addresses; changing normalization would orphan existing user data
     .collection(address.toLowerCase())
     .doc('firebase')
 
@@ -37,6 +38,7 @@ export const getFirestoreMetadataRef = ({
   firestore(firebaseApp)
     .collection(getAddressDataCollectionFromBundleId())
     .doc('metadata')
+    // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- Firestore doc paths are keyed by lowercased addresses; changing normalization would orphan existing user data
     .collection(address.toLowerCase())
     .doc('onesignal_uids')
     .collection(pushId)

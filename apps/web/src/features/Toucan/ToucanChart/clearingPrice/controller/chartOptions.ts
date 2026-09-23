@@ -1,5 +1,5 @@
+import { opacify } from '@universe/mycelium/theme-hooks-compat'
 import { type ChartOptions, CrosshairMode, type DeepPartial, LineStyle, LineType } from 'lightweight-charts'
-import { opacify } from 'ui/src/theme'
 import { CHART_FONT_FAMILY, LABEL_CONFIG } from '~/features/Toucan/Auction/BidDistributionChart/constants'
 import type { ClearingPriceChartControllerCreateParams } from '~/features/Toucan/ToucanChart/clearingPrice/types'
 
@@ -15,7 +15,11 @@ export function createClearingPriceChartOptions({
   return {
     width,
     height,
+    // v5 lifts a hovered series above its pane siblings by default — keep
+    // v4's draw order (QA can deliberately opt in later).
+    hoveredSeriesOnTop: false,
     layout: {
+      attributionLogo: false,
       textColor: colors.neutral2.val,
       background: { color: 'transparent' },
       fontFamily: CHART_FONT_FAMILY,

@@ -1,8 +1,13 @@
 import { permit2Address } from '@uniswap/permit2-sdk'
+import { UniverseChainId } from '@universe/chains'
 import { USDC_MAINNET } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { addTransaction } from 'uniswap/src/features/transactions/slice'
-import type { PlanTransactionDetails } from 'uniswap/src/features/transactions/types/transactionDetails'
+import type {
+  BridgeTransactionInfo,
+  PlanTransactionDetails,
+  TransactionDetails,
+} from 'uniswap/src/features/transactions/types/transactionDetails'
 import {
   ApproveTransactionInfo,
   TransactionOriginType,
@@ -20,8 +25,6 @@ vi.mock('@universe/gating', async () => {
   const actual = await vi.importActual('@universe/gating')
   return { ...actual, useFeatureFlag: () => false }
 })
-
-vi.mock('uniswap/src/features/earn/hooks/useIsEarnEnabled', () => ({ useIsEarnEnabled: () => false }))
 
 vi.mock('~/hooks/useHandleUniswapXActivityUpdate', () => ({ useHandleUniswapXActivityUpdate: () => vi.fn() }))
 
@@ -65,6 +68,7 @@ function makePlan(status: TransactionStatus): PlanTransactionDetails {
     typeInfo: {
       type: TransactionType.Plan,
       planId: PLAN_ID,
+      stepDetails: [],
     },
   } as PlanTransactionDetails
 }
@@ -218,6 +222,70 @@ describe('useOnActivityUpdate', () => {
       })
 
       expect(getTxs(store)[CANCEL_HASH]?.status).toBe(TransactionStatus.Failed)
+    })
+  })
+
+  describe('bridge deposit confirmation', () => {
+    const BRIDGE_HASH = '0xbridgetxhash'
+    const bridgeInfo: BridgeTransactionInfo = {
+      type: TransactionType.Bridge,
+      inputCurrencyId: `${CHAIN_ID}-${USDC_MAINNET.address}`,
+      inputCurrencyAmountRaw: '1000000',
+      outputCurrencyId: `${UniverseChainId.ArbitrumOne}-${USDC_MAINNET.address}`,
+      outputCurrencyAmountRaw: '1000000',
+    }
+
+    function makeBridgeTx(): PendingTransactionDetails {
+      return {
+        ...makePendingTx(),
+        id: BRIDGE_HASH,
+        hash: BRIDGE_HASH,
+        typeInfo: bridgeInfo,
+      } as PendingTransactionDetails
+    }
+
+    // Exercises the wiring end-to-end at the poller seam: an update shaped like
+    // usePollPendingTransactions' output (receipt-derived networkFee included) must land in the
+    // persisted transaction via interfaceConfirmBridgeDeposit, since the later cross-chain
+    // finalization is status-only and never sees a receipt.
+    it('persists the deposit receipt network fee while keeping the bridge tx pending', () => {
+      const original = makeBridgeTx()
+      const { result, store } = renderOnActivityUpdate(original)
+      const networkFee = {
+        quantity: '0.000042',
+        tokenSymbol: 'ETH',
+        tokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        chainId: CHAIN_ID,
+        valueType: ValueType.Exact,
+      }
+
+      act(() => {
+        result.current({
+          type: ActivityUpdateTransactionType.BaseTransaction,
+          chainId: CHAIN_ID,
+          original,
+          update: {
+            status: TransactionStatus.Success,
+            typeInfo: bridgeInfo,
+            receipt: {
+              transactionIndex: 0,
+              blockHash: '0xblock',
+              blockNumber: 1,
+              confirmedTime: Date.now(),
+              gasUsed: 21_000,
+              effectiveGasPrice: 2_000_000_000,
+            },
+            hash: BRIDGE_HASH,
+            networkFee,
+          },
+        })
+      })
+
+      const storedTx = getTxs(store)[BRIDGE_HASH] as TransactionDetails | undefined
+      expect((storedTx?.typeInfo as BridgeTransactionInfo).depositConfirmed).toBe(true)
+      expect(storedTx?.networkFee).toEqual(networkFee)
+      // The bridge stays pending until the cross-chain leg confirms
+      expect(storedTx?.status).toBe(TransactionStatus.Pending)
     })
   })
 

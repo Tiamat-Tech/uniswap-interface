@@ -1,5 +1,5 @@
-import { useExtractedTokenColor, useIsDarkMode, useSporeColors } from 'ui/src'
-import { useTokenBasicInfoPartsFragment, useTokenBasicProjectPartsFragment } from 'uniswap/src/data/graphql/fragments'
+import { useExtractedTokenColor } from '@universe/mycelium'
+import { useIsDarkMode, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useTokenMetadata } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
 
 export function useTokenDetailsColors({ currencyId }: { currencyId: string }): {
@@ -8,12 +8,7 @@ export function useTokenDetailsColors({ currencyId }: { currencyId: string }): {
 } {
   const isDarkMode = useIsDarkMode()
   const colors = useSporeColors()
-
-  const token = useTokenBasicInfoPartsFragment({ currencyId }).data
-  const project = useTokenBasicProjectPartsFragment({ currencyId }).data.project
-  const metadata = useTokenMetadata(currencyId, {
-    legacyToken: { symbol: token.symbol, project: { logoUrl: project?.logoUrl } },
-  })
+  const metadata = useTokenMetadata(currencyId)
 
   const { tokenColor, tokenColorLoading } = useExtractedTokenColor({
     imageUrl: metadata.logoUrl,

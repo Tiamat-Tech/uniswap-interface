@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { WrapTransactionInfo } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { TransactionStatus, TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { getActivityTitle } from '~/components/AccountDrawer/MiniPortfolio/Activity/constants'

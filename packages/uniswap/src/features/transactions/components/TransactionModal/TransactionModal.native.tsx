@@ -1,5 +1,12 @@
 import { BottomSheetFooter, BottomSheetView, KEYBOARD_STATUS, useBottomSheetInternal } from '@gorhom/bottom-sheet'
-import { isAndroid } from '@universe/environment'
+import {
+  AnimatedFlex,
+  type ColorTokens,
+  Flex,
+  LinearGradient,
+  type LinearGradientProps,
+  useSporeColors,
+} from '@universe/mycelium'
 import { useMemo, useState } from 'react'
 import { type StyleProp, TouchableWithoutFeedback, type ViewStyle } from 'react-native'
 import Animated, {
@@ -9,10 +16,7 @@ import Animated, {
   useDerivedValue,
   useSharedValue,
 } from 'react-native-reanimated'
-import { type ColorTokens, Flex, LinearGradient, type LinearGradientProps, useSporeColors } from 'ui/src'
-import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
-import { DEFAULT_BOTTOM_INSET } from 'ui/src/hooks/constants'
-import { borderRadii, opacify, spacing } from 'ui/src/theme'
+import { borderRadii, opacify } from 'ui/src/theme'
 import { HandleBar } from 'uniswap/src/components/modals/HandleBar'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import {
@@ -27,6 +31,7 @@ import type {
 import { TransactionModalUpdateLogger } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalUpdateLogger'
 import { SwapFlowTimerContext } from 'uniswap/src/features/transactions/swap/utils/SwapFlowTimerContext'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
+import { useBottomScreenGap } from 'uniswap/src/hooks/useBottomScreenGap'
 
 export function TransactionModal({
   children,
@@ -68,6 +73,9 @@ export function TransactionModal({
     <Modal
       hideKeyboardOnDismiss
       overrideInnerContainer
+      // Constant on purpose: the derived default would flip when Review drops fullScreen, and gorhom swaps its
+      // content wrapper on that flag, remounting the send and swap subtrees mid-flow.
+      enableContentPanningGesture
       renderBehindTopInset
       animatedPosition={animatedPosition}
       backgroundColor={colors.surface1.val}
@@ -140,13 +148,7 @@ export function TransactionModalInnerContainer({
           <Flex mt={fullscreen ? insets.top : '$spacing8'}>
             {fullscreen && <HandleBar backgroundColor="none" />}
 
-            <AnimatedFlex
-              grow
-              row
-              animation="fast"
-              style={animatedPaddingBottom}
-              height={fullscreen ? '100%' : undefined}
-            >
+            <AnimatedFlex grow row style={animatedPaddingBottom} height={fullscreen ? '100%' : undefined}>
               <Flex px="$spacing16" width="100%">
                 {children}
               </Flex>
@@ -164,7 +166,7 @@ const linearGradientEnd: LinearGradientProps['end'] = [0, 0.15]
 const linearGradientStart: LinearGradientProps['start'] = [0, 0]
 
 export function TransactionModalFooterContainer({ children }: TransactionModalFooterContainerProps): JSX.Element {
-  const insets = useAppInsets()
+  const { bottomScreenTotalGap } = useBottomScreenGap()
   const colors = useSporeColors()
 
   // Most of this logic is based on the `BottomSheetFooterContainer` component from `@gorhom/bottom-sheet`.
@@ -188,14 +190,9 @@ export function TransactionModalFooterContainer({ children }: TransactionModalFo
     return [opacify(0, colors.background.val), colors.background.val] as ColorTokens[]
   }, [colors.background.val])
 
-  // On Android, we increase the bottom inset because the inset is too small compared to iOS.
-  // We check that the inset is not the default one in order to ignore this when the device is not using gesture navigation.
-  const bottomInset =
-    isAndroid && insets.bottom !== DEFAULT_BOTTOM_INSET ? insets.bottom + spacing.spacing8 : insets.bottom
-
   return (
     <BottomSheetFooter animatedFooterPosition={animatedFooterPosition}>
-      <Flex animateEnter="fadeIn" mx="$spacing16" pb={bottomInset} position="relative" pt="$spacing24">
+      <Flex mx="$spacing16" pb={bottomScreenTotalGap} position="relative" pt="$spacing24">
         {children}
 
         {/*

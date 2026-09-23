@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { getNetworkIconListDisplay } from 'uniswap/src/components/network/NetworkIconList/getNetworkIconListDisplay'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 describe(getNetworkIconListDisplay, () => {
   it('returns empty visible and zero overflow when chainIds is empty', () => {

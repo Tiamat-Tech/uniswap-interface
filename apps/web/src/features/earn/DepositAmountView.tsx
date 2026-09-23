@@ -1,7 +1,8 @@
+import type { UniverseChainId } from '@universe/chains'
+import { Button, Flex, Text } from '@universe/mycelium'
 import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text, useDynamicFontSizing } from 'ui/src'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { useDynamicFontSizing } from 'ui/src/hooks/useDynamicFontSizing'
 import {
   getEarnAmountValidation,
   getEarnDepositMinimumValidation,
@@ -12,14 +13,15 @@ import {
 import { useEarnMinDepositUsd } from 'uniswap/src/features/earn/config'
 import { EARN_INPUT_ERROR_DEBOUNCE_MS } from 'uniswap/src/features/earn/constants'
 import { EarnInlineError } from 'uniswap/src/features/earn/EarnInlineError'
+import { useEarnAmountEntryAnalytics } from 'uniswap/src/features/earn/hooks/useEarnAmountEntryAnalytics'
 import type { EarnDepositSourceOption, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { useAppFiatCurrency, useFiatCurrencyComponents } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useMaxAmountSpend } from 'uniswap/src/features/gas/hooks/useMaxAmountSpend'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import type { EarnAnalyticsBaseProperties } from 'uniswap/src/features/telemetry/types'
 import { getCurrencyAmount, ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { useFiatTokenConversion } from 'uniswap/src/features/transactions/hooks/useFiatTokenConversion'
 import { TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
-import useResizeObserver from 'use-resize-observer'
 import { NumberType } from 'utilities/src/format/types'
 import { isSafeNumber } from 'utilities/src/primitives/integer'
 import { useDebounce } from 'utilities/src/time/timing'
@@ -29,6 +31,7 @@ import {
   NumericalInputSymbolContainer,
   NumericalInputWrapper,
   StyledNumericalInput,
+  useMeasuredFieldWidth,
 } from '~/components/NumericalInput/LargeAmountInput'
 import { DepositTokenSelector } from '~/features/earn/DepositTokenSelector'
 import { EarnAmountViewHeader } from '~/features/earn/EarnAmountViewHeader'
@@ -43,6 +46,7 @@ const FIAT_DECIMALS = 2
 const PERCENT_OPTIONS = [0.25, 0.5, 0.75, 1] as const
 
 interface DepositAmountViewProps {
+  analyticsProperties?: EarnAnalyticsBaseProperties
   vault: EarnVaultInfo
   depositSourceOptions: EarnDepositSourceOption[]
   selectedDepositSource: EarnDepositSourceOption | undefined
@@ -62,6 +66,7 @@ interface DepositAmountViewProps {
 }
 
 export function DepositAmountView({
+  analyticsProperties,
   vault,
   depositSourceOptions,
   selectedDepositSource,
@@ -89,7 +94,7 @@ export function DepositAmountView({
   // Max uses exact token balance instead of display-rounded fiat.
   const [isMaxSelected, setIsMaxSelected] = useState(initialIsMax)
   const inputRef = useRef<ComponentRef<typeof StyledNumericalInput>>(null)
-  const hiddenObserver = useResizeObserver<HTMLElement>()
+  const { ref: hiddenObserverRef, fieldWidth: scaledInputWidth } = useMeasuredFieldWidth(amount)
 
   const { fontSize, onLayout, onSetFontSize, onExtraElementLayout } = useDynamicFontSizing({
     maxCharWidthAtMaxFontSize: CHAR_WIDTH,
@@ -158,6 +163,8 @@ export function DepositAmountView({
     })
   }, [availableBalanceQuantity, currency, maxSpendableAmount, selectedDepositSource])
 
+  const { logPresetSelected, logAmountEntered } = useEarnAmountEntryAnalytics({ analyticsProperties })
+
   const handleUserInput = useCallback(
     (value: string) => {
       if (!isSafeNumber(value)) {
@@ -167,12 +174,14 @@ export function DepositAmountView({
       onSetFontSize(normalized)
       setAmount(normalized)
       setIsMaxSelected(false)
+      logAmountEntered({ action: 'deposit', inputMethod: 'manual', value: normalized })
     },
-    [onSetFontSize],
+    [logAmountEntered, onSetFontSize],
   )
 
   const handlePercentPress = useCallback(
     (pct: number) => {
+      logPresetSelected({ action: 'deposit', pct })
       const percentageInput = getEarnDepositPercentageInput({
         balanceQuantity: availableBalanceQuantity,
         balanceUsd: availableBalanceUsd,
@@ -185,6 +194,7 @@ export function DepositAmountView({
       const isMax = pct === 1
       const inputInFiatNext = percentageInput.inputInFiat
       const value = inputInFiatNext ? percentageInput.exactAmountFiat : percentageInput.exactAmountToken
+      logAmountEntered({ action: 'deposit', inputMethod: 'preset', pct, value })
       setInputInFiat(inputInFiatNext)
       setIsMaxSelected(isMax)
       onSetFontSize(value)
@@ -195,6 +205,8 @@ export function DepositAmountView({
       availableBalanceUsd,
       convertUsdToLocalFiat,
       currency?.decimals,
+      logAmountEntered,
+      logPresetSelected,
       maxDepositTokenAmount,
       onSetFontSize,
     ],
@@ -287,11 +299,6 @@ export function DepositAmountView({
     apy: formatPercent(vault.apyPercent, 2),
   })
 
-  const scaledInputWidth = useMemo(
-    () => (amount && hiddenObserver.width ? hiddenObserver.width + 1 : undefined),
-    [amount, hiddenObserver.width],
-  )
-
   // Wire format is local fiat — review converts to USD internally. See useEarnVaultModalFlow.
   const handleReview = useCallback(() => {
     if (!selectedDepositSource) {
@@ -373,7 +380,7 @@ export function DepositAmountView({
               maxDecimals={maxDecimals}
               ref={inputRef}
             />
-            <NumericalInputMimic ref={hiddenObserver.ref} numericalFontSize={fontSize}>
+            <NumericalInputMimic ref={hiddenObserverRef} numericalFontSize={fontSize}>
               {amount}
             </NumericalInputMimic>
           </NumericalInputWrapper>

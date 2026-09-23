@@ -1,6 +1,8 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
+import { Presence } from '@universe/mycelium/presence'
 import { memo } from 'react'
-import { AnimatePresence, Flex, useIsShortMobileDevice } from 'ui/src'
+import { useIsShortMobileDevice } from 'ui/src'
 import { useSwapFormScreenStore } from 'uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/useSwapFormScreenStore'
 import { ExactOutputUnavailableWarningRow } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/ExactOutputUnavailableWarningRow'
 import { GasAndWarningRows } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/GasAndWarningRows'
@@ -50,7 +52,7 @@ export const SwapFormScreenFooter = memo(function SwapFormScreenFooter(): JSX.El
 
   return (
     <Flex minHeight="$spacing40" pt={isShortMobileDevice ? '$spacing8' : '$spacing12'}>
-      <AnimatePresence>
+      <Presence>
         {showExactOutputUnavailableWarning && (
           <ExactOutputUnavailableWarningRow
             currencies={currencies}
@@ -58,7 +60,7 @@ export const SwapFormScreenFooter = memo(function SwapFormScreenFooter(): JSX.El
             isCrossChain={isCrossChain}
           />
         )}
-      </AnimatePresence>
+      </Presence>
       {/* Accordion.Toggle is nested in GasAndWarningRows */}
       {showGasAndWarningRows && <GasAndWarningRows />}
     </Flex>

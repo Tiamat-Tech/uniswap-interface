@@ -1,25 +1,24 @@
 import { PartialMessage } from '@bufbuild/protobuf'
+import { Code, ConnectError } from '@connectrpc/connect'
 import { GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb.d'
 import { Balance } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import { CurrencyAmount, NativeCurrency, Token } from '@uniswap/sdk-core'
-import { TradingApi } from '@universe/api'
+import { SharedQueryClient, TradingApi } from '@universe/api'
+import { areAddressesEqual, isSVMChain, UniverseChainId } from '@universe/chains'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
-import {
-  fetchTokenByAddress,
-  searchTokenToCurrencyInfo,
-} from 'uniswap/src/data/apiClients/dataApiService/search/searchTokensAndPools'
+import { getGetTokenQueryOptions } from 'uniswap/src/data/apiClients/dataApiService/tokens/queries'
 import { fetchTradingApiIndicativeQuoteIgnoring404 } from 'uniswap/src/data/apiClients/tradingApi/useTradingApiIndicativeQuoteQuery'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getPrimaryStablecoin } from 'uniswap/src/features/chains/utils'
-import { isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
+import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
+import { restV2TokenToCurrencyInfo } from 'uniswap/src/features/dataApi/utils/restV2TokenToCurrencyInfo'
 import { fetchOnChainCurrencyBalance } from 'uniswap/src/features/portfolio/api'
 import { getCurrencyAmount, ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { SolanaToken } from 'uniswap/src/features/tokens/SolanaToken'
 import { toTradingApiSupportedChainId } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
 import { CurrencyId } from 'uniswap/src/types/currency'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { currencyIdToAddress, currencyIdToChain, isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 import { createLogger } from 'utilities/src/logger/logger'
+import { ONE_DAY_MS, ONE_HOUR_MS } from 'utilities/src/time/time'
 
 const FILE_NAME = 'fetchOnChainBalances.ts'
 
@@ -305,26 +304,45 @@ function getCurrencyFromCache(
   return { currency, tokenInfo: null }
 }
 
-async function fetchTokenCurrencyInfo(
-  chainId: UniverseChainId,
-  address: string,
-): Promise<ReturnType<typeof searchTokenToCurrencyInfo> | null> {
-  const searchToken = await fetchTokenByAddress({
-    chainId,
-    address,
-  })
+async function fetchTokenCurrencyInfo(chainId: UniverseChainId, address: string): Promise<CurrencyInfo | null> {
+  const log = createLogger(FILE_NAME, 'fetchTokenCurrencyInfo', '[ITBU]')
 
-  return searchToken ? searchTokenToCurrencyInfo(searchToken) : null
+  try {
+    // Native addresses are passed through untranslated on purpose: `resolveCurrency` only accepts
+    // `isToken` results, so natives resolve to null on both the GetToken and search paths.
+    const result = await SharedQueryClient.fetchQuery({
+      ...getGetTokenQueryOptions({ params: { chainId, address } }),
+      // Token metadata rarely changes — hold it far longer than the TDP-oriented staleTime on the
+      // shared GetToken options. It gets refreshed when fetching portfolio balances anyway.
+      staleTime: ONE_HOUR_MS,
+      gcTime: ONE_DAY_MS,
+    })
+
+    if (!result?.token) {
+      log.debug('Token not found via GetToken', { chainId, address })
+      return null
+    }
+
+    return restV2TokenToCurrencyInfo(result.token) ?? null
+  } catch (error) {
+    // Unknown tokens can surface as NotFound rather than an empty response — expected, not an error.
+    if (error instanceof ConnectError && error.code === Code.NotFound) {
+      log.debug('Token not found via GetToken', { chainId, address })
+      return null
+    }
+    log.error(error, { chainId, address })
+    return null
+  }
 }
 
-// Resolves `CurrencyInfo` either from cache or via REST search
+// Resolves `CurrencyInfo` from cache or via a REST metadata lookup (GetToken)
 async function resolveCurrency({
   token,
   currencyId,
 }: {
   token?: Balance['token']
   currencyId: CurrencyId
-}): Promise<{ currency: Token | SolanaToken; tokenInfo: ReturnType<typeof searchTokenToCurrencyInfo> | null } | null> {
+}): Promise<{ currency: Token | SolanaToken; tokenInfo: CurrencyInfo | null } | null> {
   const log = createLogger(FILE_NAME, 'resolveCurrency', '[ITBU]')
 
   // Try cache first
@@ -335,7 +353,7 @@ async function resolveCurrency({
     }
   }
 
-  // For new tokens not in cache, fetch token metadata via REST search
+  // For new tokens not in cache, fetch token metadata via REST
   const chainId = currencyIdToChain(currencyId)
   const currencyAddress = currencyIdToAddress(currencyId)
 

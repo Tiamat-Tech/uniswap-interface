@@ -5,14 +5,10 @@ import {
   OnClick,
 } from '@uniswap/client-notification-service/dist/uniswap/notificationservice/v1/api_pb'
 import { type InAppNotification, OnClickAction } from '@universe/api'
-import { DynamicConfigs, getDynamicConfigValue, OutageBannerChainIdConfigKey } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
 import { createNotificationDataSource, type NotificationDataSource } from '@universe/notifications'
-import { capitalize } from 'tsafe'
-import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { DEFAULT_MS_BEFORE_WARNING } from 'uniswap/src/features/chains/evm/rpc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import i18n from 'uniswap/src/i18n'
 import { getLogger } from 'utilities/src/logger/logger'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
@@ -20,10 +16,6 @@ import {
   createVisibilitySettlingController,
   subscribeToDocumentVisibilityChange,
 } from '~/notification-service/data-sources/createVisibilitySettlingController'
-import { useManualChainOutageStore } from '~/state/outage/store'
-import { ChainOutageData } from '~/state/outage/types'
-import { getChainIdFromChainUrlParam } from '~/utils/params/chainParams'
-import { getCurrentPageFromLocation } from '~/utils/urlRoutes'
 
 /**
  * System alert types in priority order (highest first).
@@ -32,8 +24,6 @@ import { getCurrentPageFromLocation } from '~/utils/urlRoutes'
 enum SystemAlertType {
   /** Chain connectivity warning - block timestamp significantly behind staleness-check time */
   ChainConnectivity = 'chain_connectivity',
-  /** Chain/protocol outage - GraphQL errors or configured outage */
-  Outage = 'outage',
 }
 
 const DEFAULT_POLL_INTERVAL_MS = 5 * ONE_SECOND_MS
@@ -46,17 +36,7 @@ const SYSTEM_ALERTS_SOURCE = 'system_alerts'
  * Priority order for system alerts.
  * Lower index = higher priority.
  */
-const ALERT_PRIORITY: SystemAlertType[] = [SystemAlertType.ChainConnectivity, SystemAlertType.Outage]
-
-/**
- * Pages where outage banners should be displayed.
- */
-const OUTAGE_DISPLAY_PAGES: InterfacePageName[] = [
-  InterfacePageName.ExplorePage,
-  InterfacePageName.TokenDetailsPage,
-  InterfacePageName.PoolDetailsPage,
-  InterfacePageName.TokensPage,
-]
+const ALERT_PRIORITY: SystemAlertType[] = [SystemAlertType.ChainConnectivity]
 
 /**
  * Dependencies that must be provided from React hooks.
@@ -87,44 +67,6 @@ interface CreateSystemAlertsDataSourceContext {
   visibilitySettlingMs?: number
   /** Polling interval in milliseconds (default: 5000ms) */
   pollIntervalMs?: number
-}
-
-/**
- * Gets the chain outage from dynamic config.
- * This is a non-hook alternative to useChainOutageConfig.
- */
-function getChainOutageConfig(): ChainOutageData | undefined {
-  const chainId = getDynamicConfigValue({
-    config: DynamicConfigs.OutageBannerChainId,
-    key: OutageBannerChainIdConfigKey.ChainId,
-    defaultValue: undefined,
-    customTypeGuard: (x): x is UniverseChainId | undefined => {
-      return x === undefined || (typeof x === 'number' && x > 0)
-    },
-  })
-
-  if (!chainId) {
-    return undefined
-  }
-
-  return { chainId }
-}
-
-/**
- * Gets the chain ID from a URL pathname by extracting the chain URL param segment.
- */
-function getChainIdFromPathname(pathname: string): UniverseChainId | undefined {
-  const segments = pathname.split('/').filter(Boolean)
-
-  // Try each segment as a chain URL param
-  for (const segment of segments) {
-    const chainId = getChainIdFromChainUrlParam(segment.toLowerCase())
-    if (chainId !== undefined) {
-      return chainId
-    }
-  }
-
-  return UniverseChainId.Mainnet
 }
 
 /**
@@ -166,53 +108,6 @@ function checkChainConnectivity(ctx: {
       chainId: swapInputChainId,
       isMainnet: swapInputChainId === UniverseChainId.Mainnet,
       statusPageUrl: chainInfo.statusPage,
-    }),
-  }
-}
-
-/**
- * Checks if outage banner should be shown.
- */
-function checkOutage(ctx: {
-  errorOutage: ChainOutageData | undefined
-  configOutage: ChainOutageData | undefined
-  currentPage: InterfacePageName | undefined
-  pageChainId: UniverseChainId | undefined
-}): { shouldShow: boolean; notification?: InAppNotification } {
-  const { errorOutage, configOutage, currentPage, pageChainId } = ctx
-
-  // Use error-detected outage first, fall back to config
-  const outage = errorOutage || configOutage
-
-  if (!outage) {
-    return { shouldShow: false }
-  }
-
-  // Only show on specific pages
-  if (!currentPage || !OUTAGE_DISPLAY_PAGES.includes(currentPage)) {
-    return { shouldShow: false }
-  }
-
-  // Only show if outage chain matches page chain
-  if (outage.chainId !== pageChainId) {
-    return { shouldShow: false }
-  }
-
-  // Get chain info safely - if urlParam doesn't exist, don't show the banner
-  const chainInfo = getChainInfo(outage.chainId)
-  if (!chainInfo.urlParam) {
-    return { shouldShow: false }
-  }
-
-  const chainName = capitalize(chainInfo.urlParam)
-
-  return {
-    shouldShow: true,
-    notification: createOutageNotification({
-      chainId: outage.chainId,
-      chainName,
-      version: outage.version?.toString(),
-      helpUrl: UniswapHelpUrls.articles.subgraphDowntime,
     }),
   }
 }
@@ -285,12 +180,6 @@ export function createSystemAlertsDataSource(ctx: CreateSystemAlertsDataSourceCo
   } = {}): { type: SystemAlertType; notification: InAppNotification } | null => {
     const pathname = getPathname()
     const isLandingPage = pathname === '/'
-    const currentPage = getCurrentPageFromLocation(pathname)
-    const pageChainId = getChainIdFromPathname(pathname)
-
-    // Read stores directly (non-hook pattern)
-    const errorOutage = useManualChainOutageStore.getState().data
-    const configOutage = getChainOutageConfig()
 
     const checkers: Record<SystemAlertType, () => { shouldShow: boolean; notification?: InAppNotification }> = {
       [SystemAlertType.ChainConnectivity]: () =>
@@ -300,16 +189,10 @@ export function createSystemAlertsDataSource(ctx: CreateSystemAlertsDataSourceCo
           stalenessCheckTimeMs: getStalenessCheckTimeMs(),
           isLandingPage,
         }),
-      [SystemAlertType.Outage]: () =>
-        checkOutage({
-          errorOutage,
-          configOutage,
-          currentPage,
-          pageChainId,
-        }),
     }
 
     for (const alertType of ALERT_PRIORITY) {
+      // oxlint-disable-next-line typescript/no-unnecessary-condition
       if (suppressChainConnectivity && alertType === SystemAlertType.ChainConnectivity) {
         continue
       }
@@ -431,48 +314,6 @@ function createChainConnectivityNotification(params: {
             },
           ]
         : [],
-    }),
-  })
-
-  return notification
-}
-
-/**
- * Creates an outage banner notification.
- */
-function createOutageNotification(params: {
-  chainId: number
-  chainName: string
-  version?: string
-  helpUrl: string
-}): InAppNotification {
-  const { chainId, chainName, version, helpUrl } = params
-
-  const versionName = version
-    ? i18n.t('outageBanner.title', { versionName: `${version} data` })
-    : i18n.t('outageBanner.title', { versionName: 'Data' })
-  const versionDescription = version ? ` ${version.toLowerCase()}` : ''
-
-  const notification = new Notification({
-    id: `local:session:outage:${chainId}${version ? `:${version}` : ''}`,
-    content: new Content({
-      style: ContentStyle.SYSTEM_BANNER,
-      title: versionName,
-      subtitle: i18n.t('outageBanner.message', { chainName, versionDescription }),
-      iconLink: 'custom:globe',
-      onDismissClick: new OnClick({
-        onClick: [OnClickAction.DISMISS, OnClickAction.ACK],
-      }),
-      buttons: [
-        {
-          text: i18n.t('common.button.learn'),
-          isPrimary: false,
-          onClick: new OnClick({
-            onClick: [OnClickAction.EXTERNAL_LINK],
-            onClickLink: helpUrl,
-          }),
-        },
-      ],
     }),
   })
 

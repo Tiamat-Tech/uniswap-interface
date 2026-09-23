@@ -5,3 +5,7 @@ export const V2_DEFAULT_FEE_TIER = 3000
 export const V2_PROTOCOL_FEE_PIPS = 500
 export const DEFAULT_TICK_SPACING = 60
 export const DYNAMIC_FEE_AMOUNT = 8388608
+// v4's LPFeeLibrary caps a static LP fee at 100% in pips. The pool constructor accepts a fee below
+// this or exactly DYNAMIC_FEE_AMOUNT (the dynamic-fee flag, deliberately above the cap); anything in
+// between trips its fee invariant.
+export const MAX_LP_FEE = 1_000_000

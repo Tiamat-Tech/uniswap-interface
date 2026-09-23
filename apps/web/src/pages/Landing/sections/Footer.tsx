@@ -1,7 +1,8 @@
 import { isMobileWeb } from '@universe/environment'
+import { Anchor, Flex, type FlexCompatProps as FlexProps, Separator, Text } from '@universe/mycelium'
+import { iconSizes } from '@universe/mycelium/tokens'
+import { type ComponentPropsWithoutRef, type ComponentRef, forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Anchor, Flex, FlexProps, Separator, styled, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import { Wiggle } from '~/components/animations/Wiggle'
 import { MobileTouchableArea } from '~/components/MobileTouchableArea'
@@ -12,19 +13,27 @@ import { Discord, Github, Twitter } from '~/pages/Landing/components/Icons'
 
 const SOCIAL_ICONS_SIZE = `${iconSizes.icon32}px`
 
-const SocialIcon = styled(Wiggle, {
-  cursor: 'pointer',
-  flex: 0,
-})
+// Wiggle is already a mycelium component, so the legacy styled() call was a
+// prop passthrough (cursor/flex land on Wiggle's compat Flex); keep exactly that.
+const SocialIcon = forwardRef<ComponentRef<typeof Wiggle>, ComponentPropsWithoutRef<typeof Wiggle>>(
+  function SocialIcon(props, ref) {
+    return <Wiggle ref={ref} cursor="pointer" flex={0} {...props} />
+  },
+)
 
-const PolicyLink = styled(Text, {
-  variant: 'body3',
-  color: '$neutral2',
-  cursor: 'pointer',
-  hoverStyle: { color: '$neutral1' },
-  // Tamagui bug. Animation property breaks theme value transition, needs to use style instead
-  style: { transition: '100ms' },
-})
+function PolicyLink(props: ComponentPropsWithoutRef<typeof Text>) {
+  return (
+    <Text
+      variant="body3"
+      color="$neutral2"
+      cursor="pointer"
+      hoverStyle={{ color: '$neutral1' }}
+      // Unscoped 100ms transition kept for render parity — it animates the hover color change.
+      style={{ transition: '100ms' }}
+      {...props}
+    />
+  )
+}
 
 const socialTapPadding = isMobileWeb ? '$spacing12' : undefined
 
@@ -106,7 +115,19 @@ export function Footer() {
   const currentYear = new Date().getFullYear()
 
   return (
-    <Flex maxWidth="100vw" width="100%" gap="$spacing24" pt="$none" px="$spacing48" pb={40} $lg={{ px: '$spacing40' }}>
+    <Flex
+      maxWidth="100vw"
+      width="100%"
+      gap="$spacing24"
+      pt="$none"
+      px="$spacing48"
+      pb={40}
+      $lg={{ px: '$spacing40' }}
+      $sm={{ px: '$spacing24' }}
+    >
+      <Flex display="none" $sm={{ display: 'flex' }}>
+        <Separator />
+      </Flex>
       <Flex row $md={{ flexDirection: 'column' }} justifyContent="space-between" gap="$spacing32">
         <Flex height="100%" gap="$spacing60">
           <Flex $md={{ display: 'none' }}>

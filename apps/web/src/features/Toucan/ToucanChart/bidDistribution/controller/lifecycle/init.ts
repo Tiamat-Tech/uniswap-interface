@@ -78,7 +78,8 @@ export function initToucanBidDistributionChart(params: {
         })
       : (baseImpl: () => AutoscaleInfo | null) => {
           const result = baseImpl()
-          const maxValue = result ? result.priceRange.maxValue : 0
+          // v5: AutoscaleInfo.priceRange is nullable.
+          const maxValue = result?.priceRange ? result.priceRange.maxValue : 0
           return {
             priceRange: {
               minValue: 0,

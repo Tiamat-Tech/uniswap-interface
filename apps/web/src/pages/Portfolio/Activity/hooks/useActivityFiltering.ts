@@ -1,8 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
 import { useMemo, useRef } from 'react'
 import { ActivityItem } from 'uniswap/src/components/activity/generateActivityItemRenderer'
 import { useActivityData } from 'uniswap/src/features/activity/hooks/useActivityData'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { TransactionDetails } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { useInfiniteScroll } from 'utilities/src/react/useInfiniteScroll'
 import { ONE_DAY_MS } from 'utilities/src/time/time'
@@ -37,25 +36,16 @@ function filterTransactions({
   transactions,
   typeFilter,
   timeFilter,
-  isEarnActivityDisplayEnabled,
 }: {
   transactions: ActivityItem[]
   typeFilter: string
   timeFilter: string
-  isEarnActivityDisplayEnabled: boolean
 }): TransactionDetails[] {
   const allowedTypes = getTransactionTypesForFilter(typeFilter)
 
   return filterTransactionDetailsFromActivityItems(transactions)
     .filter(
-      (tx) =>
-        allowedTypes === 'all' ||
-        allowedTypes.includes(
-          getTransactionTypeForActivityFilter({
-            transaction: tx,
-            isEarnActivityDisplayEnabled,
-          }),
-        ),
+      (tx) => allowedTypes === 'all' || allowedTypes.includes(getTransactionTypeForActivityFilter({ transaction: tx })),
     )
     .filter((tx) => isWithinTimePeriod(tx.addedTime, timeFilter))
 }
@@ -86,8 +76,6 @@ interface UseActivityFilteringResult {
   error: Error | undefined
   /** Epoch ms when activity data was last successfully fetched. */
   dataUpdatedAt: number | undefined
-  /** Whether Earn-specific activity metadata should be rendered. */
-  isEarnActivityDisplayEnabled: boolean
 }
 
 /**
@@ -108,8 +96,6 @@ export function useActivityFiltering({
   selectedTimePeriod,
   searchText,
 }: UseActivityFilteringParams): UseActivityFilteringResult {
-  const isEarnActivityDisplayEnabled = useIsEarnEnabled()
-
   // Determine if we can use server-side filtering (EVM-only wallet)
   // Server-side filtering only works for EVM and will filter out all Solana transactions
   const canUseServerSideFiltering = !!evmAddress && !svmAddress
@@ -119,11 +105,8 @@ export function useActivityFiltering({
     if (!canUseServerSideFiltering || selectedTransactionType === ActivityFilterType.All) {
       return undefined
     }
-    return getServerTransactionTypesForFilter({
-      filterType: selectedTransactionType,
-      isEarnEnabled: isEarnActivityDisplayEnabled,
-    })
-  }, [canUseServerSideFiltering, selectedTransactionType, isEarnActivityDisplayEnabled])
+    return getServerTransactionTypesForFilter(selectedTransactionType)
+  }, [canUseServerSideFiltering, selectedTransactionType])
 
   const { sectionData, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isFetching, error, dataUpdatedAt } =
     useActivityData({
@@ -189,9 +172,8 @@ export function useActivityFiltering({
         // Always apply client-side type filtering — local transactions bypass server-side filtering
         typeFilter: selectedTransactionType,
         timeFilter: selectedTimePeriod,
-        isEarnActivityDisplayEnabled,
       }),
-    [sectionData, selectedTransactionType, selectedTimePeriod, isEarnActivityDisplayEnabled],
+    [sectionData, selectedTransactionType, selectedTimePeriod],
   )
 
   return {
@@ -203,6 +185,5 @@ export function useActivityFiltering({
     isUsingServerFiltering: !!serverFilterTypes,
     error,
     dataUpdatedAt,
-    isEarnActivityDisplayEnabled,
   }
 }

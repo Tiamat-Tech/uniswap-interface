@@ -1,10 +1,12 @@
+import { Platform } from '@universe/chains'
+import { Button, Flex, Text } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { CloseIconWithHover } from '@universe/mycelium/icons/CloseIconWithHover'
+import { Presence } from '@universe/mycelium/presence'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, Button, Flex, HeightAnimator, Text } from 'ui/src'
 import SOLANA_ICON from 'ui/src/assets/logos/png/solana-logo.png'
-import { CloseIconWithHover } from 'ui/src/components/icons/CloseIconWithHover'
 import { Modal } from 'uniswap/src/components/modals/Modal'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useDebounce } from 'utilities/src/time/timing'
@@ -99,7 +101,7 @@ export function PendingWalletConnectionModal() {
             showRipple={modalContent?.animate}
           />
           <Flex width="100%" fill position="relative" minHeight={60}>
-            <AnimatePresence initial={false}>
+            <Presence initial={false}>
               <Flex
                 width="100%"
                 position="absolute"
@@ -108,9 +110,7 @@ export function PendingWalletConnectionModal() {
                 right={0}
                 alignItems="center"
                 key={modalContent?.key}
-                animation="200ms"
-                enterStyle={{ opacity: 0 }}
-                exitStyle={{ opacity: 0 }}
+                className="animate-spore-enter-fade-in data-exiting:animate-spore-exit-fade-out opacity-[1]"
                 gap="$spacing8"
               >
                 <Text variant="subheading1" color="$neutral1">
@@ -120,7 +120,7 @@ export function PendingWalletConnectionModal() {
                   {modalContent?.description}
                 </Text>
               </Flex>
-            </AnimatePresence>
+            </Presence>
           </Flex>
           <UserInput solanaWalletToPrompt={solanaWalletToPrompt} resetModalState={resetSolanaWalletToPrompt} />
         </Flex>
@@ -190,9 +190,12 @@ function UserInput(props: { solanaWalletToPrompt: ExternalWallet | undefined; re
   })
 
   return (
-    <AnimatePresence>
+    <Presence>
       {solanaWalletToPrompt && !isConnecting && (
-        <Flex width="100%" animation="200ms" enterStyle={{ opacity: 0, y: 10 }} exitStyle={{ opacity: 0, y: 10 }}>
+        <Flex
+          width="100%"
+          className="animate-spore-enter-fade-in data-exiting:animate-spore-exit-fade-out-down opacity-[1]"
+        >
           <Flex width="100%" row gap="$spacing8">
             <Button fill size="small" emphasis="secondary" onPress={resetModalState}>
               {t('common.button.skip')}
@@ -203,7 +206,7 @@ function UserInput(props: { solanaWalletToPrompt: ExternalWallet | undefined; re
           </Flex>
         </Flex>
       )}
-    </AnimatePresence>
+    </Presence>
   )
 }
 

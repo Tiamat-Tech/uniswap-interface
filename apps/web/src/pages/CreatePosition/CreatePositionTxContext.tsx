@@ -7,6 +7,7 @@ import {
 import { LPAction } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import { Pair } from '@uniswap/v2-sdk'
+import { UniverseChainId, Platform } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import {
   createContext,
@@ -26,20 +27,19 @@ import { type NormalizedApprovalData } from 'uniswap/src/data/apiClients/liquidi
 import { useCheckLPApprovalQuery } from 'uniswap/src/data/apiClients/liquidityService/useCheckLPApprovalQuery'
 import { useCreatePositionQuery } from 'uniswap/src/data/apiClients/liquidityService/useCreatePositionQuery'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
 import { useTransactionGasFee, useUSDCurrencyAmountOfGasFee } from 'uniswap/src/features/gas/hooks'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { DelegatedState } from 'uniswap/src/features/smartWallet/delegation/types'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { useTransactionSettingsStore } from 'uniswap/src/features/transactions/components/settings/stores/transactionSettingsStore/useTransactionSettingsStore'
 import { CreatePositionTxAndGasInfo, LiquidityTransactionType } from 'uniswap/src/features/transactions/liquidity/types'
-import { getErrorMessageToDisplay, parseErrorMessageTitle } from 'uniswap/src/features/transactions/liquidity/utils'
+import { useLogLiquidityTxError } from 'uniswap/src/features/transactions/liquidity/useLogLiquidityTxError'
+import { getErrorMessageToDisplay } from 'uniswap/src/features/transactions/liquidity/utils'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
 import { PermitMethod } from 'uniswap/src/features/transactions/swap/types/permitMethod'
 import { validatePermit, validateTransactionRequest } from 'uniswap/src/features/transactions/swap/utils/trade'
-import { logger } from 'utilities/src/logger/logger'
+import { LP_GAS_URGENCY } from '~/features/Liquidity/constants'
 import { useDynamicNativeSlippage } from '~/features/Liquidity/Create/hooks/useLPSlippageValues'
 import { useIsLiquidityApprovalSimulationEnabled } from '~/features/Liquidity/hooks/preEstimatedLiquidityGasUtils'
 import { useCreatePositionDependentAmountFallback } from '~/features/Liquidity/hooks/useDependentAmountFallback'
@@ -227,16 +227,13 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
     isQueryEnabled: !!addLiquidityApprovalParams && !inputError && !transactionError && !invalidRange,
   })
 
-  if (approvalError) {
-    const message = parseErrorMessageTitle(approvalError, { defaultTitle: 'unknown CheckLpApprovalQuery' })
-    logger.error(message, {
-      tags: { file: 'CreatePositionTxContext', function: 'useEffect' },
-      extra: {
-        canBatchTransactions,
-        delegatedAddress,
-      },
-    })
-  }
+  useLogLiquidityTxError({
+    error: approvalError,
+    defaultTitle: 'unknown CheckLpApprovalQuery',
+    file: 'CreatePositionTxContext',
+    functionName: 'useCheckLPApprovalQuery',
+    extra: { canBatchTransactions, delegatedAddress },
+  })
 
   const { gasFeeToken0Approval, gasFeeToken1Approval, gasFeeToken0Permit, gasFeeToken1Permit } = approvalCalldata ?? {}
   const gasFeeToken0USD = useUSDCurrencyAmountOfGasFee(poolOrPair?.chainId, gasFeeToken0Approval)
@@ -332,24 +329,22 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
     setTransactionError(getErrorMessageToDisplay({ approvalError, calldataError: createError }))
   }, [approvalError, createError])
 
-  if (createError) {
-    const message = parseErrorMessageTitle(createError, { defaultTitle: 'unknown CreateLpPositionCalldataQuery' })
-    logger.error(message, {
-      tags: { file: 'CreatePositionTxContext', function: 'useEffect' },
-      extra: {
-        canBatchTransactions,
-        delegatedAddress,
-      },
-    })
-
-    if (createCalldataQueryParams) {
-      sendAnalyticsEvent(InterfaceEventName.CreatePositionFailed, {
-        message,
-        // oxlint-disable-next-line typescript/no-misused-spread -- biome-parity: oxlint is stricter here
-        ...createCalldataQueryParams,
-      })
-    }
-  }
+  useLogLiquidityTxError({
+    error: createError,
+    defaultTitle: 'unknown CreateLpPositionCalldataQuery',
+    file: 'CreatePositionTxContext',
+    functionName: 'useCreatePositionQuery',
+    extra: { canBatchTransactions, delegatedAddress },
+    onError: (message) => {
+      if (createCalldataQueryParams) {
+        sendAnalyticsEvent(InterfaceEventName.CreatePositionFailed, {
+          message,
+          // oxlint-disable-next-line typescript/no-misused-spread -- biome-parity: oxlint is stricter here
+          ...createCalldataQueryParams,
+        })
+      }
+    },
+  })
 
   const hookRejectsLiquidity = useHookRejectsLiquidity({
     createError,
@@ -389,6 +384,7 @@ export function CreatePositionTxContextProvider({ children }: PropsWithChildren)
   const { displayValue: calculatedGasFee } = useTransactionGasFee({
     tx: createCalldata?.create,
     skip: !!effectiveGasFee || needsApprovals,
+    urgency: LP_GAS_URGENCY,
   })
   const increaseGasFeeUsd = useUSDCurrencyAmountOfGasFee(
     toSupportedChainId(createCalldata?.create?.chainId) ?? undefined,

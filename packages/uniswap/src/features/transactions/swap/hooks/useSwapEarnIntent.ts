@@ -4,7 +4,6 @@ import { useMemo } from 'react'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
 import { useTokenProjects } from 'uniswap/src/features/dataApi/tokenProjects/tokenProjects'
 import { useEarnVaults } from 'uniswap/src/features/earn/hooks/useEarnVaults'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { selectEarnVaultForToken } from 'uniswap/src/features/earn/utils'
 import type { UseTradeArgs } from 'uniswap/src/features/transactions/swap/types/trade'
@@ -30,14 +29,12 @@ export function useSwapEarnIntent({
   currencyOut,
   enabled = true,
 }: UseSwapEarnIntentParams): UseSwapEarnIntentResult {
-  const isEarnEnabled = useIsEarnEnabled()
   const inputChainId = toSupportedChainId(currencyIn?.chainId)
   const outputChainId = toSupportedChainId(currencyOut?.chainId)
   const chainedActionsSupportedChainIds = getChainedActionsSupportedChainIds()
 
   const canEvaluateVaults =
     enabled &&
-    isEarnEnabled &&
     !!currencyIn &&
     !!currencyOut &&
     !currencyIn.equals(currencyOut) &&

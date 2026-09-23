@@ -5,22 +5,22 @@ import { DYNAMIC_FEE_DATA } from 'uniswap/src/features/positions/types'
 import { PercentNumberDecimals } from 'utilities/src/format/types'
 import { describe, expect, it } from 'vitest'
 import {
+  getCreatedPoolAtFeeAmount,
   getCreateFeeTierOptions,
   getCreateFeeTierSearchData,
-  getSteeredRecommendedFee,
 } from '~/features/Liquidity/utils/createFeeTiers'
-import { calculateTickSpacingFromFeeAmount, getFeeTierKey } from '~/features/Liquidity/utils/feeTiers'
+import {
+  calculateTickSpacingFromFeeAmount,
+  type FeeTierOption,
+  getFeeTierKey,
+} from '~/features/Liquidity/utils/feeTiers'
 import { FeeTierData } from '~/types/liquidity'
 
 const formatPercent = (percent: string | number | undefined, _maxDecimals?: PercentNumberDecimals) =>
   `${Number(percent) * 100}%`
 
-const keyOf = (feeAmount: number, isDynamic = false) =>
-  getFeeTierKey({
-    feeTier: feeAmount,
-    tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount, false),
-    isDynamicFee: isDynamic,
-  })
+const keyOf = (feeAmount: number) =>
+  getFeeTierKey({ feeTier: feeAmount, tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount) })
 
 const tierData = (
   feeAmount: number,
@@ -31,9 +31,10 @@ const tierData = (
   fee: {
     feeAmount,
     isDynamic: opts.isDynamic ?? false,
-    tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount, false),
+    tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount),
   },
-  formattedFee: `${feeAmount}`,
+  // Mirrors production: every dynamic-fee pool reads as "Dynamic fee"; static tiers read as their amount.
+  formattedFee: opts.isDynamic ? 'Dynamic fee' : `${feeAmount}`,
   totalLiquidityUsd: Number(tvl),
   percentage: new Percent(1, 100),
   tvl,
@@ -43,28 +44,12 @@ const tierData = (
 })
 
 const record = (...entries: FeeTierData[]): Record<string, FeeTierData> =>
-  Object.fromEntries(entries.map((entry) => [keyOf(entry.fee.feeAmount, entry.fee.isDynamic), entry]))
+  Object.fromEntries(entries.map((entry) => [keyOf(entry.fee.feeAmount), entry]))
 
 // Fee amounts (pips) for the four canonical new tiers: 0.75 / 3.75 / 25 / 90 bps.
 const NEW_TIER_FEE_AMOUNTS = [75, 375, 2500, 9000]
 
 describe('getCreateFeeTierOptions', () => {
-  it('returns the pool-backed defaults unchanged when the flag is off', () => {
-    const defaultFeeTiers = [
-      { value: { feeAmount: FeeAmount.MEDIUM, isDynamic: false, tickSpacing: 60 }, title: 't', tvl: '0' },
-    ]
-    expect(
-      getCreateFeeTierOptions({
-        isFeeDisplayEnabled: false,
-        protocolVersion: ProtocolVersion.V4,
-        defaultFeeTiers,
-        feeTierData: {},
-        hook: undefined,
-        useSingleTickSpacing: false,
-      }),
-    ).toBe(defaultFeeTiers)
-  })
-
   it('attaches a subtractive breakdown to v3 tiers without swapping them', () => {
     // A 0.3% v3 pool with a served 5 bps (500 pips) protocol fee.
     const defaultFeeTiers = [
@@ -76,12 +61,10 @@ describe('getCreateFeeTierOptions', () => {
       },
     ]
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V3,
       defaultFeeTiers,
       feeTierData: {},
       hook: undefined,
-      useSingleTickSpacing: false,
     })
     // No keep-vs-swap for v3; the tier is unchanged except for the breakdown.
     expect(result.map((option) => option.value.feeAmount)).toEqual([FeeAmount.MEDIUM])
@@ -101,12 +84,10 @@ describe('getCreateFeeTierOptions', () => {
       { value: { feeAmount: FeeAmount.MEDIUM, isDynamic: false, tickSpacing: 60 }, title: 't', tvl: '0' },
     ]
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V3,
       defaultFeeTiers,
       feeTierData: {},
       hook: undefined,
-      useSingleTickSpacing: false,
     })
     // 0.01% takes 1/4: LP 0.75 + protocol 0.25 = 1 effective (the tier).
     expect(result[0].feeBreakdown).toEqual({
@@ -132,12 +113,10 @@ describe('getCreateFeeTierOptions', () => {
       { value: { feeAmount: FeeAmount.MEDIUM, isDynamic: false, tickSpacing: 60 }, title: 't', tvl: '0' },
     ]
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V3,
       defaultFeeTiers,
       feeTierData,
       hook: undefined,
-      useSingleTickSpacing: false,
     })
     expect(result.every((option) => option.created === false)).toBe(true)
   })
@@ -148,24 +127,20 @@ describe('getCreateFeeTierOptions', () => {
       { value: { feeAmount: FeeAmount.MEDIUM, isDynamic: false, tickSpacing: 60 }, title: 't', tvl: '10000' },
     ]
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V3,
       defaultFeeTiers,
       feeTierData,
       hook: undefined,
-      useSingleTickSpacing: false,
     })
     expect(result[0].created).toBe(true)
   })
 
   it('shows the four new canonical tiers for a brand-new v4 pair', () => {
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [],
       feeTierData: {},
       hook: undefined,
-      useSingleTickSpacing: false,
     })
     // The four new tiers in pairing (ascending) order — no old tiers, no pool data, all not-yet-created.
     expect(result.map((option) => option.value.feeAmount)).toEqual(NEW_TIER_FEE_AMOUNTS)
@@ -182,25 +157,24 @@ describe('getCreateFeeTierOptions', () => {
     })
   })
 
-  it('keeps a deep old tier and shows the new tier for the shallow pairings', () => {
+  it('leads with a deep old tier and backfills the shallow pairings with new tiers', () => {
     // Only the 0.30% pool is deep; the others have no pool.
     const feeTierData = record(tierData(FeeAmount.MEDIUM, '10000', { protocolFee: 500, boostedApr: 5 }))
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [],
       feeTierData,
       hook: undefined,
-      useSingleTickSpacing: false,
     })
-    // 0.30% (3000) kept; the rest are the paired new tiers.
-    expect(result.map((option) => option.value.feeAmount)).toEqual([75, 375, FeeAmount.MEDIUM, 9000])
-    const kept = result[2]
+    // 0.30% (3000) claims the first slot; the remaining three are backfilled with new tiers. The 0.25%
+    // pairing is skipped — offering it beside the deep 0.30% pool is the fragmentation it exists to avoid.
+    expect(result.map((option) => option.value.feeAmount)).toEqual([FeeAmount.MEDIUM, 75, 375, 9000])
+    const kept = result[0]
     expect(kept.tvl).toBe('10000')
     expect(kept.boostedApr).toBe(5)
     // The kept old pool is created; the synthesized new tiers aren't.
     expect(kept.created).toBe(true)
-    expect(result.filter((_, i) => i !== 2).every((option) => option.created === false)).toBe(true)
+    expect(result.slice(1).every((option) => option.created === false)).toBe(true)
     // Kept tier stacks the served 5 bps (500 pips) protocol fee on the 30 bps LP fee.
     expect(kept.feeBreakdown).toEqual({
       lpFeeBps: 30,
@@ -210,18 +184,94 @@ describe('getCreateFeeTierOptions', () => {
     })
   })
 
-  it('keeps an old tier at exactly $5k and swaps one just below', () => {
+  it('keeps an old tier at exactly $5k and drops one just below', () => {
     const feeTierData = record(tierData(FeeAmount.MEDIUM, '5000'), tierData(FeeAmount.HIGH, '4999'))
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [],
       feeTierData,
       hook: undefined,
-      useSingleTickSpacing: false,
     })
-    // 0.30% at exactly 5k is kept; 1% just below swaps to the paired 0.90% new tier.
-    expect(result.map((option) => option.value.feeAmount)).toEqual([75, 375, FeeAmount.MEDIUM, 9000])
+    // 0.30% at exactly 5k earns a box; 1% just below doesn't, so its paired 0.90% new tier backfills.
+    expect(result.map((option) => option.value.feeAmount)).toEqual([FeeAmount.MEDIUM, 75, 375, 9000])
+  })
+
+  it('fills the grid with the deepest pools, dropping the canonical tiers entirely', () => {
+    // USDC/USDT v4 on mainnet: the three deepest pools sit at fee amounts no pairing covers, so before
+    // this the grid showed one $650K box beside three empty new tiers and hid $22M of liquidity.
+    const feeTierData = record(
+      tierData(7, '9251405.85'),
+      tierData(10, '7122418.97'),
+      tierData(8, '6016403.81'),
+      tierData(100, '650091.16'),
+      tierData(35, '16379.98'),
+      tierData(5, '4453.49'),
+    )
+    const result = getCreateFeeTierOptions({
+      protocolVersion: ProtocolVersion.V4,
+      defaultFeeTiers: [],
+      feeTierData,
+      hook: undefined,
+    })
+    // Four qualifying pools fill every slot, deepest first — no room left for a canonical tier. The $16K
+    // tier is cut by the grid width, the $4.4K one by the TVL bar.
+    expect(result.map((option) => option.value.feeAmount)).toEqual([7, 10, 8, 100])
+    expect(result.every((option) => option.created === true)).toBe(true)
+  })
+
+  it('gives a deep non-canonical pool a box alongside the canonical tiers', () => {
+    // DAI/USDC: the pair's deepest pool is at 0.0082%, which no pairing covers.
+    const feeTierData = record(tierData(82, '14613.42'), tierData(100, '1296.84'))
+    const result = getCreateFeeTierOptions({
+      protocolVersion: ProtocolVersion.V4,
+      defaultFeeTiers: [],
+      feeTierData,
+      hook: undefined,
+    })
+    // The 0.01% pool is too shallow to keep, so its paired 0.0075% tier backfills as usual.
+    expect(result.map((option) => option.value.feeAmount)).toEqual([82, 75, 375, 2500])
+    expect(result[0].tvl).toBe('14613.42')
+  })
+
+  it('shows both sides of a pairing when both pools are deep', () => {
+    // The pairing exists to stop us pushing users into an empty new-tier pool beside a deep old one.
+    // Once both hold real liquidity there's nothing left to fragment, so both are real destinations.
+    const feeTierData = record(tierData(FeeAmount.MEDIUM, '10000'), tierData(2500, '8000'))
+    const result = getCreateFeeTierOptions({
+      protocolVersion: ProtocolVersion.V4,
+      defaultFeeTiers: [],
+      feeTierData,
+      hook: undefined,
+    })
+    expect(result.map((option) => option.value.feeAmount)).toEqual([FeeAmount.MEDIUM, 2500, 75, 375])
+  })
+
+  it('leaves a non-canonical tier without a "Best for …" subtitle', () => {
+    // getFeeTierTitle only names the four old default fee amounts, so a pool at any other fee renders a
+    // blank subtitle — as it did before the canonical grid, when v4 showed the top four tiers by TVL.
+    const feeTierData = record(tierData(7, '9251405.85'), tierData(100, '650091.16'))
+    const result = getCreateFeeTierOptions({
+      protocolVersion: ProtocolVersion.V4,
+      defaultFeeTiers: [],
+      feeTierData,
+      hook: undefined,
+    })
+    expect(result[0].title).toBe('')
+    expect(result[1].title.length).toBeGreaterThan(0)
+  })
+
+  it('gives a shallow incentivized non-canonical pool a box', () => {
+    // A rewarded pool at a fee no pairing covers: without a box its reward APR has nowhere to render and
+    // "Switch pools" has to fall back to fee tier search.
+    const feeTierData = record(tierData(295, '12', { boostedApr: 4200 }))
+    const result = getCreateFeeTierOptions({
+      protocolVersion: ProtocolVersion.V4,
+      defaultFeeTiers: [],
+      feeTierData,
+      hook: undefined,
+    })
+    expect(result.map((option) => option.value.feeAmount)).toEqual([295, 75, 375, 2500])
+    expect(result[0].boostedApr).toBe(4200)
   })
 
   it('keeps a shallow old tier when its pool is incentivized', () => {
@@ -229,17 +279,15 @@ describe('getCreateFeeTierOptions', () => {
     // reward APR still has a box to render in.
     const feeTierData = record(tierData(500, '7', { boostedApr: 1709392 }))
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [],
       feeTierData,
       hook: undefined,
-      useSingleTickSpacing: false,
     })
-    // 0.05% (500) kept in the 3.75 bps slot instead of swapping to the empty new tier.
-    expect(result.map((option) => option.value.feeAmount)).toEqual([75, 500, 2500, 9000])
-    expect(result[1].boostedApr).toBe(1709392)
-    expect(result[1].created).toBe(true)
+    // 0.05% (500) earns a box despite the TVL bar, and its 0.0375% pairing is skipped as a backfill.
+    expect(result.map((option) => option.value.feeAmount)).toEqual([500, 75, 2500, 9000])
+    expect(result[0].boostedApr).toBe(1709392)
+    expect(result[0].created).toBe(true)
   })
 
   it('prefers the incentivized pool when one fee amount backs several pools', () => {
@@ -251,32 +299,29 @@ describe('getCreateFeeTierOptions', () => {
       fee: { feeAmount: 500, isDynamic: false, tickSpacing: 5 },
     }
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [],
       feeTierData: { '500-10': dust, '500-5': incentivized },
       hook: undefined,
-      useSingleTickSpacing: false,
     })
-    // The incentivized pool wins the 3.75 bps slot, not the dust pool listed ahead of it.
-    expect(result[1].value).toEqual(incentivized.fee)
-    expect(result[1].boostedApr).toBe(1370409)
-    expect(result[1].tvl).toBe('1920')
+    // The incentivized pool represents the 0.05% box, not the dust pool listed ahead of it.
+    expect(result[0].value).toEqual(incentivized.fee)
+    expect(result[0].boostedApr).toBe(1370409)
+    expect(result[0].tvl).toBe('1920')
   })
 
   it('shows a pool already sitting at the new tier, with its served data', () => {
-    // 0.30% is shallow so its pairing shows 0.25%, where a pool already exists with a served 8 bps fee.
+    // A deep pool already at the 0.25% new tier; the empty 0.30% pool it pairs with earns nothing.
     const feeTierData = record(tierData(FeeAmount.MEDIUM, '0'), tierData(2500, '12345', { protocolFee: 800 }))
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [],
       feeTierData,
       hook: undefined,
-      useSingleTickSpacing: false,
     })
-    expect(result.map((option) => option.value.feeAmount)).toEqual(NEW_TIER_FEE_AMOUNTS)
-    const atNewTier = result[2]
+    // 0.25% leads on TVL; its own pairing is then skipped as a backfill, so 0.90% takes the last slot.
+    expect(result.map((option) => option.value.feeAmount)).toEqual([2500, 75, 375, 9000])
+    const atNewTier = result[0]
     expect(atNewTier.tvl).toBe('12345')
     // v4 stacks: LP 25 + served protocol 8 = 33 effective, from the backend value (not the curve pairing).
     expect(atNewTier.feeBreakdown).toEqual({
@@ -292,12 +337,10 @@ describe('getCreateFeeTierOptions', () => {
     const dynamicOption = { value: DYNAMIC_FEE_DATA, title: 'dynamic', tvl: '50000', boostedApr: 7 }
     const feeTierData = record(tierData(DYNAMIC_FEE_DATA.feeAmount, '50000', { isDynamic: true, boostedApr: 7 }))
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [dynamicOption],
       feeTierData,
       hook: '0x0000000000000000000000000000000000000088',
-      useSingleTickSpacing: false,
     })
     // The four canonical tiers, then the dynamic tier appended last.
     expect(result.map((option) => option.value.feeAmount)).toEqual([
@@ -309,27 +352,62 @@ describe('getCreateFeeTierOptions', () => {
     expect(result[result.length - 1].feeBreakdown).toBeUndefined()
   })
 
+  it('re-points the dynamic box to the URL-pinned tick spacing, else shows the deepest', () => {
+    // Two dynamic-fee pools on the same hook, distinguishable only by tick spacing.
+    const deepDynamic: FeeTierData = {
+      ...tierData(450, '1700000', { isDynamic: true }),
+      id: 'dyn-deep',
+      fee: { feeAmount: 450, isDynamic: true, tickSpacing: 60 },
+    }
+    const dustDynamic: FeeTierData = {
+      ...tierData(14800, '0.34', { isDynamic: true, created: true }),
+      id: 'dyn-dust',
+      fee: { feeAmount: 14800, isDynamic: true, tickSpacing: 8 },
+    }
+    const feeTierData = { '450-60': deepDynamic, '14800-8': dustDynamic }
+    // The grid reuses the top-by-TVL dynamic option from defaultFeeTiers (the deep pool).
+    const dynamicOption = { value: deepDynamic.fee, title: 'dynamic', tvl: '1700000' }
+    const hook = '0x0000000000000000000000000000000000000088'
+
+    const withoutPin = getCreateFeeTierOptions({
+      protocolVersion: ProtocolVersion.V4,
+      defaultFeeTiers: [dynamicOption],
+      feeTierData,
+      hook,
+    })
+    expect(withoutPin.at(-1)?.value).toEqual(deepDynamic.fee)
+
+    // Deep-linking the shallow pool's tick spacing re-points the box at it, stranding the deeper sibling.
+    const withPin = getCreateFeeTierOptions({
+      protocolVersion: ProtocolVersion.V4,
+      defaultFeeTiers: [dynamicOption],
+      feeTierData,
+      hook,
+      selectedFee: dustDynamic.fee,
+    })
+    expect(withPin.at(-1)?.value).toEqual(dustDynamic.fee)
+    expect(withPin.at(-1)?.tvl).toBe('0.34')
+    // A dynamic tier has no fixed rate to break down, so the re-pointed box carries no breakdown.
+    expect(withPin.at(-1)?.feeBreakdown).toBeUndefined()
+  })
+
   it('does not append a dynamic box when defaultFeeTiers has none (vanilla v4 pair)', () => {
     const feeTierData = record(tierData(FeeAmount.MEDIUM, '10000'))
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [],
       feeTierData,
       hook: undefined,
-      useSingleTickSpacing: false,
     })
     expect(result.every((option) => !option.value.isDynamic)).toBe(true)
   })
 
   it('degrades to unavailable breakdowns for hooked pools', () => {
     const result = getCreateFeeTierOptions({
-      isFeeDisplayEnabled: true,
       protocolVersion: ProtocolVersion.V4,
       defaultFeeTiers: [],
       feeTierData: {},
       hook: '0x0000000000000000000000000000000000000088',
-      useSingleTickSpacing: false,
     })
     // Hooked pools can't be computed, so the protocol fee is unavailable and effective falls back to LP.
     expect(result.every((option) => option.feeBreakdown?.protocolFeeBps === undefined)).toBe(true)
@@ -338,14 +416,13 @@ describe('getCreateFeeTierOptions', () => {
 })
 
 describe('getCreateFeeTierSearchData', () => {
-  it('returns the tiers unchanged when the flag is off', () => {
+  it('returns the tiers unchanged when the new defaults are not in use', () => {
     const feeTierData = record(tierData(FeeAmount.MEDIUM, '0'))
     expect(
       getCreateFeeTierSearchData({
         useNewDefaultFeeTiers: false,
         feeTierData,
         formatPercent,
-        useSingleTickSpacing: false,
       }),
     ).toEqual(Object.values(feeTierData))
   })
@@ -361,7 +438,6 @@ describe('getCreateFeeTierSearchData', () => {
       useNewDefaultFeeTiers: true,
       feeTierData,
       formatPercent,
-      useSingleTickSpacing: false,
     })
     // The four new default tiers only — the seeded old defaults have no TVL, so they're dropped.
     expect(result.map((data) => data.fee.feeAmount)).toEqual(NEW_TIER_FEE_AMOUNTS)
@@ -374,15 +450,13 @@ describe('getCreateFeeTierSearchData', () => {
     })
   })
 
-  it('synthesizes new default tiers with 1x tick spacing when the flag is enabled', () => {
+  it('synthesizes new default tiers with tick spacing derived from the fee', () => {
     const feeTierData = record(tierData(FeeAmount.MEDIUM, '0'))
     const result = getCreateFeeTierSearchData({
       useNewDefaultFeeTiers: true,
       feeTierData,
       formatPercent,
-      useSingleTickSpacing: true,
     })
-    // 75 / 375 / 2500 / 9000 pips at 1x (vs 2 / 8 / 50 / 180 at 2x).
     expect(result.map((data) => data.fee.feeAmount)).toEqual(NEW_TIER_FEE_AMOUNTS)
     expect(result.map((data) => data.fee.tickSpacing)).toEqual([1, 4, 25, 90])
   })
@@ -399,7 +473,6 @@ describe('getCreateFeeTierSearchData', () => {
       useNewDefaultFeeTiers: true,
       feeTierData,
       formatPercent,
-      useSingleTickSpacing: false,
     })
     // New defaults first, then the only old tier with liquidity.
     expect(result.map((data) => data.fee.feeAmount)).toEqual([...NEW_TIER_FEE_AMOUNTS, FeeAmount.MEDIUM])
@@ -423,12 +496,123 @@ describe('getCreateFeeTierSearchData', () => {
       useNewDefaultFeeTiers: true,
       feeTierData,
       formatPercent,
-      useSingleTickSpacing: false,
     })
     // New defaults, then the dynamic tier (always kept) and the 0.04% pool with TVL; the empty 0.06% is dropped.
     expect(result.map((data) => data.fee.feeAmount)).toEqual([...NEW_TIER_FEE_AMOUNTS, DYNAMIC_FEE_DATA.feeAmount, 400])
     const dynamic = result.find((data) => data.fee.isDynamic)
     expect(dynamic?.feeBreakdown).toBeUndefined()
+  })
+
+  it('collapses two dynamic pools differing only by tick spacing to the deepest, honoring a pinned one', () => {
+    // Two dynamic-fee pools on the same hook, one deep and one dust — a user reads both as "Dynamic fee".
+    const deepDynamic: FeeTierData = {
+      ...tierData(450, '1700000', { isDynamic: true }),
+      id: 'dyn-deep',
+      fee: { feeAmount: 450, isDynamic: true, tickSpacing: 60 },
+    }
+    const dustDynamic: FeeTierData = {
+      ...tierData(14800, '0.34', { isDynamic: true }),
+      id: 'dyn-dust',
+      fee: { feeAmount: 14800, isDynamic: true, tickSpacing: 8 },
+    }
+    const feeTierData = { '450-60': deepDynamic, '14800-8': dustDynamic }
+
+    const result = getCreateFeeTierSearchData({ useNewDefaultFeeTiers: true, feeTierData, formatPercent })
+    const dynamics = result.filter((data) => data.fee.isDynamic)
+    expect(dynamics).toHaveLength(1)
+    expect(dynamics[0].id).toBe('dyn-deep')
+
+    // A URL-pinned tick spacing wins over TVL, so the direct link resolves to the dust pool.
+    const pinned = getCreateFeeTierSearchData({
+      useNewDefaultFeeTiers: true,
+      feeTierData,
+      formatPercent,
+      selectedFee: dustDynamic.fee,
+    })
+    const pinnedDynamics = pinned.filter((data) => data.fee.isDynamic)
+    expect(pinnedDynamics).toHaveLength(1)
+    expect(pinnedDynamics[0].id).toBe('dyn-dust')
+  })
+
+  it('collapses two static pools at one fee amount to the deepest, honoring a pinned tick spacing', () => {
+    // Same fee value (0.30%), different tick spacing — a pre-cutover pool beside a new-schedule one.
+    const deep: FeeTierData = {
+      ...tierData(3000, '2000000'),
+      id: 'st-deep',
+      fee: { feeAmount: 3000, isDynamic: false, tickSpacing: 6 },
+    }
+    const shallow: FeeTierData = {
+      ...tierData(3000, '1000000'),
+      id: 'st-shallow',
+      fee: { feeAmount: 3000, isDynamic: false, tickSpacing: 60 },
+    }
+    const feeTierData = { '3000-6': deep, '3000-60': shallow }
+
+    const result = getCreateFeeTierSearchData({ useNewDefaultFeeTiers: true, feeTierData, formatPercent })
+    const at3000 = result.filter((data) => data.fee.feeAmount === 3000)
+    expect(at3000).toHaveLength(1)
+    expect(at3000[0].id).toBe('st-deep')
+
+    const pinned = getCreateFeeTierSearchData({
+      useNewDefaultFeeTiers: true,
+      feeTierData,
+      formatPercent,
+      selectedFee: shallow.fee,
+    })
+    const pinnedAt3000 = pinned.filter((data) => data.fee.feeAmount === 3000)
+    expect(pinnedAt3000).toHaveLength(1)
+    expect(pinnedAt3000[0].id).toBe('st-shallow')
+  })
+
+  it('does not let a pin on a seeded (not-created) canonical default evict the real deep pool', () => {
+    // A real deep 0.25% pool plus the seeded canonical default at that fee (created:false, zero TVL). The URL
+    // pins the seeded default's tick spacing; pinnedPoolFor must skip it (not created) so the deep pool stays.
+    const realDeep: FeeTierData = {
+      ...tierData(2500, '1000000'),
+      id: 'real',
+      fee: { feeAmount: 2500, isDynamic: false, tickSpacing: 60 },
+    }
+    const seededDefault: FeeTierData = {
+      ...tierData(2500, '0'),
+      id: 'seeded',
+      fee: { feeAmount: 2500, isDynamic: false, tickSpacing: 25 },
+    }
+    const result = getCreateFeeTierSearchData({
+      useNewDefaultFeeTiers: true,
+      feeTierData: { '2500-60': realDeep, '2500-25': seededDefault },
+      formatPercent,
+      selectedFee: seededDefault.fee,
+    })
+    const at2500 = result.filter((data) => data.fee.feeAmount === 2500)
+    expect(at2500).toHaveLength(1)
+    expect(at2500[0].id).toBe('real')
+    expect(at2500[0].created).toBe(true)
+  })
+
+  it('drops a boosted sibling stranded by a pin, so the rewards banner can hide', () => {
+    // A rewarded 0.05% pool and its non-incentivized dust sibling at a different tick spacing.
+    const boosted: FeeTierData = {
+      ...tierData(500, '50000', { boostedApr: 10 }),
+      id: 'boosted',
+      fee: { feeAmount: 500, isDynamic: false, tickSpacing: 10 },
+    }
+    const dust: FeeTierData = {
+      ...tierData(500, '5', { boostedApr: 0 }),
+      id: 'dust',
+      fee: { feeAmount: 500, isDynamic: false, tickSpacing: 60 },
+    }
+    const feeTierData = { '500-10': boosted, '500-60': dust }
+    // No pin: byWorthJoining keeps the incentivized pool, so a boosted tier is reachable.
+    const noPin = getCreateFeeTierSearchData({ useNewDefaultFeeTiers: true, feeTierData, formatPercent })
+    expect(noPin.some((data) => data.boostedApr && data.boostedApr > 0)).toBe(true)
+    // Deep-linking the dust sibling strands the boosted one — no reachable boosted tier, so no banner.
+    const pinned = getCreateFeeTierSearchData({
+      useNewDefaultFeeTiers: true,
+      feeTierData,
+      formatPercent,
+      selectedFee: dust.fee,
+    })
+    expect(pinned.some((data) => data.boostedApr && data.boostedApr > 0)).toBe(false)
   })
 
   it('shows a new default tier from its real pool when one exists, without duplicating it', () => {
@@ -438,7 +622,6 @@ describe('getCreateFeeTierSearchData', () => {
       useNewDefaultFeeTiers: true,
       feeTierData,
       formatPercent,
-      useSingleTickSpacing: false,
     })
     expect(result.map((data) => data.fee.feeAmount)).toEqual(NEW_TIER_FEE_AMOUNTS)
     const atNewTier = result[2]
@@ -453,70 +636,97 @@ describe('getCreateFeeTierSearchData', () => {
       feeTierData,
       formatPercent,
       hook: '0x0000000000000000000000000000000000000088',
-      useSingleTickSpacing: false,
     })
     expect(result.every((data) => data.feeBreakdown?.protocolFeeBps === undefined)).toBe(true)
   })
 })
 
-describe('getSteeredRecommendedFee', () => {
-  const feeData = (feeAmount: number) => ({
-    isDynamic: false,
-    feeAmount,
-    tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount, false),
+describe('URL-pinned tick spacing (PDP deep link)', () => {
+  // A pool detail page links into the create flow with the pool's exact fee in the URL, e.g.
+  // ?fee={"isDynamic":true,"feeAmount":14800,"tickSpacing":8}. That becomes `selectedFee`, and both surfaces
+  // must resolve to the linked pool's tick spacing rather than collapsing to the deepest sibling — even for a
+  // dynamic pool, where the linked fee amount differs from the deepest pool's and only the tick spacing pins it.
+  const deepDynamic: FeeTierData = {
+    ...tierData(450, '1700000', { isDynamic: true }),
+    id: 'dyn-deep',
+    fee: { feeAmount: 450, isDynamic: true, tickSpacing: 60 },
+  }
+  const dustDynamic: FeeTierData = {
+    ...tierData(14800, '0.34', { isDynamic: true }),
+    id: 'dyn-dust',
+    fee: { feeAmount: 14800, isDynamic: true, tickSpacing: 8 },
+  }
+  const feeTierData = { '450-60': deepDynamic, '14800-8': dustDynamic }
+  const hook = '0x0000000000000000000000000000000000000088'
+  // The PDP deep link for the shallow pool carries its own fee amount + tick spacing.
+  const pdpDeepLinkFee = dustDynamic.fee
+
+  it('search list resolves to the linked tick spacing, stranding the deeper sibling', () => {
+    const dynamics = getCreateFeeTierSearchData({
+      useNewDefaultFeeTiers: true,
+      feeTierData,
+      formatPercent,
+      selectedFee: pdpDeepLinkFee,
+    }).filter((data) => data.fee.isDynamic)
+    expect(dynamics).toHaveLength(1)
+    expect(dynamics[0].id).toBe('dyn-dust')
+    expect(dynamics[0].fee.tickSpacing).toBe(8)
   })
 
-  it('steers a shallow canonical default to its paired new tier', () => {
-    // 0.30% (old default) with < $5k liquidity → the paired 0.25% (2500) new tier.
-    expect(
-      getSteeredRecommendedFee({ mostUsedFee: feeData(FeeAmount.MEDIUM), tvl: '2000', useSingleTickSpacing: false }),
-    ).toEqual({
-      isDynamic: false,
-      feeAmount: 2500,
-      tickSpacing: 50,
+  it('grid box resolves to the linked tick spacing even when its TVL would filter it out', () => {
+    // The dust pool is below the grid's TVL floor, so defaultFeeTiers only carries the deep dynamic option;
+    // the pin re-points the box anyway by sourcing the linked pool straight from feeTierData.
+    const result = getCreateFeeTierOptions({
+      protocolVersion: ProtocolVersion.V4,
+      defaultFeeTiers: [{ value: deepDynamic.fee, title: 'dynamic', tvl: '1700000' }],
+      feeTierData,
+      hook,
+      selectedFee: pdpDeepLinkFee,
     })
+    expect(result.at(-1)?.value).toEqual(dustDynamic.fee)
+    expect(result.at(-1)?.value.tickSpacing).toBe(8)
+  })
+})
+
+describe('getCreatedPoolAtFeeAmount', () => {
+  // A pool deployed under the pre-cutover 2x schedule: 0.30% at tick spacing 60, where the fee now derives 30.
+  const legacySpacedPool = (feeAmount: number, tvl: string, opts: { boostedApr?: number } = {}): FeeTierData => ({
+    ...tierData(feeAmount, tvl, opts),
+    fee: { feeAmount, isDynamic: false, tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount) * 2 },
+  })
+  const at = (feeTierData: Record<string, FeeTierData>, feeAmount: number) =>
+    getCreatedPoolAtFeeAmount({ feeTierData, feeAmount })
+
+  it('finds a pool whose tick spacing the fee no longer derives', () => {
+    // The whole point: keying off `calculateTickSpacingFromFeeAmount(3000)` would look for 3000-30 and miss
+    // this 3000-60 pool, so typing 0.3% would initialize an empty pool beside $5M of liquidity.
+    const pool = legacySpacedPool(FeeAmount.MEDIUM, '5000000')
+    const feeTierData = { '3000-60': pool }
+    expect(at(feeTierData, FeeAmount.MEDIUM)?.fee.tickSpacing).toBe(60)
+    expect(at(feeTierData, FeeAmount.MEDIUM)).toBe(pool)
   })
 
-  it('uses the 1x tick spacing for the steered new tier when the flag is enabled', () => {
-    // Same steer as above, but 2500 pips → 25 (1x) instead of 50 (2x).
-    expect(
-      getSteeredRecommendedFee({ mostUsedFee: feeData(FeeAmount.MEDIUM), tvl: '2000', useSingleTickSpacing: true }),
-    ).toEqual({
-      isDynamic: false,
-      feeAmount: 2500,
-      tickSpacing: 25,
-    })
+  it('ignores the not-yet-created canonical defaults merged into the record', () => {
+    // `mergeFeeTiers` seeds every canonical tier with `created: false` — those are what the create flow is
+    // for, so they must not read as an existing pool.
+    expect(at(record(tierData(FeeAmount.MEDIUM, '0')), FeeAmount.MEDIUM)).toBeUndefined()
   })
 
-  it('keeps a deep canonical default as-is', () => {
-    expect(
-      getSteeredRecommendedFee({ mostUsedFee: feeData(FeeAmount.MEDIUM), tvl: '10000', useSingleTickSpacing: false }),
-    ).toEqual(feeData(FeeAmount.MEDIUM))
+  it('ignores a dynamic-fee pool at the same fee amount', () => {
+    const dynamic = tierData(DYNAMIC_FEE_DATA.feeAmount, '1000000', { isDynamic: true })
+    expect(at(record(dynamic), DYNAMIC_FEE_DATA.feeAmount)).toBeUndefined()
   })
 
-  it('keeps a shallow canonical default as-is when it is incentivized', () => {
-    // 0.05% (500) with $7 liquidity but a live campaign — kept, matching the card resolveCanonicalTier renders.
-    expect(
-      getSteeredRecommendedFee({
-        mostUsedFee: feeData(500),
-        tvl: '7',
-        boostedApr: 1709392,
-        useSingleTickSpacing: false,
-      }),
-    ).toEqual(feeData(500))
+  it('prefers the incentivized pool, then the deepest, among pools sharing a fee amount', () => {
+    const deep = tierData(500, '5000000')
+    const incentivized = legacySpacedPool(500, '12', { boostedApr: 20 })
+    expect(at({ '500-5': deep, '500-10': incentivized }, 500)).toBe(incentivized)
+    expect(at({ '500-5': deep, '500-10': legacySpacedPool(500, '12') }, 500)).toBe(deep)
   })
 
-  it('keeps a non-default tier as-is', () => {
-    // 0.04% (400 pips) is not a canonical old default, so there is nothing to steer to.
-    expect(getSteeredRecommendedFee({ mostUsedFee: feeData(400), tvl: '0', useSingleTickSpacing: false })).toEqual(
-      feeData(400),
-    )
-  })
-
-  it('keeps a tier that is already a new canonical tier as-is', () => {
-    // 0.25% (2500) is a new tier, not an old default, so it is not steered further.
-    expect(getSteeredRecommendedFee({ mostUsedFee: feeData(2500), tvl: '0', useSingleTickSpacing: false })).toEqual(
-      feeData(2500),
-    )
+  it('returns undefined for a fee amount no pool covers', () => {
+    expect(at(record(tierData(FeeAmount.MEDIUM, '5000000')), 82)).toBeUndefined()
+    // An empty create input parses to NaN; it must not match anything.
+    expect(at(record(tierData(FeeAmount.MEDIUM, '5000000')), NaN)).toBeUndefined()
   })
 })

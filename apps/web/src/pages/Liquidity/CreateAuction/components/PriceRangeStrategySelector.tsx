@@ -1,5 +1,5 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { CustomPriceRangeEditor } from '~/pages/Liquidity/CreateAuction/components/CustomPriceRangeEditor'
 import { PriceHistogram } from '~/pages/Liquidity/CreateAuction/components/PriceHistogram'
 import { PriceRangeStrategyPopover } from '~/pages/Liquidity/CreateAuction/components/PriceRangeStrategyPopover'

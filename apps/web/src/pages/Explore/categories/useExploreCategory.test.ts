@@ -6,19 +6,55 @@ import {
   getExploreTokensURL,
 } from '~/pages/Explore/categories/useExploreCategory'
 
+const VALID_IDS: ReadonlySet<string> = new Set(['stocks', 'commodities', 'etfs', 'defi'])
+
 describe('categoryFromParam', () => {
   it('defaults to popular', () => {
-    expect(categoryFromParam(null)).toBe(ExploreCategory.Popular)
+    expect(categoryFromParam({ value: null, validCategoryIds: VALID_IDS })).toBe(ExploreCategory.Popular)
   })
 
-  it('maps rwa category params', () => {
-    expect(categoryFromParam('stocks')).toBe(ExploreCategory.Stocks)
-    expect(categoryFromParam('commodities')).toBe(ExploreCategory.Commodities)
-    expect(categoryFromParam('etfs')).toBe(ExploreCategory.Etfs)
+  it('passes through valid category ids', () => {
+    expect(categoryFromParam({ value: 'stocks', validCategoryIds: VALID_IDS })).toBe('stocks')
+    expect(categoryFromParam({ value: 'defi', validCategoryIds: VALID_IDS })).toBe('defi')
   })
 
   it('maps unknown category values to popular', () => {
-    expect(categoryFromParam('unknown')).toBe(ExploreCategory.Popular)
+    expect(categoryFromParam({ value: 'unknown', validCategoryIds: VALID_IDS })).toBe(ExploreCategory.Popular)
+  })
+
+  it('hydrates a dynamic id once it joins the valid set', () => {
+    const staticOnly: ReadonlySet<string> = new Set(['stocks', 'commodities', 'etfs'])
+    expect(categoryFromParam({ value: 'defi', validCategoryIds: staticOnly })).toBe(ExploreCategory.Popular)
+    expect(categoryFromParam({ value: 'defi', validCategoryIds: VALID_IDS })).toBe('defi')
+  })
+
+  describe('while categories are unverified', () => {
+    const staticOnly: ReadonlySet<string> = new Set(['stocks', 'commodities', 'etfs'])
+
+    it('trusts a well-formed slug that is not yet in the valid set', () => {
+      expect(categoryFromParam({ value: 'defi', validCategoryIds: staticOnly, trustUnverifiedIds: true })).toBe('defi')
+      expect(categoryFromParam({ value: 'ai-agents', validCategoryIds: staticOnly, trustUnverifiedIds: true })).toBe(
+        'ai-agents',
+      )
+    })
+
+    it.each(['DeFi', 'de fi', 'defi_', '-defi', 'defi/agents', 'a'.repeat(65)])(
+      'still maps the malformed slug %j to popular',
+      (value) => {
+        expect(categoryFromParam({ value, validCategoryIds: staticOnly, trustUnverifiedIds: true })).toBe(
+          ExploreCategory.Popular,
+        )
+      },
+    )
+
+    it('drops a trusted slug back to popular once the resolved set excludes it', () => {
+      expect(categoryFromParam({ value: 'bogus', validCategoryIds: staticOnly, trustUnverifiedIds: true })).toBe(
+        'bogus',
+      )
+      expect(categoryFromParam({ value: 'bogus', validCategoryIds: VALID_IDS, trustUnverifiedIds: false })).toBe(
+        ExploreCategory.Popular,
+      )
+    })
   })
 })
 

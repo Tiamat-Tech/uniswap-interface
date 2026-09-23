@@ -1,4 +1,6 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { isMobileApp } from '@universe/environment'
+import { AnimatedFlex, Flex, type FlexCompatProps as FlexProps, spacing, Text, TouchableArea } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React, { memo, ReactNode, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LayoutChangeEvent, LayoutRectangle } from 'react-native'
@@ -8,11 +10,9 @@ import { TokenItemChart } from 'src/components/explore/TokenItemChart'
 import { TokenItemData } from 'src/components/explore/TokenItemData'
 import { useTokenDetailsNavigation } from 'src/components/TokenDetails/hooks'
 import { TokenMetadata } from 'src/components/tokens/TokenMetadata'
-import { Flex, FlexProps, Text, TouchableArea, useSporeColors } from 'ui/src'
-import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
-import { spacing } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
+import { useContextMenuPressGate } from 'uniswap/src/components/menus/hooks/useContextMenuPressGate'
 import { RelativeChange } from 'uniswap/src/components/RelativeChange/RelativeChange'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { MobileEventName, SectionName } from 'uniswap/src/features/telemetry/constants'
@@ -31,6 +31,8 @@ interface TokenItemProps {
   tokenItemData: TokenItemData
   index: number
   eventName: MobileEventName.ExploreTokenItemSelected | MobileEventName.HomeExploreTokenItemSelected
+  /** Distinguishes taps on the same token across sections (e.g. Trending vs the ranked Top tokens list). */
+  section?: SectionName
   metadataDisplayType?: TokenMetadataDisplayType
   containerProps?: FlexProps
   hideNumberedList?: boolean
@@ -46,13 +48,13 @@ export const TokenItem = memo(function TokenItemInner({
   metadataDisplayType,
   containerProps,
   eventName,
+  section,
   hideNumberedList,
   priceWrapperProps,
   showChart,
   overlay,
   onPriceWrapperLayout,
 }: TokenItemProps) {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const { t } = useTranslation()
   const tokenDetailsNavigation = useTokenDetailsNavigation()
   const { convertFiatAmountFormatted } = useLocalizationContext()
@@ -104,18 +106,21 @@ export const TokenItem = memo(function TokenItemInner({
       chain: currencyIdToChain(_currencyId) as number,
       name: tokenItemData.name,
       position: index + 1,
+      section,
     })
   })
 
   const { menuActions, onContextMenuPress } = useExploreTokenContextMenu({
     chainId,
     currencyId: _currencyId,
-    analyticsSection: SectionName.ExploreTopTokensSection,
+    analyticsSection: section ?? SectionName.ExploreTopTokensSection,
   })
+
+  const { onPressIn, onPressOut, handlePress } = useContextMenuPressGate({ onPress })
 
   return (
     <ContextMenu actions={menuActions} previewBackgroundColor={colors.surface1.val} onPress={onContextMenuPress}>
-      <TouchableArea testID={`token-item-${name}`} onPress={onPress}>
+      <TouchableArea testID={`token-item-${name}`} onPress={handlePress} onPressIn={onPressIn} onPressOut={onPressOut}>
         {overlay}
         <AnimatedFlex
           grow
@@ -155,11 +160,11 @@ export const TokenItem = memo(function TokenItemInner({
           <Flex row alignItems="center" justifyContent="flex-end" onLayout={onLayout} {...priceWrapperProps}>
             <TokenMetadata>
               <AnimatedNumber
+                disableAnimations={isMobileApp}
                 numericValue={price}
                 value={convertFiatAmountFormatted(price, NumberType.FiatTokenPrice)}
                 textVariant="$body1"
                 containerTestID="token-item/price"
-                disableAnimations={!isDataLivelinessEnabled}
               />
               <RelativeChange change={pricePercentChange24h} variant="body2" />
             </TokenMetadata>

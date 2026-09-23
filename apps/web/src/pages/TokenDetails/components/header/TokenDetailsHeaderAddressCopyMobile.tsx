@@ -1,9 +1,10 @@
+import type { UniverseChainId } from '@universe/chains'
+import { AnimatableCopyIcon, Flex, TouchableArea, iconSizes } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useState } from 'react'
-import { AnimatableCopyIcon, Flex, TouchableArea, useMedia } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { useTranslation } from 'react-i18next'
 import { MultichainAddressList } from 'uniswap/src/components/MultichainTokenDetails/MultichainAddressList'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import {
@@ -34,6 +35,7 @@ export function TokenDetailsHeaderAddressCopyMobile({
   selectedChainId,
   multichainEntries,
 }: TokenDetailsHeaderAddressCopyMobileProps): JSX.Element | null {
+  const { t } = useTranslation()
   const media = useMedia()
   const popoverContentProps = useMultichainPopoverContentProps()
   const { isCopied, copy, onCopyMultichainAddress } = useTokenAddressCopy({ displayAddress, chainId })
@@ -46,8 +48,17 @@ export function TokenDetailsHeaderAddressCopyMobile({
   // "All Networks" multichain tokens have no single canonical address, so surface the per-network list.
   const showMultichainList = isMultiChainAsset && !selectedChainId
 
+  // Icon-only, so it needs an explicit accessible name or it announces unlabeled. In the multichain
+  // branch it opens the per-network address list rather than copying, so it takes the same name the
+  // About section's equivalent dropdown uses (`AddressPill` in TokenDescriptionPills).
+  const triggerLabel = showMultichainList ? t('common.address') : t('common.copy.address')
   const copyTrigger = (
-    <TouchableArea testID={TestID.TokenDetailsCopyAddressButton} onPress={showMultichainList ? undefined : copy}>
+    <TouchableArea
+      testID={TestID.TokenDetailsCopyAddressButton}
+      aria-label={triggerLabel}
+      accessibilityLabel={triggerLabel}
+      onPress={showMultichainList ? undefined : copy}
+    >
       <AnimatableCopyIcon isCopied={isCopied} size={iconSizes.icon16} textColor="$neutral2" />
     </TouchableArea>
   )

@@ -1,9 +1,9 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { opacifyRaw, useIsDarkMode, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
-import { Flex, Text, TouchableArea, useIsDarkMode, useSporeColors } from 'ui/src'
-import { iconSizes, opacifyRaw } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
@@ -14,9 +14,10 @@ import { SparklineChart } from '~/components/Charts/SparklineChart'
 import { DeltaArrow, getDeltaTextColor } from '~/components/DeltaArrow/DeltaArrow'
 import type { SparklineMap } from '~/data/types'
 import { useSrcColor } from '~/hooks/useColor'
+import { usePoolsBrandGreen } from '~/hooks/usePoolsBrandGreen'
 import { LaunchItem } from '~/pages/Launches/launchesModel'
 import { LaunchpadLogo } from '~/pages/Launches/LaunchpadLogo'
-import { usePoolsBrandGreen } from '~/pages/Launches/usePoolsBrandGreen'
+import { usePrefetchLaunchTokenDetails } from '~/pages/Launches/usePrefetchLaunchTokenDetails'
 
 const THUMBNAIL_SIZE = 48
 const SPARKLINE_WIDTH = 116
@@ -75,6 +76,7 @@ export function TrendingLaunchCard({
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { scheduleHoverPrefetch, cancelHoverPrefetch, prefetchNow } = usePrefetchLaunchTokenDetails()
 
   // Fire before navigate so the event isn't lost to the route transition (stocks-shelf pattern).
   const onPress = launch.detailPath
@@ -130,6 +132,7 @@ export function TrendingLaunchCard({
     <TouchableArea
       testID={TestID.TrendingLaunchCard}
       tabIndex={tabIndex}
+      position="relative"
       backgroundColor="$surface2"
       borderRadius="$rounded20"
       p="$spacing12"
@@ -139,6 +142,9 @@ export function TrendingLaunchCard({
       hoverStyle={{ opacity: 0.9 }}
       $platform-web={{ ...backgroundStyle, boxShadow: TRENDING_CARD_SHADOW }}
       onPress={onPress}
+      onHoverIn={() => scheduleHoverPrefetch(launch)}
+      onHoverOut={cancelHoverPrefetch}
+      onPressIn={() => prefetchNow(launch)}
     >
       {hasSparkline && (
         <Flex position="absolute" top="$spacing12" right="$spacing12" pointerEvents="none">

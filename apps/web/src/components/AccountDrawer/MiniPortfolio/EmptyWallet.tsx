@@ -1,5 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Separator, Text } from 'ui/src'
+// Separator stays on ui/src: already Tamagui-free (INFRA-3285 rebuild lane), no mycelium counterpart yet.
+import { Separator } from 'ui/src'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { EmptyWalletCards } from '~/components/emptyWallet/EmptyWalletCards'
 

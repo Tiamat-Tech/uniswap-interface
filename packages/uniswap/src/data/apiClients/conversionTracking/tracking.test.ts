@@ -32,3 +32,11 @@ describe(buildProxyRequest, () => {
     expect(request.body).toBeDefined()
   })
 })
+
+// Google blocks deprecated Ads API versions outright (HTTP 400 UNSUPPORTED_VERSION), so the version
+// segment in this URL is load-bearing — pin it here so an accidental regression fails in CI.
+describe('GOOGLE_CONVERSION_URL', () => {
+  it('targets a supported Google Ads API version', () => {
+    expect(GOOGLE_CONVERSION_URL).toContain('googleads.googleapis.com/v25/')
+  })
+})

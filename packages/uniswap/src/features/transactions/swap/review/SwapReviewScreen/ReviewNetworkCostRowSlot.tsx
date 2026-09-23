@@ -1,5 +1,5 @@
 import type { GasFeeResult } from '@universe/api'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import { useGasFeeFormattedDisplayAmounts } from 'uniswap/src/features/gas/hooks'
 import { useIncludesDelegationUpgrade } from 'uniswap/src/features/smartWallet/delegation/hooks/useIncludesDelegationUpgrade'
 import { ReviewNetworkCostRow } from 'uniswap/src/features/transactions/swap/review/SwapReviewScreen/ReviewNetworkCostRow'

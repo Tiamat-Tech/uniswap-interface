@@ -2,22 +2,25 @@
 
 exports[`PrivateKeySpeedBumpModal > renders correctly 1`] = `
 <DocumentFragment>
-  <span
-    class=""
-    style="display: contents;"
+  <div
+    data-testid="modal"
   >
     <div
-      data-testid="modal"
+      class="css-view-175oi2r"
+      style="padding-right: 24px; padding-left: 24px; padding-top: 8px;"
     >
       <div
-        class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _pr-t-space-spa1360334047 _pl-t-space-spa1360334047 _pt-t-space-spa94665593"
+        class="css-view-175oi2r"
       >
-        <div
-          class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-row _justifyContent-center"
+        <button
+          accessibilitystate="[object Object]"
+          class="relative box-border flex min-h-0 min-w-0 cursor-pointer items-center justify-center border border-solid border-transparent gap-2 flex-row shrink-0 bg-surface3 p-[12px] rounded-[16px]"
+          role="button"
+          style="padding: 12px; border-radius: 16px; transform: [object Object];"
         >
-          <button
-            class="is_Button  t_group_item"
-            style="border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; align-items: center; justify-content: center; background-color: rgba(19, 19, 19, 0.08); border-top-color: transparent; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; cursor: pointer; height: auto; padding: 12px 12px 12px 12px; border-top-left-radius: 16px; border-top-right-radius: 16px; border-bottom-right-radius: 16px; border-bottom-left-radius: 16px; gap: 8px; outline-color: rgba(0, 0, 0, 0); border-bottom-style: solid; border-top-style: solid; border-left-style: solid; border-right-style: solid; transform: [object Object];"
+          <div
+            class="css-view-175oi2r"
+            style="width: 24px; height: 24px; align-items: center; justify-content: center;"
           >
             <div
               fill="none"
@@ -30,86 +33,93 @@ exports[`PrivateKeySpeedBumpModal > renders correctly 1`] = `
                 fill="currentColor"
               />
             </div>
-          </button>
-        </div>
+          </div>
+        </button>
+      </div>
+      <div
+        class="css-text-146c3p1"
+        dir="auto"
+        style="padding-top: 24px; font-size: 19px; line-height: 24px; font-family: Basel Grotesk; font-weight: 400;"
+      >
+        privateKeys.export.modal.title
+      </div>
+      <div
+        class="css-text-146c3p1"
+        dir="auto"
+        style="padding-top: 8px; font-size: 15px; line-height: 18px; font-family: Basel Grotesk; font-weight: 400;"
+      >
+        privateKeys.export.modal.subtitle
         <span
-          class="font_subHeading _display-inline _boxSizing-border-box _whiteSpace-pre-wrap _mt-0px _mr-0px _mb-0px _ml-0px _color-neutral1 _fontFamily-f-family _wordWrap-break-word _textAlign-center _fontSize-f-size-larg101 _fontWeight-f-weight-bo3548 _lineHeight-f-lineHeigh1262266530 _pt-t-space-spa1360334047"
-          data-disable-theme="true"
+          class="css-textHasAncestor-1jxf684 r-cursor-1loqt21"
+          style="margin-left: 4px; font-size: 15px; line-height: 17.25px; font-family: Basel Grotesk; font-weight: 500;"
         >
-          privateKeys.export.modal.title
+           Learn more
         </span>
-        <span
-          class="font_body _display-inline _boxSizing-border-box _whiteSpace-pre-wrap _mt-0px _mr-0px _mb-0px _ml-0px _color-neutral2 _fontFamily-f-family _wordWrap-break-word _textAlign-center _fontSize-f-size-smal108 _fontWeight-f-weight-bo3548 _lineHeight-f-lineHeigh1269072494 _pt-t-space-spa94665593"
-          data-disable-theme="true"
-        >
-          privateKeys.export.modal.subtitle
-          <span
-            class="font_button _display-inline _boxSizing-border-box _whiteSpace-pre-wrap _mt-0px _mr-0px _mb-0px _ml-t-space-spa94665589 _color-neutral1 _fontFamily-f-family _wordWrap-break-word _fontSize-f-size-smal108 _fontWeight-f-weight-me3083741 _lineHeight-f-lineHeigh1269072494"
-            data-disable-theme="true"
-          >
-             Learn more
-          </span>
-        </span>
+      </div>
+      <div
+        class="css-view-175oi2r"
+        style="padding-top: 16px;"
+      >
         <div
-          class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _pt-t-space-spa1360334076"
+          class="css-view-175oi2r"
+          style="gap: 12px; padding: 12px 12px 12px 12px; border-top-left-radius: 16px; border-top-right-radius: 16px; border-bottom-right-radius: 16px; border-bottom-left-radius: 16px;"
         >
           <div
-            class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-row _backgroundColor-surface2 _borderTopLeftRadius-t-radius-ro291586449 _borderTopRightRadius-t-radius-ro291586449 _borderBottomRightRadius-t-radius-ro291586449 _borderBottomLeftRadius-t-radius-ro291586449 _gap-t-space-spa1360334080 _pt-t-space-spa1360334080 _pr-t-space-spa1360334080 _pb-t-space-spa1360334080 _pl-t-space-spa1360334080"
+            class="css-view-175oi2r"
           >
             <div
-              class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _justifyContent-center"
+              fill="currentColor"
+              stroke-width="8"
+              style="color: rgba(19, 19, 19, 0.63); width: 20px; height: 20px;"
+              viewbox="0 0 24 24"
             >
               <div
+                d="M21.6074 17.1522L15.0004 4.79599C13.7204 2.40199 10.2814 2.40199 9.00042 4.79599L2.39349 17.1522C1.21949 19.3482 2.81353 22.0001 5.30853 22.0001H18.6923C21.1863 22.0001 22.7814 19.3472 21.6074 17.1522ZM11.2504 10.0001C11.2504 9.58609 11.5864 9.25009 12.0004 9.25009C12.4144 9.25009 12.7504 9.58609 12.7504 10.0001V14.0001C12.7504 14.4141 12.4144 14.7501 12.0004 14.7501C11.5864 14.7501 11.2504 14.4141 11.2504 14.0001V10.0001ZM12.0204 18.0001C11.4684 18.0001 11.0153 17.5521 11.0153 17.0001C11.0153 16.4481 11.4584 16.0001 12.0104 16.0001H12.0204C12.5734 16.0001 13.0204 16.4481 13.0204 17.0001C13.0204 17.5521 12.5724 18.0001 12.0204 18.0001Z"
                 fill="currentColor"
-                stroke-width="8"
-                style="width: 20px; height: 20px; color: rgba(19, 19, 19, 0.63);"
-                viewbox="0 0 24 24"
-              >
-                <div
-                  d="M21.6074 17.1522L15.0004 4.79599C13.7204 2.40199 10.2814 2.40199 9.00042 4.79599L2.39349 17.1522C1.21949 19.3482 2.81353 22.0001 5.30853 22.0001H18.6923C21.1863 22.0001 22.7814 19.3472 21.6074 17.1522ZM11.2504 10.0001C11.2504 9.58609 11.5864 9.25009 12.0004 9.25009C12.4144 9.25009 12.7504 9.58609 12.7504 10.0001V14.0001C12.7504 14.4141 12.4144 14.7501 12.0004 14.7501C11.5864 14.7501 11.2504 14.4141 11.2504 14.0001V10.0001ZM12.0204 18.0001C11.4684 18.0001 11.0153 17.5521 11.0153 17.0001C11.0153 16.4481 11.4584 16.0001 12.0104 16.0001H12.0204C12.5734 16.0001 13.0204 16.4481 13.0204 17.0001C13.0204 17.5521 12.5724 18.0001 12.0204 18.0001Z"
-                  fill="currentColor"
-                />
-              </div>
+              />
             </div>
+          </div>
+          <div
+            class="css-view-175oi2r"
+            style="gap: 4px;"
+          >
             <div
-              class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-1 _flexDirection-row _flexGrow-1 _gap-t-space-spa94665589 _justifyContent-space-betwe3241"
+              class="css-view-175oi2r"
+              style="gap: 2px;"
             >
               <div
-                class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-1 _flexDirection-column _flexGrow-1 _gap-t-space-spa94665587"
+                class="css-text-146c3p1"
+                dir="auto"
+                style="font-size: 13px; line-height: 16px; font-family: Basel Grotesk; font-weight: 400;"
               >
-                <span
-                  class="font_body _display-inline _boxSizing-border-box _whiteSpace-pre-wrap _mt-0px _mr-0px _mb-0px _ml-0px _color-neutral2 _fontFamily-f-family _wordWrap-break-word _fontSize-f-size-micr111 _fontWeight-f-weight-bo3548 _lineHeight-f-lineHeigh1263414315"
-                  data-disable-theme="true"
-                >
-                  privateKeys.export.modal.warning
-                </span>
+                privateKeys.export.modal.warning
               </div>
             </div>
           </div>
         </div>
-        <div
-          class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-row _pt-t-space-spa1360334047 _pb-t-space-spa1360334047"
+      </div>
+      <div
+        class="css-view-175oi2r"
+        style="padding-top: 24px; padding-bottom: 24px;"
+      >
+        <button
+          accessibilitystate="[object Object]"
+          class="relative box-border flex min-h-0 min-w-0 cursor-pointer items-center justify-center border border-solid border-transparent gap-2 rounded-16 px-4 py-3 flex-row flex-1 basis-0 self-stretch bg-accent1"
+          data-testid="continue"
+          dd-action-name="common.button.continue"
+          role="button"
+          style="transform: [object Object];"
         >
-          <button
-            class="is_Button  t_group_item"
-            data-testid="continue"
-            dd-action-name="common.button.continue"
-            style="border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; align-items: center; justify-content: center; background-color: rgb(255, 55, 199); border-top-color: transparent; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; cursor: pointer; height: auto; align-self: stretch; flex-grow: 1; flex-shrink: 1; flex-basis: 0px; outline-color: rgba(0, 0, 0, 0); padding: 12px 16px 12px 16px; border-top-left-radius: 16px; border-top-right-radius: 16px; border-bottom-right-radius: 16px; border-bottom-left-radius: 16px; gap: 8px; flex-direction: row; border-bottom-style: solid; border-top-style: solid; border-left-style: solid; border-right-style: solid; transform: [object Object];"
-            testid="continue"
+          <div
+            class="css-text-146c3p1 r-maxWidth-dnmrzs r-overflow-1udh08x r-textOverflow-1udbk01 r-whiteSpace-3s2u2q r-wordWrap-1iln25a"
+            dir="auto"
+            style="font-family: Basel Grotesk; font-weight: 500;"
           >
-            <span
-              class="font_button _display-inline _boxSizing-border-box _wordWrap-break-word _whiteSpace-nowrap _mt-0px _mr-0px _mb-0px _ml-0px _color-white _fontFamily-f-family _maxWidth-10037 _overflowX-hidden _overflowY-hidden _textOverflow-ellipsis _textAlign-center _fontSize-f-size-medi3736 _fontWeight-f-weight-me3083741 _lineHeight-f-lineHeigh1262266530"
-              line-height-disabled="false"
-            >
-              common.button.continue
-            </span>
-          </button>
-        </div>
+            common.button.continue
+          </div>
+        </button>
       </div>
     </div>
-    <div
-      style="display: contents;"
-    />
-  </span>
+  </div>
 </DocumentFragment>
 `;

@@ -1,8 +1,9 @@
+import { Flex, type IconSizeTokens } from '@universe/mycelium'
+import { CandlestickChart } from '@universe/mycelium/icons/CandlestickChart'
+import { LineChartDots } from '@universe/mycelium/icons/LineChartDots'
+import { SegmentedControl } from '@universe/mycelium/segmented-control-compat'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, SegmentedControl, useMedia } from 'ui/src'
-import { CandlestickChart } from 'ui/src/components/icons/CandlestickChart'
-import { LineChartDots } from 'ui/src/components/icons/LineChartDots'
-import { type IconSizeTokens } from 'ui/src/theme'
 import { PriceChartType } from '~/components/Charts/utils'
 import { MouseoverTooltip } from '~/components/Tooltip'
 
@@ -59,7 +60,7 @@ const CandlestickIcon = ({ isDisabled, size }: { isDisabled?: boolean; size: Ico
     <Flex
       row
       centered
-      width="$spacing.18"
+      width="$spacing18"
       opacity={isDisabled ? 0.2 : 1}
       style={isDisabled ? { cursor: 'not-allowed' } : undefined}
     >

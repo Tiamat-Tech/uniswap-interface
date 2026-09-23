@@ -1,10 +1,8 @@
+import { UniverseChainId, Platform } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
 import { memo } from 'react'
-import { Flex } from 'ui/src'
 import { ActivityRenderData } from 'uniswap/src/features/activity/hooks/useActivityData'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useConnectionStatus } from '~/features/accounts/store/hooks'
 import { usePortfolioRoutes } from '~/pages/Portfolio/Header/hooks/usePortfolioRoutes'
 import {
@@ -33,12 +31,12 @@ export const PortfolioOverviewTables = memo(function PortfolioOverviewTables({
   const evmAddress = portfolioAddresses.evmAddress
   const { isConnected: isEvmConnected } = useConnectionStatus(Platform.EVM)
   const { isExternalWallet } = usePortfolioRoutes()
-  const isEarnEnabled = useIsEarnEnabled()
   const { isTestnetModeEnabled } = useEnabledChains()
   const showMiniPoolsTable = !!evmAddress
   const showOpenLimitsTable = !!evmAddress && (!chainId || chainId === UniverseChainId.Mainnet)
-  const isConnectedUserPortfolio = isEvmConnected && !isExternalWallet
-  const showEarnSection = isEarnEnabled && !isTestnetModeEnabled && showOpenLimitsTable && isConnectedUserPortfolio
+  // External and disconnected demo portfolios are visible but never actionable.
+  const isEarnSectionReadOnly = isExternalWallet || !isEvmConnected
+  const showEarnSection = !isTestnetModeEnabled && showOpenLimitsTable
 
   return (
     <Flex
@@ -56,7 +54,7 @@ export const PortfolioOverviewTables = memo(function PortfolioOverviewTables({
         {showMiniPoolsTable && <MiniPoolsTable account={evmAddress} maxPools={MAX_POOLS_ROWS} chainId={chainId} />}
       </Flex>
       <Flex width={OVERVIEW_RIGHT_COLUMN_WIDTH} gap="$spacing48" $xl={{ width: '100%' }}>
-        {showEarnSection && <PortfolioEarnSection account={evmAddress} />}
+        {showEarnSection && <PortfolioEarnSection account={evmAddress} isReadOnly={isEarnSectionReadOnly} />}
         {showOpenLimitsTable && <OpenLimitsTable account={evmAddress} />}
         <MiniActivityTable maxActivities={MAX_ACTIVITY_ROWS} activityData={activityData} />
       </Flex>

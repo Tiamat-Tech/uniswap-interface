@@ -5,61 +5,73 @@
  * utility classes. Each migrated component composes `commonStyleClasses` with
  * its own layout classes (e.g. flexbox) and frame defaults.
  */
-import type { ColorValue, CompatStyleProps, InsetShorthand, SizeValue, SpaceValue } from './props'
-import { cssPropertyName, LONG_TAIL_STYLE_PROPS, UNITLESS_STYLE_PROPS } from './style-props'
-import { COLOR_TOKEN_CLASS, lookupToken, RADIUS_TOKEN_PX, SPACE_TOKEN_PX, THEMED_COLOR_TOKEN_CLASSES } from './tokens'
+import { borderWidthPx, isCssLengthPassthroughValue, sizeValue, spacePx, spaceTokenPx, zIndexValue } from './css-values'
+import { borderColorDropClasses, unmappedColorTokenClasses } from './diagnostics'
+import type {
+  ColorValue,
+  CompatStyleProps,
+  InsetShorthand,
+  PositionValue,
+  SizeValue,
+  SpaceValue,
+  TamaguiVariable,
+} from './props'
+import {
+  ANIMATION_LONG_TAIL_PROPS,
+  assertAnimationValue,
+  COLOR_LONG_TAIL_PROPS,
+  cssPropertyName,
+  LONG_TAIL_STYLE_PROPS,
+  POINTER_EVENTS_BOX_CLASSES,
+  RADIUS_LONG_TAIL_PROPS,
+  SIZE_LONG_TAIL_PROPS,
+  SPACE_LONG_TAIL_PROPS,
+  SPACING_UTILITIES,
+  UNITLESS_STYLE_PROPS,
+} from './style-props'
+import {
+  arbitrary,
+  COLOR_TOKEN_CLASS,
+  colorTokenCssValue,
+  isTamaguiVariable,
+  lookupToken,
+  radiusPx,
+  resolveColorOrWarn,
+  shadowColorExpressionOrUndefined,
+  THEMED_COLOR_TOKEN_CLASSES,
+  unwrapVariable,
+} from './tokens'
 
 export type ClassList = (string | false | undefined)[]
 
 /** The generic reset every compat component's frame includes (Tamagui `View` base). */
 export const RESET_CLASSES = 'box-border relative min-h-[0px] min-w-[0px]'
 
-export function spacePx(value: SpaceValue): string {
-  if (typeof value === 'number') {
-    return `${value}px`
-  }
-  if (value === 'auto' || value.endsWith('%')) {
-    return value
-  }
-  const px = lookupToken(SPACE_TOKEN_PX, value)
-  if (px === undefined) {
-    throw new Error(`compat: unknown space token "${value}"`)
-  }
-  return `${px}px`
-}
-
-export function sizeValue(value: SizeValue): string {
-  if (typeof value === 'number') {
-    return `${value}px`
-  }
-  if (value.startsWith('$')) {
-    const px = lookupToken(SPACE_TOKEN_PX, value)
-    if (px === undefined) {
-      throw new Error(`compat: unknown size token "${value}"`)
-    }
-    return `${px}px`
-  }
-  return value
-}
-
-/** Arbitrary values can't contain spaces — Tailwind's syntax uses `_` instead. */
-export function arbitrary(value: string): string {
-  return value.replace(/\s+/g, '_')
-}
+// Value resolvers live beside the value-leg types (css-values.ts); re-exported
+// here so compilers keep one import surface.
+export { borderWidthPx, isCssPassthroughValue, sizeValue, spacePx, zIndexValue } from './css-values'
+export { arbitrary, outlineColorClasses } from './tokens'
 
 export function colorClasses(prefix: 'bg' | 'border', value: ColorValue): ClassList {
-  const semantic = lookupToken(COLOR_TOKEN_CLASS, value)
+  // `resolveColorOrWarn` (not `unwrapVariable`) so a legacy `OpaqueColorValue`
+  // (INFRA-3804) drops the declaration instead of compiling `String(value)`'s
+  // `"[object Object]"` into a nonsense arbitrary class.
+  const resolved = resolveColorOrWarn(value)
+  if (resolved === undefined) {
+    return []
+  }
+  const semantic = lookupToken(COLOR_TOKEN_CLASS, resolved)
   if (semantic !== undefined) {
     return [`${prefix}-${semantic}`]
   }
-  const themed = lookupToken(THEMED_COLOR_TOKEN_CLASSES, value)
+  const themed = lookupToken(THEMED_COLOR_TOKEN_CLASSES, resolved)
   if (themed !== undefined) {
     return [`${prefix}-${themed.light}`, `dark:${prefix}-${themed.dark}`]
   }
-  if (value.startsWith('$')) {
-    throw new Error(`compat: color token "${value}" has no @universe/tailwind counterpart`)
+  if (resolved.startsWith('$')) {
+    return unmappedColorTokenClasses(prefix, resolved) // resolution + warning: ./diagnostics
   }
-  return [`${prefix}-[${arbitrary(value)}]`]
+  return [`${prefix}-[${arbitrary(resolved)}]`]
 }
 
 /**
@@ -69,7 +81,10 @@ export function colorClasses(prefix: 'bg' | 'border', value: ColorValue): ClassL
  */
 export interface CommonStyleClassOptions {
   colorClasses?: (prefix: 'bg' | 'border', value: ColorValue) => ClassList
-  shadowColorExpression?: (value: ColorValue) => string
+  /** `undefined` drops the composed box-shadow declaration (the native lane's resolve-or-drop policy); the default web lane throws instead. */
+  shadowColorExpression?: (value: ColorValue) => string | undefined
+  /** Long-tail `$` color resolution — per consumer like `colorClasses` (Text swaps in its pinned `--stext-*` palette). */
+  longTailColorExpression?: (value: string, prop: string) => string
   longTailProps?: readonly string[]
   unitlessProps?: ReadonlySet<string>
 }
@@ -87,30 +102,14 @@ export function enumClass({
   return map[value] ?? `[${cssProp}:${value}]`
 }
 
-const SPACING_UTILITIES = [
-  ['m', 'm', 'margin'],
-  ['mx', 'mx', 'marginHorizontal'],
-  ['my', 'my', 'marginVertical'],
-  ['mt', 'mt', 'marginTop'],
-  ['mb', 'mb', 'marginBottom'],
-  ['ml', 'ml', 'marginLeft'],
-  ['mr', 'mr', 'marginRight'],
-  ['p', 'p', 'padding'],
-  ['px', 'px', 'paddingHorizontal'],
-  ['py', 'py', 'paddingVertical'],
-  ['pt', 'pt', 'paddingTop'],
-  ['pb', 'pb', 'paddingBottom'],
-  ['pl', 'pl', 'paddingLeft'],
-  ['pr', 'pr', 'paddingRight'],
-] as const
-
 function spacingClasses(props: CompatStyleProps): ClassList {
   const cls: ClassList = []
   for (const [utility, shorthand, longhand] of SPACING_UTILITIES) {
     // Longhand first: Tamagui resolves shorthands on top of longhands.
     for (const key of [longhand, shorthand]) {
       const value = props[key]
-      if (value !== undefined) {
+      // `null` is a legal SpaceValue (INFRA-3821) meaning "not set", same as `undefined`.
+      if (value !== undefined && value !== null) {
         cls.push(`${utility}-[${spacePx(value)}]`)
       }
     }
@@ -131,12 +130,19 @@ function sizingClasses(props: CompatStyleProps): ClassList {
   ]
 }
 
-function radiusClass(borderRadius: NonNullable<CompatStyleProps['borderRadius']>): string {
-  const radiusPx = typeof borderRadius === 'number' ? borderRadius : lookupToken(RADIUS_TOKEN_PX, borderRadius)
-  if (radiusPx === undefined) {
-    throw new Error(`compat: unknown radius token "${String(borderRadius)}"`)
+/**
+ * `borderRadius` → one `rounded-*` class: `$rounded*` token / number → exact px
+ * off `RADIUS_TOKEN_PX` (unknown token → throw, the shared token contract),
+ * CSS pass-through strings verbatim. Exported for the per-component lanes that
+ * compile borderRadius outside `commonStyleClasses` (ButtonCompat's dimension
+ * lane, INFRA-3541).
+ */
+export function radiusClass(borderRadius: NonNullable<CompatStyleProps['borderRadius']>): string {
+  const resolved = unwrapVariable(borderRadius)
+  if (typeof resolved === 'string' && !resolved.startsWith('$') && isCssLengthPassthroughValue(resolved)) {
+    return `rounded-[${arbitrary(resolved)}]`
   }
-  return `rounded-[${radiusPx}px]`
+  return `rounded-[${radiusPx(resolved, 'borderRadius')}px]`
 }
 
 function visualClasses(props: CompatStyleProps, options: CommonStyleClassOptions): ClassList {
@@ -144,21 +150,20 @@ function visualClasses(props: CompatStyleProps, options: CommonStyleClassOptions
   const color = options.colorClasses ?? colorClasses
   return [
     ...(backgroundColor !== undefined ? color('bg', backgroundColor) : []),
-    ...(borderColor !== undefined ? color('border', borderColor) : []),
-    borderWidth !== undefined && `border-[${borderWidth}px]`,
-    // Per-side widths use the side utilities: like Tamagui, they set the
-    // side's border-style (solid) along with its width.
-    props.borderTopWidth !== undefined && `border-t-[${props.borderTopWidth}px]`,
-    props.borderBottomWidth !== undefined && `border-b-[${props.borderBottomWidth}px]`,
-    props.borderLeftWidth !== undefined && `border-l-[${props.borderLeftWidth}px]`,
-    props.borderRightWidth !== undefined && `border-r-[${props.borderRightWidth}px]`,
+    ...borderColorDropClasses(borderColor === undefined ? undefined : color('border', borderColor), props),
+    borderWidth !== undefined && `border-[${borderWidthPx(borderWidth)}]`,
+    // Per-side widths use the side utilities: like Tamagui, they set the side's border-style (solid) with the width.
+    props.borderTopWidth !== undefined && `border-t-[${borderWidthPx(props.borderTopWidth)}]`,
+    props.borderBottomWidth !== undefined && `border-b-[${borderWidthPx(props.borderBottomWidth)}]`,
+    props.borderLeftWidth !== undefined && `border-l-[${borderWidthPx(props.borderLeftWidth)}]`,
+    props.borderRightWidth !== undefined && `border-r-[${borderWidthPx(props.borderRightWidth)}]`,
     borderRadius !== undefined && radiusClass(borderRadius),
     opacity !== undefined && `opacity-[${opacity}]`,
     overflow !== undefined && (overflow === 'unset' ? '[overflow:unset]' : `overflow-${overflow}`),
   ]
 }
 
-const POSITION_CLASS: Record<string, string> = {
+export const POSITION_CLASS: Record<string, string> = {
   absolute: 'absolute',
   relative: 'relative',
   static: 'static',
@@ -166,29 +171,45 @@ const POSITION_CLASS: Record<string, string> = {
   sticky: 'sticky',
 }
 
+/**
+ * The `position`/`top` pair, shared with `ButtonCompat`'s visual-props widening
+ * (`../button-compat/visual-props`) so the two stay in sync as one copy.
+ */
+export function positionAndTopClasses(position: PositionValue | undefined, top: SpaceValue | undefined): ClassList {
+  return [
+    position !== undefined && (POSITION_CLASS[position] ?? `[position:${arbitrary(position)}]`),
+    // `null` is a legal SpaceValue (INFRA-3821) meaning "not set", same as `undefined`.
+    top !== undefined && top !== null && `top-[${spacePx(top)}]`,
+  ]
+}
+
 function positionClasses({ position, top, right, bottom, left, zIndex }: CompatStyleProps): ClassList {
   return [
-    position !== undefined && (POSITION_CLASS[position] ?? `[position:${position}]`),
-    top !== undefined && `top-[${spacePx(top)}]`,
-    right !== undefined && `right-[${spacePx(right)}]`,
-    bottom !== undefined && `bottom-[${spacePx(bottom)}]`,
-    left !== undefined && `left-[${spacePx(left)}]`,
-    zIndex !== undefined && `z-[${zIndex}]`,
+    ...positionAndTopClasses(position, top),
+    right !== undefined && right !== null && `right-[${spacePx(right)}]`,
+    bottom !== undefined && bottom !== null && `bottom-[${spacePx(bottom)}]`,
+    left !== undefined && left !== null && `left-[${spacePx(left)}]`,
+    zIndex !== undefined && `z-[${zIndexValue(zIndex)}]`,
   ]
 }
 
 /** Tamagui web emits `inset` as top/right/bottom/left longhands (measured; identical for Flex and the plain View). */
 export function insetClasses(inset: SpaceValue | InsetShorthand | undefined): ClassList {
-  if (inset === undefined) {
+  // `null` is a legal SpaceValue (INFRA-3821) meaning "not set", same as `undefined` — and
+  // `typeof null === 'object'` would otherwise fall into the edge-map branch below.
+  if (inset === undefined || inset === null) {
     return []
   }
+  // A Variable is an object too — but it is a space VALUE for all four edges, not an edge map.
   const box: InsetShorthand =
-    typeof inset === 'object' ? inset : { top: inset, right: inset, bottom: inset, left: inset }
+    typeof inset === 'object' && !isTamaguiVariable(inset)
+      ? inset
+      : { top: inset, right: inset, bottom: inset, left: inset }
   return [
-    box.top !== undefined && `top-[${spacePx(box.top)}]`,
-    box.right !== undefined && `right-[${spacePx(box.right)}]`,
-    box.bottom !== undefined && `bottom-[${spacePx(box.bottom)}]`,
-    box.left !== undefined && `left-[${spacePx(box.left)}]`,
+    box.top !== undefined && box.top !== null && `top-[${spacePx(box.top)}]`,
+    box.right !== undefined && box.right !== null && `right-[${spacePx(box.right)}]`,
+    box.bottom !== undefined && box.bottom !== null && `bottom-[${spacePx(box.bottom)}]`,
+    box.left !== undefined && box.left !== null && `left-[${spacePx(box.left)}]`,
   ]
 }
 
@@ -217,21 +238,19 @@ const TRANSFORM_FUNCTION_NAME: Record<string, string> = {
 
 const PX_TRANSFORMS = new Set(['x', 'y', 'perspective'])
 
-function transformFunction(prop: string, value: string | number | readonly number[]): string {
+function transformFunction(prop: string, value: string | number | readonly number[] | TamaguiVariable): string {
   const name = TRANSFORM_FUNCTION_NAME[prop] ?? prop
   if (prop === 'matrix') {
     return `matrix(${(value as readonly number[]).join(',')})`
   }
-  const argument = typeof value === 'number' && PX_TRANSFORMS.has(prop) ? `${value}px` : String(value)
+  const argument = PX_TRANSFORMS.has(prop) ? sizeValue(value as SizeValue) : String(value)
   return `${name}(${argument})`
 }
 
 /**
- * Compose the merged `transform` declaration the way Tamagui does on web:
- * transform-prop entries sort ascending by prop name and are prepended one by
- * one, so the emitted function order is descending by prop name (y before x
- * before scale before rotate). An explicit `transform` array appends in array
- * order after the merged props; a `transform` string replaces everything.
+ * Compose the merged `transform` declaration the way Tamagui does on web: transform-prop entries sort ascending by
+ * prop name and are prepended one by one, so the emitted function order is descending by prop name (y before x before
+ * scale before rotate). An explicit `transform` array appends after the merged props; a string replaces everything.
  */
 function transformValue(props: CompatStyleProps): string | undefined {
   if (typeof props.transform === 'string') {
@@ -240,7 +259,7 @@ function transformValue(props: CompatStyleProps): string | undefined {
   const parts: string[] = []
   const present = TRANSFORM_PROPS.filter((prop) => props[prop] !== undefined).sort()
   for (const prop of present) {
-    parts.unshift(transformFunction(prop, props[prop] as string | number | readonly number[]))
+    parts.unshift(transformFunction(prop, props[prop] as string | number | readonly number[] | TamaguiVariable))
   }
   if (props.transform !== undefined) {
     for (const entry of props.transform) {
@@ -267,19 +286,19 @@ function transformClasses(props: CompatStyleProps): ClassList {
 
 // ── Shadows ────────────────────────────────────────────────────────────
 
-/** Resolve a shadow color to a CSS expression (var for semantic tokens, raw otherwise). */
+/**
+ * Throwing lane of `shadowColorExpressionOrUndefined` (tokens.ts) for the web
+ * compiler. `undefined` also covers the OpaqueColorValue drop case
+ * (INFRA-3804) — already warned once there — so this still throws for it: a
+ * shadow color has no CSS representation for `PlatformColor()`, unlike
+ * backgroundColor/borderColor's native style-object passthrough.
+ */
 function shadowColorExpression(value: ColorValue): string {
-  const semantic = lookupToken(COLOR_TOKEN_CLASS, value)
-  if (semantic === 'white' || semantic === 'black' || semantic === 'transparent') {
-    return `var(--color-${semantic})`
+  const resolved = shadowColorExpressionOrUndefined(value)
+  if (resolved === undefined) {
+    throw new Error(`compat: shadow color token "${String(value)}" has no @universe/tailwind counterpart`)
   }
-  if (semantic !== undefined) {
-    return `var(--${semantic})`
-  }
-  if (value.startsWith('$')) {
-    throw new Error(`compat: shadow color token "${value}" has no @universe/tailwind counterpart`)
-  }
-  return value
+  return resolved
 }
 
 /**
@@ -293,27 +312,80 @@ function shadowClasses(props: CompatStyleProps, options: CommonStyleClassOptions
   if (shadowColor === undefined && shadowOffset === undefined && shadowRadius === undefined) {
     return cls
   }
-  const offset = shadowOffset ?? { width: 0, height: 0 }
-  const radius = shadowRadius ?? 0
+  const offsetX = borderWidthPx(shadowOffset?.width ?? 0)
+  const offsetY = borderWidthPx(shadowOffset?.height ?? 0)
+  const radius = borderWidthPx(shadowRadius ?? 0)
   const baseColor = (options.shadowColorExpression ?? shadowColorExpression)(shadowColor ?? '#000000')
+  if (baseColor === undefined) {
+    // The consumer's resolver dropped the token — no declaration beats a wrong-colored shadow.
+    return cls
+  }
   const color =
     shadowOpacity !== undefined ? `color-mix(in srgb, ${baseColor} ${shadowOpacity * 100}%, transparent)` : baseColor
-  cls.push(`[box-shadow:${arbitrary(`${offset.width}px ${offset.height}px ${radius}px ${color}`)}]`)
+  cls.push(`[box-shadow:${arbitrary(`${offsetX} ${offsetY} ${radius} ${color}`)}]`)
   return cls
 }
 
 // ── Long tail ──────────────────────────────────────────────────────────
 
+/**
+ * Resolve a `$` token on a non-color long-tail prop through its token family
+ * (radius/space/size), matching the shorthand resolvers; errors name the
+ * longhand. The COLOR family is resolved by the caller before this is reached
+ * (see the `COLOR_LONG_TAIL_PROPS` branch in `longTailClasses`).
+ * `long-tail-token-coverage.test.ts` pins the partition.
+ */
+function longTailTokenValue(prop: string, value: string): string {
+  if (RADIUS_LONG_TAIL_PROPS.has(prop)) {
+    return `${radiusPx(value, prop)}px`
+  }
+  if (SPACE_LONG_TAIL_PROPS.has(prop)) {
+    return spaceTokenPx(value, prop)
+  }
+  if (SIZE_LONG_TAIL_PROPS.has(prop)) {
+    return sizeValue(value, prop)
+  }
+  throw new Error(`compat: token value "${value}" for "${prop}" has no @universe/tailwind counterpart`)
+}
+
 function longTailClasses(props: CompatStyleProps, options: CommonStyleClassOptions): ClassList {
   const cls: ClassList = []
   const unitless = options.unitlessProps ?? UNITLESS_STYLE_PROPS
+  // Per-consumer color model, defaulting to the Flex semantic tables — so
+  // Text's pinned palette covers its color longhands like its shorthands.
+  const colorValue = options.longTailColorExpression ?? colorTokenCssValue
   for (const prop of options.longTailProps ?? LONG_TAIL_STYLE_PROPS) {
-    const value = props[prop as keyof CompatStyleProps] as string | number | undefined
-    if (value === undefined) {
+    const raw = props[prop as keyof CompatStyleProps] as string | number | TamaguiVariable | undefined
+    if (raw === undefined) {
+      continue
+    }
+    if (COLOR_LONG_TAIL_PROPS.has(prop)) {
+      // `resolveColorOrWarn` (not `unwrapVariable`) so a legacy `OpaqueColorValue` reaching
+      // this prop (INFRA-3804) drops the declaration instead of `unwrapVariable` passing it
+      // through unchanged into `String(value)` below, which would compile the literal string
+      // "[object Object]" into a nonsense arbitrary class — the same hazard `colorClasses` guards.
+      const resolved = resolveColorOrWarn(raw as ColorValue)
+      if (resolved === undefined) {
+        continue
+      }
+      const resolvedClass = resolved.startsWith('$') ? colorValue(resolved, prop) : arbitrary(resolved)
+      cls.push(`[${cssPropertyName(prop)}:${resolvedClass}]`)
+      continue
+    }
+    const value = unwrapVariable(raw)
+    if (ANIMATION_LONG_TAIL_PROPS.has(prop)) {
+      assertAnimationValue(prop, value)
+    }
+    if (prop === 'pointerEvents' && typeof value === 'string' && Object.hasOwn(POINTER_EVENTS_BOX_CLASSES, value)) {
+      const boxClasses = POINTER_EVENTS_BOX_CLASSES[value]
+      if (boxClasses !== undefined) {
+        cls.push(...boxClasses)
+      }
       continue
     }
     if (typeof value === 'string' && value.startsWith('$')) {
-      throw new Error(`compat: token value "${value}" for "${prop}" has no @universe/tailwind counterpart`)
+      cls.push(`[${cssPropertyName(prop)}:${longTailTokenValue(prop, value)}]`)
+      continue
     }
     const cssValue = typeof value === 'number' && !unitless.has(prop) ? `${value}px` : String(value)
     cls.push(`[${cssPropertyName(prop)}:${arbitrary(cssValue)}]`)
@@ -339,14 +411,14 @@ export function commonStyleClasses(props: CompatStyleProps, options: CommonStyle
 
 // ── Flexbox ────────────────────────────────────────────────────────────
 
-const DIRECTION_CLASS: Record<string, string> = {
+export const DIRECTION_CLASS: Record<string, string> = {
   row: 'flex-row',
   column: 'flex-col',
   'row-reverse': 'flex-row-reverse',
   'column-reverse': 'flex-col-reverse',
 }
 
-const ALIGN_ITEMS_CLASS: Record<string, string> = {
+export const ALIGN_ITEMS_CLASS: Record<string, string> = {
   stretch: 'items-stretch',
   'flex-start': 'items-start',
   'flex-end': 'items-end',
@@ -354,7 +426,7 @@ const ALIGN_ITEMS_CLASS: Record<string, string> = {
   baseline: 'items-baseline',
 }
 
-const ALIGN_SELF_CLASS: Record<string, string> = {
+export const ALIGN_SELF_CLASS: Record<string, string> = {
   auto: 'self-auto',
   stretch: 'self-stretch',
   'flex-start': 'self-start',
@@ -363,7 +435,7 @@ const ALIGN_SELF_CLASS: Record<string, string> = {
   baseline: 'self-baseline',
 }
 
-const JUSTIFY_CLASS: Record<string, string> = {
+export const JUSTIFY_CLASS: Record<string, string> = {
   'flex-start': 'justify-start',
   'flex-end': 'justify-end',
   center: 'justify-center',
@@ -372,7 +444,7 @@ const JUSTIFY_CLASS: Record<string, string> = {
   'space-evenly': 'justify-evenly',
 }
 
-const WRAP_CLASS: Record<string, string> = {
+export const WRAP_CLASS: Record<string, string> = {
   nowrap: 'flex-nowrap',
   wrap: 'flex-wrap',
   'wrap-reverse': 'flex-wrap-reverse',
@@ -414,9 +486,9 @@ export function flexboxStyleClasses(props: FlexboxStyleValues, displayClass: (va
     flexBasis !== undefined && `basis-[${arbitrary(sizeValue(flexBasis))}]`,
     flexGrow !== undefined && `grow-[${flexGrow}]`,
     flexShrink !== undefined && `shrink-[${flexShrink}]`,
-    gap !== undefined && `gap-[${spacePx(gap)}]`,
-    rowGap !== undefined && `gap-y-[${spacePx(rowGap)}]`,
-    columnGap !== undefined && `gap-x-[${spacePx(columnGap)}]`,
+    gap !== undefined && gap !== null && `gap-[${spacePx(gap)}]`,
+    rowGap !== undefined && rowGap !== null && `gap-y-[${spacePx(rowGap)}]`,
+    columnGap !== undefined && columnGap !== null && `gap-x-[${spacePx(columnGap)}]`,
   ]
   if (flex !== undefined) {
     // Tamagui web keeps flex-basis:auto for numeric `flex` (not the CSS

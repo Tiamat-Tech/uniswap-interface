@@ -5,9 +5,10 @@ import {
   getDynamicConfigValue,
   getOverrideAdapter,
 } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Image, Input, Text } from 'ui/src'
+import { Button, Image, Input } from 'ui/src'
 import { BETA_LOGO } from 'ui/src/assets'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'

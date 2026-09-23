@@ -37,6 +37,9 @@ export enum NumberType {
   // fiat rewards
   FiatRewards = 'fiat-rewards',
 
+  // fiat rewards at fixed six-decimal precision, for live-accruing displays
+  FiatRewardsPrecise = 'fiat-rewards-precise',
+
   // portfolio balance
   PortfolioBalance = 'portfolio-balance',
 
@@ -54,6 +57,7 @@ export type FiatNumberType = Extract<
   | NumberType.FiatTokenQuantity
   | NumberType.FiatGasPrice
   | NumberType.FiatRewards
+  | NumberType.FiatRewardsPrecise
   | NumberType.PortfolioBalance
   | NumberType.FiatStandard
 >

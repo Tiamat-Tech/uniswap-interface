@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { DynamicConfigs, FeatureFlags, SwapConfigKey, getDynamicConfigValue, getFeatureFlag } from '@universe/gating'
 import { ALL_CHAIN_IDS } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainIdArrayType } from 'uniswap/src/features/gating/typeGuards'
 
 /**

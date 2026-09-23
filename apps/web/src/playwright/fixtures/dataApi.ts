@@ -6,12 +6,17 @@ import {
   getTokenPrices,
   listTransactions,
 } from '@uniswap/client-data-api/dist/data/v1/api-DataApiService_connectquery'
+import { tokenRankings } from '@uniswap/client-explore/dist/uniswap/explore/v1/service-ExploreStatsService_connectquery'
 import { WETH_ADDRESS } from '@uniswap/universal-router-sdk'
+import { UniverseChainId, normalizeTokenAddressForCache } from '@universe/chains'
 import { DEFAULT_NATIVE_ADDRESS as NATIVE_TOKEN_ADDRESS } from '@universe/prices'
 import { DAI, USDC, USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
 import { WEETH_ADDRESS } from '~/playwright/anvil/utils'
+import {
+  buildTokenRankingsFallbackResponse,
+  fulfillWithFallback,
+  isTokenRankingsResponseHealthy,
+} from '~/playwright/fixtures/tokenDataFallbacks'
 import { Mocks } from '~/playwright/mocks/mocks'
 
 // TransactionTypeFilter enum values from client-data-api (used in ListTransactions request filter)
@@ -42,7 +47,7 @@ function priceForToken(address: string): number {
  * it as a POST JSON body or (some callers, e.g. connect-query GETs) as a `message`
  * query param. Mirrors the parsing already done for ListTransactions below.
  */
-function parseConnectRequestBody(request: { url(): string; postData(): string | null }): unknown {
+export function parseConnectRequestBody(request: { url(): string; postData(): string | null }): unknown {
   try {
     const url = new URL(request.url())
     const messageParam = url.searchParams.get('message')
@@ -94,9 +99,12 @@ function getServiceMethodPath(method: DataApiMethodDescriptor): string {
   return `${method.service.typeName}/${method.name}`
 }
 
+export type DataApiIntercept = DataApiFixture['dataApi']
+
 type DataApiFixture = {
   interceptLongRunning: void
   interceptTokenPrices: void
+  interceptTokenRankingsFallback: void
   dataApi: {
     /**
      * Intercepts a Data API endpoint and responds with a mock response.
@@ -203,6 +211,33 @@ export const test = base.extend<DataApiFixture>({
   interceptTokenPrices: [
     async ({ page }, use) => {
       await page.route(`**/${getServiceMethodPath(getTokenPrices)}`, fulfillGetTokenPrices)
+      await use(undefined)
+    },
+    { auto: true },
+  ],
+  // Failure-scoped TokenRankings fallback: a healthy live 2xx passes through untouched; on
+  // non-2xx / network failure (the gateway 429-throttles CI traffic) OR a 2xx with an empty
+  // trending list, serve a deterministic non-empty trending list instead. The TokenSelector
+  // specs assert the trending section header and TDP/Wrap click token-option-1-{USDT,ETH} from
+  // that list, so an errored or empty response unmounts everything they target. Spec-registered
+  // routes still win (registered later).
+  interceptTokenRankingsFallback: [
+    async ({ page }, use) => {
+      // URL predicate rather than the glob used above: connect-query GETs carry the message in
+      // the query string, which globs would have to match explicitly
+      const tokenRankingsPath = getServiceMethodPath(tokenRankings)
+      await page.route(
+        (url) => url.href.includes(tokenRankingsPath),
+        async (route) =>
+          fulfillWithFallback({
+            route,
+            isHealthy: isTokenRankingsResponseHealthy,
+            buildFallback: () => {
+              const body = parseConnectRequestBody(route.request()) as { chainId?: string } | null
+              return buildTokenRankingsFallbackResponse(body?.chainId)
+            },
+          }),
+      )
       await use(undefined)
     },
     { auto: true },

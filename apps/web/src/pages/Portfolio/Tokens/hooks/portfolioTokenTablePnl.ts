@@ -1,13 +1,37 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import { GetWalletTokensProfitLossResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { normalizeTokenAddressForCache } from '@universe/chains'
+import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { DEFAULT_NATIVE_ADDRESS, DEFAULT_NATIVE_ADDRESS_LEGACY } from 'uniswap/src/features/chains/evm/rpc'
+import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
 import type { PortfolioChainBalance } from 'uniswap/src/features/dataApi/types'
 import { currencyAddress } from 'uniswap/src/utils/currencyId'
 
-/** Align PnL API addresses with {@link currencyAddress}-based keys (native → canonical zero addr). */
-function normalizeAddressForPnlLookupKey(address: string): string {
-  const lower = address.startsWith('0x') ? address.toLowerCase() : address
+/** Case-insensitive for EVM addresses only — base58 mints stay case-sensitive. */
+function normalizeCaseForPnlKey(address: string): string {
+  return address.startsWith('0x') ? normalizeTokenAddressForCache(address) : address
+}
+
+/**
+ * Align PnL API addresses with {@link currencyAddress}-based keys (native → canonical zero addr).
+ * The API returns natives under each chain's backend address — the zero address on most chains, but
+ * e.g. 0x…1010 on Polygon and 0x471e… on Celo — so those must collapse to the zero address too.
+ */
+function normalizeAddressForPnlLookupKey({ address, chainId }: { address: string; chainId: number }): string {
+  const lower = normalizeCaseForPnlKey(address)
   if (lower === DEFAULT_NATIVE_ADDRESS || lower === DEFAULT_NATIVE_ADDRESS_LEGACY) {
+    return DEFAULT_NATIVE_ADDRESS
+  }
+  const chainInfo = isUniverseChainId(chainId) ? getChainInfo(chainId) : undefined
+  const nativeBackendAddress = chainInfo?.backendChain.nativeTokenBackendAddress
+  // Collapse only when the backend address IS the chain's native asset (Polygon, Celo). On Arc the
+  // backend address is a distinct 6-decimal ERC-20 modeled separately from the 18-decimal native
+  // asset, so collapsing it would conflate two portfolio rows under one key.
+  const backendAddressIsNativeAsset =
+    nativeBackendAddress !== undefined &&
+    chainInfo !== undefined &&
+    normalizeCaseForPnlKey(chainInfo.nativeCurrency.address) === normalizeCaseForPnlKey(nativeBackendAddress)
+  if (backendAddressIsNativeAsset && normalizeCaseForPnlKey(nativeBackendAddress) === lower) {
     return DEFAULT_NATIVE_ADDRESS
   }
   return lower
@@ -21,13 +45,13 @@ export type TokenPnlSnapshot = {
 
 /** Per-chain / API leg key (aligned with {@link normalizeAddressForPnlLookupKey}). */
 export function pnlLookupKeyFromPortfolioChainBalance(t: PortfolioChainBalance): string {
-  const rawAddr = currencyAddress(t.currencyInfo.currency).toLowerCase()
+  const rawAddr = currencyAddress(t.currencyInfo.currency)
   const addr = t.currencyInfo.currency.isNative ? DEFAULT_NATIVE_ADDRESS : rawAddr
-  return `${normalizeAddressForPnlLookupKey(addr)}-${t.chainId}`
+  return `${normalizeAddressForPnlLookupKey({ address: addr, chainId: t.chainId })}-${t.chainId}`
 }
 
 function pnlLookupKeyFromChainBreakdown(chain: { tokenAddress: string; chainId: number }): string {
-  return `${normalizeAddressForPnlLookupKey(chain.tokenAddress)}-${chain.chainId}`
+  return `${normalizeAddressForPnlLookupKey({ address: chain.tokenAddress, chainId: chain.chainId })}-${chain.chainId}`
 }
 
 /**

@@ -289,10 +289,23 @@ describe('handleNotificationNavigation', () => {
       expect(mockNavigate).toHaveBeenCalledWith('SettingsStack', { screen: 'SettingsViewSeedPhrase' })
     })
 
-    it('navigates to single screen for one-part path', () => {
-      handleNotificationNavigation('mobile://Home')
+    it.each([
+      ['mobile://Home', 'Home'],
+      ['mobile://Home/Home', 'Home'],
+      ['mobile://Home/Explore', 'Explore'],
+      ['mobile://Home/Activity', 'Activity'],
+      ['mobile://Explore', 'Explore'],
+      ['mobile://Activity', 'Activity'],
+    ])('navigates tab paths through the tabs navigator: %s', (url, screen) => {
+      handleNotificationNavigation(url)
 
-      expect(mockNavigate).toHaveBeenCalledWith('Home')
+      expect(mockNavigate).toHaveBeenCalledWith('MainTabs', { screen })
+    })
+
+    it.each(['Unknown', 'toString', 'constructor'])('falls back to Home for legacy Home child route %s', (screen) => {
+      handleNotificationNavigation(`mobile://Home/${screen}`)
+
+      expect(mockNavigate).toHaveBeenCalledWith('MainTabs', { screen: 'Home' })
     })
 
     it('handles paths with trailing slashes', () => {

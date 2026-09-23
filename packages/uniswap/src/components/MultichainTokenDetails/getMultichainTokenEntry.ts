@@ -1,7 +1,7 @@
 import type { GraphQLApi } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 

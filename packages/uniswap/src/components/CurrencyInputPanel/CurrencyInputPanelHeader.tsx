@@ -1,8 +1,7 @@
 import type { Currency, CurrencyAmount } from '@uniswap/sdk-core'
-import { isExtensionApp, isWebAppDesktop, isWebPlatform } from '@universe/environment'
+import { isExtensionApp, isWebAppDesktop } from '@universe/environment'
+import { Flex, spacing, Text } from '@universe/mycelium'
 import { useCallback } from 'react'
-import { Flex, Text } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 import {
   AmountInputPresets,
   PRESET_BUTTON_PROPS,
@@ -66,8 +65,10 @@ export function CurrencyInputPanelHeader({
 
   return (
     <Flex row justifyContent="space-between">
-      {/* IMPORTANT: $micro crashes on mobile */}
-      <Text color="$neutral2" variant="subheading2" fontSize={isWebPlatform ? '$micro' : '$small'}>
+      {/* $small (16px) everywhere: $subHeading has no micro size — legacy web silently dropped the
+          invalid `font-size: $micro` and inherited 16px, so this matches the legacy render on both
+          platforms, while TextCompat throws on unresolvable tokens instead of dropping them */}
+      <Text color="$neutral2" variant="subheading2" fontSize="$small">
         {headerLabel}
       </Text>
       {showInputPresets && (

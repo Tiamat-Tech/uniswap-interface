@@ -1,6 +1,6 @@
 import { configureStore, Store } from '@reduxjs/toolkit'
 import { TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import {
   CANCEL_TX_TIMEOUT_MS,
@@ -44,6 +44,7 @@ import {
   TransactionTypeInfo,
   UniswapXOrderDetails,
 } from 'uniswap/src/features/transactions/types/transactionDetails'
+import { isInterfaceTransaction } from 'uniswap/src/features/transactions/types/utils'
 import { finalizedTransactionAction, uniswapXOrderDetails } from 'uniswap/src/test/fixtures'
 
 const finalizedTxAction = finalizedTransactionAction()
@@ -847,6 +848,71 @@ describe('transaction reducer', () => {
         (store.getState()[address]?.[UniverseChainId.Mainnet]?.['tx1']?.typeInfo as BridgeTransactionInfo)
           .depositConfirmed,
       ).toBe(true)
+    })
+
+    it('should persist the deposit network fee when provided', () => {
+      const initialState: TransactionsState = {
+        [address]: {
+          [UniverseChainId.Mainnet]: {
+            tx1: baseBridgeTx,
+          },
+        },
+      }
+      const networkFee = {
+        quantity: '0.000042',
+        tokenSymbol: 'ETH',
+        tokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        chainId: UniverseChainId.Mainnet,
+        valueType: ValueType.Exact,
+      }
+
+      store = configureStore({ reducer: transactionReducer, preloadedState: initialState })
+      store.dispatch(
+        interfaceConfirmBridgeDeposit({
+          chainId: UniverseChainId.Mainnet,
+          id: 'tx1',
+          address,
+          networkFee,
+        }),
+      )
+
+      const updatedTx = store.getState()[address]?.[UniverseChainId.Mainnet]?.['tx1']
+      expect((updatedTx?.typeInfo as BridgeTransactionInfo).depositConfirmed).toBe(true)
+      expect(updatedTx?.networkFee).toEqual(networkFee)
+    })
+
+    it('should keep the transaction classified as an interface transaction after persisting the fee', () => {
+      // The web pollers read the store through isInterfaceTransaction; if persisting the
+      // deposit fee flipped the classification, the deposit-confirmed bridge tx would vanish
+      // from the bridge status poller and stay pending forever.
+      const initialState: TransactionsState = {
+        [address]: {
+          [UniverseChainId.Mainnet]: {
+            tx1: baseBridgeTx,
+          },
+        },
+      }
+      const networkFee: TransactionNetworkFee = {
+        quantity: '0.000042',
+        tokenSymbol: 'ETH',
+        tokenAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        chainId: UniverseChainId.Mainnet,
+        valueType: ValueType.Exact,
+      }
+
+      store = configureStore({ reducer: transactionReducer, preloadedState: initialState })
+      store.dispatch(
+        interfaceConfirmBridgeDeposit({
+          chainId: UniverseChainId.Mainnet,
+          id: 'tx1',
+          address,
+          networkFee,
+        }),
+      )
+
+      const updatedTx = store.getState()[address]?.[UniverseChainId.Mainnet]?.['tx1']
+      expect(updatedTx).toBeDefined()
+      expect(isInterfaceTransaction(updatedTx!)).toBe(true)
     })
 
     it('should not update non-bridge transaction', () => {

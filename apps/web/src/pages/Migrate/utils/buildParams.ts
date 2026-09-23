@@ -11,6 +11,7 @@ import { Pool as V3Pool } from '@uniswap/v3-sdk'
 import { Pool as V4Pool } from '@uniswap/v4-sdk'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { V2PairInfo, V3PositionInfo } from 'uniswap/src/features/positions/types'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import { PositionState } from '~/features/Liquidity/Create/types'
 import { getTokenOrZeroAddress } from '~/features/Liquidity/utils/currency'
 import { getProtocols } from '~/features/Liquidity/utils/protocolVersion'
@@ -45,11 +46,11 @@ export function buildCheckLPApprovalRequestParams({
         chainId,
         lpTokens: [
           new LPToken({
-            tokenAddress: positionInfo.currency0Amount.currency.wrapped.address,
+            tokenAddress: getWrappedTokenIfExists(positionInfo.currency0Amount.currency)?.address,
             amount: '0',
           }),
           new LPToken({
-            tokenAddress: positionInfo.currency1Amount.currency.wrapped.address,
+            tokenAddress: getWrappedTokenIfExists(positionInfo.currency1Amount.currency)?.address,
             amount: '0',
           }),
         ],
@@ -63,11 +64,11 @@ export function buildCheckLPApprovalRequestParams({
         chainId,
         lpTokens: [
           new LPToken({
-            tokenAddress: positionInfo.currency0Amount.currency.wrapped.address,
+            tokenAddress: getWrappedTokenIfExists(positionInfo.currency0Amount.currency)?.address,
             amount: '0', // the amounts here don't matter since the approval is based on the positionToken
           }),
           new LPToken({
-            tokenAddress: positionInfo.currency1Amount.currency.wrapped.address,
+            tokenAddress: getWrappedTokenIfExists(positionInfo.currency1Amount.currency)?.address,
             amount: '0', // the amounts here don't matter since the approval is based on the positionToken
           }),
         ],

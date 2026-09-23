@@ -1,8 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
 import { isWebPlatform } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
 import React, { useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Flex } from 'ui/src'
 import { CopyAlt } from 'ui/src/components/icons/CopyAlt'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import {
@@ -11,15 +12,13 @@ import {
 } from 'uniswap/src/components/lists/items/tokens/useSearchTokenMenuItems'
 import { ContextMenu } from 'uniswap/src/components/menus/ContextMenu'
 import type { ContextMenuHandle, MenuOptionItem } from 'uniswap/src/components/menus/ContextMenu'
-import { MenuContent } from 'uniswap/src/components/menus/ContextMenuContent'
 import { ContextMenuTriggerButton } from 'uniswap/src/components/menus/ContextMenuTriggerButton'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
-import { MultichainAddressTransitionPanel } from 'uniswap/src/components/MultichainTokenDetails/MultichainAddressTransitionPanel'
+import { MultichainContextMenuExpandContent } from 'uniswap/src/components/MultichainTokenDetails/MultichainContextMenuExpandContent'
 import { useMultichainAddressViewState } from 'uniswap/src/components/MultichainTokenDetails/useMultichainAddressViewState'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
 import { COPY_CLOSE_DELAY } from 'uniswap/src/constants/misc'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType, CopyNotificationType } from 'uniswap/src/features/notifications/slice/types'
@@ -65,7 +64,7 @@ function RwaMultichainCopyButtonInner(
   const trace = useTrace()
 
   const { value: isOpen, setTrue: openMenu, setFalse: rawCloseMenu } = useBooleanState(false)
-  const { viewIndex, animationType, goToAddresses, goBack, resetView } = useMultichainAddressViewState()
+  const { viewIndex, goToAddresses, goBack, resetView } = useMultichainAddressViewState()
   // Copy on a multichain issuer flips to the addresses panel; skipNextClose holds the menu open across the single
   // handleCloseMenu the Copy MenuOptionItem fires during that flip.
   const skipNextClose = useRef(false)
@@ -131,30 +130,25 @@ function RwaMultichainCopyButtonInner(
     return [copyItem, ...actionItems]
   }, [onCopyAddressPress, t, actionItems])
 
-  // contentOverride bypasses ContextMenu's default MenuContent, so analytics props go on MenuContent directly.
   const contentOverride = useMemo(
     () => (
-      <MultichainAddressTransitionPanel
+      <MultichainContextMenuExpandContent
+        trackItemClicks
         viewIndex={viewIndex}
-        animationType={animationType}
+        menuItems={allMenuItems}
         orderedEntries={orderedEntries}
         title={t('common.copy.address')}
-        onCopyAddress={onCopyMultichainAddress}
+        handleCloseMenu={handleContentClose}
+        elementName={ElementName.SearchTokenContextMenu}
+        sectionName={SectionName.NavbarSearch}
         onBack={goBack}
-      >
-        <MenuContent
-          trackItemClicks
-          items={allMenuItems}
-          handleCloseMenu={handleContentClose}
-          elementName={ElementName.SearchTokenContextMenu}
-          sectionName={SectionName.NavbarSearch}
-        />
-      </MultichainAddressTransitionPanel>
+        onCopyAddress={onCopyMultichainAddress}
+      />
     ),
-    [viewIndex, animationType, allMenuItems, handleContentClose, orderedEntries, onCopyMultichainAddress, goBack, t],
+    [viewIndex, allMenuItems, orderedEntries, onCopyMultichainAddress, goBack, handleContentClose, t],
   )
 
-  // Web-only: MultichainContextMenuAddressSubview (via MultichainAddressTransitionPanel) uses a <div> (crashes on native). Native uses MultichainAddressSheet.
+  // Web-only: MultichainContextMenuAddressSubview (via MultichainContextMenuExpandContent) uses a <div> (crashes on native). Native uses MultichainAddressSheet.
   if (!isWebPlatform) {
     return null
   }

@@ -1,13 +1,12 @@
 import type { Row, RowData } from '@tanstack/react-table'
+import { Flex } from '@universe/mycelium'
 import { useCallback } from 'react'
-import { Flex } from 'ui/src'
 import { ExpandableIssuerPanelContainer } from 'uniswap/src/features/expandableAsset'
 import {
-  EXPANDABLE_ASSET_INNER_PADDING_X_PX,
+  EXPANDABLE_ASSET_ISSUER_ROW_ALIGNMENT_INSET_X_PX,
   EXPANDABLE_ASSET_TABLE_SHELL_PADDING_PX,
   getExpandableIssuerPanelHeightPx,
 } from 'uniswap/src/features/expandableAsset/expandableAssetLayout'
-import { useTableRowContentMinWidthPx } from '~/components/Table/TableSizeProvider'
 import type { RenderUnifiedExpandableRow } from '~/components/Table/types'
 import { ExpandableTableRowContainer } from '~/pages/Explore/rwa/expandable/ExpandableTableRowContainer'
 import { IssuerTableRowHoverProvider } from '~/pages/Explore/rwa/expandable/IssuerTableRowHoverProvider'
@@ -34,13 +33,11 @@ export function useUnifiedExpandableTableRow<TRow extends RowData>({
   rowWrapper: (row: Row<TRow>, content: JSX.Element) => JSX.Element
   renderUnifiedExpandableRow: RenderUnifiedExpandableRow<TRow>
 } {
-  const rowContentMinWidthPx = useTableRowContentMinWidthPx()
-
-  // RWA shells are widened by the shell padding, so sub-rows only bleed past the inner panel padding.
-  // Non-widened shells (e.g. portfolio) must also bleed past the shell padding, or fixed-width sub-rows
-  // overflow the shell's right edge.
-  const subRowBleedPx =
-    EXPANDABLE_ASSET_INNER_PADDING_X_PX + (extendShellBeyondRowContent ? 0 : EXPANDABLE_ASSET_TABLE_SHELL_PADDING_PX)
+  // Bleed issuer sub-rows outward by the full shell + inner-panel padding so their columns line up with the
+  // parent metrics row, which bleeds to the shell edge. The inner `$surface1` panel always sits this far
+  // (shell + inner padding) inside the shell edge, whether or not the shell is widened
+  // (`extendShellBeyondRowContent`), so the sub-rows must cancel both insets to match the parent.
+  const subRowBleedPx = EXPANDABLE_ASSET_ISSUER_ROW_ALIGNMENT_INSET_X_PX
 
   const rowWrapper = useCallback(
     (row: Row<TRow>, content: JSX.Element) => {
@@ -82,7 +79,6 @@ export function useUnifiedExpandableTableRow<TRow extends RowData>({
           isExpanded={isExpanded}
           collapsedIssuerHeightPx={0}
           expandedIssuerHeightPx={getExpandedPanelHeightPx(row.subRows.length)}
-          rowContentMinWidthPx={rowContentMinWidthPx}
           extendShellBeyondRowContent={extendShellBeyondRowContent}
           onToggle={() => {
             const nextExpanded = !row.getIsExpanded()
@@ -94,13 +90,7 @@ export function useUnifiedExpandableTableRow<TRow extends RowData>({
         />
       )
     },
-    [
-      rowContentMinWidthPx,
-      isExpandableParentRow,
-      getExpandedPanelHeightPx,
-      onParentToggle,
-      extendShellBeyondRowContent,
-    ],
+    [isExpandableParentRow, getExpandedPanelHeightPx, onParentToggle, extendShellBeyondRowContent],
   )
 
   return { rowWrapper, renderUnifiedExpandableRow }

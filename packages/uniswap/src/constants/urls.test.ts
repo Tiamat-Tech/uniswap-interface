@@ -82,4 +82,10 @@ describe('UniswapHelpUrls', () => {
       'https://support.uniswap.org/hc/en-us/articles/46865818181901-Earn-on-Uniswap?product_link=web#troubleshooting-errors',
     )
   })
+
+  it('links the Uniswap hook provenance badge to its help article', () => {
+    expect(UniswapHelpUrls.articles.uniswapBuiltHooks).toBe(
+      'https://support.uniswap.org/hc/en-us/articles/48747190274317?product_link=web',
+    )
+  })
 })

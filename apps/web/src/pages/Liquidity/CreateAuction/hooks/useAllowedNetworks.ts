@@ -1,11 +1,11 @@
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isTestnetChain } from 'uniswap/src/features/chains/utils'
 import {
   NEW_LAUNCH_CHAINS,
-  TOUCAN_AUCTION_SUPPORTED_CHAINS,
-  TOUCAN_TOKEN_CREATION_SUPPORTED_CHAINS,
+  useToucanAuctionSupportedChains,
+  useToucanTokenCreationSupportedChains,
 } from '~/features/Toucan/supportedChains'
 
 const VALID_CHAIN_IDS = new Set<UniverseChainId>(
@@ -56,10 +56,12 @@ function useAllowedNetworks(allowedNetworkIds: UniverseChainId[]): UniverseChain
 
 /** Networks available when creating a brand-new token to auction (chains whose stack has a token factory). */
 export function useCreateNewTokenAllowedNetworks(): UniverseChainId[] {
-  return useAllowedNetworks(TOUCAN_TOKEN_CREATION_SUPPORTED_CHAINS)
+  const tokenCreationChains = useToucanTokenCreationSupportedChains()
+  return useAllowedNetworks(tokenCreationChains)
 }
 
 /** Networks available when auctioning an existing token. */
 export function useCreateAuctionAllowedNetworks(): UniverseChainId[] {
-  return useAllowedNetworks(TOUCAN_AUCTION_SUPPORTED_CHAINS)
+  const auctionChains = useToucanAuctionSupportedChains()
+  return useAllowedNetworks(auctionChains)
 }

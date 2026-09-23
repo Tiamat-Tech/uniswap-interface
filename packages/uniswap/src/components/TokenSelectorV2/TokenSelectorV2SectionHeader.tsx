@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { Briefcase } from 'ui/src/components/icons/Briefcase'
 import { Coins } from 'ui/src/components/icons/Coins'
 import { Fire } from 'ui/src/components/icons/Fire'

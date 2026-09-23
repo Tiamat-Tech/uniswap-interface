@@ -1,5 +1,6 @@
 import { GraphQLApi, TradingApi } from '@universe/api'
-import { ETH_LOGO, ETHEREUM_LOGO, UNICHAIN_LOGO, UNICHAIN_SEPOLIA_LOGO } from 'ui/src/assets'
+import { UniverseChainId, Platform } from '@universe/chains'
+import { ETH_LOGO, UNICHAIN_LOGO, UNICHAIN_SEPOLIA_LOGO } from 'ui/src/assets'
 import { ALL_APPS_CHAIN_SUPPORTED_APPS } from 'uniswap/src/features/chains/chainAppSupport'
 import { CHAIN_ID_TO_URL_PARAM } from 'uniswap/src/features/chains/chainUrlParam'
 import {
@@ -9,14 +10,7 @@ import {
 } from 'uniswap/src/features/chains/evm/rpc'
 import { buildChainTokens } from 'uniswap/src/features/chains/evm/tokens'
 import { GENERIC_L2_GAS_CONFIG } from 'uniswap/src/features/chains/gasDefaults'
-import {
-  GqlChainId,
-  NetworkLayer,
-  RPCType,
-  UniverseChainId,
-  UniverseChainInfo,
-} from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
+import { GqlChainId, NetworkLayer, RPCType, UniverseChainInfo } from 'uniswap/src/features/chains/types'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { buildUSDC } from 'uniswap/src/features/tokens/stablecoin'
 import { unichainSepolia } from 'wagmi/chains'
@@ -58,7 +52,7 @@ export const UNICHAIN_CHAIN_INFO = {
     symbol: 'ETH',
     decimals: 18,
     address: DEFAULT_NATIVE_ADDRESS_LEGACY,
-    logo: ETHEREUM_LOGO,
+    logo: ETH_LOGO,
   },
   networkLayer: NetworkLayer.L2,
   blockTimeMs: 1000,

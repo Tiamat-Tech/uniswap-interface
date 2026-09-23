@@ -1,4 +1,5 @@
 import { Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import {
   AuctionOption,
   MultichainTokenOption,
@@ -9,7 +10,6 @@ import {
   WalletOption,
 } from 'uniswap/src/components/lists/items/types'
 import { OnchainItemSection, OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { sendSearchOptionItemClickedAnalytics } from 'uniswap/src/features/search/SearchModal/analytics/analytics'
 import { SearchFilterContext } from 'uniswap/src/features/search/SearchModal/analytics/SearchContext'
 import { SearchTab } from 'uniswap/src/features/search/SearchModal/types'

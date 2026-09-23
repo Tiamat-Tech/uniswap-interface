@@ -1,9 +1,11 @@
 import { WalletKitTypes } from '@reown/walletkit'
+import { UniverseChainId } from '@universe/chains'
 import { PendingRequestTypes, ProposalTypes, Verify } from '@walletconnect/types'
 import { buildApprovedNamespaces, populateAuthPayload } from '@walletconnect/utils'
 import { expectSaga } from 'redux-saga-test-plan'
 import {
   disconnectSessionsForRemovedAccounts,
+  fetchPendingSessionRequests,
   handleSessionAuthenticate,
   handleSessionProposal,
   handleSessionRequest,
@@ -12,7 +14,6 @@ import {
 import { parseVerifyStatus } from 'src/features/walletConnect/utils'
 import { wcWeb3Wallet } from 'src/features/walletConnect/walletConnectClient'
 import { addPendingSession, addSession, removeSession } from 'src/features/walletConnect/walletConnectSlice'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EthMethod } from 'uniswap/src/features/dappRequests/types'
 import { MobileEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -21,6 +22,18 @@ import type { Mock } from 'vitest'
 import { DappVerificationStatus } from 'wallet/src/features/dappRequests/types'
 import { selectActiveAccountAddress } from 'wallet/src/features/wallet/selectors'
 import { removeAccounts as removeAccountsAction } from 'wallet/src/features/wallet/slice'
+
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    setDatadogEnabled: vi.fn(),
+  },
+}))
+
+vi.mock('utilities/src/logger/logger', () => ({ logger: mockLogger }))
 
 // Mock for WalletConnect utils
 vi.mock('@walletconnect/utils', async () => ({
@@ -44,6 +57,7 @@ vi.mock('./walletConnectClient', () => ({
     formatAuthMessage: vi.fn(),
     getActiveSessions: vi.fn(),
     disconnectSession: vi.fn(),
+    getPendingSessionRequests: vi.fn(),
     respondSessionRequest: vi.fn(),
     engine: {
       signClient: {
@@ -607,8 +621,94 @@ describe('WalletConnect Saga', () => {
       ;(wcWeb3Wallet.engine.signClient.session.get as Mock).mockReturnValue(sessionWithOnlyApprovedAccount)
     })
 
-    it('rejects eth_sendTransaction whose `from` is not in the session namespace', async () => {
+    it('rejects eth_sendTransaction when a numeric field cannot be canonicalized', async () => {
+      const requestId = 100
+      const invalidRequest = {
+        topic: SESSION_TOPIC,
+        id: requestId,
+        params: {
+          chainId: 'eip155:1',
+          request: {
+            method: EthMethod.EthSendTransaction,
+            params: [
+              {
+                from: APPROVED_ACCOUNT,
+                to: '0x1111111111111111111111111111111111111111',
+                data: '0x',
+                value: { unsupported: true },
+              },
+            ],
+          },
+        },
+      } as unknown as PendingRequestTypes.Struct
+
+      await expectSaga(handleSessionRequest, invalidRequest).not.put.actionType('walletConnect/addRequest').run()
+
+      expect(wcWeb3Wallet.respondSessionRequest).toHaveBeenCalledWith({
+        topic: SESSION_TOPIC,
+        response: {
+          id: requestId,
+          jsonrpc: '2.0',
+          error: {
+            code: 5,
+            message: 'Missing or invalid. Request parameters could not be parsed.',
+          },
+        },
+      })
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'walletConnect/saga.ts',
+        'respondInvalidSessionRequest',
+        'Rejected invalid eth_sendTransaction request (Error)',
+      )
+    })
+
+    it('rejects typed data when an integer cannot be canonicalized', async () => {
       const requestId = 101
+      const invalidRequest = {
+        topic: SESSION_TOPIC,
+        id: requestId,
+        params: {
+          chainId: 'eip155:1',
+          request: {
+            method: EthMethod.SignTypedDataV4,
+            params: [
+              APPROVED_ACCOUNT,
+              JSON.stringify({
+                types: {
+                  EIP712Domain: [{ name: 'chainId', type: 'uint256' }],
+                  Approval: [{ name: 'amount', type: 'uint256' }],
+                },
+                domain: { chainId: 1 },
+                primaryType: 'Approval',
+                message: { amount: -1 },
+              }),
+            ],
+          },
+        },
+      } as unknown as PendingRequestTypes.Struct
+
+      await expectSaga(handleSessionRequest, invalidRequest).not.put.actionType('walletConnect/addRequest').run()
+
+      expect(wcWeb3Wallet.respondSessionRequest).toHaveBeenCalledWith({
+        topic: SESSION_TOPIC,
+        response: {
+          id: requestId,
+          jsonrpc: '2.0',
+          error: {
+            code: 5,
+            message: 'Missing or invalid. Request parameters could not be parsed.',
+          },
+        },
+      })
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'walletConnect/saga.ts',
+        'respondInvalidSessionRequest',
+        'Rejected invalid eth_signTypedData_v4 request (Error)',
+      )
+    })
+
+    it('rejects eth_sendTransaction whose `from` is not in the session namespace', async () => {
+      const requestId = 102
 
       // Dapp asks the unapproved account
       // to sign a max ERC20 approval.
@@ -747,6 +847,84 @@ describe('WalletConnect Saga', () => {
           }),
         }),
       )
+    })
+
+    it('responds when wallet_sendCalls contains an invalid call', async () => {
+      const requestId = 405
+      const invalidRequest = {
+        topic: SESSION_TOPIC,
+        id: requestId,
+        params: {
+          chainId: 'eip155:1',
+          request: {
+            method: EthMethod.WalletSendCalls,
+            params: [
+              {
+                from: APPROVED_ACCOUNT,
+                version: '1.0',
+                chainId: '0x1',
+                calls: [{ to: '0x1234', data: '0xabcdef' }],
+              },
+            ],
+          },
+        },
+      } as unknown as PendingRequestTypes.Struct
+
+      await expectSaga(handleSessionRequest, invalidRequest).not.put.actionType('walletConnect/addRequest').run()
+
+      expect(wcWeb3Wallet.respondSessionRequest).toHaveBeenCalledWith({
+        topic: SESSION_TOPIC,
+        response: {
+          id: requestId,
+          jsonrpc: '2.0',
+          error: {
+            code: 5,
+            message: 'Missing or invalid. Request parameters could not be parsed.',
+          },
+        },
+      })
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'walletConnect/saga.ts',
+        'respondInvalidSessionRequest',
+        'Rejected invalid wallet_sendCalls request (wallet_sendCalls call 0 has an unsupported recipient)',
+      )
+    })
+
+    it('continues replaying pending requests when an invalid-request response fails', async () => {
+      const invalidSendCallsRequest = (id: number): PendingRequestTypes.Struct =>
+        ({
+          topic: SESSION_TOPIC,
+          id,
+          params: {
+            chainId: 'eip155:1',
+            request: {
+              method: EthMethod.WalletSendCalls,
+              params: [
+                {
+                  from: APPROVED_ACCOUNT,
+                  version: '1.0',
+                  chainId: '0x1',
+                  calls: [{ to: '0x1234', data: '0xabcdef' }],
+                },
+              ],
+            },
+          },
+        }) as unknown as PendingRequestTypes.Struct
+
+      const relayError = new Error('relay unavailable')
+      ;(wcWeb3Wallet.getPendingSessionRequests as Mock).mockReturnValue({
+        first: invalidSendCallsRequest(406),
+        second: invalidSendCallsRequest(407),
+      })
+      ;(wcWeb3Wallet.respondSessionRequest as Mock).mockRejectedValueOnce(relayError).mockResolvedValueOnce(undefined)
+
+      await expectSaga(fetchPendingSessionRequests).not.put.actionType('walletConnect/addRequest').run()
+
+      expect(wcWeb3Wallet.respondSessionRequest).toHaveBeenCalledTimes(2)
+      expect(mockLogger.error).toHaveBeenCalledWith(relayError, {
+        tags: { file: 'walletConnect/saga', function: 'respondInvalidSessionRequest' },
+        extra: { method: EthMethod.WalletSendCalls },
+      })
     })
   })
 

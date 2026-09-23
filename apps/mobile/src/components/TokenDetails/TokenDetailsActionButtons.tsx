@@ -1,8 +1,12 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import { AnimatedFlex, type ColorTokens, Flex } from '@universe/mycelium'
+import type { GeneratedIcon } from '@universe/mycelium/icons'
+import { withSporeCurve } from '@universe/tailwind/animations/reanimated'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { LayoutChangeEvent } from 'react-native'
+import { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
-import { Button, ColorTokens, Flex, GeneratedIcon, getContrastPassingTextColor, useDynamicFontSizing } from 'ui/src'
+import { Button, getContrastPassingTextColor, useDynamicFontSizing } from 'ui/src'
 import { IconButton } from 'ui/src/components/buttons/IconButton/IconButton'
 import { GridView, X } from 'ui/src/components/icons'
 import { opacify, validColor, fonts } from 'ui/src/theme'
@@ -12,19 +16,13 @@ import { TokenList } from 'uniswap/src/features/dataApi/types'
 import { ElementName, MobileEventName, SectionName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import Trace from 'uniswap/src/features/telemetry/Trace'
+import { useBottomScreenGap } from 'uniswap/src/hooks/useBottomScreenGap'
 import { TestID, TestIDType } from 'uniswap/src/test/fixtures/testIDs'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
 
 const CTA_MAX_LABEL_FONT_SIZE = fonts.buttonLabel1.fontSize
 const CTA_MIN_LABEL_FONT_SIZE = fonts.buttonLabel4.fontSize
 const CTA_MAX_CHAR_WIDTH_AT_MAX_FONT_SIZE = 10
-
-const FadeProps = (ready: boolean, onLayout?: (event: LayoutChangeEvent) => void) => ({
-  animation: 'quicker' as const,
-  animateOnly: ['opacity'] as string[],
-  opacity: ready ? 1 : 0,
-  onLayout,
-})
 
 function CTAButton({
   title,
@@ -56,6 +54,13 @@ function CTAButton({
   const usesDynamicFontSizing = Boolean(onLayout || onIconLayout)
   const iconColor = tokenColor ? getContrastPassingTextColor(tokenColor) : '$white'
 
+  // Reanimated leg of the legacy 'quicker' fade; seeded so mount does not animate.
+  const labelOpacity = useSharedValue(showLabel ? 1 : 0)
+  useEffect(() => {
+    labelOpacity.value = withSporeCurve('quicker', showLabel ? 1 : 0)
+  }, [showLabel, labelOpacity])
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: labelOpacity.value }))
+
   const buttonIcon = useMemo(() => {
     if (!Icon) {
       return undefined
@@ -66,11 +71,11 @@ function CTAButton({
     }
 
     return (
-      <Flex {...FadeProps(showLabel, onIconLayout)}>
+      <AnimatedFlex style={fadeStyle} onLayout={onIconLayout}>
         <Icon size="$icon.24" color={iconColor} />
-      </Flex>
+      </AnimatedFlex>
     )
-  }, [usesDynamicFontSizing, onIconLayout, Icon, showLabel, iconColor])
+  }, [usesDynamicFontSizing, onIconLayout, Icon, iconColor, fadeStyle])
 
   return (
     <Trace logPress element={element} section={SectionName.TokenDetails}>
@@ -84,9 +89,9 @@ function CTAButton({
         onPress={disabled ? onPressDisabled : onPress}
       >
         {usesDynamicFontSizing ? (
-          <Flex fill={!showLabel} {...FadeProps(showLabel, onLayout)}>
+          <AnimatedFlex fill={!showLabel} style={fadeStyle} onLayout={onLayout}>
             <Button.Text fontSize={labelFontSize}>{title}</Button.Text>
-          </Flex>
+          </AnimatedFlex>
         ) : (
           title
         )}
@@ -162,6 +167,7 @@ export function TokenDetailsBuySellButtons({
   onPressSell: () => void
 }): JSX.Element {
   const { t } = useTranslation()
+  const { bottomScreenExtraGap } = useBottomScreenGap()
   const {
     tokenColor,
     disabled,
@@ -241,8 +247,9 @@ export function TokenDetailsBuySellButtons({
       borderTopColor="$surface3"
       borderTopWidth={1}
       gap="$spacing8"
-      p="$spacing16"
+      pb={bottomScreenExtraGap}
       pt="$spacing12"
+      px="$spacing16"
     >
       <Flex fill row gap="$spacing12">
         <CTAButton

@@ -1,10 +1,13 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
 import { mapRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/mapRankedRwa'
 import { makeRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/rankedRwaTestHelpers'
 import type { IssuerToken, Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ExpandableParentAssetIdentity } from 'uniswap/src/features/expandableAsset/ExpandableParentAssetIdentity'
 import { render } from 'uniswap/src/test/test-utils'
+
+const ENABLED_CHAINS = [UniverseChainId.Mainnet, UniverseChainId.Base, UniverseChainId.ArbitrumOne]
 
 function makeMultiIssuerAsset(): Rwa {
   const rwa = mapRankedRwa({
@@ -66,7 +69,13 @@ describe('ExpandableParentAssetIdentity table subline', () => {
   it('shows token count on collapsed expandable rows without TradFi ticker subline', () => {
     const asset = makeMultiIssuerAsset()
     const { getByText, queryByText } = render(
-      <ExpandableParentAssetIdentity asset={asset} canExpand isExpanded={false} variant="table" />,
+      <ExpandableParentAssetIdentity
+        asset={asset}
+        enabledChainIds={ENABLED_CHAINS}
+        canExpand
+        isExpanded={false}
+        variant="table"
+      />,
     )
 
     expect(getByText('Tesla')).toBeTruthy()
@@ -77,7 +86,13 @@ describe('ExpandableParentAssetIdentity table subline', () => {
   it('shows token count on expanded expandable rows without TradFi ticker subline', () => {
     const asset = makeMultiIssuerAsset()
     const { getByText, queryByText } = render(
-      <ExpandableParentAssetIdentity asset={asset} canExpand isExpanded variant="table" />,
+      <ExpandableParentAssetIdentity
+        asset={asset}
+        enabledChainIds={ENABLED_CHAINS}
+        canExpand
+        isExpanded
+        variant="table"
+      />,
     )
 
     expect(getByText('Tesla')).toBeTruthy()
@@ -88,11 +103,78 @@ describe('ExpandableParentAssetIdentity table subline', () => {
   it('shows token count for non-expandable table rows', () => {
     const asset = makeMultiIssuerAsset()
     const { queryByText, getByText } = render(
-      <ExpandableParentAssetIdentity asset={asset} canExpand={false} variant="table" />,
+      <ExpandableParentAssetIdentity
+        asset={asset}
+        enabledChainIds={ENABLED_CHAINS}
+        canExpand={false}
+        variant="table"
+      />,
     )
 
     expect(queryByText('TSLA')).toBeNull()
     expect(getByText('explore.rwa.issuerTokenCount')).toBeTruthy()
+  })
+})
+
+describe('ExpandableParentAssetIdentity network badge', () => {
+  it.each(['table', 'search'] as const)('shows no badge without a network filter (%s)', (variant) => {
+    const { queryByTestId } = render(
+      <ExpandableParentAssetIdentity
+        asset={makeMultiIssuerAsset()}
+        enabledChainIds={ENABLED_CHAINS}
+        canExpand
+        isExpanded={false}
+        variant={variant}
+      />,
+    )
+    expect(queryByTestId(`network-logo-${UniverseChainId.Mainnet}`)).toBeNull()
+    expect(queryByTestId(`network-logo-${UniverseChainId.Base}`)).toBeNull()
+  })
+
+  it.each(['table', 'search'] as const)(
+    'badges the filtered chain when an issuer is deployed there (%s)',
+    (variant) => {
+      const { queryByTestId } = render(
+        <ExpandableParentAssetIdentity
+          asset={makeMultiIssuerAsset()}
+          enabledChainIds={ENABLED_CHAINS}
+          canExpand
+          isExpanded={false}
+          variant={variant}
+          chainFilter={UniverseChainId.Base}
+        />,
+      )
+      expect(queryByTestId(`network-logo-${UniverseChainId.Base}`)).not.toBeNull()
+      expect(queryByTestId(`network-logo-${UniverseChainId.Mainnet}`)).toBeNull()
+    },
+  )
+
+  it('shows no badge when no issuer is deployed on the filtered chain', () => {
+    const { queryByTestId } = render(
+      <ExpandableParentAssetIdentity
+        asset={makeMultiIssuerAsset()}
+        enabledChainIds={ENABLED_CHAINS}
+        canExpand
+        isExpanded={false}
+        variant="search"
+        chainFilter={UniverseChainId.ArbitrumOne}
+      />,
+    )
+    expect(queryByTestId(`network-logo-${UniverseChainId.ArbitrumOne}`)).toBeNull()
+  })
+
+  it('shows no badge when the filtered chain is not enabled', () => {
+    const { queryByTestId } = render(
+      <ExpandableParentAssetIdentity
+        asset={makeMultiIssuerAsset()}
+        enabledChainIds={[UniverseChainId.Mainnet]}
+        canExpand
+        isExpanded={false}
+        variant="search"
+        chainFilter={UniverseChainId.Base}
+      />,
+    )
+    expect(queryByTestId(`network-logo-${UniverseChainId.Base}`)).toBeNull()
   })
 })
 
@@ -103,7 +185,13 @@ describe('ExpandableParentAssetIdentity table subline', () => {
 describe('ExpandableParentAssetIdentity search group header', () => {
   it('shows the asset name and not the group ticker when collapsed', () => {
     const { queryByText } = render(
-      <ExpandableParentAssetIdentity asset={teslaRwa()} canExpand isExpanded={false} variant="search" />,
+      <ExpandableParentAssetIdentity
+        asset={teslaRwa()}
+        enabledChainIds={ENABLED_CHAINS}
+        canExpand
+        isExpanded={false}
+        variant="search"
+      />,
     )
     expect(queryByText('Tesla')).not.toBeNull()
     expect(queryByText('TSLA')).toBeNull()
@@ -111,9 +199,31 @@ describe('ExpandableParentAssetIdentity search group header', () => {
 
   it('shows the asset name and not the group ticker when expanded', () => {
     const { queryByText } = render(
-      <ExpandableParentAssetIdentity asset={teslaRwa()} canExpand isExpanded variant="search" />,
+      <ExpandableParentAssetIdentity
+        asset={teslaRwa()}
+        enabledChainIds={ENABLED_CHAINS}
+        canExpand
+        isExpanded
+        variant="search"
+      />,
     )
     expect(queryByText('Tesla')).not.toBeNull()
     expect(queryByText('TSLA')).toBeNull()
+  })
+
+  it('renders the category tag beside the name and the volume detail in the subline', () => {
+    const { getByText, getByTestId } = render(
+      <ExpandableParentAssetIdentity
+        asset={teslaRwa()}
+        enabledChainIds={ENABLED_CHAINS}
+        canExpand
+        isExpanded={false}
+        variant="search"
+        categoryTag={<Flex testID="category-tag" />}
+        volumeDetail="$1.2M vol"
+      />,
+    )
+    expect(getByTestId('category-tag')).toBeTruthy()
+    expect(getByText('$1.2M vol')).toBeTruthy()
   })
 })

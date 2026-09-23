@@ -1,7 +1,8 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { areEvmAddressesEqual, UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, type ModifierPressProps, Text } from '@universe/mycelium'
 import { memo } from 'react'
-import { Flex, type ModifierPressProps, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { useTranslation } from 'react-i18next'
 import Badge from 'uniswap/src/components/badge/Badge'
 import { SplitLogo } from 'uniswap/src/components/CurrencyLogo/SplitLogo'
 import { FocusedRowControl, OptionItem } from 'uniswap/src/components/lists/items/OptionItem'
@@ -9,9 +10,13 @@ import {
   PoolContextMenuAction,
   PoolOptionItemContextMenu,
 } from 'uniswap/src/components/lists/items/pools/PoolOptionItemContextMenu'
-import { BIPS_BASE } from 'uniswap/src/constants/misc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniswapBuiltHookMark } from 'uniswap/src/components/logos/UniswapBuiltHookMark'
+import { BIPS_BASE, ZERO_ADDRESS } from 'uniswap/src/constants/misc'
+import { DYNAMIC_FEE_AMOUNT } from 'uniswap/src/constants/pools'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
+import { getHookRegistryKey, useHookRegistryMap } from 'uniswap/src/features/poolHooks/hooks/useHookRegistryMap'
+import { useUniswapHookProvenance } from 'uniswap/src/features/poolHooks/hooks/useUniswapHookProvenance'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { ellipseMiddle, shortenAddress } from 'utilities/src/addresses'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
 
@@ -42,7 +47,21 @@ function PoolOptionItemInner({
   modifierPressHref,
   onModifierPress,
 }: PoolOptionItemProps): JSX.Element {
+  const { t } = useTranslation()
   const poolName = `${token0CurrencyInfo.currency.symbol}/${token1CurrencyInfo.currency.symbol}`
+  const getUniswapHookProvenance = useUniswapHookProvenance()
+
+  // A zero hook address means "no hook" (the search/stats payloads don't all filter it out upstream).
+  const poolHookAddress = hookAddress && !areEvmAddressesEqual(hookAddress, ZERO_ADDRESS) ? hookAddress : undefined
+  const hookRegistry = useHookRegistryMap({ chainId, enabled: !!poolHookAddress })
+  const hookName = poolHookAddress
+    ? hookRegistry?.get(getHookRegistryKey({ chainId, hookAddress: poolHookAddress }))?.name
+    : undefined
+  // Registry membership alone isn't Uniswap authorship — a third-party hook can be registry-known too.
+  // The mark only appears when the provenance config actually attributes this hook to Uniswap, matching
+  // the pool detail page's split (`LiquidityPositionInfoBadges`/`useUniswapHookProvenance`).
+  const isUniswapBuiltHook =
+    !!poolHookAddress && getUniswapHookProvenance({ chainId, address: poolHookAddress }) !== undefined
 
   const optionItem = (
     <OptionItem
@@ -67,13 +86,23 @@ function PoolOptionItemInner({
           <Badge size="small" placement="start">
             {ProtocolVersion[protocolVersion].toLowerCase()}
           </Badge>
-          {hookAddress ? (
-            <Badge size="small" placement="middle">
-              {shortenAddress({ address: hookAddress, chars: 4 })}
+          {poolHookAddress ? (
+            // A raw-address fallback, and a registry-known hook Uniswap didn't build or configure,
+            // both get no mark — matching the detail page's Uniswap-built-vs-not split.
+            <Badge
+              testID={TestID.PoolOptionItemHookBadge}
+              size="small"
+              placement="middle"
+              icon={hookName && isUniswapBuiltHook ? <UniswapBuiltHookMark /> : undefined}
+              {...(hookName && { maxWidth: 160, numberOfLines: 1 })}
+            >
+              {hookName || shortenAddress({ address: poolHookAddress, chars: 4 })}
             </Badge>
           ) : null}
           <Badge size="small" placement="end">
-            {feeTier / BIPS_BASE}%
+            {/* v4 dynamic-fee pools arrive with the DYNAMIC_FEE_AMOUNT sentinel in fee_tier, which
+                would otherwise format as ~838%. The search payload carries no isDynamic flag. */}
+            {feeTier === DYNAMIC_FEE_AMOUNT ? t('common.dynamic') : `${feeTier / BIPS_BASE}%`}
           </Badge>
         </Flex>
       }

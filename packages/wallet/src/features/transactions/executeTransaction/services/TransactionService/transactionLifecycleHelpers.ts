@@ -1,5 +1,5 @@
+import type { UniverseChainId } from '@universe/chains'
 import { BigNumber } from 'ethers'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import type { SwapTradeBaseProperties, UniverseEventProperties } from 'uniswap/src/features/telemetry/types'
 import type {

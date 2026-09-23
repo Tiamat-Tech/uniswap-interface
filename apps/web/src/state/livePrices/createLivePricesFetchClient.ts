@@ -1,6 +1,5 @@
 import { createFetchClient, type FetchClient, getEntryGatewayUrl, provideSessionService } from '@universe/api'
 import { REQUEST_SOURCE } from '@universe/environment'
-import { getIsSessionServiceEnabled } from '@universe/gating'
 
 /**
  * FetchClient for the EventSubscriptionService RPCs (Subscribe / Unsubscribe /
@@ -16,8 +15,7 @@ export function createLivePricesFetchClient({ subscriptionApiUrl }: { subscripti
       'Content-Type': 'application/json',
       'x-request-source': REQUEST_SOURCE,
     }),
-    getSessionService: () =>
-      provideSessionService({ getBaseUrl: () => getEntryGatewayUrl(), getIsSessionServiceEnabled }),
+    getSessionService: () => provideSessionService({ getBaseUrl: () => getEntryGatewayUrl() }),
     defaultOptions: { credentials: 'include' },
   })
 }

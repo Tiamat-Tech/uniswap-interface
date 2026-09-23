@@ -1,15 +1,23 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import type { Currency } from '@uniswap/sdk-core'
 import { parseRestProtocolVersion } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
+import { cn, Flex as FlexCompat, type FlexCompatProps } from '@universe/mycelium'
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
 import type { Dispatch, SetStateAction } from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  forwardRef,
+  type ForwardRefExoticComponent,
+  type RefAttributes,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router'
-import { Button, Flex, styled, Text, TouchableArea } from 'ui/src'
 import { RotateLeft } from 'ui/src/components/icons/RotateLeft'
-import { zIndexes } from 'ui/src/theme'
+import { zIndexes } from 'ui/src/theme/zIndexes'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { Deadline } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/Deadline/Deadline'
@@ -79,21 +87,29 @@ const ResetButton = ({ onClickReset, isDisabled }: ResetProps) => {
   )
 }
 
-const ToolbarContainer = styled(Flex, {
-  row: true,
-  centered: true,
-  gap: '$gap8',
-  $md: {
-    '$platform-web': {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr auto',
-      gridColumnGap: '8px',
-    },
-  },
+// `$md` stays `$md`: mycelium's `media-md` is `(max-width: 640px)`; Tailwind's stock `md:` is the inversion.
+// Explicit return type: forwardRef's inferred type isn't nameable under declaration emit (TS2883).
+const ToolbarContainer: ForwardRefExoticComponent<FlexCompatProps & RefAttributes<HTMLDivElement>> = forwardRef<
+  HTMLDivElement,
+  FlexCompatProps
+>(function ToolbarContainer({ $md: md, className, ...props }, ref) {
+  return (
+    <FlexCompat
+      ref={ref}
+      row
+      centered
+      gap="$gap8"
+      // `gridColumnGap` is outside `VARIANT_TWIN_PROPS`, so it cannot ride a variant prefix and is
+      // authored as a source class instead (`variantTierPropertyGapError`).
+      className={cn('media-md:[grid-column-gap:8px]', className)}
+      // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+      $md={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', ...md }}
+      {...props}
+    />
+  )
 })
 
 const Toolbar = () => {
-  const navigate = useNavigate()
   const { t } = useTranslation()
   const {
     isNativeTokenAOnly,
@@ -134,12 +150,6 @@ const Toolbar = () => {
 
   const handleVersionChange = useCallback(
     (version: ProtocolVersion) => {
-      const versionUrl = getProtocolVersionLabel(version)
-      if (versionUrl) {
-        // Ensure useLiquidityUrlState is synced
-        setTimeout(() => navigate(`/positions/create/${versionUrl}`), 1)
-      }
-
       setPositionState({
         ...DEFAULT_POSITION_STATE,
         protocolVersion: version,
@@ -148,7 +158,7 @@ const Toolbar = () => {
       setStep(PositionFlowStep.SELECT_TOKENS_AND_FEE_TIER)
       setVersionDropdownOpen(false)
     },
-    [setPositionState, setPriceRangeState, setStep, navigate],
+    [setPositionState, setPriceRangeState, setStep],
   )
 
   const versionOptions = useMemo(
@@ -321,17 +331,16 @@ function CreatePositionContent({
 }
 
 export function CreatePosition() {
-  // URL format is `/positions/create/:protocolVersion`, with possible searchParams `?currencyA=...&currencyB=...&chain=...&feeTier=...&hook=...`
-  const { protocolVersion } = useParams<{
-    protocolVersion: string
-  }>()
-  const paramsProtocolVersion = parseRestProtocolVersion(protocolVersion)
+  // URL format is `/positions/add/new?currencyA=...&currencyB=...&chain=...&fee=...&hook=...`.
+  // The version rides in `?protocolVersion=v3` rather than a path segment: the retired
+  // `/positions/create/:protocolVersion` redirects the segment into this param, so a deep link keeps
+  // the version it asked for instead of silently falling back to the v4 default below.
+  const initialInputs = useLiquidityUrlState()
+  const paramsProtocolVersion = parseRestProtocolVersion(initialInputs.protocolVersion ?? undefined)
 
   const autoSlippageTolerance = useLPSlippageValue({
     version: paramsProtocolVersion,
   })
-
-  const initialInputs = useLiquidityUrlState()
 
   if (initialInputs.loading) {
     return null

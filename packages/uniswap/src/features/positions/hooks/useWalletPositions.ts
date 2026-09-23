@@ -1,14 +1,17 @@
-import { ConnectError } from '@connectrpc/connect'
-import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query'
-import { ListPositionsResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import type { PartialMessage } from '@bufbuild/protobuf'
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { useEffect, useMemo } from 'react'
-import { useGetPositionsInfiniteQuery } from 'uniswap/src/data/apiClients/dataApiService/positions/getPositions'
-import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { parseRestPosition } from 'uniswap/src/features/positions/parseRestPosition'
+import type { PositionModifier, RangeStatus } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
+import {
+  PositionStatus as LiquidityPositionStatus,
+  PositionSortBy,
+} from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
+import type { UniverseChainId } from '@universe/chains'
+import { useMemo } from 'react'
+import { useLiquidityServiceWalletPositions } from 'uniswap/src/features/positions/hooks/useLiquidityServiceWalletPositions'
+import { usePositionModifier } from 'uniswap/src/features/positions/hooks/usePositionModifier'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
-import { usePositionVisibilityCheck } from 'uniswap/src/features/visibility/hooks/usePositionVisibilityCheck'
+import { getPositionKey } from 'uniswap/src/features/positions/utils'
+import { useEvent } from 'utilities/src/react/hooks'
 
 const DEFAULT_PROTOCOL_VERSIONS: ProtocolVersion[] = [ProtocolVersion.V2, ProtocolVersion.V3, ProtocolVersion.V4]
 const DEFAULT_STATUSES: PositionStatus[] = [PositionStatus.IN_RANGE, PositionStatus.OUT_OF_RANGE]
@@ -20,7 +23,10 @@ export interface UseWalletPositionsParams {
   chainIds?: UniverseChainId[]
   protocolVersions?: ProtocolVersion[]
   statuses?: PositionStatus[]
-  /** Whether the BE should include positions the user has marked hidden. Defaults to false. */
+  /**
+   * Whether hidden positions should be fetched too. Defaults to false. Enables a second hidden-only
+   * complement query (HIDDEN is not a valid request status), whose results land in `hiddenPositions`.
+   */
   includeHidden?: boolean
   /**
    * When true (default), follows `nextPageToken` until exhausted so the returned arrays
@@ -40,22 +46,66 @@ export interface UseWalletPositionsParams {
   /**
    * Optional polling interval (ms). When set, the query refetches on this interval; a refetch
    * re-fetches all currently-loaded pages. Polling only runs while the query is enabled and the
-   * document is foreground. Defaults to undefined (no polling) — preserving existing web behavior.
+   * document is foreground. Defaults to undefined (no polling).
    */
   pollInterval?: number
+  /**
+   * The exact statuses to request, sent straight through. When provided it takes precedence over
+   * `statuses`/`includeHidden` — callers with a native status filter (open/closed/hidden) pass it
+   * here so hidden is a status, not a side flag. When omitted, the request is derived from
+   * `statuses` + `includeHidden`.
+   */
+  liquidityRequestStatuses?: LiquidityPositionStatus[]
+  /** Server-side in/out-of-range refinement forwarded to the request. */
+  liquidityRangeStatuses?: RangeStatus[]
+  /** Spam-visibility + per-pool overrides forwarded to the GetWalletPositions request. */
+  liquidityModifier?: PartialMessage<PositionModifier>
+  /** Server-side sort forwarded to the GetWalletPositions request. */
+  liquiditySortBy?: PositionSortBy
+  liquidityAscending?: boolean
+  /** Server-side search substring forwarded to the GetWalletPositions request. */
+  liquiditySearch?: string
 }
 
-type ForwardedQueryState = Pick<
-  UseInfiniteQueryResult<InfiniteData<ListPositionsResponse>, ConnectError>,
-  | 'isLoading'
-  | 'isFetching'
-  | 'isFetchingNextPage'
-  | 'isPlaceholderData'
-  | 'hasNextPage'
-  | 'error'
-  | 'refetch'
-  | 'fetchNextPage'
->
+export const SORT_BY_USD_VALUE_DESC: Pick<UseWalletPositionsParams, 'liquiditySortBy' | 'liquidityAscending'> = {
+  liquiditySortBy: PositionSortBy.LIQUIDITY,
+  liquidityAscending: false,
+}
+
+// Derives the liquidity-service request statuses from the data-api status filter for generic callers
+// that don't supply a native status list. In/out-of-range both map to OPEN. Lifecycle only: the
+// service rejects HIDDEN as a request status — spam visibility travels in the request's modifier
+// (see the hidden-complement query in the hook body).
+function dataApiStatusesToRequestStatuses(statuses: PositionStatus[]): LiquidityPositionStatus[] {
+  const mapped = new Set<LiquidityPositionStatus>()
+  for (const status of statuses) {
+    if (status === PositionStatus.IN_RANGE || status === PositionStatus.OUT_OF_RANGE) {
+      mapped.add(LiquidityPositionStatus.OPEN)
+    } else if (status === PositionStatus.CLOSED) {
+      mapped.add(LiquidityPositionStatus.CLOSED)
+    }
+  }
+  // Never send an empty lifecycle set: the BE reads `statuses: []` as "no filter" (all statuses), so
+  // an input that maps to nothing (empty or UNSPECIFIED-only) would silently widen the query. Fall
+  // back to the explicit OPEN+CLOSED lifecycle instead.
+  if (mapped.size === 0) {
+    mapped.add(LiquidityPositionStatus.OPEN)
+    mapped.add(LiquidityPositionStatus.CLOSED)
+  }
+  return [...mapped]
+}
+
+// Matches the underlying liquidity-service GetWalletPositions query state.
+type ForwardedQueryState = {
+  isLoading: boolean
+  isFetching: boolean
+  isFetchingNextPage: boolean
+  isPlaceholderData: boolean
+  hasNextPage: boolean
+  error: Error | null
+  refetch: () => void
+  fetchNextPage: () => Promise<unknown>
+}
 
 export interface UseWalletPositionsResult extends ForwardedQueryState {
   /** Positions visible to the wallet after applying the Redux visibility check. */
@@ -78,9 +128,9 @@ export interface UseWalletPositionsResult extends ForwardedQueryState {
 }
 
 /**
- * Shared hook for fetching, parsing, and partitioning a wallet's liquidity positions.
- * Wraps `useGetPositionsInfiniteQuery` and auto-drains pages by default so consumers see
- * the wallet's complete position set without managing pagination themselves.
+ * Shared hook for fetching, parsing, and partitioning a wallet's liquidity positions from the
+ * liquidity-service `GetWalletPositions` endpoint. Auto-drains pages by default so consumers see the
+ * wallet's complete position set without managing pagination themselves.
  */
 export function useWalletPositions({
   account,
@@ -92,94 +142,104 @@ export function useWalletPositions({
   pageSize = DEFAULT_PAGE_SIZE,
   disabled = false,
   pollInterval,
+  liquidityRequestStatuses,
+  liquidityRangeStatuses,
+  liquidityModifier,
+  liquiditySortBy,
+  liquidityAscending,
+  liquiditySearch,
 }: UseWalletPositionsParams): UseWalletPositionsResult {
-  const { chains: defaultChains } = useEnabledChains()
-  const isPositionVisible = usePositionVisibilityCheck()
-
-  const skipQuery = !account || disabled
-
-  const {
-    data,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-    isPlaceholderData,
-    hasNextPage,
-    fetchNextPage,
-    refetch,
-    error,
-  } = useGetPositionsInfiniteQuery(
-    {
-      address: account,
-      chainIds: chainIds ?? defaultChains,
-      positionStatuses: statuses,
-      protocolVersions,
-      pageSize,
-      pageToken: '',
-      includeHidden,
-    },
-    { disabled: skipQuery, refetchInterval: pollInterval },
+  const requestStatuses = useMemo(
+    () => liquidityRequestStatuses ?? dataApiStatusesToRequestStatuses(statuses),
+    [liquidityRequestStatuses, statuses],
   )
 
-  // Auto-drain pages: keep firing fetchNextPage until hasNextPage flips false.
-  // Guarded against retry loops: if the last fetch errored, stop until the consumer
-  // refetches; if any fetch is in flight, wait for it to settle before queueing another.
-  useEffect(() => {
-    if (!autoFetchAllPages || skipQuery) {
-      return
-    }
-    if (error) {
-      return
-    }
-    if (hasNextPage && !isFetchingNextPage && !isFetching) {
-      fetchNextPage().catch(() => {
-        // Swallow - React Query surfaces errors via the query state; the error guard
-        // above prevents this effect from re-firing into a failing endpoint.
-      })
-    }
-  }, [autoFetchAllPages, skipQuery, hasNextPage, isFetchingNextPage, isFetching, error, fetchNextPage])
+  // Generic-caller (no explicit liquidityModifier) path mirrors web's contract usage: hidden is not a
+  // request status (the service rejects HIDDEN), it's the complement set selected by the modifier's
+  // `hiddenOnly` flag. The primary query fetches the visible set (spam excluded server-side, user
+  // overrides applied); when the caller asked for hidden positions too, a second query fetches the
+  // hidden-only complement and lands in `hiddenPositions`.
+  const visibleModifier = usePositionModifier({ includeHidden: false })
+  const hiddenOnlyModifier = usePositionModifier({ includeHidden: true })
+  const wantsHiddenComplement = includeHidden && liquidityModifier === undefined
 
-  const { positions, hiddenPositions, allPositions } = useMemo(() => {
-    const visible: PositionInfo[] = []
-    const hidden: PositionInfo[] = []
-    const all: PositionInfo[] = []
+  const sharedLiquidityRequest = {
+    account,
+    chainIds,
+    protocolVersions,
+    requestStatuses,
+    rangeStatuses: liquidityRangeStatuses,
+    sortBy: liquiditySortBy,
+    ascending: liquidityAscending,
+    search: liquiditySearch,
+    pageSize,
+    pollInterval,
+  }
 
-    const restPositions = data?.pages.flatMap((page) => page.positions) ?? []
-    for (const restPosition of restPositions) {
-      const parsed = parseRestPosition(restPosition)
-      if (!parsed) {
-        continue
-      }
-      all.push(parsed)
-      const isVisible = isPositionVisible({
-        poolId: parsed.poolId,
-        tokenId: parsed.tokenId,
-        chainId: parsed.chainId,
-        isFlaggedSpam: parsed.isHidden,
-      })
-      if (isVisible) {
-        visible.push(parsed)
-      } else {
-        hidden.push(parsed)
-      }
-    }
+  const liquidityServiceResult = useLiquidityServiceWalletPositions({
+    ...sharedLiquidityRequest,
+    modifier: liquidityModifier ?? visibleModifier,
+    autoFetchAllPages,
+    disabled,
+  })
 
-    return { positions: visible, hiddenPositions: hidden, allPositions: all }
-  }, [data?.pages, isPositionVisible])
+  // No user-hides gate here: the hidden set includes server spam flags the client can't know
+  // about, so gating on local visibility state would drop spam-only wallets' hidden section.
+  // Fully drained so the section is complete rather than page-bounded.
+  const hiddenComplementResult = useLiquidityServiceWalletPositions({
+    ...sharedLiquidityRequest,
+    modifier: hiddenOnlyModifier,
+    autoFetchAllPages: true,
+    disabled: disabled || !wantsHiddenComplement,
+  })
+
+  const refetchWithHiddenComplement = useEvent(() => {
+    liquidityServiceResult.refetch()
+    hiddenComplementResult.refetch()
+  })
+
+  // Merged arrays are memoized on the underlying (render-stable) arrays, not the result objects,
+  // so downstream position memos don't recompute on unrelated re-renders. Complement results are
+  // hidden by provenance — the server applies the include/exclude overrides, so the complement is
+  // exactly the hidden set — and its positions carry no spam marking (response status is
+  // lifecycle-only), so an isPositionVisible re-check would misfile them; don't add one.
+  // A visibility toggle refetches both queries, and mid-flight one side's placeholder can still
+  // hold a position the other side's fresh response now returns — keep the primary's copy, whose
+  // partition reflects the live Redux state.
+  const complementOnlyPositions = useMemo(() => {
+    const primaryKeys = new Set(liquidityServiceResult.allPositions.map(getPositionKey))
+    return hiddenComplementResult.allPositions.filter((position) => !primaryKeys.has(getPositionKey(position)))
+  }, [liquidityServiceResult.allPositions, hiddenComplementResult.allPositions])
+
+  const mergedHiddenPositions = useMemo(
+    () =>
+      [...liquidityServiceResult.hiddenPositions, ...complementOnlyPositions].sort(
+        (a, b) => (b.totalValueUsd ?? 0) - (a.totalValueUsd ?? 0),
+      ),
+    [liquidityServiceResult.hiddenPositions, complementOnlyPositions],
+  )
+  const mergedAllPositions = useMemo(
+    () => [...liquidityServiceResult.allPositions, ...complementOnlyPositions],
+    [liquidityServiceResult.allPositions, complementOnlyPositions],
+  )
+
+  // Fold the complement's first-load and error state in so a failing or in-flight complement isn't
+  // indistinguishable from a settled, empty hidden section — while keeping the primary's pagination
+  // semantics intact: isFetching (and hasNextPage/isFetchingNextPage) describe the visible list
+  // only, since OR-ing the complement's isFetching would pin the flag true through its full-page
+  // drain and stall `hasNextPage && !isFetching` load-more guards. The complement's error is also
+  // deferred until the primary has settled, so a secondary failure can't blank a still-loading list
+  // via the `!!error && !hasData` idiom.
+  if (!wantsHiddenComplement) {
+    return liquidityServiceResult
+  }
 
   return {
-    positions,
-    hiddenPositions,
-    allPositions,
-    pagesLoaded: data?.pages.length ?? 0,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-    isPlaceholderData,
-    hasNextPage,
-    hasData: data !== undefined,
-    error,
-    refetch,
-    fetchNextPage,
+    ...liquidityServiceResult,
+    hiddenPositions: mergedHiddenPositions,
+    allPositions: mergedAllPositions,
+    isLoading: liquidityServiceResult.isLoading || hiddenComplementResult.isLoading,
+    error: liquidityServiceResult.error ?? (liquidityServiceResult.hasData ? hiddenComplementResult.error : null),
+    refetch: refetchWithHiddenComplement,
   }
 }

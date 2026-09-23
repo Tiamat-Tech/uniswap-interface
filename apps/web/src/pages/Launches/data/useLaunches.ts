@@ -1,13 +1,13 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { LaunchesOrderBy, LaunchWindow, type Launch } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import { LaunchesOrderBy, LaunchWindow, type Launch } from '@uniswap/client-launches/dist/launches/v1/types_pb'
+import type { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import {
   getListLaunchesQueryOptions,
   type ListLaunchesParams,
 } from 'uniswap/src/data/apiClients/dataApiService/launches/queries'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useEvent } from 'utilities/src/react/hooks'
 
 export const LAUNCHES_API_PAGE_SIZE = 25
@@ -29,7 +29,7 @@ export interface UseLaunchesOptions {
 }
 
 /**
- * Paged launches feed for the launchpad-aggregator Launches surface (data-api v2 ListLaunches).
+ * Paged launches feed for the launchpad-aggregator Launches surface (launches.v1.LaunchService ListLaunches).
  * Filtering (launchpad + chains) and sorting are server-side; pagination is an infinite query
  * keyed by the request, so changing a filter or sort restarts from the first page.
  */

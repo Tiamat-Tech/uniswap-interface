@@ -1,7 +1,7 @@
 import { GasFeeResult } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { Warning, WarningAction, WarningLabel, WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useInsufficientNativeTokenWarning } from 'uniswap/src/features/transactions/components/InsufficientNativeTokenWarning/useInsufficientNativeTokenWarning'
 import { renderHookWithProviders } from 'uniswap/src/test/render'
 

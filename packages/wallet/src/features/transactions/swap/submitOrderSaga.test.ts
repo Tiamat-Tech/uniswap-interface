@@ -1,10 +1,10 @@
 import { Protocol } from '@uniswap/router-sdk'
 import { TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { testSaga } from 'redux-saga-test-plan'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { TradingApiClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
@@ -51,6 +51,7 @@ const baseSubmitOrderParams = {
   analytics: {
     routing: 'uniswap_x_v2',
     transactionOriginType: TransactionOriginType.Internal,
+    is_permissioned: undefined,
   },
   txId: '1',
   onSuccess: vi.fn(),
@@ -118,6 +119,7 @@ describe(submitUniswapXOrder, () => {
         .next()
         .call(sendAnalyticsEvent, WalletEventName.SwapSubmitted, {
           routing: 'uniswap_x_v2',
+          is_permissioned: undefined,
           order_hash: baseExpectedInitialOrderDetails.orderHash,
           transactionOriginType: TransactionOriginType.Internal,
           v2Used: false,
@@ -204,6 +206,7 @@ describe(submitUniswapXOrder, () => {
         .next()
         .call(sendAnalyticsEvent, WalletEventName.SwapSubmitted, {
           routing: 'uniswap_x_v2',
+          is_permissioned: undefined,
           order_hash: baseExpectedInitialOrderDetails.orderHash,
           transactionOriginType: TransactionOriginType.Internal,
           v2Used: false,
@@ -284,6 +287,7 @@ describe(submitUniswapXOrder, () => {
         .next()
         .call(sendAnalyticsEvent, WalletEventName.SwapSubmitted, {
           routing: 'uniswap_x_v2',
+          is_permissioned: undefined,
           order_hash: baseExpectedInitialOrderDetails.orderHash,
           transactionOriginType: TransactionOriginType.Internal,
           v2Used: false,

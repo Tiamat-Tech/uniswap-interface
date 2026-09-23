@@ -1,20 +1,21 @@
 import { Currency, CurrencyAmount, Price } from '@uniswap/sdk-core'
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
 import JSBI from 'jsbi'
 import { useCallback, useMemo, useState } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { ArrowDownArrowUp } from 'ui/src/components/icons/ArrowDownArrowUp'
-import { iconSizes } from 'ui/src/theme'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { LIMIT_SUPPORTED_CHAINS } from 'uniswap/src/features/chains/chainInfo'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
+import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { SwapTab } from 'uniswap/src/types/screens/interface'
+import { currencyId } from 'uniswap/src/utils/currencyId'
 // oxlint-disable-next-line no-restricted-imports -- We need to import this directly so we can format with `en-US` locale
 import { formatCurrencyAmount as formatCurrencyAmountRaw } from 'utilities/src/format/localeBased'
 import { NumberType } from 'utilities/src/format/types'
 import { isSafeNumber } from 'utilities/src/primitives/integer'
 import { parseUnits } from '~/chains'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
 import { SwapCurrencyInput } from '~/components/NumericalInput/NumericalInput'
 import { CurrencySearchModal } from '~/components/SearchModal/CurrencySearchModal'
 import {
@@ -69,6 +70,7 @@ export function LimitPriceInputPanel({ onCurrencySelect }: LimitPriceInputPanelP
   const [baseCurrency, quoteCurrency, marketPrice] = limitPriceInverted
     ? [outputCurrency, inputCurrency, tradeMarketPrice?.invert()]
     : [inputCurrency, outputCurrency, tradeMarketPrice]
+  const quoteCurrencyInfo = useCurrencyInfo(currencyId(quoteCurrency))
 
   const { formatCurrencyAmount } = useLocalizationContext()
 
@@ -199,7 +201,6 @@ export function LimitPriceInputPanel({ onCurrencySelect }: LimitPriceInputPanelP
         <Flex row flexGrow={1} alignItems="center" width="100%">
           <SwapCurrencyInput
             disabled={!(baseCurrency && quoteCurrency)}
-            className="limit-price-input"
             value={formattedLimitPriceOutputAmount}
             onUserInput={changeLimitPrice}
           />
@@ -217,7 +218,7 @@ export function LimitPriceInputPanel({ onCurrencySelect }: LimitPriceInputPanelP
                   minWidth={0}
                   maxWidth="100%"
                 >
-                  <CurrencyLogo currency={quoteCurrency} size={iconSizes.icon16} />
+                  <CurrencyLogo currencyInfo={quoteCurrencyInfo} size={iconSizes.icon16} />
                   <Text
                     variant="body2"
                     color="$neutral1"
@@ -247,7 +248,7 @@ export function LimitPriceInputPanel({ onCurrencySelect }: LimitPriceInputPanelP
                 }
                 return currentPriceAdjustment
               })()}
-              disabled={!baseCurrency || !quoteCurrency}
+              disabled={!baseCurrency || !quoteCurrency || !marketPrice}
               selected={Boolean(currentPriceAdjustment !== undefined && !presets.includes(currentPriceAdjustment))}
               onSelect={() => onSelectLimitPrice(marketPrice, 0)}
             />

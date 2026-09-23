@@ -1,26 +1,27 @@
+import { Flex, Text, type TextCompatProps } from '@universe/mycelium'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router'
-import { Flex, Popover, styled, Text } from 'ui/src'
+import { Popover } from 'ui/src'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { NavDropdown, NavDropdownTabWrapper } from '~/components/NavBar/NavDropdown/index'
 import { TabsItem, TabsSection, useTabsContent } from '~/components/NavBar/Tabs/TabsContent'
 
-const TabText = styled(Text, {
-  justifyContent: 'center',
-  alignItems: 'center',
-  m: '$padding8',
-  gap: '$gap4',
-  cursor: 'pointer',
-  userSelect: 'none',
-  color: '$neutral2',
-  hoverStyle: { color: '$neutral1' },
-  variants: {
-    isActive: {
-      true: { color: '$neutral1' },
-    },
-  },
-})
+function TabText({ isActive, hoverStyle, ...rest }: TextCompatProps & { isActive?: boolean }): JSX.Element {
+  return (
+    <Text
+      justifyContent="center"
+      alignItems="center"
+      m="$padding8"
+      gap="$gap4"
+      cursor="pointer"
+      userSelect="none"
+      color={isActive ? '$neutral1' : '$neutral2'}
+      hoverStyle={{ color: '$neutral1', ...hoverStyle }}
+      {...rest}
+    />
+  )
+}
 
 interface TItemProps {
   icon?: JSX.Element

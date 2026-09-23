@@ -6,6 +6,11 @@ import { useFiatTokenConversion } from 'uniswap/src/features/transactions/hooks/
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import { useEvent } from 'utilities/src/react/hooks'
 import { priceToQ96WithDecimals, q96ToPriceString } from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
+import {
+  capTokenDisplayValue,
+  computeBidMaxPriceQ96,
+  snapTokenDisplayValue,
+} from '~/features/Toucan/Auction/utils/bidMaxPrice'
 import { evaluateMaxPrice, type MinValuationErrorDetails } from '~/features/Toucan/Auction/utils/evaluateMaxPrice'
 import { snapToNearestTick } from '~/features/Toucan/Auction/utils/ticks'
 import { tryParseCurrencyAmount } from '~/lib/utils/tryParseCurrencyAmount'
@@ -22,6 +27,8 @@ export interface MaxValuationFieldState {
   bidTokenSymbol: string
   error?: string
   errorDetails?: MinValuationErrorDetails
+  /** The last entry asked for more than the ceiling allows and was capped to it. */
+  wasCappedToMax: boolean
   isFiatMode: boolean
   onChange: (amount: string) => void
   onTokenValueChange: (amount: string) => void
@@ -42,6 +49,9 @@ interface UseBidMaxValuationFieldParams {
   floorPriceQ96: bigint | undefined
   tickSizeQ96: bigint | undefined
   minMaxPriceQ96: bigint | undefined
+  /** The auction's bid price ceiling, when a validation hook imposes one. */
+  maxBidPriceQ96?: bigint
+  /** The minimum valid bid, formatted for the below-minimum error copy. */
   minValidPriceDisplay: string | undefined
   minValidPriceDisplayFormatted: string | undefined
   defaultMaxValuationDisplay: string
@@ -59,6 +69,7 @@ export function useBidMaxValuationField({
   floorPriceQ96,
   tickSizeQ96,
   minMaxPriceQ96,
+  maxBidPriceQ96,
   minValidPriceDisplay,
   minValidPriceDisplayFormatted,
   defaultMaxValuationDisplay,
@@ -66,11 +77,17 @@ export function useBidMaxValuationField({
 }: UseBidMaxValuationFieldParams) {
   const { t } = useTranslation()
 
+  const parseRawBidTokenAmount = useEvent((value: string): bigint | undefined => {
+    const amount = tryParseCurrencyAmount(value, bidCurrency)
+    return amount ? BigInt(amount.quotient.toString()) : undefined
+  })
+
   const [exactMaxValuationAmountToken, setExactMaxValuationAmountToken] = useState('')
   const [exactMaxValuationAmountFiat, setExactMaxValuationAmountFiat] = useState('')
   const [isMaxValuationFiatMode, setIsMaxValuationFiatMode] = useState(false)
   const [maxPriceError, setMaxPriceError] = useState<string | undefined>()
   const [maxPriceErrorDetails, setMaxPriceErrorDetails] = useState<MinValuationErrorDetails | undefined>()
+  const [wasCappedToMax, setWasCappedToMax] = useState(false)
   // Q96 stored directly from slider to avoid precision loss in Q96→string→Q96 roundtrips
   const [tokenPriceQ96, setTokenPriceQ96] = useState<bigint | undefined>(undefined)
 
@@ -112,17 +129,18 @@ export function useBidMaxValuationField({
         bidTokenDecimals !== undefined &&
         auctionTokenDecimals !== undefined
       ) {
-        const tokenAmount = tryParseCurrencyAmount(converted, bidCurrency)
-        const rawAmount = tokenAmount ? BigInt(tokenAmount.quotient.toString()) : 0n
-        if (rawAmount > 0n) {
-          const tokenQ96 = priceToQ96WithDecimals({ priceRaw: rawAmount, auctionTokenDecimals })
-          const snappedQ96 = snapToNearestTick({
-            value: tokenQ96,
-            floorPrice: floorPriceQ96,
-            clearingPrice: clearingPriceQ96,
-            tickSize: tickSizeQ96,
-          })
-          snappedTokenValue = q96ToPriceString({ q96Value: snappedQ96, bidTokenDecimals, auctionTokenDecimals })
+        const snapped = snapTokenDisplayValue({
+          tokenValue: converted,
+          bidTokenDecimals,
+          auctionTokenDecimals,
+          clearingPriceQ96,
+          floorPriceQ96,
+          tickSizeQ96,
+          maxBidPriceQ96,
+          parseRawAmount: parseRawBidTokenAmount,
+        })
+        if (snapped !== undefined) {
+          snappedTokenValue = snapped
         }
       }
       if (snappedTokenValue !== exactMaxValuationAmountToken) {
@@ -150,8 +168,10 @@ export function useBidMaxValuationField({
     clearingPriceQ96,
     floorPriceQ96,
     tickSizeQ96,
+    maxBidPriceQ96,
     bidTokenDecimals,
     auctionTokenDecimals,
+    parseRawBidTokenAmount,
   ])
 
   // Use slider's stored Q96 when available (full precision), otherwise derive from string
@@ -171,32 +191,18 @@ export function useBidMaxValuationField({
 
   const maxPriceAmountIsZero = maxValuationCurrencyAmount?.equalTo(0) ?? true
 
-  const maxPriceQ96 = useMemo(() => {
-    if (!maxValuationCurrencyAmount || bidTokenDecimals === undefined || auctionTokenDecimals === undefined) {
-      return undefined
-    }
-
-    const rawAmount = BigInt(maxValuationCurrencyAmount.quotient.toString())
-    if (rawAmount === 0n) {
-      return 0n
-    }
-
-    const unsnappedQ96 = priceToQ96WithDecimals({ priceRaw: rawAmount, auctionTokenDecimals })
-
-    // Snap to the nearest valid tick to handle precision loss from decimal round-trips
-    // This ensures that clicking on a tick in the chart results in exactly that tick,
-    // even after going through decimal string → currency amount → Q96 conversions
-    if (clearingPriceQ96 && floorPriceQ96 && tickSizeQ96) {
-      return snapToNearestTick({
-        value: unsnappedQ96,
-        floorPrice: floorPriceQ96,
-        clearingPrice: clearingPriceQ96,
-        tickSize: tickSizeQ96,
-      })
-    }
-
-    return unsnappedQ96
-  }, [maxValuationCurrencyAmount, bidTokenDecimals, auctionTokenDecimals, clearingPriceQ96, floorPriceQ96, tickSizeQ96])
+  const maxPriceQ96 = useMemo(
+    () =>
+      computeBidMaxPriceQ96({
+        rawAmount: maxValuationCurrencyAmount ? BigInt(maxValuationCurrencyAmount.quotient.toString()) : undefined,
+        auctionTokenDecimals,
+        clearingPriceQ96,
+        floorPriceQ96,
+        tickSizeQ96,
+        maxBidPriceQ96,
+      }),
+    [maxValuationCurrencyAmount, auctionTokenDecimals, clearingPriceQ96, floorPriceQ96, tickSizeQ96, maxBidPriceQ96],
+  )
 
   const isMaxPriceBelowMinimum = useMemo(() => {
     if (!maxPriceQ96 || !minMaxPriceQ96) {
@@ -254,6 +260,7 @@ export function useBidMaxValuationField({
   }, [snappedTokenValue, bidTokenToFiat, exactMaxValuationAmountFiat])
 
   const handleMaxValuationChange = useEvent((amount: string) => {
+    setWasCappedToMax(false)
     setDisplayValueOverride(amount)
     setTokenPriceQ96(undefined)
 
@@ -285,7 +292,22 @@ export function useBidMaxValuationField({
   // Used by chart clicks which always work in token units
   const handleTokenValueChange = useEvent((amount: string) => {
     setDisplayValueOverride(null)
-    setExactMaxValuationAmountToken(amount)
+
+    // This path suppresses the blur snap, so a charted tick above the ceiling would stay
+    // in the field and be bid at a price other than the one it shows.
+    const { value: nextAmount, cappedToMax } = capTokenDisplayValue({
+      tokenValue: amount,
+      bidTokenDecimals,
+      auctionTokenDecimals,
+      clearingPriceQ96,
+      floorPriceQ96,
+      tickSizeQ96,
+      maxBidPriceQ96,
+      parseRawAmount: parseRawBidTokenAmount,
+    })
+
+    setWasCappedToMax(cappedToMax)
+    setExactMaxValuationAmountToken(nextAmount)
     setTokenPriceQ96(undefined)
 
     // Skip the next blur snap since chart values are already correctly snapped
@@ -294,7 +316,7 @@ export function useBidMaxValuationField({
     skipBlurSnapRef.current = true
 
     if (isMaxValuationFiatMode) {
-      const fiatAmountFormatted = bidTokenToFiat(amount)
+      const fiatAmountFormatted = bidTokenToFiat(nextAmount)
       setExactMaxValuationAmountFiat(fiatAmountFormatted ?? '')
     }
 
@@ -309,6 +331,7 @@ export function useBidMaxValuationField({
       return
     }
 
+    setWasCappedToMax(false)
     setTokenPriceQ96(q96)
     const displayValue = q96ToPriceString({ q96Value: q96, bidTokenDecimals, auctionTokenDecimals })
     setDisplayValueOverride(null)
@@ -338,20 +361,18 @@ export function useBidMaxValuationField({
       floorPriceQ96 &&
       tickSizeQ96
     ) {
-      const currencyAmount = tryParseCurrencyAmount(exactMaxValuationAmountToken, bidCurrency)
-      if (currencyAmount) {
-        const rawAmount = BigInt(currencyAmount.quotient.toString())
-        if (rawAmount > 0n) {
-          const inputQ96 = priceToQ96WithDecimals({ priceRaw: rawAmount, auctionTokenDecimals })
-          const snappedQ96 = snapToNearestTick({
-            value: inputQ96,
-            floorPrice: floorPriceQ96,
-            clearingPrice: clearingPriceQ96,
-            tickSize: tickSizeQ96,
-          })
-          const snappedDisplayValue = q96ToPriceString({ q96Value: snappedQ96, bidTokenDecimals, auctionTokenDecimals })
-          setExactMaxValuationAmountToken(snappedDisplayValue)
-        }
+      const snappedDisplayValue = snapTokenDisplayValue({
+        tokenValue: exactMaxValuationAmountToken,
+        bidTokenDecimals,
+        auctionTokenDecimals,
+        clearingPriceQ96,
+        floorPriceQ96,
+        tickSizeQ96,
+        maxBidPriceQ96,
+        parseRawAmount: parseRawBidTokenAmount,
+      })
+      if (snappedDisplayValue !== undefined) {
+        setExactMaxValuationAmountToken(snappedDisplayValue)
       }
     }
 
@@ -373,9 +394,10 @@ export function useBidMaxValuationField({
       minMaxPriceQ96,
       minValidPriceDisplay,
       minValidPriceDisplayFormatted,
+      maxBidPriceQ96,
       bidTokenSymbol,
       shouldAutoCorrectMin: options?.shouldAutoCorrectMin,
-      formatError: ({ value, symbol }) => t('toucan.bidForm.minValuationError', { value, symbol }),
+      formatMinError: ({ value, symbol }) => t('toucan.bidForm.minValuationError', { value, symbol }),
     }),
   )
 
@@ -389,7 +411,8 @@ export function useBidMaxValuationField({
       return
     }
 
-    const { sanitizedDisplayValue, error, errorDetails } = evaluateMaxPriceFn()
+    const { sanitizedDisplayValue, error, errorDetails, cappedToMax } = evaluateMaxPriceFn()
+    setWasCappedToMax(!!cappedToMax)
 
     if (error) {
       setMaxPriceError(error)
@@ -412,6 +435,7 @@ export function useBidMaxValuationField({
   })
 
   const resetMaxValuationField = useEvent(() => {
+    setWasCappedToMax(false)
     setDisplayValueOverride(null)
     setMaxPriceError(undefined)
     setMaxPriceErrorDetails(undefined)
@@ -453,6 +477,7 @@ export function useBidMaxValuationField({
       bidTokenSymbol,
       error: maxPriceError,
       errorDetails: maxPriceErrorDetails,
+      wasCappedToMax,
       isFiatMode: isMaxValuationFiatMode,
       onChange: handleMaxValuationChange,
       onTokenValueChange: handleTokenValueChange,

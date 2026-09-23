@@ -108,6 +108,14 @@ export function isChained<T extends { routing: TradingApi.Routing }>(
   return obj.routing === TradingApi.Routing.CHAINED
 }
 
+/**
+ * True for a plain token-for-token swap. Bridge and wrap/unwrap flows reuse the swap screens but
+ * must not surface swap-only details (swap fee, routing, slippage).
+ */
+export function isSwapRouting(obj: { routing: TradingApi.Routing }): boolean {
+  return !isBridge(obj) && !isWrap(obj)
+}
+
 export function isChainedQuoteResponse(
   quote: { routing: TradingApi.Routing } | undefined | null,
 ): quote is ChainedQuoteResponse {
@@ -191,9 +199,18 @@ export function planStepTypeToTradingRoute(stepType: TradingApi.PlanStepType): E
       return TradingApi.Routing.UNWRAP
     case TradingApi.PlanStepType.LIMIT_ORDER:
       return TradingApi.Routing.LIMIT_ORDER
+    // Margin steps have no dedicated Routing value (like vault steps) — they're chained-plan steps.
+    // MARGIN_RECOVER stays mapped so the function is total over the enum; the FE surfaces no recover
+    // action, but a plan could still carry a recover step and must not throw here.
     case TradingApi.PlanStepType.CHAINED:
     case TradingApi.PlanStepType.VAULT_DEPOSIT:
     case TradingApi.PlanStepType.VAULT_WITHDRAW:
+    case TradingApi.PlanStepType.MARGIN_PRE_SWAP:
+    case TradingApi.PlanStepType.MARGIN_OPEN:
+    case TradingApi.PlanStepType.MARGIN_CLOSE:
+    case TradingApi.PlanStepType.MARGIN_BRIDGE:
+    case TradingApi.PlanStepType.MARGIN_ADJUST:
+    case TradingApi.PlanStepType.MARGIN_RECOVER:
       return TradingApi.Routing.CHAINED
     default:
       throw new Error(`planStepTypeToTradingRoute: Unknown step type: ${stepType}`)

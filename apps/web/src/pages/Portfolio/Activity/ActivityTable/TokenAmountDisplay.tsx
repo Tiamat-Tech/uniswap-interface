@@ -1,12 +1,11 @@
 import { Token as SDKToken } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
+import { Flex, Text } from '@universe/mycelium'
 import { memo, useMemo } from 'react'
-import { Flex, Text } from 'ui/src'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { isUniverseChainId, toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
-import { TokenHoverCard } from '~/components/TokenHoverCard/TokenHoverCard'
+import { TokenHoverCard, type TokenHoverCardToken } from '~/components/HoverCard/TokenHoverCard/TokenHoverCard'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 
 interface TokenAmountDisplayProps {
@@ -16,8 +15,7 @@ interface TokenAmountDisplayProps {
 }
 
 function TokenAmountDisplayInner({ currencyInfo, formattedAmount, usdValue }: TokenAmountDisplayProps) {
-  // TokenHoverCard needs only chain + address; gqlToCurrency handles the rest internally
-  const token = useMemo((): GraphQLApi.Token | undefined => {
+  const token = useMemo((): TokenHoverCardToken | undefined => {
     if (!currencyInfo) {
       return undefined
     }
@@ -28,7 +26,7 @@ function TokenAmountDisplayInner({ currencyInfo, formattedAmount, usdValue }: To
     return {
       chain: toGraphQLChain(currency.chainId),
       address: currency.isNative ? NATIVE_CHAIN_ID : (currency as SDKToken).address,
-    } as unknown as GraphQLApi.Token
+    }
   }, [currencyInfo])
 
   if (!currencyInfo || !formattedAmount) {
@@ -38,7 +36,7 @@ function TokenAmountDisplayInner({ currencyInfo, formattedAmount, usdValue }: To
   const content = (
     <Flex row alignItems="center" gap="$gap8">
       <CurrencyLogo currencyInfo={currencyInfo} size={32} />
-      <Flex gap="$gap2">
+      <Flex gap="$spacing2">
         <Text variant="body3" fontWeight="500">
           {formattedAmount}
         </Text>

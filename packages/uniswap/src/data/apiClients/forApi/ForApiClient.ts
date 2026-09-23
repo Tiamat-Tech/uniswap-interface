@@ -31,7 +31,6 @@ const ForApiFetchClient = createFetchClient({
   getSessionService: () =>
     provideSessionService({
       getBaseUrl: () => getUniswapServiceUrls(config).forApiUrl,
-      getIsSessionServiceEnabled: () => true,
     }),
   getSession: tryProvideSession,
   source: SessionGateSource.FetchFor,

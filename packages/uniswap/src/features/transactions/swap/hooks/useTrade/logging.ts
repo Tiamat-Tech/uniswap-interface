@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { TradeType } from '@uniswap/sdk-core'
 import { FetchError } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { getIsPermissionedForAnalytics } from 'uniswap/src/features/permissionedTokens/getIsPermissionedForAnalytics'
 import { getDisplayedPriceSource, type PriceSourceTag } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 import { SwapEventName } from 'uniswap/src/features/telemetry/constants/features'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -49,6 +49,7 @@ function getSwapQuoteFailedAnalyticsProperties(params: {
     token_out_symbol: outputCurrency.symbol,
     token_in_address: getCurrencyAddressForAnalytics(inputCurrency),
     token_out_address: getCurrencyAddressForAnalytics(outputCurrency),
+    is_permissioned: getIsPermissionedForAnalytics([inputCurrency, outputCurrency]),
     chain_id: inputCurrency.chainId,
     chain_id_in: inputCurrency.chainId,
     chain_id_out: outputCurrency.chainId,
@@ -70,7 +71,6 @@ function useSendSwapQuoteFailureAnalyticsEvent(): (params: {
   args: UseTradeArgs
 }) => void {
   const trace = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const queryClient = useQueryClient()
 
   return useEvent((params: { error: Error; trade?: Trade; args: UseTradeArgs }) => {
@@ -78,8 +78,6 @@ function useSendSwapQuoteFailureAnalyticsEvent(): (params: {
     const inputCurrency = isExactIn ? params.args.amountSpecified?.currency : params.args.otherCurrency
     const priceSource = inputCurrency
       ? getDisplayedPriceSource({
-          isCentralizedPricesEnabled,
-          surface: 'usdc',
           chainId: inputCurrency.chainId,
           address: getCurrencyAddressForAnalytics(inputCurrency),
           queryClient,

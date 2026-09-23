@@ -1,20 +1,15 @@
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import type { AppStackScreenProp } from 'src/app/navigation/types'
 import { PositionDetailsScreen } from 'src/screens/PositionDetailsScreen/PositionDetailsScreen'
 import { render, screen } from 'src/test/test-utils'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
 
-const mockUseGetPositionQuery = vi.fn()
-vi.mock('uniswap/src/data/apiClients/dataApiService/positions/getPosition', () => ({
-  useGetPositionQuery: () => mockUseGetPositionQuery(),
-}))
-
-const mockParseRestPosition = vi.fn()
-vi.mock('uniswap/src/features/positions/parseRestPosition', () => ({
-  parseRestPosition: () => mockParseRestPosition(),
+const mockUseGetPositionInfo = vi.fn()
+vi.mock('uniswap/src/features/positions/hooks/useGetPositionInfo', () => ({
+  useGetPositionInfo: () => mockUseGetPositionInfo(),
 }))
 
 vi.mock('uniswap/src/features/positions/hooks/usePriceRangeUsd', () => ({
@@ -34,7 +29,8 @@ vi.mock('uniswap/src/features/language/LocalizationContext', () => ({
 }))
 
 vi.mock('wallet/src/features/wallet/hooks', () => ({
-  useActiveAccountAddressWithThrow: () => '0xowner',
+  useActiveAccountAddressWithThrow: (): string => '0xowner',
+  useIsViewOnlyWallet: (): boolean => false,
 }))
 
 vi.mock('uniswap/src/hooks/useAppInsets', () => ({
@@ -44,7 +40,7 @@ vi.mock('uniswap/src/hooks/useAppInsets', () => ({
 // Keep the test focused on the screen's section-branching logic by stubbing children
 // and the surrounding layout/telemetry chrome with identifiable markers.
 vi.mock('src/components/layout/screens/ScreenWithHeader', async () => {
-  const { Flex } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Flex } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     ScreenWithHeader: ({ children, rightElement }: { children: React.ReactNode; rightElement?: React.ReactNode }) => (
       <Flex>
@@ -61,7 +57,7 @@ vi.mock('uniswap/src/features/telemetry/Trace', () => ({
 }))
 
 vi.mock('src/screens/PositionDetailsScreen/components/PositionDetailsMenu', async () => {
-  const { Flex } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Flex } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return { PositionDetailsMenu: () => <Flex testID="position-details-menu" /> }
 })
 
@@ -70,7 +66,7 @@ vi.mock('src/screens/PositionDetailsScreen/components/PositionDetailsHero', () =
 }))
 
 vi.mock('src/screens/PositionDetailsScreen/components/PositionDetailsStats', async () => {
-  const { Flex } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Flex } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     PositionDetailsStats: ({ isV2 }: { isV2: boolean }) => (
       <Flex testID={isV2 ? 'stats-full-range' : 'stats-concentrated'} />
@@ -79,12 +75,12 @@ vi.mock('src/screens/PositionDetailsScreen/components/PositionDetailsStats', asy
 })
 
 vi.mock('src/screens/PositionDetailsScreen/components/PositionFeesUnavailable', async () => {
-  const { Flex } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Flex } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return { PositionFeesUnavailable: () => <Flex testID="fees-unavailable" /> }
 })
 
 vi.mock('src/screens/PositionDetailsScreen/components/PositionTokenBreakdown', async () => {
-  const { Flex } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Flex } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     PositionTokenBreakdown: ({ label, amount0, amount1 }: { label: string; amount0?: unknown; amount1?: unknown }) => {
       // i18n is key-echo mocked, so map the translation keys to the old slug names
@@ -123,8 +119,7 @@ function renderScreen(
   positionInfo: PositionInfo | undefined,
   { isLoading = false, owner }: { isLoading?: boolean; owner?: string } = {},
 ): void {
-  mockUseGetPositionQuery.mockReturnValue({ data: { position: {} }, isLoading })
-  mockParseRestPosition.mockReturnValue(positionInfo)
+  mockUseGetPositionInfo.mockReturnValue({ positionInfo, isLoading, refetch: vi.fn() })
 
   const props = {
     route: {

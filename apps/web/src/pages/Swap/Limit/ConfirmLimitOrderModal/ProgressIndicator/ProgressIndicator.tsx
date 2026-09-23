@@ -1,13 +1,16 @@
+import { Flex } from '@universe/mycelium'
+import { Sign } from '@universe/mycelium/icons/Sign'
+import { Swap } from '@universe/mycelium/icons/Swap'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, useSporeColors } from 'ui/src'
-import { Sign } from 'ui/src/components/icons/Sign'
-import { Swap } from 'ui/src/components/icons/Swap'
 import { DEP_accentColors } from 'ui/src/theme'
 import { StepStatus } from 'uniswap/src/components/ConfirmSwapModal/types'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
+import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
+import { currencyId } from 'uniswap/src/utils/currencyId'
 import { useAccount } from '~/hooks/useAccount'
 import { useColor } from '~/hooks/useColor'
 import { useNativeCurrency } from '~/lib/hooks/useNativeCurrency'
@@ -108,6 +111,8 @@ export function ProgressIndicator({
     }
   }, [onRetryUniswapXSignature, signatureExpiredErrorId, limitOrderError])
 
+  const inputCurrencyInfo = useCurrencyInfo(currencyId(trade?.inputAmount.currency))
+
   function getStatus(targetStep: ProgressIndicatorStep) {
     const currentIndex = steps.indexOf(currentStep)
     const targetIndex = steps.indexOf(targetStep)
@@ -123,7 +128,7 @@ export function ProgressIndicator({
   const stepDetails: Record<ProgressIndicatorStep, StepDetails> = useMemo(
     () => ({
       [ConfirmModalState.WRAPPING]: {
-        icon: <CurrencyLogo currency={trade?.inputAmount.currency} size={ICON_SIZE} />,
+        icon: <CurrencyLogo currencyInfo={inputCurrencyInfo} size={ICON_SIZE} />,
         rippleColor: inputTokenColor,
         previewTitle: t('common.wrap', { symbol: nativeCurrency.symbol ?? t('common.token') }),
         actionRequiredTitle: t('common.wrapIn', { symbol: nativeCurrency.symbol ?? t('common.token') }),
@@ -132,7 +137,7 @@ export function ProgressIndicator({
         learnMoreLinkHref: UniswapHelpUrls.articles.wethExplainer,
       },
       [ConfirmModalState.RESETTING_TOKEN_ALLOWANCE]: {
-        icon: <CurrencyLogo currency={trade?.inputAmount.currency} size={ICON_SIZE} />,
+        icon: <CurrencyLogo currencyInfo={inputCurrencyInfo} size={ICON_SIZE} />,
         rippleColor: inputTokenColor,
         previewTitle: t('common.resetLimit', { symbol: trade?.inputAmount.currency.symbol ?? t('common.token') }),
         actionRequiredTitle: t('common.resetLimitWallet', {
@@ -143,7 +148,7 @@ export function ProgressIndicator({
         }),
       },
       [ConfirmModalState.APPROVING_TOKEN]: {
-        icon: <CurrencyLogo currency={trade?.inputAmount.currency} size={ICON_SIZE} />,
+        icon: <CurrencyLogo currencyInfo={inputCurrencyInfo} size={ICON_SIZE} />,
         rippleColor: inputTokenColor,
         previewTitle: t('common.approveSpend', { symbol: trade?.inputAmount.currency.symbol ?? t('common.token') }),
         actionRequiredTitle: t('common.wallet.approve'),
@@ -183,7 +188,7 @@ export function ProgressIndicator({
           : UniswapHelpUrls.articles.howToSwapTokens,
       },
     }),
-    [trade, inputTokenColor, t, nativeCurrency.symbol, colors],
+    [trade, inputCurrencyInfo, inputTokenColor, t, nativeCurrency.symbol, colors],
   )
 
   if (steps.length === 0) {

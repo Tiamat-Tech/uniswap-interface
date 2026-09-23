@@ -1,18 +1,20 @@
+import { UniverseChainId } from '@universe/chains'
 import { isExtensionApp } from '@universe/environment'
+import { TouchableArea } from '@universe/mycelium'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { memo, PropsWithChildren, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { TouchableArea, useMedia } from 'ui/src'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { ContextMenu } from 'uniswap/src/components/menus/ContextMenu'
 import type { MenuOptionItemWithId } from 'uniswap/src/components/menus/ContextMenu'
 import { MENU_CONTENT_SHEET_CONTAINER_STYLES, MenuContent } from 'uniswap/src/components/menus/ContextMenuContent'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
 import { MultichainAddressTransitionPanel } from 'uniswap/src/components/MultichainTokenDetails/MultichainAddressTransitionPanel'
+import { MultichainContextMenuExpandContent } from 'uniswap/src/components/MultichainTokenDetails/MultichainContextMenuExpandContent'
 import { useMultichainAddressViewState } from 'uniswap/src/components/MultichainTokenDetails/useMultichainAddressViewState'
 import { useOrderedMultichainEntries } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
 import type { TokenBalanceItemContextMenuProps } from 'uniswap/src/components/portfolio/TokenBalanceItem/TokenBalanceItemContextMenu'
 import { COPY_CLOSE_DELAY } from 'uniswap/src/constants/misc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TokenList, type CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import {
   TokenMenuActionType,
@@ -130,31 +132,45 @@ export const TokensMultichainParentContextMenu = memo(function TokensMultichainP
   )
 
   const contentOverride = useMemo(
-    () => (
-      <MultichainAddressTransitionPanel
-        viewIndex={viewIndex}
-        animationType={animationType}
-        orderedEntries={orderedEntries}
-        title={t('common.copy.address')}
-        onCopyAddress={onCopyMultichainAddress}
-        onBack={goBack}
-      >
-        <MenuContent
-          trackItemClicks
-          items={menuActions}
+    () =>
+      isSheet ? (
+        <MultichainAddressTransitionPanel
+          viewIndex={viewIndex}
+          animationType={animationType}
+          orderedEntries={orderedEntries}
+          title={t('common.copy.address')}
+          onCopyAddress={onCopyMultichainAddress}
+          onBack={goBack}
+        >
+          <MenuContent
+            trackItemClicks
+            items={menuActions}
+            handleCloseMenu={handleContentClose}
+            elementName={ElementName.PortfolioTokenContextMenu}
+            sectionName={SectionName.PortfolioTokensTab}
+            containerStyles={MENU_CONTENT_SHEET_CONTAINER_STYLES}
+          />
+        </MultichainAddressTransitionPanel>
+      ) : (
+        <MultichainContextMenuExpandContent
+          viewIndex={viewIndex}
+          menuItems={menuActions}
+          orderedEntries={orderedEntries}
+          title={t('common.copy.address')}
           handleCloseMenu={handleContentClose}
+          trackItemClicks
           elementName={ElementName.PortfolioTokenContextMenu}
           sectionName={SectionName.PortfolioTokensTab}
-          containerStyles={isSheet ? MENU_CONTENT_SHEET_CONTAINER_STYLES : undefined}
+          onBack={goBack}
+          onCopyAddress={onCopyMultichainAddress}
         />
-      </MultichainAddressTransitionPanel>
-    ),
+      ),
     [
+      isSheet,
       viewIndex,
       animationType,
       menuActions,
       handleContentClose,
-      isSheet,
       orderedEntries,
       onCopyMultichainAddress,
       goBack,

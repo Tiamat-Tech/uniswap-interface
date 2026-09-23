@@ -13,9 +13,14 @@ import { assertNotHandwritten } from './handwritten-icons'
 // Plain-React port of packages/ui/src/scripts/componentize-icons.ts (INFRA-2956).
 // Consumes the SAME SVG sources (packages/ui/src/assets/icons) and generates
 // .tsx components into src/components/icons under the SAME export names, but
-// emits plain DOM <svg> elements instead of react-native-svg components.
-// Re-exports hand-written icons in components/icons without a matching SVG
-// (does not create or overwrite hand-written .tsx files).
+// emits platform-agnostic markup: capitalized host components imported from
+// `../factories/svg-elements`, whose platform split (DOM tags on web,
+// react-native-svg on device — INFRA-3508) rides the generated file's
+// extensionless import instead of per-icon `.native.tsx` twins (the
+// `./icons/*` exports map resolves exact base files, so per-icon twins would
+// never be picked up). Re-exports hand-written icons in components/icons
+// without a matching SVG (does not create or overwrite hand-written .tsx
+// files).
 
 // Types
 
@@ -24,34 +29,36 @@ interface DirectoryPair {
   output: string
 }
 
-// Known SVG tags → DOM JSX tag names. Mostly identity (DOM svg tags are used
-// as-is in JSX); the kebab-case gradient keys are kept for safety in case a
-// future cheerio upgrade ever serializes those tags in kebab-case form.
+// Known SVG tags → `svg-elements` host component names (react-native-svg's
+// naming; the base leg maps them back to DOM tags). The kebab-case gradient
+// keys are kept for safety in case a future cheerio upgrade ever serializes
+// those tags in kebab-case form. Keep in lockstep with the export set of
+// `src/components/factories/svg-elements.ts` / `.native.ts`.
 const TAG_MAP: Record<string, string> = {
-  svg: 'svg',
-  circle: 'circle',
-  ellipse: 'ellipse',
-  g: 'g',
-  linearGradient: 'linearGradient',
-  radialGradient: 'radialGradient',
-  'linear-gradient': 'linearGradient',
-  'radial-gradient': 'radialGradient',
-  path: 'path',
-  line: 'line',
-  polygon: 'polygon',
-  polyline: 'polyline',
-  rect: 'rect',
-  symbol: 'symbol',
-  text: 'text',
-  use: 'use',
-  defs: 'defs',
-  stop: 'stop',
-  clipPath: 'clipPath',
-  mask: 'mask',
-  filter: 'filter',
-  feBlend: 'feBlend',
-  feFlood: 'feFlood',
-  feGaussianBlur: 'feGaussianBlur',
+  svg: 'Svg',
+  circle: 'Circle',
+  ellipse: 'Ellipse',
+  g: 'G',
+  linearGradient: 'LinearGradient',
+  radialGradient: 'RadialGradient',
+  'linear-gradient': 'LinearGradient',
+  'radial-gradient': 'RadialGradient',
+  path: 'Path',
+  line: 'Line',
+  polygon: 'Polygon',
+  polyline: 'Polyline',
+  rect: 'Rect',
+  symbol: 'Symbol',
+  text: 'Text',
+  use: 'Use',
+  defs: 'Defs',
+  stop: 'Stop',
+  clipPath: 'ClipPath',
+  mask: 'Mask',
+  filter: 'Filter',
+  feBlend: 'FeBlend',
+  feFlood: 'FeFlood',
+  feGaussianBlur: 'FeGaussianBlur',
 }
 
 // Main Loop
@@ -181,8 +188,15 @@ function generateSVGComponentString(svg: string, fileName: string): string {
   })
 
   const rawSerialized = $('svg').toString()
+  // Quirks below (first-hex defaultFill, non-global width/height strip, global /px/g)
+  // are byte-parity-coupled with packages/ui/src/scripts/componentize-icons.ts —
+  // change both together or the icons path-data parity suite goes red.
   // Capture first explicit fill color before we rewrite all fills to currentColor.
   const defaultFill = rawSerialized.match(/fill="(#[a-z0-9]+)"/i)?.[1]
+
+  // Track which host components actually appear in the output so the emitted
+  // import list stays tight (the legacy generator's mechanism).
+  const usedComponents = new Set<string>()
 
   const parsedSvgToReact = rawSerialized
     .replace(/ class="[^"]+"/g, '')
@@ -194,6 +208,7 @@ function generateSVGComponentString(svg: string, fileName: string): string {
       if (!mapped) {
         throw new Error(`Unknown SVG tag <${tag}> in ${fileName} — add it to TAG_MAP`)
       }
+      usedComponents.add(mapped)
       return `<${slash}${mapped}`
     })
     .replace(/px/g, '')
@@ -202,8 +217,13 @@ function generateSVGComponentString(svg: string, fileName: string): string {
     .replace(/xmlns:xlink="http:\/\/www\.w3\.org\/1999\/xlink"/g, '')
     .replace(/xlink:href/g, 'xlinkHref')
 
+  const importList = [...usedComponents].sort().join(',\n')
+
   return `
 import { createIcon } from '../factories/createIcon'
+import {
+${importList}
+} from '../factories/svg-elements'
 
 export const [${className}, Animated${className}] = createIcon({
 name: '${className}',

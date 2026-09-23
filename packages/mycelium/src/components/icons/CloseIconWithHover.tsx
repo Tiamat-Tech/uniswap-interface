@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import type { KeyboardEvent, ReactElement } from 'react'
-import { Flex } from '../flex'
+import { FlexCompat as Flex } from '../../flex-compat/FlexCompat'
+import type { IconProps } from '../factories/createIcon'
 import { X } from './X'
 
 export type CloseIconProps = {
   onClose: () => void
-  size?: number | string
+  size?: IconProps['size']
   color?: string
   hoverColor?: string
   testId?: string
@@ -33,7 +34,8 @@ export function CloseIconWithHover({
 
   return (
     <Flex
-      direction="column"
+      justifyContent="flex-start"
+      flexDirection="column"
       role={role}
       tabIndex={0}
       data-testid={testId}

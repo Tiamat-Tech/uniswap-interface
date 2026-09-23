@@ -1,5 +1,5 @@
+import { Text, type TextCompatProps as TextProps } from '@universe/mycelium'
 import { memo, useMemo } from 'react'
-import { Text, TextProps } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { EllipsisText } from '~/components/Table/shared/TableText'

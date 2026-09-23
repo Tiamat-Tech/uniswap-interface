@@ -1,9 +1,11 @@
 import { ChainTokenRankStats, TokenRankStats } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import { UniverseChainId } from '@universe/chains'
+import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import {
   dataApiMultichainTokenToSearchResult,
+  normalizeBackendNativeAddress,
   pickPrimaryDeployment,
 } from 'uniswap/src/data/apiClients/dataApiService/utils/dataApiMultichainToken'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { createRankedMultichainToken } from 'uniswap/src/test/fixtures/dataApi/rankedMultichainToken'
 
 describe('dataApiMultichainTokenToSearchResult', () => {
@@ -94,6 +96,98 @@ describe('dataApiMultichainTokenToSearchResult', () => {
 
     expect(result?.tokens[0]?.isSpam).toBe(true)
   })
+
+  it('should mark the result and each CurrencyInfo when isSuppressed is set', () => {
+    const token = createRankedMultichainToken({
+      addresses: {
+        '1': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        '137': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+      },
+    })
+
+    const result = dataApiMultichainTokenToSearchResult(token, { isSuppressed: true })
+
+    expect(result?.isSuppressed).toBe(true)
+    expect(result?.tokens.map((t) => t.searchMultichainParent?.isSuppressed)).toEqual([true, true])
+  })
+
+  it('should set suppression flags to false by default', () => {
+    const result = dataApiMultichainTokenToSearchResult(createRankedMultichainToken())
+
+    expect(result?.isSuppressed).toBe(false)
+    expect(result?.tokens[0]?.searchMultichainParent?.isSuppressed).toBe(false)
+  })
+
+  it('should carry the backend category ids onto each CurrencyInfo', () => {
+    const token = createRankedMultichainToken({
+      addresses: {
+        '1': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        '137': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+      },
+      categoryIds: ['stablecoins', 'majors'],
+    })
+
+    const result = dataApiMultichainTokenToSearchResult(token)
+
+    expect(result?.tokens.map((t) => t.categoryIds)).toEqual([
+      ['stablecoins', 'majors'],
+      ['stablecoins', 'majors'],
+    ])
+  })
+
+  it('should populate parent stats from price data and aggregate 1d volume', () => {
+    const token = createRankedMultichainToken({ price: 1.5, priceChange1d: -2.3, volume1d: 50_000 })
+
+    const result = dataApiMultichainTokenToSearchResult(token)
+
+    expect(result?.stats).toEqual({ priceUsd: 1.5, pricePercentChange1d: -2.3, volume1dUsd: 50_000 })
+  })
+
+  it('should use per-chain 1d volume on each CurrencyInfo searchStats, keeping parent price', () => {
+    const token = createRankedMultichainToken({
+      price: 1.5,
+      volume1d: 100_000,
+      addresses: {
+        '1': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        '137': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+      },
+      chainStats: [
+        new ChainTokenRankStats({ chainId: 1, stats: new TokenRankStats({ volume1d: 75_000 }) }),
+        new ChainTokenRankStats({ chainId: 137, stats: new TokenRankStats({ volume1d: 25_000 }) }),
+      ],
+    })
+
+    const result = dataApiMultichainTokenToSearchResult(token)
+
+    const volumeByChain = new Map(result?.tokens.map((t) => [t.currency.chainId, t.searchStats?.volume1dUsd]))
+    expect(volumeByChain.get(1)).toBe(75_000)
+    expect(volumeByChain.get(137)).toBe(25_000)
+    expect(result?.tokens[0]?.searchStats?.priceUsd).toBe(1.5)
+  })
+
+  it('should fall back to the aggregate volume when a chain has no per-chain stats', () => {
+    const token = createRankedMultichainToken({
+      price: 1.5,
+      volume1d: 100_000,
+      addresses: {
+        '1': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        '137': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+      },
+      chainStats: [new ChainTokenRankStats({ chainId: 1, stats: new TokenRankStats({ volume1d: 75_000 }) })],
+    })
+
+    const result = dataApiMultichainTokenToSearchResult(token)
+
+    const volumeByChain = new Map(result?.tokens.map((t) => [t.currency.chainId, t.searchStats?.volume1dUsd]))
+    expect(volumeByChain.get(137)).toBe(100_000)
+  })
+
+  it('should leave stats unset when the response has no price or volume data', () => {
+    const result = dataApiMultichainTokenToSearchResult(createRankedMultichainToken())
+
+    expect(result?.stats).toBeUndefined()
+    expect(result?.tokens[0]?.searchStats).toBeUndefined()
+  })
 })
 
 describe('pickPrimaryDeployment', () => {
@@ -152,5 +246,38 @@ describe('pickPrimaryDeployment', () => {
       chainId: 1,
       address: '0xEth',
     })
+  })
+})
+
+describe('normalizeBackendNativeAddress', () => {
+  const ZERO = '0x0000000000000000000000000000000000000000'
+  const LEGACY = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+  const USDC_MAINNET = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+
+  it.each([
+    ['ETH', UniverseChainId.Mainnet],
+    [ZERO, UniverseChainId.Mainnet],
+    [LEGACY, UniverseChainId.Mainnet],
+  ])('normalizes placeholder %s to the canonical native address', (address, chainId) => {
+    expect(normalizeBackendNativeAddress({ chainId, address })).toBe(getNativeAddress(chainId))
+  })
+
+  it('normalizes placeholders on chains whose native currency has a real contract address', () => {
+    // Polygon's canonical native address is 0x…1010 — the zero-address placeholder must still resolve to it
+    expect(normalizeBackendNativeAddress({ chainId: UniverseChainId.Polygon, address: ZERO })).toBe(
+      getNativeAddress(UniverseChainId.Polygon),
+    )
+  })
+
+  it('passes real contract addresses through unchanged', () => {
+    expect(normalizeBackendNativeAddress({ chainId: UniverseChainId.Mainnet, address: USDC_MAINNET })).toBe(
+      USDC_MAINNET,
+    )
+    expect(
+      normalizeBackendNativeAddress({
+        chainId: UniverseChainId.Polygon,
+        address: getNativeAddress(UniverseChainId.Polygon),
+      }),
+    ).toBe(getNativeAddress(UniverseChainId.Polygon))
   })
 })

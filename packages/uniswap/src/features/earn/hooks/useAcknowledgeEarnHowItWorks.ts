@@ -16,12 +16,14 @@ export function useAcknowledgeEarnHowItWorks({
   const dispatch = useDispatch()
 
   return useEvent(() => {
-    if (!analyticsProperties || !vaultId) {
-      return
+    // Each step degrades independently. A gated Acknowledged event is dropped, not queued.
+    // The flow always continues.
+    if (analyticsProperties) {
+      logEarnHowItWorksAcknowledged(analyticsProperties)
     }
-
-    logEarnHowItWorksAcknowledged(analyticsProperties)
-    dispatch(setHasAcknowledgedEarnHowItWorks({ vaultId }))
+    if (vaultId) {
+      dispatch(setHasAcknowledgedEarnHowItWorks({ vaultId }))
+    }
     onContinue()
   })
 }

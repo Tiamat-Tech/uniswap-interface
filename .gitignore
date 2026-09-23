@@ -12,7 +12,6 @@ test-results/
 # utility script output
 scripts/dist
 tools/uniswap-nx/dist
-scripts/tamagui-migration/*.json
 
 # build output
 .next/
@@ -122,3 +121,17 @@ skills-lock.json
 # temporary files
 /tmp/
 .env*.local
+
+# i18n AI-pipeline artifacts (i18n_generate_translations.yml)
+# `.i18n/*` (not `.i18n/`) so committed pipeline state can be re-included —
+# git cannot un-exclude a path under a directory-excluded parent. Everything
+# else the CLI writes here stays ignored by default: run artifacts
+# (`.i18n/runs/`, uploaded as a workflow artifact) and audit reports
+# (`.i18n/reports/`, discarded with the runner today). The memory re-include
+# is coupled to I18N_MEMORY_DIR in i18n_generate_translations.yml — an
+# ignored path there fails the pipeline's commit staging — and the coupling
+# is asserted semantically (git check-ignore) by
+# scripts/i18n-compose-pr-body.test.ts.
+.i18n/*
+!.i18n/glossary/
+!.i18n/memory/

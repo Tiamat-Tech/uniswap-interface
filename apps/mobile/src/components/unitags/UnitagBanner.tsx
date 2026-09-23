@@ -1,10 +1,17 @@
+import {
+  Flex,
+  iconSizes,
+  Text,
+  TouchableArea,
+  TouchableAreaProps,
+  UniversalImage,
+  useIsShortMobileDevice,
+} from '@universe/mycelium'
+import { useDeviceDimensions, useIsDarkMode } from '@universe/mycelium/theme-hooks-compat'
 import React, { useCallback } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { navigate } from 'src/app/navigation/rootNavigation'
-import { Flex, Image, Text, TouchableArea, TouchableAreaProps, useIsDarkMode, useIsShortMobileDevice } from 'ui/src'
 import { UNITAGS_BANNER_VERTICAL_DARK, UNITAGS_BANNER_VERTICAL_LIGHT } from 'ui/src/assets'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
-import { iconSizes } from 'ui/src/theme'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { UNITAG_SUFFIX_NO_LEADING_DOT } from 'uniswap/src/features/unitags/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -140,17 +147,13 @@ export function UnitagBanner({
         </Flex>
       )}
       <Flex mr={compact ? -(imageWidth / 6) : -(imageWidth / 12)} width={imageWidth}>
-        <Image
-          alignSelf="center"
-          position="absolute"
-          resizeMode="cover"
-          source={{
-            width: imageWidth,
-            height: imageHeight,
-            uri: isDarkMode ? UNITAGS_BANNER_VERTICAL_DARK : UNITAGS_BANNER_VERTICAL_LIGHT,
-          }}
-          top={compact ? -(imageHeight * 0.19) : -(imageHeight * 0.22)}
-        />
+        <Flex alignSelf="center" position="absolute" top={compact ? -(imageHeight * 0.19) : -(imageHeight * 0.22)}>
+          {/* Require-source lane ignores size.resizeMode; expo-image's default cover matches the legacy resizeMode="cover". */}
+          <UniversalImage
+            size={{ width: imageWidth, height: imageHeight }}
+            uri={isDarkMode ? UNITAGS_BANNER_VERTICAL_DARK : UNITAGS_BANNER_VERTICAL_LIGHT}
+          />
+        </Flex>
       </Flex>
     </Flex>
   )

@@ -1,8 +1,11 @@
+import { Flex, Spacer, Text, TouchableArea } from '@universe/mycelium'
+import { Plus } from '@universe/mycelium/icons/Plus'
+import { X } from '@universe/mycelium/icons/X'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Spacer, Text, TouchableArea, useMedia } from 'ui/src'
-import { Plus } from 'ui/src/components/icons/Plus'
-import { X } from 'ui/src/components/icons/X'
+import { Tooltip } from 'ui/src'
+import { QuestionInCircleFilled } from 'ui/src/components/icons/QuestionInCircleFilled'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import {
   formatPresetLabel,
@@ -19,6 +22,14 @@ import {
   type CustomPriceRangePreset,
   MIN_CUSTOM_PRICE_RANGE_PERCENT_FROM_CLEARING,
 } from '~/pages/Liquidity/CreateAuction/types'
+import {
+  CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS,
+  FULL_RANGE_REMAINDER_BOUNDS,
+  FULL_RANGE_REMAINDER_ENTRY_ID,
+} from '~/pages/Liquidity/CreateAuction/utils'
+
+/** The disabled remainder fields never fire; their handlers are required by the shared inputs. */
+const noop = (): void => {}
 
 /** Dot width — must match histogram bullet on each range row */
 export const RANGE_ROW_LEADING_SIZE = 6
@@ -189,6 +200,106 @@ export function CustomPriceRangeRow({
   )
 }
 
+/**
+ * The `?` that explains the remainder row. Shared by the editor and the review table so the two
+ * surfaces cannot drift apart on the one piece of copy that says where the liquidity goes.
+ */
+export function FullRangeRemainderHelp(): JSX.Element {
+  const { t } = useTranslation()
+  const helpText = t('toucan.createAuction.step.customizePool.priceRange.custom.fullRangeRemainderHelp')
+
+  return (
+    <Tooltip placement="top">
+      <Tooltip.Trigger asChild>
+        <Flex centered cursor="help" aria-label={helpText}>
+          <QuestionInCircleFilled size="$icon.16" color="$neutral3" />
+        </Flex>
+      </Tooltip.Trigger>
+      <Tooltip.Content>
+        <Tooltip.Arrow />
+        <Text variant="body4" color="$neutral1" maxWidth={280}>
+          {helpText}
+        </Text>
+      </Tooltip.Content>
+    </Tooltip>
+  )
+}
+
+/**
+ * The unallocated share of the LP budget, as a read-only row. It is not one of the user's ranges:
+ * the migrator opens a single full-range position for whatever the ranges leave unspent, so this
+ * reports a position that will exist rather than a gap to fill. It mirrors the editable rows —
+ * same fields, same alignment — with the inputs disabled and the bounds fixed at the full range;
+ * the remove control is replaced by hover help, since there is nothing here to remove.
+ * Rendered only when the remainder is non-zero.
+ */
+export function FullRangeRemainderRow({
+  remainderPercent,
+  rowHistogramColor,
+  isActive,
+  onHoverEntry,
+}: {
+  remainderPercent: number
+  rowHistogramColor: string
+  isActive: boolean
+  onHoverEntry: (entryId: string | null) => void
+}) {
+  const { t } = useTranslation()
+  // The row deliberately carries no visible label — it is meant to read as one more range. Assistive
+  // tech gets none of the visual cues that mark it out (muted values, no remove control), so each
+  // field names itself instead.
+  const fieldLabel = (field: string): string =>
+    t('toucan.createAuction.step.customizePool.priceRange.custom.fullRangeRemainderFieldLabel', { field })
+
+  return (
+    <PriceRangeRowShell
+      leading={
+        <Flex
+          width={RANGE_ROW_LEADING_SIZE}
+          height={RANGE_ROW_LEADING_SIZE}
+          borderRadius="$roundedFull"
+          backgroundColor={rowHistogramColor}
+        />
+      }
+      column1={
+        <LiquidityPercentInput
+          value={remainderPercent}
+          isActive={false}
+          disabled
+          accessibilityLabel={fieldLabel(
+            t('toucan.createAuction.step.customizePool.priceRange.custom.liquidityPercent'),
+          )}
+          onValueChange={noop}
+        />
+      }
+      column2={
+        <PriceBoundInput
+          side="min"
+          value={FULL_RANGE_REMAINDER_BOUNDS.minPercentFromClearing}
+          isActive={false}
+          disabled
+          accessibilityLabel={fieldLabel(t('toucan.createAuction.step.customizePool.priceRange.custom.minimumPrice'))}
+          onValueChange={noop}
+        />
+      }
+      column3={
+        <PriceBoundInput
+          side="max"
+          value={FULL_RANGE_REMAINDER_BOUNDS.maxPercentFromClearing}
+          isActive={false}
+          disabled
+          accessibilityLabel={fieldLabel(t('toucan.createAuction.step.customizePool.priceRange.custom.maximumPrice'))}
+          onValueChange={noop}
+        />
+      }
+      trailing={<FullRangeRemainderHelp />}
+      backgroundColor={isActive ? '$surface3' : '$transparent'}
+      onMouseEnter={() => onHoverEntry(FULL_RANGE_REMAINDER_ENTRY_ID)}
+      onMouseLeave={() => onHoverEntry(null)}
+    />
+  )
+}
+
 export function AddRangeRow({
   canAddEntry,
   onAddPreset,
@@ -203,7 +314,8 @@ export function AddRangeRow({
   // horizontally scrollable row below the Add range row.
   const alwaysShowPresetsRow = Boolean(media.md)
   const [showPresets, setShowPresets] = useState(false)
-  const formatFinitePercentValue = (value: number): string => normalizeSignedInput(formatPercent(value, 4))
+  const formatFinitePercentValue = (value: number): string =>
+    normalizeSignedInput(formatPercent(value, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS))
 
   const presetChips = CUSTOM_PRICE_RANGE_PRESETS.map((preset) => (
     <TouchableArea

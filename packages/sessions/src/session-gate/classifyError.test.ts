@@ -2,8 +2,11 @@ import { Code, ConnectError } from '@connectrpc/connect'
 import {
   isConnectUnauthorized,
   isFetchUnauthorized,
+  isRetryableSessionGateError,
   isSessionAuthFailureStatus,
 } from '@universe/sessions/src/session-gate/classifyError'
+import { SessionReadyTimeoutError, SessionRecoveryFailedError } from '@universe/sessions/src/session-gate/errors'
+import { MaxChallengeRetriesError } from '@universe/sessions/src/session-initialization/sessionErrors'
 import { describe, expect, it } from 'vitest'
 
 describe('isSessionAuthFailureStatus', () => {
@@ -57,5 +60,32 @@ describe('isFetchUnauthorized', () => {
     // Typed non-auth status wins over an incidental "401" in the message.
     const errWith500Status = Object.assign(new Error('upstream returned 401-ish from cache'), { status: 500 })
     expect(isFetchUnauthorized(errWith500Status)).toBe(false)
+  })
+})
+
+describe('isRetryableSessionGateError', () => {
+  it('accepts session timeouts directly or through an error cause', () => {
+    const timeout = new SessionReadyTimeoutError(10_000)
+
+    expect(isRetryableSessionGateError(timeout)).toBe(true)
+    expect(isRetryableSessionGateError(ConnectError.from(timeout))).toBe(true)
+  })
+
+  it('accepts non-terminal recovery failures directly or through an error cause', () => {
+    const recoveryFailure = new SessionRecoveryFailedError(new Error('401'), new Error('recover failed'))
+
+    expect(isRetryableSessionGateError(recoveryFailure)).toBe(true)
+    expect(isRetryableSessionGateError(ConnectError.from(recoveryFailure))).toBe(true)
+  })
+
+  it('rejects terminal recovery failures directly or through an error cause', () => {
+    const recoveryFailure = new SessionRecoveryFailedError(new Error('401'), new MaxChallengeRetriesError(3, 4))
+
+    expect(isRetryableSessionGateError(recoveryFailure)).toBe(false)
+    expect(isRetryableSessionGateError(ConnectError.from(recoveryFailure))).toBe(false)
+  })
+
+  it('rejects unrelated errors', () => {
+    expect(isRetryableSessionGateError(new Error('boom'))).toBe(false)
   })
 })

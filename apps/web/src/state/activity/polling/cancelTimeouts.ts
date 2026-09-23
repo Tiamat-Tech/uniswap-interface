@@ -1,9 +1,8 @@
+import { UniverseChainId, isEVMChain } from '@universe/chains'
 import { isValidHexString } from '@universe/encoding'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
 import { getPublicClient } from '@wagmi/core'
 import type { Dispatch } from 'redux'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { isEVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import {

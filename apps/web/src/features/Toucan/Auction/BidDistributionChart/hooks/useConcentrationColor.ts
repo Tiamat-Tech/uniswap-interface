@@ -1,5 +1,5 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
-import { useSporeColors } from 'ui/src'
 import { useAuctionTokenColor } from '~/features/Toucan/Auction/hooks/useAuctionTokenColor'
 import { getConcentrationColor } from '~/features/Toucan/ToucanChart/utils/colors'
 

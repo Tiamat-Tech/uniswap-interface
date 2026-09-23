@@ -5,9 +5,6 @@ import { signMessage } from 'wallet/src/features/wallet/signing/signing.web'
 
 // Mock dependencies
 vi.mock('uniswap/src/features/transactions/signing')
-vi.mock('uniswap/src/utils/addresses', () => ({
-  ensureLeading0x: (sig: string): string => (sig.startsWith('0x') ? sig : `0x${sig}`),
-}))
 
 describe('signMessage (web)', () => {
   const mockSignature =

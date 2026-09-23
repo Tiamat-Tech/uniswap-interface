@@ -1,3 +1,5 @@
+import { Flex, fonts, iconSizes, Input, inputStyles, Text } from '@universe/mycelium'
+import { Mobile } from '@universe/mycelium/icons/Mobile'
 import { createRef, RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NativeSyntheticEvent, TextInput, TextInputChangeEventData, TextInputKeyPressEventData } from 'react-native'
@@ -6,9 +8,6 @@ import { OnboardingScreen } from 'src/app/features/onboarding/OnboardingScreen'
 import { useOnboardingSteps } from 'src/app/features/onboarding/OnboardingSteps'
 import { useScantasticContext } from 'src/app/features/onboarding/scan/ScantasticContextProvider'
 import { decryptMessage } from 'src/app/features/onboarding/scan/utils'
-import { Flex, Input, inputStyles, Square, Text } from 'ui/src'
-import { Mobile } from 'ui/src/components/icons'
-import { fonts, iconSizes } from 'ui/src/theme'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { ExtensionOnboardingFlow, ExtensionOnboardingScreens } from 'uniswap/src/types/screens/extension'
 import { logger } from 'utilities/src/logger/logger'
@@ -171,14 +170,15 @@ export function OTPInput(): JSX.Element {
     >
       <OnboardingScreen
         Icon={
-          <Square
+          <Flex
+            centered
             backgroundColor="$surface2"
             borderRadius="$rounded12"
             height={iconSizes.icon48}
             width={iconSizes.icon48}
           >
             <Mobile color="$neutral1" size="$icon.24" />
-          </Square>
+          </Flex>
         }
         nextButtonEnabled={false}
         nextButtonText={expiryText}

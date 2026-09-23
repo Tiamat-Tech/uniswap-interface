@@ -1,9 +1,9 @@
 import { GasEstimate } from '@universe/api'
 import type { JupiterOrderUrlParams } from '@universe/api'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { chainIdToPlatform } from 'uniswap/src/features/platforms/utils/chains'
+import { Platform, chainIdToPlatform } from '@universe/chains'
 import { type ValidatedTradeInput } from 'uniswap/src/features/transactions/swap/services/tradeService/transformations/buildQuoteRequest'
 import type { IndicativeTrade, Trade, UseTradeArgs } from 'uniswap/src/features/transactions/swap/types/trade'
+
 export interface TradeWithGasEstimates {
   quoteHash?: string
   trade: Trade | null

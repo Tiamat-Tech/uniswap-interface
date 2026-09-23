@@ -2,7 +2,6 @@ import { renderHook } from '@testing-library/react'
 import { TransactionTypeFilter } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import type { TradingApi } from '@universe/api'
 import { useActivityData } from 'uniswap/src/features/activity/hooks/useActivityData'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import {
   NFTTradeType,
   TransactionDetails,
@@ -11,18 +10,12 @@ import {
 import { ActivityFilterType } from '~/pages/Portfolio/Activity/Filters/activityFilterTypes'
 import { useActivityFiltering } from '~/pages/Portfolio/Activity/hooks/useActivityFiltering'
 
-vi.mock('uniswap/src/features/earn/hooks/useIsEarnEnabled', () => ({
-  useIsEarnEnabled: vi.fn(),
-}))
 vi.mock('uniswap/src/features/activity/hooks/useActivityData')
 vi.mock('utilities/src/react/useInfiniteScroll', () => ({
   useInfiniteScroll: () => ({ sentinelRef: { current: null } }),
 }))
 
-const mockUseIsEarnEnabled = vi.mocked(useIsEarnEnabled)
-
 beforeEach(() => {
-  mockUseIsEarnEnabled.mockReturnValue(false)
   vi.mocked(useActivityData).mockClear()
 })
 
@@ -162,26 +155,6 @@ describe('useActivityFiltering — local transaction filter bypass bug', () => {
     expect(types).toContain(TransactionType.CreatePool)
   })
 
-  it('requests legacy single server filters when earn is disabled', () => {
-    mockActivityData([])
-
-    renderHook(() =>
-      useActivityFiltering({
-        evmAddress: '0x123',
-        svmAddress: undefined,
-        chainId: undefined,
-        selectedTransactionType: ActivityFilterType.Withdrawals,
-        selectedTimePeriod: 'all',
-      }),
-    )
-
-    expect(useActivityData).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        filterTransactionTypes: [TransactionTypeFilter.WITHDRAW],
-      }),
-    )
-  })
-
   it('falls back to client-side filtering for sends/receives since NFT trades are SWAP server-side', () => {
     mockActivityData([])
 
@@ -259,7 +232,6 @@ describe('useActivityFiltering — local transaction filter bypass bug', () => {
   })
 
   it('falls back to client-side filtering for earn filters that need multiple server types', () => {
-    mockUseIsEarnEnabled.mockReturnValue(true)
     mockActivityData([mockSendTx, mockDepositTx, mockReceiveTx])
 
     const { result } = renderHook(() =>
@@ -284,7 +256,6 @@ describe('useActivityFiltering — local transaction filter bypass bug', () => {
   })
 
   it('classifies Earn deposit and withdraw plans by their activity filter type', () => {
-    mockUseIsEarnEnabled.mockReturnValue(true)
     mockActivityData([mockSwapTx, mockEarnDepositPlanTx, mockEarnWithdrawPlanTx])
 
     const { result: sendsResult } = renderHook(() =>
@@ -324,41 +295,7 @@ describe('useActivityFiltering — local transaction filter bypass bug', () => {
     expect(swapsResult.current.transactionData.map((tx) => tx.id)).toEqual([mockSwapTx.id])
   })
 
-  it('keeps Earn plans under generic plan filtering when earn is disabled', () => {
-    mockUseIsEarnEnabled.mockReturnValue(false)
-    mockActivityData([mockSwapTx, mockEarnDepositPlanTx, mockEarnWithdrawPlanTx])
-
-    const { result: sendsResult } = renderHook(() =>
-      useActivityFiltering({
-        evmAddress: '0x123',
-        svmAddress: undefined,
-        chainId: undefined,
-        selectedTransactionType: ActivityFilterType.Sends,
-        selectedTimePeriod: 'all',
-      }),
-    )
-
-    expect(sendsResult.current.transactionData).toEqual([])
-
-    const { result: swapsResult } = renderHook(() =>
-      useActivityFiltering({
-        evmAddress: '0x123',
-        svmAddress: undefined,
-        chainId: undefined,
-        selectedTransactionType: ActivityFilterType.Swaps,
-        selectedTimePeriod: 'all',
-      }),
-    )
-
-    expect(swapsResult.current.transactionData.map((tx) => tx.id)).toEqual([
-      mockSwapTx.id,
-      mockEarnDepositPlanTx.id,
-      mockEarnWithdrawPlanTx.id,
-    ])
-  })
-
-  it('still requests single server filters when earn is enabled', () => {
-    mockUseIsEarnEnabled.mockReturnValue(true)
+  it('requests single server filters for filters that map to one server type', () => {
     mockActivityData([])
 
     renderHook(() =>

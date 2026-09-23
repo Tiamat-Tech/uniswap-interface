@@ -1,7 +1,7 @@
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { spacing } from '@universe/mycelium/tokens'
 import { useMemo } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { useMedia } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 
 /** Padding around empty-state cards in wallet home Tokens / NFTs tabs. */
 export function useWalletTabEmptyStyle(): StyleProp<ViewStyle> {

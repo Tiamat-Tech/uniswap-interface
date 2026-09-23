@@ -1,11 +1,14 @@
+import { type PlainMessage } from '@bufbuild/protobuf'
+import { useQuery } from '@tanstack/react-query'
+import type { GetTokenMarketsResponse } from '@uniswap/client-data-api/dist/data/v2/api_pb'
+import { HistoryDuration } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import { type UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
+import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
 import { useBalances } from 'uniswap/src/data/apiClients/dataApiService/balances/hooks/useBalances'
-import { useTokenProjectTokensTvlPartsFragment } from 'uniswap/src/data/graphql/fragments'
-import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
+import { getGetTokenMarketsQueryOptions } from 'uniswap/src/data/apiClients/dataApiService/tokens/queries'
+import { nativeAddressForRest } from 'uniswap/src/features/dataApi/utils/currencyIdToContractInput'
 import { getChainGasToken } from 'uniswap/src/features/gas/hooks/useChainGasToken'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { currencyId as getCurrencyId } from 'uniswap/src/utils/currencyId'
 
 interface HighestTvlChainResult {
@@ -18,52 +21,59 @@ interface SortedChainEntry {
   address: string | null
 }
 
-/**
- * Returns the best chain to redirect a "Buy" action to for a given token.
- *
- * When `accountAddress` is provided, walks the project's chains in TVL-descending order and
- * returns the first one where the user holds gas balance, so they land on a chain where the
- * swap can actually be completed.
- *
- * Falls back to the absolute highest-TVL chain if no chain has gas balance, or if
- * `accountAddress` is omitted. Returns nulls when no TVL data is available.
- */
-export function useHighestTvlChain({
-  currencyId,
-  accountAddress,
-}: {
-  currencyId: string
-  accountAddress?: Address
-}): HighestTvlChainResult {
-  const { data } = useTokenProjectTokensTvlPartsFragment({ currencyId })
-  const projectTokens = data.project?.tokens
+interface MarketTokenEntry {
+  chainId: UniverseChainId
+  address?: string
+}
 
-  // Only consider platform-supported chains. Mobile doesn't support non-EVM chains.
-  const { chains: enabledChainIds } = useEnabledChains({ platform: Platform.EVM })
+function selectTvlUsdByChainId(
+  data: PlainMessage<GetTokenMarketsResponse> | undefined,
+): Record<number, number> | undefined {
+  if (!data) {
+    return undefined
+  }
+  const tvlByChainId: Record<number, number> = {}
+  for (const market of data.markets) {
+    const tvl = market.stats?.totalValueLockedUsd
+    if (tvl !== undefined) {
+      tvlByChainId[market.chainId] = tvl
+    }
+  }
+  return tvlByChainId
+}
+
+export function useTDPHighestTvlChain({ accountAddress }: { accountAddress?: Address }): HighestTvlChainResult {
+  const { multichainTokens } = useTokenDetailsContext()
+
+  // Natives carry a null address in the context; GetTokenMarkets indexes them by address.
+  const marketTokens = useMemo<MarketTokenEntry[]>(
+    () =>
+      multichainTokens.map(({ chainId, address }) => ({ chainId, address: address ?? nativeAddressForRest(chainId) })),
+    [multichainTokens],
+  )
+
+  const { data: tvlUsdByChainId } = useQuery(
+    getGetTokenMarketsQueryOptions({
+      params: marketTokens.length ? { tokens: marketTokens, duration: HistoryDuration.DAY } : undefined,
+      select: selectTvlUsdByChainId,
+    }),
+  )
 
   const sortedChains = useMemo<SortedChainEntry[]>(() => {
-    if (!projectTokens?.length) {
+    if (!tvlUsdByChainId) {
       return []
     }
-    const enabledChainIdSet = new Set(enabledChainIds)
     const entries: Array<SortedChainEntry & { tvl: number }> = []
-    for (const token of projectTokens) {
-      if (!token) {
-        continue
-      }
-      const tvl = token.market?.totalValueLocked?.value ?? 0
+    for (const { chainId, address } of multichainTokens) {
+      const tvl = tvlUsdByChainId[chainId] ?? 0
       if (tvl <= 0) {
         continue
       }
-      const chainId = fromGraphQLChain(token.chain)
-      if (!chainId || !enabledChainIdSet.has(chainId)) {
-        continue
-      }
-      entries.push({ chainId, address: token.address ?? null, tvl })
+      entries.push({ chainId, address, tvl })
     }
     entries.sort((a, b) => b.tvl - a.tvl)
     return entries.map(({ chainId, address }) => ({ chainId, address }))
-  }, [projectTokens, enabledChainIds])
+  }, [tvlUsdByChainId, multichainTokens])
 
   const gasCurrencyIds = useMemo(() => {
     if (!accountAddress) {

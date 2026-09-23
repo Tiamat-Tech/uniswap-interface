@@ -1,6 +1,6 @@
+import { Flex, TouchableArea } from '@universe/mycelium'
+import { MoreHorizontal } from '@universe/mycelium/icons/MoreHorizontal'
 import { memo } from 'react'
-import { Flex, TouchableArea } from 'ui/src'
-import { MoreHorizontal } from 'ui/src/components/icons/MoreHorizontal'
 import { ContextMenu } from 'uniswap/src/components/menus/ContextMenu'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
 import { PositionInfo } from 'uniswap/src/features/positions/types'

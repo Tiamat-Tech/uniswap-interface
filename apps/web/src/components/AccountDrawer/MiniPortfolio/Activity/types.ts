@@ -1,7 +1,7 @@
 import type { Currency } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import type { ReactNode } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   TransactionOptions,
   TransactionStatus,

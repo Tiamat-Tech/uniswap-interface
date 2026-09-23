@@ -1,9 +1,10 @@
 import { type ChartPeriod } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import type { UniverseChainId } from '@universe/chains'
 import { isWebPlatform } from '@universe/environment'
+import { Flex, spacing, Text } from '@universe/mycelium'
+import { useIsDarkMode } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, RefreshButton, Text, useIsDarkMode } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { BALANCE_CHANGE_INDICATION_DURATION } from 'uniswap/src/components/AnimatedNumber/animationConfig'
 import { PollingInterval } from 'uniswap/src/constants/misc'
@@ -13,7 +14,6 @@ import {
   PortfolioBalancePart,
   sumAvailableBalanceSlices,
 } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { usePortfolioBalanceBreakdown } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
 import { useAppFiatCurrency, useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
@@ -25,6 +25,7 @@ import {
   getPortfolioRelativeChangeDisplay,
   PortfolioRelativeChangeDisplay,
 } from 'uniswap/src/features/portfolio/PortfolioBalance/getPortfolioRelativeChangeDisplay'
+import { PortfolioBalanceRefreshButton } from 'uniswap/src/features/portfolio/PortfolioBalance/PortfolioBalanceRefreshButton'
 import { PortfolioRelativeChange } from 'uniswap/src/features/portfolio/PortfolioBalance/PortfolioRelativeChange'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { NumberType } from 'utilities/src/format/types'
@@ -48,6 +49,8 @@ interface PortfolioBalanceProps {
   part?: PortfolioBalancePart
   /** When true, skips the internal poll — use when a parent coordinator already refreshes this data on its own cadence. */
   disablePolling?: boolean
+  /** When true, disables the refresh button and its `R` keyboard shortcut. */
+  disableRefresh?: boolean
 }
 
 export const PortfolioBalance = memo(function PortfolioBalanceInner({
@@ -63,6 +66,7 @@ export const PortfolioBalance = memo(function PortfolioBalanceInner({
   hideUnavailableIndicator,
   part = PortfolioBalancePart.Total,
   disablePolling = false,
+  disableRefresh = false,
 }: PortfolioBalanceProps): JSX.Element {
   const { t } = useTranslation()
   const {
@@ -150,7 +154,9 @@ export const PortfolioBalance = memo(function PortfolioBalanceInner({
   }, [hasIncompleteTotal, hideUnavailableIndicator, unavailableCategories])
 
   const balanceEndElement = useMemo(() => {
-    const refreshButton = isWebPlatform ? <RefreshButton isLoading={loading} onPress={refetch} /> : undefined
+    const refreshButton = isWebPlatform ? (
+      <PortfolioBalanceRefreshButton disabled={disableRefresh} isLoading={loading} onPress={refetch} />
+    ) : undefined
     if (unavailableIndicator && refreshButton) {
       return (
         <Flex row alignItems="center" gap="$spacing4">
@@ -160,7 +166,7 @@ export const PortfolioBalance = memo(function PortfolioBalanceInner({
       )
     }
     return unavailableIndicator ?? refreshButton
-  }, [unavailableIndicator, loading, refetch])
+  }, [unavailableIndicator, loading, refetch, disableRefresh])
 
   return (
     <Flex gap="$spacing4" testID={TestID.PortfolioBalance}>

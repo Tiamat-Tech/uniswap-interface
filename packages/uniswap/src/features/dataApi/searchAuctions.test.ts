@@ -1,19 +1,18 @@
+import type { PlainMessage } from '@bufbuild/protobuf'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { Auction, AuctionWithStats } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
 import { SearchAuction } from '@uniswap/client-data-api/dist/data/v1/searchTypes_pb'
+import { UniverseChainId } from '@universe/chains'
 import { createElement, type PropsWithChildren } from 'react'
 import { OnchainItemListOptionType } from 'uniswap/src/components/lists/items/types'
-import {
-  fetchAuctionByAddress,
-  useSearchTokensAndPoolsQuery,
-} from 'uniswap/src/data/apiClients/dataApiService/search/searchTokensAndPools'
+import { fetchAuctionByAddress, useSearchV1Query } from 'uniswap/src/data/apiClients/dataApiService/search/searchV1'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   auctionWithStatsToAuctionOption,
   searchAuctionToAuctionOption,
   useSearchAuctions,
+  type SearchAuctionResult,
 } from 'uniswap/src/features/dataApi/searchAuctions'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useCurrencyInfos } from 'uniswap/src/features/tokens/useCurrencyInfo'
@@ -21,19 +20,31 @@ import { useCurrencyInfos } from 'uniswap/src/features/tokens/useCurrencyInfo'
 type OverrideMatch = { chainId: number; tokenAddress: string }
 type FindAuctionOverrideMatches = (query: string) => OverrideMatch[]
 
-const { actualFindAuctionOverrideMatches, mockFindAuctionOverrideMatches } = vi.hoisted(() => ({
+const {
+  actualFindAuctionOverrideMatches,
+  mockFindAuctionOverrideMatches,
+  mockUseIsV2EndpointsSearchEnabled,
+  mockUseSearchQuery,
+} = vi.hoisted(() => ({
   actualFindAuctionOverrideMatches: { current: undefined as FindAuctionOverrideMatches | undefined },
   mockFindAuctionOverrideMatches: vi.fn<FindAuctionOverrideMatches>(),
+  mockUseIsV2EndpointsSearchEnabled: vi.fn(),
+  mockUseSearchQuery: vi.fn(),
 }))
 
 vi.mock('@universe/gating', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@universe/gating')>()),
   useDynamicConfigValue: vi.fn(() => []),
+  useIsV2EndpointsSearchEnabled: mockUseIsV2EndpointsSearchEnabled,
 }))
 
-vi.mock('uniswap/src/data/apiClients/dataApiService/search/searchTokensAndPools', () => ({
+vi.mock('uniswap/src/data/apiClients/dataApiService/search/searchV1', () => ({
   fetchAuctionByAddress: vi.fn(),
-  useSearchTokensAndPoolsQuery: vi.fn(),
+  useSearchV1Query: vi.fn(),
+}))
+
+vi.mock('uniswap/src/data/apiClients/dataApiService/search/search', () => ({
+  useSearchQuery: mockUseSearchQuery,
 }))
 
 vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({
@@ -52,7 +63,7 @@ vi.mock('uniswap/src/features/toucan/auctionMetadata', async (importOriginal) =>
 })
 
 const mockFetchAuctionByAddress = vi.mocked(fetchAuctionByAddress)
-const mockUseSearchTokensAndPoolsQuery = vi.mocked(useSearchTokensAndPoolsQuery)
+const mockUseSearchV1Query = vi.mocked(useSearchV1Query)
 const mockUseEnabledChains = vi.mocked(useEnabledChains)
 const mockUseCurrencyInfos = vi.mocked(useCurrencyInfos)
 
@@ -115,11 +126,11 @@ describe('auction override search', () => {
       return actualFindAuctionOverrideMatches.current?.(query) ?? []
     })
     mockFetchAuctionByAddress.mockReset()
-    mockUseSearchTokensAndPoolsQuery.mockReset()
-    mockUseSearchTokensAndPoolsQuery.mockReturnValue({
+    mockUseSearchV1Query.mockReset()
+    mockUseSearchV1Query.mockReturnValue({
       data: [],
       error: null,
-      isPending: false,
+      isLoading: false,
       refetch: mockPrimaryRefetch,
     } as never)
     mockUseEnabledChains.mockReset()
@@ -129,6 +140,15 @@ describe('auction override search', () => {
     } as ReturnType<typeof useEnabledChains>)
     mockUseCurrencyInfos.mockReset()
     mockUseCurrencyInfos.mockReturnValue([])
+    mockUseIsV2EndpointsSearchEnabled.mockReset()
+    mockUseIsV2EndpointsSearchEnabled.mockReturnValue(false)
+    mockUseSearchQuery.mockReset()
+    mockUseSearchQuery.mockReturnValue({
+      data: undefined,
+      error: null,
+      isLoading: true,
+      refetch: vi.fn(),
+    } as never)
     mockPrimaryRefetch.mockReset()
   })
 
@@ -184,10 +204,10 @@ describe('auction override search', () => {
       auctionId: '1_0x0000000000000000000000000000000000000002',
       tokenName: 'Supplementary auction',
     })
-    mockUseSearchTokensAndPoolsQuery.mockReturnValue({
+    mockUseSearchV1Query.mockReturnValue({
       data: [primaryAuction],
       error: null,
-      isPending: false,
+      isLoading: false,
       refetch: mockPrimaryRefetch,
     } as never)
     mockFindAuctionOverrideMatches.mockReturnValue([
@@ -266,14 +286,53 @@ describe('auction override search', () => {
     expect(result.current.refetch).toBe(initialRefetch)
 
     await act(async () => {
-      await result.current.refetch?.()
+      await result.current.refetch()
     })
     expect(mockPrimaryRefetch).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(mockFetchAuctionByAddress).toHaveBeenCalledTimes(2))
   })
+
+  it('routes to the v2 search endpoint when V2EndpointsSearch is enabled', async () => {
+    mockUseIsV2EndpointsSearchEnabled.mockReturnValue(true)
+    const v2Auction = createSearchAuction({ auctionId: '1_0x0000000000000000000000000000000000000009' })
+    mockUseSearchQuery.mockReturnValue({
+      data: [v2Auction],
+      error: null,
+      isLoading: false,
+      refetch: vi.fn(),
+    } as never)
+
+    const { result } = renderHook(
+      () =>
+        useSearchAuctions({
+          searchQuery: 'example',
+          chainFilter: null,
+          skip: false,
+        }),
+      { wrapper: createWrapper() },
+    )
+
+    expect(mockUseSearchQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        input: expect.objectContaining({ searchQuery: 'example', maxResults: expect.any(Number) }),
+      }),
+    )
+    expect(mockUseSearchV1Query).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
+    await waitFor(() => expect(result.current.data?.map((auction) => auction.auctionId)).toEqual([v2Auction.auctionId]))
+  })
 })
 
 describe('searchAuctions', () => {
+  it('keeps the v1 SearchAuction proto field-identical to the v2 shape', () => {
+    // SearchAuctionResult is the plain v2 shape; v1 messages flow through v2-typed helpers on
+    // structural assignability alone, so pin the two protos to each other. If either drifts,
+    // this literal stops typechecking.
+    type MutuallyAssignable<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
+    const protosMatch: MutuallyAssignable<PlainMessage<SearchAuction>, SearchAuctionResult> = true
+    expect(protosMatch).toBe(true)
+  })
+
   describe(searchAuctionToAuctionOption, () => {
     it('uses the explicit auction address when present', () => {
       const option = searchAuctionToAuctionOption({
@@ -408,6 +467,7 @@ describe('searchAuctions', () => {
             tokenSymbol: 'CAP',
             totalBidVolumeUsd: '456.78',
           }),
+          uniqueBidderCount: 982,
         }),
         currencyInfo: null,
         isVerified: true,
@@ -423,6 +483,7 @@ describe('searchAuctions', () => {
         tokenSymbol: 'CAP',
         tokenLogoUrl: '/images/logos/cap-token-launch-logo.png',
         committedVolumeUsd: 456.78,
+        uniqueBidderCount: 982,
         isVerified: true,
       })
     })

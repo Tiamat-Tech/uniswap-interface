@@ -1,3 +1,4 @@
+import { opacify } from '@universe/mycelium/theme-hooks-compat'
 import {
   AreaSeriesPartialOptions,
   BarPrice,
@@ -8,7 +9,6 @@ import {
   TimeChartOptions,
   UTCTimestamp,
 } from 'lightweight-charts'
-import { opacify } from 'ui/src/theme'
 import { DepthPoint, getGapTime } from '~/pages/PoolDetails/components/ChartSection/DepthChart.utils'
 
 export function buildCombinedWithGap(params: { sellData: DepthPoint[]; buyData: DepthPoint[] }): {

@@ -2,6 +2,7 @@ import { ChartPeriod } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { UTCTimestamp } from 'lightweight-charts'
 import type { PortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/buildPortfolioBalance'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+import { withText } from 'uniswap/src/test/matchers'
 import type { ChartHoverCoordinates } from '~/components/Charts/ChartModel'
 import type { PriceChartData } from '~/components/Charts/PriceChart'
 import { PortfolioChartCategory } from '~/pages/Portfolio/Overview/hooks/usePortfolioChartSeries'
@@ -93,8 +94,8 @@ describe('PortfolioChart', () => {
     mockPriceChartBodyCrosshairData.data = undefined
   })
 
-  it('renders the balance header before the chart body when the balance header row is enabled', () => {
-    render(<PortfolioChart {...defaultProps} showBalanceHeaderRow />)
+  it('renders the balance header before the chart body', () => {
+    render(<PortfolioChart {...defaultProps} />)
 
     const header = screen.getByTestId(TestID.PortfolioBalanceHeader)
     const chartBody = screen.getByTestId('chart-body')
@@ -107,7 +108,6 @@ describe('PortfolioChart', () => {
     render(
       <PortfolioChart
         {...defaultProps}
-        showBalanceHeaderRow
         tokensValue={tokensWithBalance}
         poolsValue={poolsWithBalance}
         earnValue={earnWithBalance}
@@ -127,7 +127,7 @@ describe('PortfolioChart', () => {
       close: 105,
     }
 
-    render(<PortfolioChart {...defaultProps} showBalanceHeaderRow />)
+    render(<PortfolioChart {...defaultProps} />)
 
     fireEvent.mouseMove(screen.getByTestId('chart-body'))
 
@@ -144,36 +144,19 @@ describe('PortfolioChart', () => {
       close: 105,
     }
 
-    const { rerender } = render(<PortfolioChart {...defaultProps} showBalanceHeaderRow />)
+    const { rerender } = render(<PortfolioChart {...defaultProps} />)
 
     fireEvent.mouseMove(screen.getByTestId('chart-body'))
 
     expect(await screen.findByText(/\$105/)).toBeInTheDocument()
 
     mockPriceChartBodyCrosshairData.data = undefined
-    rerender(<PortfolioChart {...defaultProps} showBalanceHeaderRow selectedPeriod={ChartPeriod.WEEK} />)
+    rerender(<PortfolioChart {...defaultProps} selectedPeriod={ChartPeriod.WEEK} />)
 
-    expect(screen.getByText(/\$110/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/\$110/))).toBeInTheDocument()
   })
 
-  it('keeps the legacy empty balance styling when the portfolio is zero', () => {
-    render(
-      <PortfolioChart
-        {...defaultProps}
-        isPortfolioZero={true}
-        series={makeSeries([0, 0])}
-        isChartEmpty={true}
-        chartPercentChange={undefined}
-        portfolioTotalBalanceUSD={undefined}
-        showBalanceHeaderRow
-      />,
-    )
-
-    expect(screen.queryByTestId(TestID.PortfolioBalanceHeader)).not.toBeInTheDocument()
-    expect(screen.getAllByText(/\$0/)).toHaveLength(1)
-  })
-
-  it('keeps the legacy in-chart empty balance when the external header is disabled', () => {
+  it('keeps the in-chart empty balance styling when the portfolio is zero', () => {
     render(
       <PortfolioChart
         {...defaultProps}
@@ -190,13 +173,13 @@ describe('PortfolioChart', () => {
   })
 
   it('shows the category selector when both tokens and pools have data', () => {
-    render(<PortfolioChart {...defaultProps} showBalanceHeaderRow hasCategoryBreakdown />)
+    render(<PortfolioChart {...defaultProps} hasCategoryBreakdown />)
 
     expect(screen.getByTestId(TestID.PortfolioChartCategorySelector)).toBeInTheDocument()
   })
 
   it('hides the category selector when the breakdown is incomplete', () => {
-    render(<PortfolioChart {...defaultProps} showBalanceHeaderRow hasCategoryBreakdown={false} />)
+    render(<PortfolioChart {...defaultProps} hasCategoryBreakdown={false} />)
 
     expect(screen.queryByTestId(TestID.PortfolioChartCategorySelector)).not.toBeInTheDocument()
   })
@@ -214,7 +197,6 @@ describe('PortfolioChart', () => {
     render(
       <PortfolioChart
         {...defaultProps}
-        showBalanceHeaderRow
         hasCategoryBreakdown
         selectedCategory={PortfolioChartCategory.Total}
         tokensSeries={makeSeries([100, 90])}
@@ -246,7 +228,6 @@ describe('PortfolioChart', () => {
     render(
       <PortfolioChart
         {...defaultProps}
-        showBalanceHeaderRow
         hasCategoryBreakdown
         selectedCategory={PortfolioChartCategory.Total}
         tokensSeries={makeSeries([100, 90])}
@@ -267,7 +248,6 @@ describe('PortfolioChart', () => {
     render(
       <PortfolioChart
         {...defaultProps}
-        showBalanceHeaderRow
         hasCategoryBreakdown
         availableCategories={[PortfolioChartCategory.Tokens, PortfolioChartCategory.Earn, PortfolioChartCategory.Pools]}
       />,
@@ -289,7 +269,6 @@ describe('PortfolioChart', () => {
     render(
       <PortfolioChart
         {...defaultProps}
-        showBalanceHeaderRow
         hasCategoryBreakdown
         selectedCategory={PortfolioChartCategory.Tokens}
         tokensSeries={makeSeries([100, 90])}
@@ -304,7 +283,6 @@ describe('PortfolioChart', () => {
     render(
       <PortfolioChart
         {...defaultProps}
-        showBalanceHeaderRow
         hasCategoryBreakdown
         selectedCategory={PortfolioChartCategory.Total}
         tokensSeries={makeSeries([100, 90])}

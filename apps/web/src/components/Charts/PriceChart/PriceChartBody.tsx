@@ -1,5 +1,4 @@
 import { GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { ReactElement, useMemo } from 'react'
 import { Chart, ChartHoverCoordinates } from '~/components/Charts/ChartModel'
 import { CandlestickTooltip } from '~/components/Charts/PriceChart/CandlestickTooltip'
@@ -38,8 +37,7 @@ export function PriceChartBody({
   onCrosshairChange,
   children,
 }: PriceChartBodyProps) {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-  const v2HoverStyles = !sparkline && type === PriceChartType.LINE && isDataLivelinessEnabled
+  const v2HoverStyles = !sparkline && type === PriceChartType.LINE
 
   return (
     <Chart

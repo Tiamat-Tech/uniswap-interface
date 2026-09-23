@@ -2,11 +2,11 @@ import type { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import { Percent as SdkPercent, Price } from '@uniswap/sdk-core'
 import type { ChainedQuoteResponse } from '@universe/api'
 import { TradingApi } from '@universe/api'
+import { areEvmAddressesEqual } from '@universe/chains'
 import { getEarnLaunchAssetCurrency } from 'uniswap/src/features/earn/launchAssets'
 import { getPlanCompoundSlippageTolerance } from 'uniswap/src/features/transactions/swap/plan/slippage'
 import { type BaseTradeAmounts, createCurrencyAmount } from 'uniswap/src/features/transactions/swap/types/base'
 import type { ChainedActionEarnIntent } from 'uniswap/src/features/transactions/swap/types/chained'
-import { areEvmAddressesEqual } from 'uniswap/src/utils/addresses'
 import { logger } from 'utilities/src/logger/logger'
 
 const SLIPPAGE_PERCENT_PRECISION = 1_000_000

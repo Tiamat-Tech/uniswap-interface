@@ -120,8 +120,6 @@ export ANDROID_STORE_PASSWORD="$STORE_PASSWORD_VAL"
 export ANDROID_KEYSTORE_ALIAS="$KEYSTORE_ALIAS_VAL"
 export ANDROID_KEY_PASSWORD="$KEY_PASSWORD_VAL"
 
-export EXPO_ANDROID_LAUNCH_ACTIVITY="$APP_ID/com.uniswap.MainActivity"
-
 # Force a real build instead of an EAS cache reinstall (see header note 1).
 export EXPO_LOCAL_NO_BUILD_CACHE=1
 

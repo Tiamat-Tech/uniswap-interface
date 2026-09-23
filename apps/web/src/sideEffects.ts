@@ -1,5 +1,6 @@
 import '~/global.css'
 import '~/tailwind.css'
+import '~/theme/globalStyle.css'
 import '~/polyfills'
 import '~/tracing'
 // We intentionally import this to ensure that the WalletConnect provider is bundled as an entrypoint chunk,

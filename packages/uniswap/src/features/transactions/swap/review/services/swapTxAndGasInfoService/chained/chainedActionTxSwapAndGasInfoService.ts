@@ -1,5 +1,5 @@
 import { type GasFeeResult, TradingApi } from '@universe/api'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import { convertGasFeeToDisplayValue } from 'uniswap/src/features/gas/convertGasFeeToDisplayValue'
 import { getDisplayGasStrategy } from 'uniswap/src/features/gas/utils'
 import type { SwapDelegationInfo } from 'uniswap/src/features/smartWallet/delegation/types'

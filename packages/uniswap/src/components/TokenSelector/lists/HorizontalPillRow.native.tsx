@@ -1,7 +1,6 @@
+import { Flex, spacing } from '@universe/mycelium'
 import { ReactElement, useMemo } from 'react'
 import { FlatList } from 'react-native-gesture-handler'
-import { Flex } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 import { useEvent, useMemoCompare } from 'utilities/src/react/hooks'
 
 const CONTENT_CONTAINER_STYLE = {

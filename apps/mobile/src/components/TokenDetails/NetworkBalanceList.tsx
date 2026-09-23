@@ -1,6 +1,5 @@
+import { borderRadii, Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
 import { memo, useMemo } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { borderRadii, iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { PortfolioBalance } from 'uniswap/src/features/dataApi/types'

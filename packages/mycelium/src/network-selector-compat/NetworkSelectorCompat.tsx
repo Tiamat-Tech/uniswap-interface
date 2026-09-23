@@ -122,7 +122,7 @@ export function NetworkSelectorCompat<TChainId extends number = number>({
     if (tieredOptions.withBalances.length > 0) {
       sections.push({
         key: 'with-balances',
-        title: labels?.withBalances ?? 'Your balances',
+        title: labels?.withBalances ?? 'Your networks',
         items: tieredOptions.withBalances.map((option) => chainItem(option.chainId)),
       })
     }

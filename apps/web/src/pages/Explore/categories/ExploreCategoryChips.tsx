@@ -1,126 +1,117 @@
 import { SharedEventName } from '@uniswap/analytics-events'
-import { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { Briefcase } from 'ui/src/components/icons/Briefcase'
-import { Etf } from 'ui/src/components/icons/Etf'
-import { Nut } from 'ui/src/components/icons/Nut'
-import { Ranking } from 'ui/src/components/icons/Ranking'
-import { TouchableArea } from 'ui/src/components/touchable'
+import { Flex } from '@universe/mycelium'
+import { useEffect, useState } from 'react'
+import { FILTER_CHIP_FADE_MS, FilterChip } from 'uniswap/src/components/FilterChip/FilterChip'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
-import { ExploreCategory } from '~/pages/Explore/categories/useExploreCategory'
+import { ExploreCategoryChipOption } from '~/pages/Explore/categories/exploreCategoryChipOptions'
+
+const CHIP_FADE_MS = FILTER_CHIP_FADE_MS
+const CHIP_FADE_TRANSITION = `opacity ${CHIP_FADE_MS}ms ease`
+
+// TODO(CONS-2740): point the Explore/Launches filter rows at FilterChip directly and drop this alias.
+export { FilterChip as ExploreFilterChip }
 
 interface ExploreCategoryChipsProps {
-  value: ExploreCategory
-  onChange: (category: ExploreCategory) => void
+  options: ExploreCategoryChipOption[]
+  value: string
+  onChange: (category: string) => void
+  /** Fade-swaps the last option (the flex slot): fade out the current chip, then fade in the new one. */
+  fadeSwapLastOption?: boolean
 }
 
-type CategoryOption = {
-  value: ExploreCategory
-  label: string
-  renderIcon: (color: '$neutral1' | '$neutral2') => JSX.Element
-}
-
-/** Rounded filter chip shared by the Explore tab filter rows (token categories, auction quick filters). */
-export function ExploreFilterChip({
-  active,
-  label,
-  renderIcon,
-  onPress,
+function CategoryChip({
+  option,
+  value,
+  onChange,
 }: {
-  active: boolean
-  /** Omit for an icon-only chip. */
-  label?: string
-  renderIcon: (color: '$neutral1' | '$neutral2') => JSX.Element
-  onPress: () => void
+  option: ExploreCategoryChipOption
+  value: string
+  onChange: (category: string) => void
 }): JSX.Element {
-  const color = active ? '$neutral1' : '$neutral2'
-
+  const active = option.id === value
+  const Icon = option.icon
   return (
-    <TouchableArea
-      group
-      row
-      alignItems="center"
-      borderRadius="$roundedFull"
-      backgroundColor={active ? '$surface3' : '$transparent'}
-      hoverStyle={{ backgroundColor: active ? '$surface3Hovered' : '$surface2Hovered' }}
-      px="$spacing12"
-      py="$spacing8"
-      height="$spacing36"
-      $platform-web={{ minWidth: 'max-content' }}
-      onPress={onPress}
-    >
-      <Flex row alignItems="center" gap="$spacing6">
-        {renderIcon(color)}
-        {label !== undefined && (
-          <Text
-            variant="buttonLabel3"
-            color={color}
-            $platform-web={{ whiteSpace: 'nowrap' }}
-            $group-hover={{ color: '$neutral1' }}
-          >
-            {label}
-          </Text>
-        )}
-      </Flex>
-    </TouchableArea>
+    <FilterChip
+      active={active}
+      label={option.label}
+      renderIcon={Icon ? (color) => <Icon size="$icon.16" color={color} /> : undefined}
+      onPress={() => {
+        if (active) {
+          return
+        }
+        sendAnalyticsEvent(SharedEventName.ELEMENT_CLICKED, {
+          element: ElementName.ExploreRwaCategoryView,
+          tab: option.id,
+        })
+        onChange(option.id)
+      }}
+    />
   )
 }
 
-/** Popular | Stocks | Commodities | ETFs category chips above the Explore token table. */
-export function ExploreCategoryChips({ value, onChange }: ExploreCategoryChipsProps): JSX.Element {
-  const { t } = useTranslation()
+/** Defers option swaps by one fade: the outgoing chip stays rendered while faded out, then the new one fades in. */
+function useFadeSwappedOption(option: ExploreCategoryChipOption): {
+  displayedOption: ExploreCategoryChipOption
+  faded: boolean
+} {
+  const [displayedOption, setDisplayedOption] = useState(option)
+  const [faded, setFaded] = useState(false)
 
-  const options: readonly CategoryOption[] = useMemo(
-    () => [
-      {
-        value: ExploreCategory.Popular,
-        label: t('common.popular'),
-        renderIcon: (color) => <Ranking size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
-      },
-      {
-        value: ExploreCategory.Stocks,
-        label: t('common.stocks'),
-        renderIcon: (color) => <Briefcase size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
-      },
-      {
-        value: ExploreCategory.Commodities,
-        label: t('common.commodities'),
-        renderIcon: (color) => <Nut size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
-      },
-      {
-        value: ExploreCategory.Etfs,
-        label: t('common.etfs'),
-        renderIcon: (color) => <Etf size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
-      },
-    ],
-    [t],
-  )
+  useEffect(() => {
+    if (option.id === displayedOption.id) {
+      setDisplayedOption(option)
+      setFaded(false)
+      return undefined
+    }
+    setFaded(true)
+    const timeout = setTimeout(() => {
+      setDisplayedOption(option)
+      setFaded(false)
+    }, CHIP_FADE_MS)
+    return () => clearTimeout(timeout)
+  }, [option, displayedOption.id])
 
+  return { displayedOption, faded }
+}
+
+function FlexSlotChip({
+  option,
+  value,
+  onChange,
+}: {
+  option: ExploreCategoryChipOption
+  value: string
+  onChange: (category: string) => void
+}): JSX.Element {
+  const { displayedOption, faded } = useFadeSwappedOption(option)
   return (
-    <Flex row alignItems="center">
-      {options.map((option) => {
-        const active = option.value === value
-        return (
-          <ExploreFilterChip
-            key={option.value}
-            active={active}
-            label={option.label}
-            renderIcon={option.renderIcon}
-            onPress={() => {
-              if (active) {
-                return
-              }
-              sendAnalyticsEvent(SharedEventName.ELEMENT_CLICKED, {
-                element: ElementName.ExploreRwaCategoryView,
-                tab: option.value,
-              })
-              onChange(option.value)
-            }}
-          />
-        )
-      })}
+    <Flex
+      opacity={faded ? 0 : 1}
+      pointerEvents={faded ? 'none' : 'auto'}
+      $platform-web={{ transition: CHIP_FADE_TRANSITION }}
+    >
+      <CategoryChip option={displayedOption} value={value} onChange={onChange} />
+    </Flex>
+  )
+}
+
+/** Category filter chips above the Explore token table (static set, or ListCategories-driven behind the flag). */
+export function ExploreCategoryChips({
+  options,
+  value,
+  onChange,
+  fadeSwapLastOption = false,
+}: ExploreCategoryChipsProps): JSX.Element {
+  return (
+    <Flex row alignItems="center" $platform-web={{ transition: CHIP_FADE_TRANSITION }}>
+      {options.map((option, index) =>
+        fadeSwapLastOption && index === options.length - 1 ? (
+          <FlexSlotChip key="flex-slot" option={option} value={value} onChange={onChange} />
+        ) : (
+          <CategoryChip key={option.id} option={option} value={value} onChange={onChange} />
+        ),
+      )}
     </Flex>
   )
 }

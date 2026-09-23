@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { SAMPLE_SEED_ADDRESS_1 } from 'uniswap/src/test/fixtures'
 import type { Mock, MockedFunction } from 'vitest'
 import {

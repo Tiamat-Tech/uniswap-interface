@@ -1,11 +1,15 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { ArrowDownCircle } from '@universe/mycelium/icons/ArrowDownCircle'
+import { Bank } from '@universe/mycelium/icons/Bank'
+import { CoinConvert } from '@universe/mycelium/icons/CoinConvert'
+import { SendAction } from '@universe/mycelium/icons/SendAction'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { cloneElement, memo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useInterfaceBuyNavigator } from 'src/app/features/for/utils'
 import { AppRoutes } from 'src/app/navigation/constants'
 import { navigate } from 'src/app/navigation/state'
-import { Flex, getTokenValue, Text, TouchableArea, useMedia } from 'ui/src'
-import { ArrowDownCircle, Bank, CoinConvert, SendAction } from 'ui/src/components/icons'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -56,8 +60,8 @@ function ActionButton({ label, Icon, onClick, url, testID }: ActionButtonProps):
       userSelect="none"
       onPress={actionHandler}
     >
-      {cloneElement(Icon, { color: ICON_COLOR, size: getTokenValue('$icon.24') })}
-      <Text numberOfLines={2} color="$accent1" fontWeight="600" variant="buttonLabel2">
+      {cloneElement(Icon, { color: ICON_COLOR, size: iconSizes.icon24 })}
+      <Text numberOfLines={2} color="$accent1" variant="buttonLabel2">
         {label}
       </Text>
     </TouchableArea>

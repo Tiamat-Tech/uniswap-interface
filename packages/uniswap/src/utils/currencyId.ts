@@ -1,6 +1,14 @@
 import { Currency } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
 import {
+  UniverseChainId,
+  Platform,
+  isSVMChain,
+  areAddressesEqual,
+  getValidAddress,
+  normalizeTokenAddressForCache,
+} from '@universe/chains'
+import {
   getNativeAddress,
   getWrappedNativeAddress,
   getWrappedNativeAddressWithThrow,
@@ -9,13 +17,8 @@ import { TradeableAsset } from 'uniswap/src/entities/assets'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { DEFAULT_NATIVE_ADDRESS, DEFAULT_NATIVE_ADDRESS_LEGACY } from 'uniswap/src/features/chains/evm/defaults'
 import { DEFAULT_NATIVE_ADDRESS_SOLANA } from 'uniswap/src/features/chains/svm/defaults'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainId, toSupportedChainId } from 'uniswap/src/features/chains/utils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { CurrencyId } from 'uniswap/src/types/currency'
-import { areAddressesEqual, getValidAddress } from 'uniswap/src/utils/addresses'
-
 export function currencyId(tradeableAsset: TradeableAsset): CurrencyId
 export function currencyId(currency: Currency): CurrencyId
 export function currencyId(currency: Currency | undefined): CurrencyId | undefined
@@ -207,29 +210,21 @@ export function normalizeCurrencyIdForMapLookup(id: string | undefined): string 
   return `${chainId}-${normalizedAddress}`
 }
 
-export function normalizeTokenAddressForCache(address: string): string
-export function normalizeTokenAddressForCache(address: null): null
-export function normalizeTokenAddressForCache(address: string | null): string | null
-export function normalizeTokenAddressForCache(address: string | null): string | null {
-  // Our graphql backend would sometimes return checksummed addresses and sometimes lowercase addresses.
-  // In order to improve local cache hits, avoid unnecessary network requests, and avoid having duplicate `Token` items stored in the cache,
-  // we use lowercase addresses when accessing the `Token` object from our local cache.
-  // Solana addresses are case sensitive though, so this only applies to EVM addresses.
-
-  if (address === 'NATIVE' || address === 'native') {
-    return 'native' // lowercased native address for lowercase consistency
-  }
-  const normalizedEvmAddress = getValidAddress({ address, platform: Platform.EVM, withEVMChecksum: false })
-
-  // if not a valid EVM address, must be SVM address
-  return normalizedEvmAddress ?? address ?? null
-}
-
+// TODO(chains-migration): move isDefaultNativeAddress into @universe/chains once the native-address
+// defaults (DEFAULT_NATIVE_ADDRESS_LEGACY etc.) are migrated out of uniswap.
+// Matches both placeholder formats while the backend migrates from 0xeee… to the zero address
+// (same convention as isNativeCurrencyAddress above) — neither is ever a real deployed token.
 export function isDefaultNativeAddress({ address, platform }: { address: string; platform: Platform }): boolean {
-  return areAddressesEqual({
-    addressInput1: { address, platform },
-    addressInput2: { address: DEFAULT_NATIVE_ADDRESS_LEGACY, platform },
-  })
+  return (
+    areAddressesEqual({
+      addressInput1: { address, platform },
+      addressInput2: { address: DEFAULT_NATIVE_ADDRESS_LEGACY, platform },
+    }) ||
+    areAddressesEqual({
+      addressInput1: { address, platform },
+      addressInput2: { address: DEFAULT_NATIVE_ADDRESS, platform },
+    })
+  )
 }
 
 export type MaybeChainId = number | UniverseChainId | null | undefined | TradingApi.ChainId

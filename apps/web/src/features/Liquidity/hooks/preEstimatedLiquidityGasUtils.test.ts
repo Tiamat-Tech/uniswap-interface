@@ -1,6 +1,6 @@
 import { FeeAmount, nearestUsableTick, TICK_SPACINGS, TickMath, Pool as V3Pool } from '@uniswap/v3-sdk'
+import { UniverseChainId } from '@universe/chains'
 import { nativeOnChain, USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   computePreEstimateIndependentAmount,
   DUMMY_AMOUNT,

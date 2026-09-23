@@ -1,8 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
 import { ParsedQs } from 'qs'
 import { useParams } from 'react-router'
 // oxlint-disable-next-line no-restricted-imports -- Need direct chain info access for network parameters
 import { getChainInfo, UNIVERSE_CHAIN_INFO } from 'uniswap/src/features/chains/chainInfo'
-import { GqlChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { GqlChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyField } from 'uniswap/src/types/currency'
 
 // i.e. ?chain=mainnet -> ethereum

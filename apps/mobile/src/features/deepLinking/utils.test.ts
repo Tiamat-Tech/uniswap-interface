@@ -30,11 +30,11 @@ describe('dismissAllModalsBeforeNavigation', () => {
     mockNavigationRef.getState.mockReturnValue({
       key: 'root',
       index: 2,
-      routeNames: [MobileScreens.Home, 'ModalName.Swap', 'ModalName.Explore'],
+      routeNames: [MobileScreens.MainTabs, 'ModalName.Swap', 'ModalName.Explore'],
       type: 'stack',
       stale: false,
       routes: [
-        { name: MobileScreens.Home, key: 'home', params: undefined },
+        { name: MobileScreens.MainTabs, key: 'main-tabs', params: undefined },
         { name: 'ModalName.Swap', key: 'swap', params: undefined },
         { name: 'ModalName.Explore', key: 'explore', params: undefined },
       ],
@@ -64,15 +64,15 @@ describe('dismissAllModalsBeforeNavigation', () => {
       .silentRun()
   })
 
-  it('should not dispatch navigation actions when already on home screen', () => {
+  it('should not dispatch navigation actions when already on the main tabs', () => {
     mockNavigationRef.isReady.mockReturnValue(true)
     mockNavigationRef.getState.mockReturnValue({
       key: 'root',
       index: 0,
-      routeNames: [MobileScreens.Home],
+      routeNames: [MobileScreens.MainTabs],
       type: 'stack',
       stale: false,
-      routes: [{ name: MobileScreens.Home, key: 'home', params: undefined }],
+      routes: [{ name: MobileScreens.MainTabs, key: 'main-tabs', params: undefined }],
     })
 
     return expectSaga(dismissAllModalsBeforeNavigation)
@@ -100,7 +100,7 @@ describe('dismissAllModalsBeforeNavigation', () => {
       .silentRun()
   })
 
-  it('should handle case when home screen is not found in navigation stack', () => {
+  it('should handle case when the main tabs are not found in navigation stack', () => {
     mockNavigationRef.isReady.mockReturnValue(true)
     mockNavigationRef.getState.mockReturnValue({
       key: 'root',
@@ -126,11 +126,11 @@ describe('dismissAllModalsBeforeNavigation', () => {
     mockNavigationRef.getState.mockReturnValue({
       key: 'root',
       index: 2,
-      routeNames: [MobileScreens.Home, 'ModalName.Swap', 'ModalName.Explore'],
+      routeNames: [MobileScreens.MainTabs, 'ModalName.Swap', 'ModalName.Explore'],
       type: 'stack',
       stale: false,
       routes: [
-        { name: MobileScreens.Home, key: 'home', params: undefined },
+        { name: MobileScreens.MainTabs, key: 'main-tabs', params: undefined },
         { name: 'ModalName.Swap', key: 'swap', params: undefined },
         { name: 'ModalName.Explore', key: 'explore', params: undefined },
       ],

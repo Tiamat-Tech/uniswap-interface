@@ -1,5 +1,5 @@
 import { utils, wordlists } from 'ethers'
-import { type AppTFunction } from 'ui/src/i18n/types'
+import { type AppTFunction } from 'utilities/src/i18n/types'
 import { normalizeTextInput } from 'utilities/src/primitives/string'
 import {
   MNEMONIC_LENGTH_EW,

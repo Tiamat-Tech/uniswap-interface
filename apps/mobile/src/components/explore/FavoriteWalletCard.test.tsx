@@ -1,5 +1,6 @@
 import { UseQueryResult } from '@tanstack/react-query'
 import { GetAddressResponse } from '@universe/api'
+import { sanitizeAddressText } from '@universe/chains'
 import configureMockStore from 'redux-mock-store'
 import { thunk } from 'redux-thunk'
 import FavoriteWalletCard, { FavoriteWalletCardProps } from 'src/components/explore/FavoriteWalletCard'
@@ -9,7 +10,6 @@ import * as unitagHooks from 'uniswap/src/data/apiClients/unitagsApi/useUnitagsA
 import * as ensHooks from 'uniswap/src/features/ens/api'
 import { ON_PRESS_EVENT_PAYLOAD, SAMPLE_SEED_ADDRESS_1 } from 'uniswap/src/test/fixtures'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
-import { sanitizeAddressText } from 'uniswap/src/utils/addresses'
 import { shortenAddress } from 'utilities/src/addresses'
 import type { MockInstance } from 'vitest'
 import { preloadedWalletReducerState, signerMnemonicAccount } from 'wallet/src/test/fixtures'
@@ -145,7 +145,7 @@ describe('FavoriteWalletCard', () => {
       const removeButton = getByTestId('explore/remove-button')
 
       await waitFor(() => {
-        expect(removeButton).toHaveAnimatedStyle({ opacity: 0 })
+        expect((removeButton as unknown as HTMLElement).getAttribute('aria-disabled')).toBe('true')
       })
     })
   })
@@ -157,7 +157,7 @@ describe('FavoriteWalletCard', () => {
       const removeButton = getByTestId('explore/remove-button')
 
       await waitFor(() => {
-        expect(removeButton).toHaveAnimatedStyle({ opacity: 1 })
+        expect((removeButton as unknown as HTMLElement).getAttribute('aria-disabled')).toBeNull()
       })
     })
 

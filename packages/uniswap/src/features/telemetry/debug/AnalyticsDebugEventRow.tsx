@@ -1,5 +1,5 @@
+import { Flex, Text, TouchableArea, type ColorTokens } from '@universe/mycelium'
 import { memo, useState } from 'react'
-import { Flex, Text, TouchableArea, type ColorTokens } from 'ui/src'
 import type { CapturedAnalyticsEvent } from 'uniswap/src/features/telemetry/debug/analyticsDebugStore'
 import { useEvent } from 'utilities/src/react/hooks'
 

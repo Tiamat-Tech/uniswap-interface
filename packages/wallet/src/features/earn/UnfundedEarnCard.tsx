@@ -1,10 +1,12 @@
+import { Flex, type SpaceTokens, Text, TouchableArea } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { useDispatch, useSelector } from 'react-redux'
-import { Flex, HeightAnimator, SpaceTokens, Text, TouchableArea } from 'ui/src'
 import { ChevronsIn } from 'ui/src/components/icons/ChevronsIn'
 import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
-import { iconSizes, spacing } from 'ui/src/theme'
+import { iconSizes } from 'ui/src/theme/iconSizes'
+import { spacing } from 'ui/src/theme/spacing'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'
@@ -16,6 +18,8 @@ import { selectHasSeenUnfundedEarnCardReveal } from 'wallet/src/features/behavio
 import { setHasSeenUnfundedEarnCardReveal } from 'wallet/src/features/behaviorHistory/slice'
 import { DiscoveryVaultRow } from 'wallet/src/features/earn/DiscoveryVaultRow'
 import { EARNING_CARD_FRAME_PROPS } from 'wallet/src/features/earn/earnCardStyles'
+import { RevealingVaultLogo } from 'wallet/src/features/earn/RevealingVaultLogo'
+import { useEarnCardExpansion } from 'wallet/src/features/earn/useEarnCardExpansion'
 
 const UNFUNDED_CARD_LOGO_COUNT = 3
 // Logo stack height: icon24 logos plus the 2px surface border on each side.
@@ -29,23 +33,31 @@ const REVEAL_COMPLETE_MS = REVEAL_LOGO_START_MS + UNFUNDED_CARD_LOGO_COUNT * REV
 
 export function UnfundedEarnCard({
   vaults,
+  earnCardExpansionRequestId,
   isRevealReady = true,
   mb,
   mt,
   mx,
+  onEarnCardExpansionRequestHandled,
 }: {
   vaults: EarnVaultInfo[]
+  earnCardExpansionRequestId?: number
   /** Holds the one-time reveal (mobile: screen focused, welcome-card area settled) so it can't play offscreen. */
   isRevealReady?: boolean
   mb?: SpaceTokens
   mt?: SpaceTokens
   mx?: SpaceTokens
+  /** Called after this card applies the matching expansion request. */
+  onEarnCardExpansionRequestHandled?: (requestId: number) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const { formatPercent } = useLocalizationContext()
   const { navigateToEarnVault } = useWalletNavigation()
   const dispatch = useDispatch()
-  const [isExpanded, setIsExpanded] = useState(false)
+  const { isExpanded, toggleExpanded } = useEarnCardExpansion({
+    earnCardExpansionRequestId,
+    onEarnCardExpansionRequestHandled,
+  })
 
   const hasSeenReveal = useSelector(selectHasSeenUnfundedEarnCardReveal)
   // Decided once at mount so the persisted flag flipping mid-animation doesn't cut the reveal short.
@@ -81,15 +93,13 @@ export function UnfundedEarnCard({
 
   const onSelectVault = useCallback(
     ({ vault }: { vault: EarnVaultInfo }) => {
-      navigateToEarnVault({ analyticsEntryPoint: EarnEntryPoint.PortfolioEarnSection, vault })
+      navigateToEarnVault({ analyticsEntryPoint: EarnEntryPoint.HomeUnfundedEarnCard, vault })
     },
     [navigateToEarnVault],
   )
 
   const maxApyPercent = useMemo(() => Math.max(...vaults.map((vault) => vault.apyPercent)), [vaults])
   const formattedApy = t('explore.earn.apy', { apy: formatPercent(maxApyPercent) })
-
-  const toggleExpanded = (): void => setIsExpanded((prev) => !prev)
 
   const card = (
     <Flex
@@ -166,20 +176,14 @@ function VaultTokenLogoStack({
   return (
     <Flex row alignItems="center">
       {stackedVaults.map((vault, index) => (
-        <Flex
+        <RevealingVaultLogo
           key={vault.id}
-          ml={index === 0 ? 0 : -8}
-          borderWidth="$spacing2"
-          borderColor="$surface1"
-          borderRadius="$roundedFull"
+          isFirst={index === 0}
+          visible={index < visibleCount}
           zIndex={stackedVaults.length - index}
-          animation="300ms"
-          animateOnly={['opacity', 'transform']}
-          opacity={index < visibleCount ? 1 : 0}
-          y={index < visibleCount ? 0 : -8}
         >
           <VaultTokenLogo currencyId={vault.displayCurrencyId} />
-        </Flex>
+        </RevealingVaultLogo>
       ))}
     </Flex>
   )

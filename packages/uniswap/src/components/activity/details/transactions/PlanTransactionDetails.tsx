@@ -1,7 +1,8 @@
+import { Flex, type FlexCompatProps, iconSizes, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { ArrowDown } from '@universe/mycelium/icons/ArrowDown'
+import { InfoCircle } from '@universe/mycelium/icons/InfoCircle'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text } from 'ui/src'
-import { AlertTriangleFilled, ArrowDown, InfoCircle } from 'ui/src/components/icons'
-import { iconSizes } from 'ui/src/theme'
 import { CurrencyTransferContent } from 'uniswap/src/components/activity/details/transactions/TransferTransactionDetails'
 import {
   TwoTokenDetails,
@@ -30,17 +31,15 @@ import { currencyId } from 'uniswap/src/utils/currencyId'
 export function PlanTransactionDetails({
   status,
   typeInfo,
-  isEarnActivityDisplayEnabled = true,
   onClose,
   disableClick,
 }: {
   status: TransactionStatus
   typeInfo: PlanTransactionInfo
-  isEarnActivityDisplayEnabled?: boolean
   onClose?: () => void
   disableClick?: boolean
 }): JSX.Element {
-  const earnDisplayInfo = isEarnActivityDisplayEnabled ? getEarnPlanDisplayInfo(typeInfo) : undefined
+  const earnDisplayInfo = getEarnPlanDisplayInfo(typeInfo)
 
   if (earnDisplayInfo) {
     return (
@@ -141,16 +140,23 @@ function EarnPlanCurrencyTransferDetails({
 
 function noop(): void {}
 
-const IntermediaryStateCardContainer = styled(Flex, {
-  row: true,
-  justifyContent: 'space-between',
-  backgroundColor: '$surface2',
-  borderRadius: '$rounded12',
-  p: '$spacing12',
-  mx: '$spacing4',
-  alignItems: 'center',
-  gap: '$spacing12',
-})
+function IntermediaryStateCardContainer({ children, ...rest }: FlexCompatProps): JSX.Element {
+  return (
+    <Flex
+      row
+      justifyContent="space-between"
+      backgroundColor="$surface2"
+      borderRadius="$rounded12"
+      p="$spacing12"
+      mx="$spacing4"
+      alignItems="center"
+      gap="$spacing12"
+      {...rest}
+    >
+      {children}
+    </Flex>
+  )
+}
 
 /**
  * In the case that the plan is interrupted and the user is left with an intermediary token,

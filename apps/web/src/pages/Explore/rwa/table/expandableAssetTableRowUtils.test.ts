@@ -1,9 +1,9 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { mapRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/mapRankedRwa'
 import { makeRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/rankedRwaTestHelpers'
 import { deriveRwaAggregates } from 'uniswap/src/data/apiClients/dataApiService/rwa/rwaMetrics'
 import type { IssuerToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   buildExpandableAssetTableRows,
   getExpandableAssetRowMetrics,
@@ -14,7 +14,7 @@ import { TDP_MULTICHAIN_CHAIN_QUERY_VALUE } from '~/utils/params/chainQueryParam
 
 const enabledChains = [UniverseChainId.Mainnet, UniverseChainId.Base]
 
-function makeMultiIssuerRows() {
+function makeMultiIssuerAssets() {
   const tsla =
     mapRankedRwa({
       token: makeRankedRwa({
@@ -74,7 +74,11 @@ function makeMultiIssuerRows() {
       throw new Error('expected aapl')
     })()
 
-  return buildExpandableAssetTableRows({ assets: [tsla, aapl], enabledChainIds: enabledChains })
+  return [tsla, aapl]
+}
+
+function makeMultiIssuerRows() {
+  return buildExpandableAssetTableRows({ assets: makeMultiIssuerAssets(), enabledChainIds: enabledChains })
 }
 
 describe('buildExpandableAssetTableRows', () => {
@@ -90,6 +94,22 @@ describe('buildExpandableAssetTableRows', () => {
     expect(aapl?.type).toBe('issuer')
     expect(aapl?.type === 'issuer' && aapl.link).toBeDefined()
     expect(rows.some((row) => row.type === 'parent' && row.asset.symbol === 'AAPL')).toBe(false)
+  })
+
+  it('ranks top-level rows from the supplied map and leaves issuer sub-rows unranked (CONS-2824)', () => {
+    const assets = makeMultiIssuerAssets()
+    const rankByAsset = new Map(assets.map((asset, index) => [asset, index + 1]))
+    const rows = buildExpandableAssetTableRows({ assets, enabledChainIds: enabledChains, rankByAsset })
+
+    const tsla = rows.find((row) => row.type === 'parent' && row.asset.symbol === 'TSLA')
+    const aapl = rows.find((row) => row.type === 'issuer' && row.asset.symbol === 'AAPL')
+    expect(tsla?.rank).toBe(1)
+    expect(aapl?.rank).toBe(2)
+    expect(tsla?.type === 'parent' && tsla.subRows?.every((subRow) => subRow.rank === undefined)).toBe(true)
+  })
+
+  it('leaves rows unranked when no rank map is supplied', () => {
+    expect(makeMultiIssuerRows().every((row) => row.rank === undefined)).toBe(true)
   })
 
   it('getExpandableAssetSubRows returns issuer children for parent rows only', () => {
@@ -179,6 +199,22 @@ describe('linkForIssuer', () => {
   it('links to a single-chain TDP when a network filter is active', () => {
     const link = linkForIssuer({ issuer, enabledChainIds: enabledChains, chainFilter: UniverseChainId.Mainnet })
     expect(link).toBe('/explore/tokens/ethereum/0xaapl1')
+  })
+
+  it('picks the filtered chain leg over the mainnet-first pick when a network filter is active', () => {
+    const multichainIssuer: IssuerToken = {
+      ...issuer,
+      chainTokens: [
+        { chainId: UniverseChainId.Mainnet, address: '0xaapl1' },
+        { chainId: UniverseChainId.Base, address: '0xaapl2' },
+      ],
+    }
+    const link = linkForIssuer({
+      issuer: multichainIssuer,
+      enabledChainIds: enabledChains,
+      chainFilter: UniverseChainId.Base,
+    })
+    expect(link).toBe('/explore/tokens/base/0xaapl2')
   })
 })
 

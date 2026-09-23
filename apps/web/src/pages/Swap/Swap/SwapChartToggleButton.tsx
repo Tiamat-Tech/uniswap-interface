@@ -1,5 +1,5 @@
-import { TouchableArea, Flex } from 'ui/src'
-import { TrendUp } from 'ui/src/components/icons/TrendUp'
+import { Flex, TouchableArea } from '@universe/mycelium'
+import { TrendUp } from '@universe/mycelium/icons/TrendUp'
 
 interface SwapChartToggleButtonProps {
   showChart: boolean
@@ -17,7 +17,8 @@ export function SwapChartToggleButton({ showChart, onPress }: SwapChartToggleBut
       hoverStyle={{ backgroundColor: '$surface2' }}
       onPress={onPress}
     >
-      <Flex animation="fast" animateOnly={['transform']} hoverStyle={{ scale: 1.1 }}>
+      {/* Scoped to transform only, matching the legacy Tamagui 'fast' curve. */}
+      <Flex style={{ transition: 'transform 100ms cubic-bezier(0.17, 0.67, 0.45, 1)' }} hoverStyle={{ scale: 1.1 }}>
         <TrendUp color={showChart ? '$neutral1' : '$neutral2'} size="$icon.24" />
       </Flex>
     </TouchableArea>

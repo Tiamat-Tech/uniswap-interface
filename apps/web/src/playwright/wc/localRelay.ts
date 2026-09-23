@@ -47,6 +47,14 @@ interface Subscription {
 
 export interface LocalRelay {
   url: string
+  /**
+   * Drops all per-worker relay state (stored messages, subscriptions, live sockets) and
+   * blacklists the topics seen so far. The relay is worker-scoped while sessions are
+   * test-scoped, so without this a client that outlives its test can re-subscribe a dead
+   * topic and be handed the previous test's message backlog. Retired topics keep being
+   * ACKed (a client mid-teardown must not see errors) but are otherwise inert.
+   */
+  retireTopics: () => void
   close: () => Promise<void>
 }
 
@@ -77,6 +85,7 @@ export async function startLocalRelay(options: { port: number; host?: string } =
   const messagesByTopic = new Map<string, StoredMessage[]>()
   const subsBySocket = new Map<WebSocket, Map<string, string>>()
   const subsByTopic = new Map<string, Set<Subscription>>()
+  const retiredTopics = new Set<string>()
 
   let subCounter = 0
   const genSubId = (): string => `sub-${++subCounter}-${Math.random().toString(16).slice(2)}`
@@ -110,6 +119,11 @@ export async function startLocalRelay(options: { port: number; host?: string } =
 
   const registerSub = (socket: WebSocket, topic: string): string => {
     const subId = genSubId()
+    // Retired topic: hand back a well-formed subscription id the caller can ACK on, but
+    // register nothing and flush nothing.
+    if (retiredTopics.has(topic)) {
+      return subId
+    }
     let bySocket = subsBySocket.get(socket)
     if (!bySocket) {
       bySocket = new Map()
@@ -132,6 +146,9 @@ export async function startLocalRelay(options: { port: number; host?: string } =
   }
 
   const publish = (socket: WebSocket, args: { topic: string; message: string; tag?: number }): void => {
+    if (retiredTopics.has(args.topic)) {
+      return
+    }
     const entry: StoredMessage = {
       topic: args.topic,
       message: args.message,
@@ -221,13 +238,26 @@ export async function startLocalRelay(options: { port: number; host?: string } =
   const address = wss.address()
   const port = typeof address === 'object' && address ? address.port : options.port
 
+  const terminateSockets = (): void => {
+    for (const socket of wss.clients) {
+      socket.terminate()
+    }
+  }
+
   return {
     url: `ws://${host}:${port}`,
+    retireTopics: () => {
+      for (const topic of [...messagesByTopic.keys(), ...subsByTopic.keys()]) {
+        retiredTopics.add(topic)
+      }
+      messagesByTopic.clear()
+      subsByTopic.clear()
+      subsBySocket.clear()
+      terminateSockets()
+    },
     close: () =>
       new Promise<void>((resolve) => {
-        for (const socket of wss.clients) {
-          socket.terminate()
-        }
+        terminateSockets()
         wss.close(() => resolve())
       }),
   }

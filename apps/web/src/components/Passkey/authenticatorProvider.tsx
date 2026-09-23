@@ -1,8 +1,8 @@
 import { AuthenticatorNameType } from '@universe/embedded-wallet'
-import { GoogleLogoGradient } from 'ui/src/components/icons/GoogleLogoGradient'
-import { IcloudPasswordLogo } from 'ui/src/components/icons/IcloudPasswordLogo'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { Windows } from 'ui/src/components/icons/Windows'
+import { GoogleLogoGradient } from '@universe/mycelium/icons/GoogleLogoGradient'
+import { IcloudPasswordLogo } from '@universe/mycelium/icons/IcloudPasswordLogo'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
+import { Windows } from '@universe/mycelium/icons/Windows'
 import i18n from 'uniswap/src/i18n'
 import { AuthenticatorProvider } from '~/types/authenticatorProvider'
 

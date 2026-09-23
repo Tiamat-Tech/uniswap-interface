@@ -1,3 +1,4 @@
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { OnchainItemListOptionType, type RwaCollectionOption } from 'uniswap/src/components/lists/items/types'
 import { resolveRwaIssuerDisplay } from 'uniswap/src/data/apiClients/dataApiService/rwa/resolveRwaIssuerDisplay'
 import {
@@ -6,8 +7,8 @@ import {
   type ListRwasAssetSource,
   type Rwa,
 } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
+import type { SearchTokenStats } from 'uniswap/src/features/dataApi/types'
 import { getExpandableSearchRowHeightPx } from 'uniswap/src/features/expandableAsset/expandableAssetLayout'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
 
 export type RwaSearchIndexEntry = { rwa: Rwa; issuer: IssuerToken }
 export type RwaSearchIndex = { rwas: Rwa[]; byChainAddress: Map<string, RwaSearchIndexEntry> }
@@ -107,18 +108,51 @@ export function findRwaForToken(
   return index.byChainAddress.get(indexKey(token.chainId, token.address))
 }
 
+/** Lowest-priced entry's price + 24h change and the summed 1d volume; undefined when nothing contributes. Zeros
+ *  mean "no data" (zeroed `ListRwas` metrics, unpriced tokens), so they never become a "from $0.00" floor. */
+export function aggregateRwaCollectionStats(statsList: SearchTokenStats[]): SearchTokenStats | undefined {
+  const priced = statsList.filter(
+    (stats): stats is SearchTokenStats & { priceUsd: number } => (stats.priceUsd ?? 0) > 0,
+  )
+  const lowest = priced.reduce<(typeof priced)[number] | undefined>(
+    (min, stats) => (!min || stats.priceUsd < min.priceUsd ? stats : min),
+    undefined,
+  )
+  const volumes = statsList.map((stats) => stats.volume1dUsd ?? 0).filter((volume) => volume > 0)
+  if (!lowest && !volumes.length) {
+    return undefined
+  }
+  return {
+    ...(lowest && { priceUsd: lowest.priceUsd, pricePercentChange1d: lowest.pricePercentChange1d }),
+    ...(volumes.length && { volume1dUsd: volumes.reduce((sum, volume) => sum + volume, 0) }),
+  }
+}
+
+export function getRwaCollectionSearchStats(rwa: Rwa): SearchTokenStats | undefined {
+  return aggregateRwaCollectionStats(
+    rwa.issuerTokens.map((issuer) => ({
+      priceUsd: issuer.priceUsd,
+      pricePercentChange1d: issuer.priceChange24hPct,
+      volume1dUsd: issuer.volume24hUsd,
+    })),
+  )
+}
+
 export function buildRwaCollectionOption({
   rwa,
   showCategoryTag,
+  searchStats,
 }: {
   rwa: Rwa
   showCategoryTag: boolean
+  searchStats?: SearchTokenStats
 }): RwaCollectionOption {
   const issuerCount = rwa.issuerTokens.length
   return {
     type: OnchainItemListOptionType.RwaCollection,
     rwa,
     showCategoryTag,
+    ...(searchStats && { searchStats }),
     rowLayout: {
       dynamicHeight: issuerCount > 1,
       collapsedHeightPx: getExpandableSearchRowHeightPx({ issuerCount, expanded: false }),

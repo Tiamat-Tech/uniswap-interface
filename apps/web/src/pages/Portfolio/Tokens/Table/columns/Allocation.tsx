@@ -1,5 +1,5 @@
+import { Flex, Progress } from '@universe/mycelium'
 import { memo } from 'react'
-import { Flex, Progress } from 'ui/src'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 

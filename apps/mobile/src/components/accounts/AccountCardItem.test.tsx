@@ -42,18 +42,17 @@ describe('AccountCardItem', () => {
   })
 
   describe('portfolio value', () => {
-    it('displays loading shimmmer when portfolio value is loading', () => {
+    it('displays loading placeholder when portfolio value is loading', () => {
       const { rerender } = render(
         <AccountCardItem {...defaultProps} isPortfolioValueLoading={true} portfolioValue={undefined} />,
       )
 
-      // Select shimmer placeholder because the actual shimmer is rendered after onLayout
-      // is fired and this logic is not a part of this test
-      expect(screen.queryByTestId('shimmer')).toBeTruthy()
+      // The shimmer overlay mounts only after onLayout, which react-native-web never fires in jsdom; assert the placeholder bar instead.
+      expect(screen.queryByTestId('text-placeholder')).toBeTruthy()
 
       rerender(<AccountCardItem {...defaultProps} isPortfolioValueLoading={false} portfolioValue={undefined} />)
 
-      expect(screen.queryByTestId('shimmer')).toBeFalsy()
+      expect(screen.queryByTestId('text-placeholder')).toBeFalsy()
     })
 
     it('shows current portfolio value when available', () => {

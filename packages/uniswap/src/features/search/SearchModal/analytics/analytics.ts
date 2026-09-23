@@ -1,10 +1,14 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { isMobileApp } from '@universe/environment'
-import { OnchainItemListOptionType, SearchModalOption } from 'uniswap/src/components/lists/items/types'
+import {
+  OnchainItemListOptionType,
+  SearchModalListOption,
+  SearchModalOption,
+} from 'uniswap/src/components/lists/items/types'
 import { extractDomain } from 'uniswap/src/components/lists/items/wallets/utils'
 import { OnchainItemSection, OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { SearchContext, SearchFilterContext } from 'uniswap/src/features/search/SearchModal/analytics/SearchContext'
 import { InterfaceEventName, MobileEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -20,7 +24,7 @@ export function sendSearchOptionItemClickedAnalytics({
   rwaSelection,
 }: {
   item: SearchModalOption
-  section: OnchainItemSection<SearchModalOption>
+  section: OnchainItemSection<SearchModalListOption>
   rowIndex: number
   sectionIndex: number
   searchFilters: SearchFilterContext
@@ -33,7 +37,8 @@ export function sendSearchOptionItemClickedAnalytics({
     isHistory: section.sectionKey === OnchainItemSectionName.RecentSearches,
     position: rowIndex, // rowIndex accounts for header items as well, so the first header in the list has index 0 and first item in the list has index 1
     sectionPosition: sectionIndex + 1, // 1-indexed position of item in section
-    suggestionCount: section.data.length, // suggestionCount is # of suggestions in this SECTION, not total # of suggestions
+    // suggestionCount is # of suggestions in this SECTION, not total # of suggestions; flattened so a pill row counts its pills
+    suggestionCount: section.data.flat().length,
   }
 
   switch (item.type) {
@@ -78,7 +83,7 @@ export function sendSearchOptionItemClickedAnalytics({
         name: item.rwa.name,
         chainId: rwaSelection?.chainId,
         address: rwaSelection?.address,
-        tokenType: 'token',
+        resultType: 'token',
       })
       return
     }
@@ -142,6 +147,14 @@ export function sendSearchOptionItemClickedAnalytics({
         selected_search_result_address: item.auctionAddress,
       })
       return
+    case OnchainItemListOptionType.Category:
+      sendSearchResultClickedAnalytics({
+        searchContext,
+        name: item.category.name,
+        address: item.category.id,
+        resultType: 'collection',
+      })
+      return
     default:
       logger.warn('SearchModal/analytics.ts', 'sendSearchOptionItemClickedAnalytics', 'Unhandled search option type', {
         item,
@@ -163,27 +176,41 @@ function sendTokenAnalyticsEvent({
     name: currency.name ?? '',
     chainId: currency.chainId,
     address: currency.isNative ? 'NATIVE' : currency.address,
-    tokenType: multichain ? 'multichain_token' : 'token',
+    resultType: multichain ? 'multichain_token' : 'token',
   })
+}
+
+type SearchResultType = 'token' | 'multichain_token' | 'collection'
+
+function getWebSuggestionType(searchContext: SearchContext, resultType: SearchResultType): NavBarSearchTypes {
+  if (searchContext.isHistory) {
+    return NavBarSearchTypes.RecentSearch
+  }
+  if (resultType === 'collection') {
+    return NavBarSearchTypes.CategorySuggestion
+  }
+  return searchContext.query && searchContext.query.length > 0
+    ? NavBarSearchTypes.TokenSuggestion
+    : NavBarSearchTypes.TokenTrending
 }
 
 /**
  * Emits the search-result-clicked event in the right shape per platform (mobile `ExploreSearchResultClicked` vs
- * web `NavbarResultSelected`). Shared by the token, multichain-token, and tokenized-stock paths so the two
- * payload shapes never drift.
+ * web `NavbarResultSelected`). Shared by the token, multichain-token, tokenized-stock, and category paths so
+ * the two payload shapes never drift. For a category, `address` carries the category id.
  */
 function sendSearchResultClickedAnalytics({
   searchContext,
   name,
   chainId,
   address,
-  tokenType,
+  resultType,
 }: {
   searchContext: SearchContext
   name: string
   chainId?: UniverseChainId
   address?: string
-  tokenType: 'token' | 'multichain_token'
+  resultType: SearchResultType
 }): void {
   if (isMobileApp) {
     sendAnalyticsEvent(MobileEventName.ExploreSearchResultClicked, {
@@ -191,22 +218,18 @@ function sendSearchResultClickedAnalytics({
       name,
       chain: chainId,
       address,
-      type: tokenType,
+      type: resultType,
     })
   } else {
     sendAnalyticsEvent(InterfaceEventName.NavbarResultSelected, {
       ...searchContext,
       chainId,
-      suggestion_type: searchContext.isHistory
-        ? NavBarSearchTypes.RecentSearch
-        : searchContext.query && searchContext.query.length > 0
-          ? NavBarSearchTypes.TokenSuggestion
-          : NavBarSearchTypes.TokenTrending,
+      suggestion_type: getWebSuggestionType(searchContext, resultType),
       total_suggestions: searchContext.suggestionCount,
       query_text: searchContext.query ?? '',
       selected_search_result_name: name,
       selected_search_result_address: address,
-      token_type: tokenType,
+      token_type: resultType === 'collection' ? undefined : resultType,
     })
   }
 }

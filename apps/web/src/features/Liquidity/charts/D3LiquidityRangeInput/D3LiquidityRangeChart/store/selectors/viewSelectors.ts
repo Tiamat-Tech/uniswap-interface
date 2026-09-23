@@ -3,6 +3,7 @@ import { useLocalizationContext } from 'uniswap/src/features/language/Localizati
 import { useStore } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 import { LiquidityChartStoreContext } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/LiquidityChartStoreContext'
+import { getChartCurrentPrice } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/selectors/priceSelectors'
 
 function useLiquidityChartStore() {
   const store = useContext(LiquidityChartStoreContext)
@@ -45,7 +46,7 @@ export const useLiquidityChartStorePriceDifferences = ():
   return useStore(
     store,
     useShallow((s) => {
-      const currentPrice = s.renderingContext?.priceData[s.renderingContext.priceData.length - 1]?.value
+      const currentPrice = getChartCurrentPrice(s)
       const { minPrice, maxPrice, isFullRange } = s
 
       if (!currentPrice || !minPrice || !maxPrice || isFullRange) {

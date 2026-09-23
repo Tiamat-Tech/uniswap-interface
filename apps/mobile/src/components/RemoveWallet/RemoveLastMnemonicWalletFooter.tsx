@@ -1,6 +1,7 @@
+import { Button, Flex, SpinningLoader, Text } from '@universe/mycelium'
+import { LabeledCheckboxCompat as LabeledCheckbox } from '@universe/mycelium/checkbox-compat'
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, LabeledCheckbox, SpinningLoader, Text } from 'ui/src'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
 export function RemoveLastMnemonicWalletFooter({

@@ -58,9 +58,6 @@
       "path": "../../packages/websocket"
     },
     {
-      "path": "../../packages/tailwind"
-    },
-    {
       "path": "../../packages/sessions"
     },
     {
@@ -98,6 +95,15 @@
     },
     {
       "path": "../../packages/embedded-wallet"
+    },
+    {
+      "path": "../../packages/mycelium"
+    },
+    {
+      "path": "../../config/vitest-presets"
+    },
+    {
+      "path": "../../packages/tailwind"
     }
   ]
 }

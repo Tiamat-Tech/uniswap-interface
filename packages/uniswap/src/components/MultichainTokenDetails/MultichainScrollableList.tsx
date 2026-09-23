@@ -1,7 +1,7 @@
+import { Flex, Text, type SpaceTokens } from '@universe/mycelium'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors, type SpaceTokens } from 'ui/src'
-import { opacify } from 'ui/src/theme'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
 
 const GRADIENT_THRESHOLD = 4

@@ -14,7 +14,7 @@ vi.mock('src/app/navigation/types', async () => ({
 }))
 
 vi.mock('uniswap/src/components/portfolio/PositionItem/PositionItem', async () => {
-  const { Text } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Text } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     PositionItem: ({ positionInfo, onPress }: { positionInfo: { poolId: string }; onPress?: () => void }) => (
       <Text testID={`position-${positionInfo.poolId}`} onPress={onPress}>
@@ -57,6 +57,7 @@ const renderTab = (
   render(
     <HomeScreenPoolsTab
       owner="0x0000000000000000000000000000000000000001"
+      isActiveTab={false}
       bodyOffsetY={0}
       poolsListRenderData={{ ...baseData, ...overrides }}
       statusFilter={statusFilter}

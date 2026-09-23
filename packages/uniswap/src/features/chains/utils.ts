@@ -1,12 +1,11 @@
 import { BigNumber, BigNumberish } from '@ethersproject/bignumber'
 import { Token } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
+import { areEvmAddressesEqual, Platform, UniverseChainId } from '@universe/chains'
 import { AppId, getConfig } from '@universe/config'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import { ALL_CHAIN_IDS, getChainInfo, ORDERED_CHAINS } from 'uniswap/src/features/chains/chainInfo'
-import { EnabledChainsInfo, GqlChainId, NetworkLayer, UniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-
+import { EnabledChainsInfo, GqlChainId, NetworkLayer } from 'uniswap/src/features/chains/types'
 // Some code from the web app uses chainId types as numbers
 // This validates them as coerces into SupportedChainId
 export function toSupportedChainId(chainId?: BigNumberish): UniverseChainId | null {
@@ -349,7 +348,7 @@ export function getStablecoinsForChain(chainId: UniverseChainId): Token[] {
 export function isStablecoinAddress(chainId: UniverseChainId, tokenAddress: string): boolean {
   try {
     const stablecoins = getStablecoinsForChain(chainId)
-    return stablecoins.some((stablecoin) => stablecoin.address.toLowerCase() === tokenAddress.toLowerCase())
+    return stablecoins.some((stablecoin) => areEvmAddressesEqual(stablecoin.address, tokenAddress))
   } catch {
     return false
   }

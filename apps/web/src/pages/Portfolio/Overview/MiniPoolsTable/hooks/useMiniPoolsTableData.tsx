@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
+import { SORT_BY_USD_VALUE_DESC, useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
 import { PositionInfo } from 'uniswap/src/features/positions/types'
 import { usePendingLPTransactionsChangeListener } from '~/state/transactions/hooks'
 
@@ -24,6 +24,7 @@ export function useMiniPoolsTableData({ account, maxPools = 5, chainId }: UseMin
     account,
     chainIds: chainId ? [chainId] : undefined,
     autoFetchAllPages: false,
+    ...SORT_BY_USD_VALUE_DESC,
   })
 
   usePendingLPTransactionsChangeListener(refetch)

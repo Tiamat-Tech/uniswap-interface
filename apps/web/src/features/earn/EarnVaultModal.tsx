@@ -1,6 +1,9 @@
+import { Platform } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
+import { TransitionItem } from '@universe/mycelium/animate-presence-pager'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Flex, HeightAnimator, TransitionItem } from 'ui/src'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { selectHasAcknowledgedEarnHowItWorks } from 'uniswap/src/features/behaviorHistory/selectors'
@@ -14,7 +17,11 @@ import {
 import { useAcknowledgeEarnHowItWorks } from 'uniswap/src/features/earn/hooks/useAcknowledgeEarnHowItWorks'
 import { useEarnDepositSources } from 'uniswap/src/features/earn/hooks/useEarnDepositSources'
 import { useEarnMainnetActionCurrencyForVault } from 'uniswap/src/features/earn/hooks/useEarnMainnetActionCurrency'
-import { EarnPositionStatus, useEarnPosition } from 'uniswap/src/features/earn/hooks/useEarnPosition'
+import {
+  EarnPositionStatus,
+  isEarnPositionUnknown,
+  useEarnPosition,
+} from 'uniswap/src/features/earn/hooks/useEarnPosition'
 import { resetStoppedEarnPlan } from 'uniswap/src/features/earn/hooks/useEarnReviewExecutionHandlers'
 import {
   type EarnVaultModalInitialView,
@@ -23,14 +30,12 @@ import {
 } from 'uniswap/src/features/earn/hooks/useEarnVaultModalFlow'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { hasConfirmedEarnPositionRawBalance } from 'uniswap/src/features/earn/utils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import type {
   EarnAnalyticsEntryPoint,
   EarnAnalyticsSurface as EarnAnalyticsSurfaceValue,
 } from 'uniswap/src/features/telemetry/types'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
-import type { UniswapState } from 'uniswap/src/state/uniswapReducer'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { signalEarnModalClosed } from 'uniswap/src/utils/saga'
 import { noop } from 'utilities/src/react/noop'
@@ -76,14 +81,14 @@ export function EarnVaultModal({
   const { navigateToSwapFlow, navigateToFiatOnRamp } = useUniswapContext()
   const isConnected = account.isConnected
   const evmAccount = useActiveAccount(Platform.EVM)
-  const hasAcknowledgedHowItWorks = useSelector((state: UniswapState) =>
-    selectHasAcknowledgedEarnHowItWorks(state, vault?.id),
-  )
+  const hasAcknowledgedHowItWorks = useSelector(selectHasAcknowledgedEarnHowItWorks)
   const currencyInfo = useCurrencyInfo(vault?.displayCurrencyId)
   const currency = currencyInfo?.currency
   const symbol = currency?.symbol ?? ''
   const selectedAnalyticsKeyRef = useRef<string | undefined>(undefined)
   const startedAnalyticsKeysRef = useRef(new Set<string>())
+  // Amount views visited while the position was still unknown; flushed when it resolves.
+  const pendingStartedActionsRef = useRef(new Set<'deposit' | 'withdraw'>())
   const {
     balanceLookupErrored,
     balanceLookupHasData,
@@ -125,6 +130,7 @@ export function EarnVaultModal({
   const lifetimeEarningsError = isConnected && positionIsError && prefetchedPosition !== undefined
   const canWithdraw = hasConfirmedEarnPositionRawBalance(displayPosition)
   const isPositionLoading = positionStatus === EarnPositionStatus.Loading && displayPosition === undefined
+  const isPositionUnknown = isEarnPositionUnknown(positionStatus) && displayPosition === undefined
 
   const {
     flow,
@@ -150,8 +156,10 @@ export function EarnVaultModal({
   })
   const transitionDirection = useEarnVaultTransitionDirection(flow.view)
 
+  // Undefined while the position state is unknown, so a consumer cannot stamp
+  // has_existing_position from missing data. Consumers hold their events until this resolves.
   const analyticsProperties = useMemo(() => {
-    if (!vault) {
+    if (!vault || isPositionUnknown) {
       return undefined
     }
 
@@ -162,15 +170,18 @@ export function EarnVaultModal({
       underlyingTokenSymbol: symbol,
       vault,
     })
-  }, [analyticsEntryPoint, analyticsSurface, displayPosition, symbol, vault])
+  }, [analyticsEntryPoint, analyticsSurface, displayPosition, isPositionUnknown, symbol, vault])
 
   useEffect(() => {
     if (!isOpen) {
       selectedAnalyticsKeyRef.current = undefined
       startedAnalyticsKeysRef.current.clear()
+      pendingStartedActionsRef.current.clear()
     }
   }, [isOpen])
 
+  // analyticsProperties stays undefined while the position is unknown, so Selected holds
+  // until the query resolves; the effect then re-runs and emits.
   useEffect(() => {
     if (!isOpen || !analyticsProperties || !vault) {
       return
@@ -186,31 +197,40 @@ export function EarnVaultModal({
   }, [analyticsEntryPoint, analyticsProperties, isOpen, vault])
 
   useEffect(() => {
-    if (!isOpen || !analyticsProperties || !vault) {
+    if (!isOpen || !vault) {
       return
     }
 
+    // Queue-and-flush: record the amount view now, emit when the position resolves. A
+    // view-gated emit alone would drop Started when the user advances to review before
+    // analyticsProperties becomes available.
     const action =
       flow.view === EarnVaultView.DepositAmount
         ? 'deposit'
         : flow.view === EarnVaultView.WithdrawAmount
           ? 'withdraw'
           : undefined
-    if (!action) {
+    if (action) {
+      pendingStartedActionsRef.current.add(action)
+    }
+    if (!analyticsProperties) {
       return
     }
 
-    const analyticsKey = `${analyticsEntryPoint}-${vault.id}-${action}`
-    if (startedAnalyticsKeysRef.current.has(analyticsKey)) {
-      return
-    }
+    for (const pendingAction of pendingStartedActionsRef.current) {
+      const analyticsKey = `${analyticsEntryPoint}-${vault.id}-${pendingAction}`
+      if (startedAnalyticsKeysRef.current.has(analyticsKey)) {
+        continue
+      }
 
-    startedAnalyticsKeysRef.current.add(analyticsKey)
-    logEarnTransactionEvent({
-      action,
-      status: 'started',
-      properties: { ...analyticsProperties, action },
-    })
+      startedAnalyticsKeysRef.current.add(analyticsKey)
+      logEarnTransactionEvent({
+        action: pendingAction,
+        status: 'started',
+        properties: { ...analyticsProperties, action: pendingAction },
+      })
+    }
+    pendingStartedActionsRef.current.clear()
   }, [analyticsEntryPoint, analyticsProperties, flow.view, isOpen, vault])
 
   // Every dismissal path funnels here (Escape, backdrop, close button), so this is where a
@@ -238,6 +258,7 @@ export function EarnVaultModal({
   }, [balanceLookupHasData, hasSupportedBalanceForUnderlying, isConnected, startDeposit, startNeedToken])
 
   const handleContinueDeposit = useAcknowledgeEarnHowItWorks({
+    // Drop Acknowledged while the position is unknown, so it cannot occur without Viewed.
     analyticsProperties,
     onContinue: continueDeposit,
     vaultId: vault?.id,
@@ -288,7 +309,7 @@ export function EarnVaultModal({
       onClose={handleClose}
     >
       <HeightAnimator animation="quickLong">
-        <TransitionItem animation="quickLong" animationType={transitionDirection} childKey={flow.view} distance={24}>
+        <TransitionItem curve="quickLong" animationType={transitionDirection} childKey={flow.view} distance={24}>
           {/* Preserve the modal's section gap after introducing the animation wrapper. */}
           <Flex gap="$spacing16">
             <EarnVaultModalContent
@@ -315,6 +336,7 @@ export function EarnVaultModal({
               swapAmountUsd={swapAmountUsd}
               tabState={{ selectedTab, setSelectedTab }}
               vaultData={{
+                analyticsProperties,
                 balanceLookupErrored,
                 balanceLookupHasData,
                 balanceLookupSettled,

@@ -1,5 +1,6 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { ComponentProps } from 'react'
-import { Flex, SpinningLoader, Text, TouchableArea, useIsDarkMode } from 'ui/src'
+import { SpinningLoader, useIsDarkMode } from 'ui/src'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { iconSizes, spacing } from 'ui/src/theme'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'

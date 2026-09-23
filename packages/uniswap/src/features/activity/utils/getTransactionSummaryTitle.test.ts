@@ -1,9 +1,8 @@
 import { TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
-import type { AppTFunction } from 'ui/src/i18n/types'
+import { UniverseChainId } from '@universe/chains'
 import { DAI } from 'uniswap/src/constants/tokens'
 import { getTransactionSummaryTitle } from 'uniswap/src/features/activity/utils/getTransactionSummaryTitle'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   type PlanTransactionInfo,
   type TransactionDetails,
@@ -11,16 +10,14 @@ import {
   TransactionType,
 } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 import { describe, expect, it } from 'vitest'
 
 // Identity `t` so assertions read against i18n keys rather than translated copy.
 const t = ((key: string) => key) as AppTFunction
 
-function getTitle(
-  tx: Pick<TransactionDetails, 'typeInfo' | 'status'>,
-  options?: { isEarnActivityDisplayEnabled?: boolean },
-): string | undefined {
-  return getTransactionSummaryTitle({ tx, t, ...options })
+function getTitle(tx: Pick<TransactionDetails, 'typeInfo' | 'status'>): string | undefined {
+  return getTransactionSummaryTitle({ tx, t })
 }
 
 function auctionLaunchTx(status: TransactionStatus): Pick<TransactionDetails, 'typeInfo' | 'status'> {
@@ -122,17 +119,5 @@ describe('getTransactionSummaryTitle - Earn plans', () => {
         status: TransactionStatus.Expired,
       }),
     ).toBe('transaction.status.deposit.interrupted')
-  })
-
-  it('uses generic plan titles when Earn activity display is disabled', () => {
-    expect(
-      getTitle(
-        {
-          typeInfo: createPlanTypeInfo(TradingApi.EarnAction.DEPOSIT),
-          status: TransactionStatus.AwaitingAction,
-        },
-        { isEarnActivityDisplayEnabled: false },
-      ),
-    ).toBe('transaction.status.plan.interrupted')
   })
 })

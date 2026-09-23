@@ -1,6 +1,6 @@
 import { IssuerMultichainToken, ListRwaTokensResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { mapRwaToken, mapRwaTokenList } from 'uniswap/src/data/apiClients/dataApiService/rwa/mapRwaToken'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 describe('mapRwaToken', () => {
   it('maps flat issuer-token fields for commodities rows', () => {

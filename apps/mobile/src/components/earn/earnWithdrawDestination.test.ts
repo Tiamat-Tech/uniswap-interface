@@ -1,9 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
 import {
   getMobileEarnWithdrawDestinationChainIds,
   resolveMobileEarnWithdrawDestination,
 } from 'src/components/earn/earnWithdrawDestination'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 
 const UNICHAIN_USDT0_ADDRESS = '0x9151434b16b9763660705744891fA906F660EcC5'

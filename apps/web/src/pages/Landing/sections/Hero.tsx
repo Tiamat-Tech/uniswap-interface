@@ -1,8 +1,10 @@
+import { Flex, Text } from '@universe/mycelium'
+import { ENTER_PRESET_CLASSES } from '@universe/mycelium/compat'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
+import { useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { Fragment, useCallback, useMemo } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, Text, useMedia, useSporeColors } from 'ui/src'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { INTERFACE_NAV_HEIGHT } from 'ui/src/theme'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { SwapRedirectFn } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext'
@@ -68,7 +70,7 @@ export function Hero({ scrollToRef, transition }: HeroProps) {
       position="relative"
       justifyContent="center"
       minWidth="100%"
-      minHeight="100vh"
+      className="min-h-screen supports-[height:100svh]:min-h-svh"
       height="min-content"
       pt={INTERFACE_NAV_HEIGHT}
       pointerEvents="none"
@@ -111,7 +113,7 @@ export function Hero({ scrollToRef, transition }: HeroProps) {
             borderRadius="$rounded24"
             backgroundColor="$surface1"
             maxWidth="100%"
-            enterStyle={{ opacity: 0 }}
+            className={ENTER_PRESET_CLASSES.fadeIn}
           >
             <Swap
               hideHeader

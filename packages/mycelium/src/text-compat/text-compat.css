@@ -35,3 +35,29 @@
     -webkit-mask-position: -50%;
   }
 }
+
+/* Unlayered, and the attribute is doubled: this must outrank `@layer utilities` classes and any unlayered legacy `a` / `a:hover` global a consumer still carries. */
+/* Order is Tailwind's emitted variant order, not PSEUDO_VARIANT's; equal-specificity rules tie-break on source order. */
+a[data-stext-anchor][data-stext-anchor] {
+  color: var(--stext-a-col);
+}
+a[data-stext-anchor~='w']:focus-within {
+  color: var(--stext-a-col-w);
+}
+@media (hover: hover) {
+  a[data-stext-anchor~='h']:hover {
+    color: var(--stext-a-col-h);
+  }
+}
+a[data-stext-anchor~='f']:focus {
+  color: var(--stext-a-col-f);
+}
+a[data-stext-anchor~='v']:focus-visible {
+  color: var(--stext-a-col-v);
+}
+a[data-stext-anchor~='a']:active {
+  color: var(--stext-a-col-a);
+}
+a[data-stext-anchor~='d'][aria-disabled='true'] {
+  color: var(--stext-a-col-d);
+}

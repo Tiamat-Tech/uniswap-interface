@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { Swap } from 'ui/src/components/icons/Swap'
 import { StepRowProps, StepRowSkeleton } from 'uniswap/src/components/ConfirmSwapModal/steps/StepRowSkeleton'
 import { StepStatus } from 'uniswap/src/components/ConfirmSwapModal/types'
@@ -17,7 +17,7 @@ import {
 } from 'uniswap/src/features/transactions/swap/steps/swap'
 
 const SwapIcon = (): JSX.Element => (
-  <Flex centered width="$spacing24" height="$spacing24" borderRadius="$roundedFull" backgroundColor="$DEP_blue400">
+  <Flex centered width="$spacing24" height="$spacing24" borderRadius="$roundedFull" backgroundColor="#4C82FB">
     <Swap color="$white" size="$icon.12" />
   </Flex>
 )

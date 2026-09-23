@@ -1,11 +1,12 @@
+import { Flex, Text, TouchableArea, type SpaceTokens, type TextCompatProps } from '@universe/mycelium'
+import { useShadowPropsMedium } from '@universe/mycelium/theme-hooks-compat'
 import type { ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, useShadowPropsMedium, type GetProps, type SpaceTokens } from 'ui/src'
 import { EarnSparkle } from 'ui/src/components/icons/EarnSparkle'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 
-type TextVariant = GetProps<typeof Text>['variant']
+type TextVariant = TextCompatProps['variant']
 
 type TokenDetailsEarnBannerProps = {
   apyPercent: number

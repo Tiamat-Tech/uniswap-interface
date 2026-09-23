@@ -1,5 +1,5 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { Pools } from 'ui/src/components/icons/Pools'
 import type { PositionStatusFilterValue } from 'uniswap/src/features/positions/components/PositionStatusFilter'
 

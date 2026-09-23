@@ -1,10 +1,10 @@
+import { iconSizes, TouchableArea } from '@universe/mycelium'
 import React from 'react'
 import { Favorite } from 'src/components/icons/Favorite'
-import { TouchableArea } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { useSelectHasTokenFavorited } from 'uniswap/src/features/favorites/hooks/useSelectHasTokenFavorited'
 import { useToggleFavoriteCallback } from 'uniswap/src/features/favorites/hooks/useToggleFavoriteCallback'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+import { normalizeCurrencyIdForMapLookup } from 'uniswap/src/utils/currencyId'
 
 export function TokenDetailsFavoriteButton({
   currencyId,
@@ -13,7 +13,7 @@ export function TokenDetailsFavoriteButton({
   currencyId: string
   tokenName?: string
 }): JSX.Element {
-  const id = currencyId.toLowerCase()
+  const id = normalizeCurrencyIdForMapLookup(currencyId)
   const isFavoriteToken = useSelectHasTokenFavorited(id)
   const onFavoritePress = useToggleFavoriteCallback({ id, tokenName, isFavoriteToken })
   return (

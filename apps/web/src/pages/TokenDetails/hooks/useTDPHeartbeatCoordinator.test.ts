@@ -1,21 +1,13 @@
 import { renderHook, act } from '@testing-library/react'
-import { useDynamicConfigValue, useFeatureFlag } from '@universe/gating'
+import { useDynamicConfigValue } from '@universe/gating'
 import { PollingInterval } from 'uniswap/src/constants/misc'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { useActiveAddresses } from '~/features/accounts/store/hooks'
 import { useInterval } from '~/lib/hooks/useInterval'
 import { useTDPHeartbeatCoordinator } from '~/pages/TokenDetails/hooks/useTDPHeartbeatCoordinator'
 
-const mockRefetchQueries = vi.fn().mockResolvedValue(undefined)
 const mockQueryClientRefetchQueries = vi.fn().mockResolvedValue(undefined)
 
-vi.mock('@apollo/client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@apollo/client')>()
-  return {
-    ...actual,
-    useApolloClient: () => ({ refetchQueries: mockRefetchQueries }),
-  }
-})
+const PRICE_QUERY_NAMES = ['getTokenMultiChain', 'getTokenHistoryPrice', 'getTokenHistoryOHLC']
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
@@ -28,14 +20,9 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 vi.mock('@universe/gating', async (importOriginal) => {
   return {
     ...(await importOriginal<typeof import('@universe/gating')>()),
-    useFeatureFlag: vi.fn(),
     useDynamicConfigValue: vi.fn(),
   }
 })
-
-vi.mock('uniswap/src/features/earn/hooks/useIsEarnEnabled', () => ({
-  useIsEarnEnabled: vi.fn(),
-}))
 
 vi.mock('~/features/accounts/store/hooks', () => ({
   useActiveAddresses: vi.fn(),
@@ -45,10 +32,8 @@ vi.mock('~/lib/hooks/useInterval', () => ({
   useInterval: vi.fn(),
 }))
 
-const mockUseIsEarnEnabled = vi.mocked(useIsEarnEnabled)
 const mockUseActiveAddresses = vi.mocked(useActiveAddresses)
 const mockUseInterval = vi.mocked(useInterval)
-const mockUseFeatureFlag = vi.mocked(useFeatureFlag)
 const mockUseDynamicConfigValue = vi.mocked(useDynamicConfigValue)
 
 function makeParams(overrides?: Partial<Parameters<typeof useTDPHeartbeatCoordinator>[0]>) {
@@ -57,7 +42,6 @@ function makeParams(overrides?: Partial<Parameters<typeof useTDPHeartbeatCoordin
     balancesRefetch: vi.fn(),
     incrementRefreshEpoch: vi.fn(),
     enabled: true,
-    isV2TokensEnabled: false,
     ...overrides,
   }
 }
@@ -66,9 +50,7 @@ describe('useTDPHeartbeatCoordinator', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
-    mockUseFeatureFlag.mockReturnValue(false)
     mockUseDynamicConfigValue.mockReturnValue(60)
-    mockUseIsEarnEnabled.mockReturnValue(false)
     mockUseActiveAddresses.mockReturnValue({ evmAddress: undefined, svmAddress: undefined })
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
@@ -93,9 +75,8 @@ describe('useTDPHeartbeatCoordinator', () => {
     expect(delay).toBeNull()
   })
 
-  it('refetches the V2 REST price queries on the price tick when V2 tokens is enabled', async () => {
-    // SynchronizedHeartbeats on; V2 effective (flag or Robinhood fallback) passed by the TDP context.
-    const params = makeParams({ isV2TokensEnabled: true })
+  it('refetches the REST price queries on the price tick', async () => {
+    const params = makeParams()
     renderHook(() => useTDPHeartbeatCoordinator(params))
 
     const [callback] = mockUseInterval.mock.calls[0]!
@@ -103,12 +84,11 @@ describe('useTDPHeartbeatCoordinator', () => {
       await callback()
     })
 
-    for (const name of ['getToken', 'getTokenMultiChain', 'getTokenHistoryPrice', 'getTokenHistoryOHLC']) {
+    for (const name of PRICE_QUERY_NAMES) {
       expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith(
         expect.objectContaining({ queryKey: expect.arrayContaining([name]), type: 'active' }),
       )
     }
-    expect(mockRefetchQueries).not.toHaveBeenCalledWith({ include: ['TokenPrice'] })
   })
 
   it('fires the full refresh only on every other tick', async () => {
@@ -122,7 +102,8 @@ describe('useTDPHeartbeatCoordinator', () => {
     })
 
     expect(params.tokenQueryRefetch).toHaveBeenCalledOnce()
-    expect(mockRefetchQueries).toHaveBeenCalledTimes(3) // charts once (full), TokenPrice twice (both ticks)
+    // Price queries fire on both ticks; the full refresh adds nothing here (no connected account)
+    expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(PRICE_QUERY_NAMES.length * 2)
   })
 
   it('passes null delay when disabled', () => {
@@ -156,34 +137,14 @@ describe('useTDPHeartbeatCoordinator', () => {
 
     expect(params.tokenQueryRefetch).toHaveBeenCalledOnce()
     expect(params.balancesRefetch).toHaveBeenCalledOnce()
-    expect(mockRefetchQueries).toHaveBeenCalledWith({
-      include: ['TokenHistoricalVolumes', 'TokenHistoricalTvls'],
-    })
+    for (const name of PRICE_QUERY_NAMES) {
+      expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: expect.arrayContaining([name]), type: 'active' }),
+      )
+    }
   })
 
-  it('skips earn queries when earn feature flag is disabled', async () => {
-    mockUseIsEarnEnabled.mockReturnValue(false)
-    mockUseActiveAddresses.mockReturnValue({ evmAddress: '0xabc', svmAddress: undefined })
-
-    const params = makeParams()
-    renderHook(() => useTDPHeartbeatCoordinator(params))
-
-    const [callback] = mockUseInterval.mock.calls[0]!
-    await act(async () => {
-      await callback()
-    })
-
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledOnce()
-    expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: expect.arrayContaining(['listEarnVaults']) }),
-    )
-    expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: expect.arrayContaining(['listEarnPositions']) }),
-    )
-  })
-
-  it('skips earn queries when no evm account is connected', async () => {
-    mockUseIsEarnEnabled.mockReturnValue(true)
+  it('skips earn and PnL queries when no account is connected', async () => {
     mockUseActiveAddresses.mockReturnValue({ evmAddress: undefined, svmAddress: undefined })
 
     const params = makeParams()
@@ -194,11 +155,15 @@ describe('useTDPHeartbeatCoordinator', () => {
       await callback()
     })
 
-    expect(mockQueryClientRefetchQueries).not.toHaveBeenCalled()
+    expect(params.balancesRefetch).not.toHaveBeenCalled()
+    for (const name of ['GetWalletTokenProfitLoss', 'listEarnVaults', 'listEarnPositions']) {
+      expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(
+        expect.objectContaining({ queryKey: expect.arrayContaining([name]) }),
+      )
+    }
   })
 
   it('refetches balances and PnL but not earn for an svm-only wallet', async () => {
-    mockUseIsEarnEnabled.mockReturnValue(true)
     mockUseActiveAddresses.mockReturnValue({
       evmAddress: undefined,
       svmAddress: 'So11111111111111111111111111111111111111112',
@@ -221,8 +186,7 @@ describe('useTDPHeartbeatCoordinator', () => {
     )
   })
 
-  it('fires both earn query keys when earn is enabled and account is connected', async () => {
-    mockUseIsEarnEnabled.mockReturnValue(true)
+  it('fires both earn query keys when an evm account is connected', async () => {
     mockUseActiveAddresses.mockReturnValue({ evmAddress: '0xabc', svmAddress: undefined })
 
     const params = makeParams()
@@ -233,7 +197,6 @@ describe('useTDPHeartbeatCoordinator', () => {
       await callback()
     })
 
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(3)
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: expect.arrayContaining(['GetWalletTokenProfitLoss']) }),
     )

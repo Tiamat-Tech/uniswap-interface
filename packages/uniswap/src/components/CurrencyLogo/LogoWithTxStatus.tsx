@@ -1,6 +1,8 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, UniversalImage, UniversalImageResizeMode } from '@universe/mycelium'
 import React, { useEffect } from 'react'
 import type { IconProps } from 'ui/src'
-import { Flex, UniversalImage, UniversalImageResizeMode, useSporeColors } from 'ui/src'
+import { useSporeColors } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { Approve } from 'ui/src/components/icons/Approve'
 import { ArrowDownInCircle } from 'ui/src/components/icons/ArrowDownInCircle'
@@ -16,7 +18,6 @@ import { TransactionSummaryNetworkLogo } from 'uniswap/src/components/CurrencyLo
 import { DappIconPlaceholder } from 'uniswap/src/components/dapps/DappIconPlaceholder'
 import { NFTViewer } from 'uniswap/src/components/nfts/NFTViewer'
 import { AssetType } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { type CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import {
   NFTTradeType,

@@ -1,5 +1,6 @@
 import type { WatchQueryFetchPolicy } from '@apollo/client'
 import type { WalletBalanceCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import type { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import type { PollingInterval } from 'uniswap/src/constants/misc'
 import {
@@ -11,7 +12,6 @@ import {
   type PortfolioBalanceBreakdown,
 } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { PortfolioTotalValueResult } from 'uniswap/src/features/dataApi/balances/buildPortfolioBalance'
 import { useRestPortfolioValueModifier } from 'uniswap/src/features/dataApi/balances/useRestPortfolioValueModifier'
 import type { BaseResult } from 'uniswap/src/features/dataApi/types'

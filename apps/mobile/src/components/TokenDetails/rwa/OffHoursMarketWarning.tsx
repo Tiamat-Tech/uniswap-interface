@@ -1,10 +1,10 @@
 import { SharedEventName } from '@uniswap/analytics-events'
-import { FeatureFlags } from '@universe/gating'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { Clock } from '@universe/mycelium/icons/Clock'
+import { InfoCircle } from '@universe/mycelium/icons/InfoCircle'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useGatedTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { Clock, InfoCircle } from 'ui/src/components/icons'
+import { useTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { useIsEquityOffHours } from 'uniswap/src/features/rwa/useIsEquityOffHours'
@@ -18,7 +18,7 @@ const OFF_HOURS_SHEET_SNAP_POINTS = [336]
 export function OffHoursMarketWarning(): JSX.Element | null {
   const { t } = useTranslation()
   const [isSheetOpen, setIsSheetOpen] = useState(false)
-  const rwaMatch = useGatedTokenDetailsRWAMatch(FeatureFlags.RWATdp)
+  const rwaMatch = useTokenDetailsRWAMatch()
   const isOffHours = useIsEquityOffHours()
 
   const closeSheet = useCallback((): void => setIsSheetOpen(false), [])

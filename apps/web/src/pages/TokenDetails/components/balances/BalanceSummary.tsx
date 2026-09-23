@@ -1,8 +1,8 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import { Flex, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { NetworkBalanceBreakdown } from 'uniswap/src/components/tokenDetails/NetworkBalanceBreakdown'
 import { computeAggregateBalance } from 'uniswap/src/components/tokenDetails/utils'
 import { useConnectionStatus } from 'uniswap/src/features/accounts/store/hooks'
@@ -22,22 +22,21 @@ import { useTDPEffectiveCurrency } from '~/pages/TokenDetails/hooks/useTDPEffect
 
 export function BalanceSummary(): JSX.Element | null {
   const { isDisconnected } = useConnectionStatus()
-  const { currencyChain, multiChainMap, balanceError, tokenQuery } = useTDPStore((s) => ({
-    currencyChain: s.currencyChain,
+  const { currencyChainId, multiChainMap, balanceError } = useTDPStore((s) => ({
+    currencyChainId: s.currencyChainId,
     multiChainMap: s.multiChainMap,
     balanceError: s.balanceError,
-    tokenQuery: s.tokenQuery,
   }))
   const effectiveCurrency = useTDPEffectiveCurrency()
-  const metadata = useTokenMetadata(currencyId(effectiveCurrency), { legacyToken: tokenQuery.data?.token })
+  const metadata = useTokenMetadata(currencyId(effectiveCurrency))
 
-  const pageChainBalance = multiChainMap[currencyChain]?.balance
+  const pageChainBalance = multiChainMap[currencyChainId]?.balance
   const otherChainBalances: PortfolioBalance[] = []
   const allBalances: PortfolioBalance[] = []
   for (const [key, value] of Object.entries(multiChainMap)) {
     if (value.balance !== undefined) {
       allBalances.push(value.balance)
-      if (key !== currencyChain) {
+      if (Number(key) !== currencyChainId) {
         otherChainBalances.push(value.balance)
       }
     }

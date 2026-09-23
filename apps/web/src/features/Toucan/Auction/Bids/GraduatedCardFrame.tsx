@@ -1,6 +1,7 @@
 import '~/features/Toucan/Auction/Bids/AuctionGraduated.css'
+import { Flex } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { ReactNode } from 'react'
-import { Flex, useSporeColors } from 'ui/src'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { useTokenLaunchedBannerColorData } from '~/features/Toucan/Auction/Banners/TokenLaunched/useTokenLaunchedBannerColorData'
 

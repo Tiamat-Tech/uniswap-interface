@@ -105,6 +105,7 @@ export function createHorizontalLiquidityBarsRenderer({
       quoteCurrency,
       priceInverted,
       protocolVersion,
+      topInset,
     } = context
     const { dimensions, hoveredSegment, isChartHovered, tickScale } = getState()
 
@@ -160,7 +161,9 @@ export function createHorizontalLiquidityBarsRenderer({
     const liquidityValues = renderedBuckets.map((d) => Number(d.liquidityActive)).filter((v) => v > 0)
     const targetMaxLiquidity = liquidityValues.length > 0 ? liquidityValues.reduce((a, b) => Math.max(a, b), 0) : 1
     const maxLiquidity = advanceDisplayedMaxLiquidity(targetMaxLiquidity)
-    const liquidityYScale = d3.scaleLinear().domain([0, maxLiquidity]).range([chartHeight, 0])
+    // Bars fill from the bottom up to `topInset`, leaving that band clear for the overlaid header
+    // (the chart's dotted background still spans the full height behind it).
+    const liquidityYScale = d3.scaleLinear().domain([0, maxLiquidity]).range([chartHeight, topInset])
 
     // Compute the X position where the current tick falls
     const currentTickX = tickScale.tickToAxis(currentTick)
@@ -192,10 +195,11 @@ export function createHorizontalLiquidityBarsRenderer({
       const barEndX = tickScale.tickToAxis(d.endTick)
       return Math.max(3, barEndX - tickScale.tickToAxis(d.startTick) - CHART_DIMENSIONS.LIQUIDITY_BAR_SPACING)
     }
-    // Clamp to chartHeight so a transiently-lagging smoothed scale (while the eased max catches up
-    // to a newly-larger target) can't push bars past the top of the chart.
+    // Clamp to the drawable height (below the top inset) so a transiently-lagging smoothed scale
+    // (while the eased max catches up to a newly-larger target) can't push bars into the header band.
+    const drawableHeight = chartHeight - topInset
     const getBarHeight = (d: BucketChartEntry): number => {
-      return Math.max(3, Math.min(chartHeight, chartHeight - liquidityYScale(Number(d.liquidityActive))))
+      return Math.max(3, Math.min(drawableHeight, chartHeight - liquidityYScale(Number(d.liquidityActive))))
     }
     const getBarY = (d: BucketChartEntry): number => chartHeight - getBarHeight(d)
 

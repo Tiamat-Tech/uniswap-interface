@@ -1,5 +1,5 @@
 import { Currency, Token, WETH9 } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
+import { UniverseChainId, Platform, areAddressesEqual } from '@universe/chains'
 import type { ImageSourcePropType } from 'react-native'
 import { CELO_LOGO, ETH_LOGO } from 'ui/src/assets'
 import {
@@ -66,11 +66,9 @@ import {
 } from 'uniswap/src/constants/tokens'
 import { UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { ProtectionResult } from 'uniswap/src/features/dataApi/safety'
 import { CurrencyInfo, TokenList } from 'uniswap/src/features/dataApi/types'
 import { buildCurrencyInfo } from 'uniswap/src/features/dataApi/utils/buildCurrency'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 
 type ChainCurrencyList = {
@@ -299,7 +297,7 @@ export function buildPartialCurrencyInfo(commonBase: Currency): CurrencyInfo {
     logoUrl,
     safetyInfo: {
       tokenList: TokenList.Default,
-      protectionResult: GraphQLApi.ProtectionResult.Benign,
+      protectionResult: ProtectionResult.Benign,
     },
     isSpam: false,
   } as CurrencyInfo)

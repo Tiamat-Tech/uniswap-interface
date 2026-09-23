@@ -1,9 +1,14 @@
+import { EVMUniverseChainId } from '@universe/chains'
 import { isDevEnv } from '@universe/environment'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import type { StoreApi, UseBoundStore } from 'zustand'
 import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
-import { AuctionDetailsLoadState, AuctionStoreState, BidInfoTab } from '~/features/Toucan/Auction/store/types'
+import {
+  AuctionCheckpointLoadState,
+  AuctionDetailsLoadState,
+  AuctionStoreState,
+  BidInfoTab,
+} from '~/features/Toucan/Auction/store/types'
 import { computeAuctionProgress } from '~/features/Toucan/Auction/utils/computeAuctionProgress'
 
 export type AuctionStore = UseBoundStore<StoreApi<AuctionStoreState>>
@@ -15,6 +20,7 @@ export const createAuctionStore = (auctionAddress?: string, chainId?: EVMUnivers
     currentBlock: INITIAL_CURRENT_BLOCK,
     auctionDetails: null,
     checkpointData: null,
+    checkpointLoadState: AuctionCheckpointLoadState.Idle,
   })
 
   return create<AuctionStoreState>()(
@@ -27,6 +33,7 @@ export const createAuctionStore = (auctionAddress?: string, chainId?: EVMUnivers
         auctionDetailsLoadState: AuctionDetailsLoadState.Idle,
         auctionDetailsError: null,
         checkpointData: null,
+        checkpointLoadState: AuctionCheckpointLoadState.Idle,
         onchainCheckpoint: null,
         totalCleared: null,
         tokenColor: undefined, // Will be set by useSrcColor in provider
@@ -104,6 +111,7 @@ export const createAuctionStore = (auctionAddress?: string, chainId?: EVMUnivers
                 currentBlock: blockNumber,
                 auctionDetails: state.auctionDetails,
                 checkpointData: state.checkpointData,
+                checkpointLoadState: state.checkpointLoadState,
               })
               return {
                 currentBlockNumber: blockNumber,
@@ -176,9 +184,17 @@ export const createAuctionStore = (auctionAddress?: string, chainId?: EVMUnivers
                 currentBlock: state.currentBlockNumber,
                 auctionDetails: details,
                 checkpointData: state.checkpointData,
+                checkpointLoadState: state.checkpointLoadState,
               })
               return {
                 auctionDetails: details,
+                // Canonicalize the auction address once GetAuction resolves: externally shared
+                // links may carry the launched token's address in the URL (GetAuction resolves
+                // those via its token-address fallback), but every other endpoint (checkpoint
+                // polling, VerifyWallet/KYC, bids) reverts on a token address. Adopting the
+                // resolved row's own contract address here fixes all state.auctionAddress
+                // consumers in one place; until resolution the URL param is kept as fallback.
+                auctionAddress: details?.address ? details.address : state.auctionAddress,
                 // Recompute progress since auction details contain start/end blocks
                 progress,
               }
@@ -198,6 +214,20 @@ export const createAuctionStore = (auctionAddress?: string, chainId?: EVMUnivers
                 currentBlock: state.currentBlockNumber,
                 auctionDetails: state.auctionDetails,
                 checkpointData: data,
+                checkpointLoadState: state.checkpointLoadState,
+              }),
+            }))
+          },
+          setCheckpointLoadState: (loadState) => {
+            set((state) => ({
+              checkpointLoadState: loadState,
+              // Recompute progress: settling the request is what makes an empty checkpoint on an
+              // ended auction decidable, so the outcome can change without checkpointData moving.
+              progress: computeAuctionProgress({
+                currentBlock: state.currentBlockNumber,
+                auctionDetails: state.auctionDetails,
+                checkpointData: state.checkpointData,
+                checkpointLoadState: loadState,
               }),
             }))
           },

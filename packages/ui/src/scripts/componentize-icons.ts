@@ -175,6 +175,9 @@ function generateSVGComponentString(svg: string, fileName: string): string {
   })
 
   const rawSerialized = $('svg').toString()
+  // Quirks below (first-hex defaultFill, non-global width/height strip, global /px/g)
+  // are byte-parity-coupled with packages/mycelium/src/scripts/componentize-icons.ts —
+  // change both together or the icons path-data parity suite goes red.
   // Capture first explicit fill color before we rewrite all fills to currentColor.
   const defaultFill = rawSerialized.match(/fill="(#[a-z0-9]+)"/i)?.[1]
 

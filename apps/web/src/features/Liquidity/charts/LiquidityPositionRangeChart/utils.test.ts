@@ -1,6 +1,6 @@
 import { CurrencyAmount, Price, Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { DAI, USDC_MAINNET } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   getCrosshairProps,
   isEffectivelyInfinity,

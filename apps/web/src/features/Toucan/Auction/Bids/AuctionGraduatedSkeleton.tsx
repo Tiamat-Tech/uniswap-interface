@@ -1,4 +1,4 @@
-import { Flex, Skeleton } from 'ui/src'
+import { Flex, Skeleton } from '@universe/mycelium'
 
 export function AuctionGraduatedSkeleton(): JSX.Element {
   return (

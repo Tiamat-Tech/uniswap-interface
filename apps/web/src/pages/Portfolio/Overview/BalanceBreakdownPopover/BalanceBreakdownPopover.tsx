@@ -1,5 +1,7 @@
+import { Flex } from '@universe/mycelium'
+import { AdaptiveWebPopoverContentCompat, PopoverCompat } from '@universe/mycelium/popover-compat'
+import { useMedia, useShadowPropsMedium } from '@universe/mycelium/theme-hooks-compat'
 import { ReactNode, useMemo } from 'react'
-import { AdaptiveWebPopoverContent, Flex, Popover, useMedia, useShadowPropsMedium } from 'ui/src'
 import type { PortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/buildPortfolioBalance'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import {
@@ -89,19 +91,19 @@ export function BalanceBreakdownPopover({
   const isMobile = media.md
 
   return (
-    <Popover
+    <PopoverCompat
       hoverable={isMobile ? false : { delay: { open: 200 }, restMs: 100 }}
       placement="bottom-start"
       stayInFrame
       allowFlip
       offset={{ mainAxis: 8 }}
     >
-      <Popover.Trigger>
+      <PopoverCompat.Trigger>
         <Flex cursor="default" testID={TestID.BalanceBreakdownPopover}>
           {children}
         </Flex>
-      </Popover.Trigger>
-      <AdaptiveWebPopoverContent
+      </PopoverCompat.Trigger>
+      <AdaptiveWebPopoverContentCompat
         isOpen
         adaptWhen={false}
         role="tooltip"
@@ -112,8 +114,6 @@ export function BalanceBreakdownPopover({
         borderColor="$surface3"
         borderRadius="$rounded16"
         borderWidth="$spacing1"
-        enterStyle={{ y: -10, opacity: 0 }}
-        exitStyle={{ y: -10, opacity: 0 }}
         animation="quick"
         animateOnly={['transform', 'opacity']}
         p="$spacing16"
@@ -125,7 +125,7 @@ export function BalanceBreakdownPopover({
             <BalanceBreakdownRow key={row.kind} {...row} />
           ))}
         </Flex>
-      </AdaptiveWebPopoverContent>
-    </Popover>
+      </AdaptiveWebPopoverContentCompat>
+    </PopoverCompat>
   )
 }

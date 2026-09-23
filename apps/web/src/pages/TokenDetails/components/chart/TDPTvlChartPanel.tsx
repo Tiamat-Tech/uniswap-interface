@@ -16,11 +16,17 @@ export function TDPTvlChartPanel({ variables, tokenColor }: TDPTvlChartPanelProp
   const tvlQuery = useTDPTVLChartData({ variables, skip: false })
 
   if (tvlQuery.dataQuality === DataQuality.INVALID) {
+    // An INVALID verdict covers both a failed query and a token with too little Uniswap volume to
+    // plot. Only the former is a failure on our side, so only it keeps the error framing.
+    const isNoData = !tvlQuery.loading && !tvlQuery.isError
     return (
       <ChartSkeleton
         type={ChartType.TVL}
         height={EXPLORE_CHART_HEIGHT_PX}
-        errorText={tvlQuery.loading ? undefined : t('chart.error.tokens')}
+        errorTitle={isNoData ? t('chart.noData.tvl.title') : t('chart.missingData')}
+        errorText={
+          tvlQuery.loading ? undefined : isNoData ? t('chart.noData.tokens.description') : t('chart.error.tokens')
+        }
       />
     )
   }

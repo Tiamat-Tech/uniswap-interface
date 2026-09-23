@@ -1,11 +1,14 @@
 import { useEmbeddedWalletState } from '@universe/embedded-wallet'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
+import { ENTER_EXIT_PRESET_CLASSES } from '@universe/mycelium/compat'
+import { Presence } from '@universe/mycelium/presence'
+import { styled } from '@universe/mycelium/styled'
 import { useAtom } from 'jotai'
 import { forwardRef, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, Button, ButtonProps, Flex, Popover, Text } from 'ui/src'
+import { Button, ButtonProps, Popover } from 'ui/src'
 import { Unitag } from 'ui/src/components/icons/Unitag'
-import { breakpoints } from 'ui/src/theme'
 import { useActiveAddresses, useConnectionStatus } from 'uniswap/src/features/accounts/store/hooks'
 import { ElementName, InterfaceEventName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -22,19 +25,12 @@ import { useShowPendingAfterDelay } from '~/components/Web3Status/useShowPending
 import { Web3StatusRef } from '~/components/Web3Status/web3StatusRef'
 import { useHasInjectedWallets } from '~/features/wallet/connection/hooks/useOrderedWalletConnectors'
 import { useModalState } from '~/hooks/useModalState'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 import { isIFramed } from '~/utils/isIFramed'
 
-const TextStyled = deprecatedStyled.span<{ marginRight?: number }>`
-  flex: 1 1 auto;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 1rem;
-  width: fit-content;
-  font-weight: 485;
-  margin-right: ${({ marginRight = 0 }) => marginRight}px;
-  color: ${({ theme }) => theme.neutral1};
-`
+const TextStyled = styled('span', {
+  platform: 'web',
+  base: 'flex-[1_1_auto] text-ellipsis whitespace-nowrap text-[1rem] w-fit font-[485] mr-[0px] text-neutral1',
+})
 
 const Web3StatusGeneric = forwardRef<HTMLDivElement, ButtonProps>(function Web3StatusGeneric(
   { children, ...props },
@@ -57,15 +53,14 @@ const Web3StatusGeneric = forwardRef<HTMLDivElement, ButtonProps>(function Web3S
   )
 })
 
-const AddressAndChevronContainer = deprecatedStyled.div<{ $loading?: boolean }>`
-  display: flex;
-  opacity: ${({ $loading, theme }) => $loading && theme.opacity.disabled};
-  align-items: center;
-
-  @media only screen and (max-width: ${breakpoints.xl}px) {
-    display: none;
-  }
-`
+const AddressAndChevronContainer = styled('div', {
+  platform: 'web',
+  base: 'flex items-center media-xl:hidden',
+  variants: {
+    $loading: { true: 'opacity-50', false: '' },
+  },
+  defaultVariants: { $loading: false },
+})
 
 const ExistingUserCTAButton = forwardRef<HTMLDivElement, { onPress: () => void }>(function ExistingUserCTAButton(
   { onPress },
@@ -139,9 +134,9 @@ function Web3StatusInner() {
   if (activeAddresses.evmAddress || activeAddresses.svmAddress) {
     return (
       <Trace logPress element={ElementName.AccountDrawerButton}>
-        <AnimatePresence exitBeforeEnter>
+        <Presence exitBeforeEnter>
           {showLoadingState ? (
-            <Flex key="pending" animation="125ms" enterStyle={{ opacity: 0, y: -2 }} exitStyle={{ opacity: 0, y: 2 }}>
+            <Flex key="pending" className={ENTER_EXIT_PRESET_CLASSES.fadeInOut}>
               <Web3StatusGeneric
                 data-testid={TestID.Web3StatusConnected}
                 onPress={handleWalletDropdownClick}
@@ -154,7 +149,7 @@ function Web3StatusInner() {
               </Web3StatusGeneric>
             </Flex>
           ) : (
-            <Flex key="normal" animation="125ms" enterStyle={{ opacity: 0, y: -2 }} exitStyle={{ opacity: 0, y: 2 }}>
+            <Flex key="normal" className={ENTER_EXIT_PRESET_CLASSES.fadeInOut}>
               <Web3StatusGeneric
                 data-testid={TestID.Web3StatusConnected}
                 onPress={handleWalletDropdownClick}
@@ -171,7 +166,7 @@ function Web3StatusInner() {
               </Web3StatusGeneric>
             </Flex>
           )}
-        </AnimatePresence>
+        </Presence>
       </Trace>
     )
   }

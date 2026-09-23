@@ -35,8 +35,9 @@ export function ParsedTransactionRequestContent({
   const { t } = useTranslation()
   const { dappUrl, currentAccount } = useDappRequestQueueContext()
   const { value: confirmedRisk, setValue: setConfirmedRisk } = useBooleanState(false)
-  // Initialize with null to indicate scan hasn't completed yet
+  // null means there is no confirmable risk result, either while scanning or after local validation fails.
   const [riskLevel, setRiskLevel] = useState<TransactionRiskLevel | null>(null)
+  const [isCriticalRisk, setIsCriticalRisk] = useState(false)
 
   const { verificationStatus } = useSiteVerification(dappUrl)
 
@@ -61,7 +62,7 @@ export function ParsedTransactionRequestContent({
       title={t('dapp.request.base.title')}
       transactionGasFeeResult={transactionGasFeeResult}
       disableConfirm={disableConfirm}
-      isCriticalRisk={riskLevel === TransactionRiskLevel.Critical}
+      isCriticalRisk={isCriticalRisk}
       onCancel={onCancel}
       onConfirm={onConfirm}
       showAddressFooter={false}
@@ -79,6 +80,7 @@ export function ParsedTransactionRequestContent({
         onConfirmRisk={setConfirmedRisk}
         onChangeGasOverrides={onChangeGasOverrides}
         onRiskLevelChange={setRiskLevel}
+        onCriticalRiskChange={setIsCriticalRisk}
       />
     </DappRequestContent>
   )

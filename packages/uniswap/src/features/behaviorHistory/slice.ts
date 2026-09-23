@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
 import {
   EARN_SWAP_UPSELL_MAX_DISPLAYS,
   getOrCreateEarnSwapUpsellTokenHistory,
@@ -35,14 +36,18 @@ export interface UniswapBehaviorHistoryState {
   }
   hasDismissedCrosschainSwapsPromoBanner?: boolean
   /**
-   * Per-user dismissal flag for the pools-balance coachmark on the Portfolio Overview.
-   * Defaults to `true` in `initialUniswapBehaviorHistoryState` so brand-new users never see it;
-   * existing users' persisted state predates this key and resolves to `undefined` (i.e. not dismissed),
-   * so they see it once until they dismiss.
+   * Per-user tri-state for the pools-balance coachmark on the Portfolio Overview.
+   * `undefined` = fresh state not yet classified; `false` = eligible (state existed before the
+   * pools-balances launch, not yet dismissed); `true` = never show (dismissed, had no pools when
+   * first evaluated, or state was created after launch).
+   * A migration marks existing installs `false`; `initializePoolsBalanceCoachmarkDismissed` classifies
+   * fresh state from the flag at startup.
    */
   hasDismissedPoolsBalanceCoachmark?: boolean
+  /** Per-user dismissal flag for the one-time Explore Earn deep-link coachmark. */
+  hasDismissedExploreEarnCoachmark?: boolean
   hasDismissedPoolsOutageBanner?: boolean
-  /** Vaults for which the user accepted the one-time Earn deposit explainer. */
+  /** Vault acknowledgements; any entry suppresses the Earn deposit explainer globally. */
   earnHowItWorksAcknowledgedByVaultId?: Record<string, true>
   earnSwapUpsell?: EarnSwapUpsellHistory
 }
@@ -66,7 +71,7 @@ export const initialUniswapBehaviorHistoryState: UniswapBehaviorHistoryState = {
   hasShownSmartWalletNudge: false,
   hasSeenToucanIntroModal: false,
   hasDismissedCrosschainSwapsPromoBanner: false,
-  hasDismissedPoolsBalanceCoachmark: true,
+  hasDismissedExploreEarnCoachmark: false,
   hasDismissedPoolsOutageBanner: false,
   earnHowItWorksAcknowledgedByVaultId: {},
 }
@@ -130,7 +135,9 @@ const slice = createSlice({
     },
     setToucanIntroModalSeenByWallet: (state, action: PayloadAction<{ walletAddress: string }>) => {
       state.toucanIntroModalSeenByWallet ??= {}
-      state.toucanIntroModalSeenByWallet[action.payload.walletAddress.toLowerCase()] = true
+      state.toucanIntroModalSeenByWallet[
+        normalizeAddress(action.payload.walletAddress, AddressStringFormat.Lowercase)
+      ] = true
     },
     setHasDismissedBridgedAssetsBannerV2: (state, action: PayloadAction<boolean>) => {
       state.hasDismissedBridgedAssetsBannerV2 = action.payload
@@ -141,6 +148,15 @@ const slice = createSlice({
     // Payload defaults to `true` (dismiss). Pass `false` to re-show the coachmark, e.g. from a dev tool.
     setPoolsBalanceCoachmarkDismissed: (state, action: PayloadAction<boolean | undefined>) => {
       state.hasDismissedPoolsBalanceCoachmark = action.payload ?? true
+    },
+    // Write-once startup init for fresh state: flag already on → suppressed forever; flag still off →
+    // eligible (pre-launch cohort). No-op once any value exists (migrated installs, dismissals).
+    initializePoolsBalanceCoachmarkDismissed: (state, action: PayloadAction<boolean>) => {
+      state.hasDismissedPoolsBalanceCoachmark ??= action.payload
+    },
+    // Payload defaults to `true` (dismiss). Pass `false` to re-show the coachmark from a dev tool.
+    setExploreEarnCoachmarkDismissed: (state, action: PayloadAction<boolean | undefined>) => {
+      state.hasDismissedExploreEarnCoachmark = action.payload ?? true
     },
     setHasDismissedPoolsOutageBanner: (state, action: PayloadAction<boolean>) => {
       state.hasDismissedPoolsOutageBanner = action.payload
@@ -203,6 +219,8 @@ export const {
   setHasDismissedBridgedAssetsBannerV2,
   setHasDismissedCrosschainSwapsPromoBanner,
   setPoolsBalanceCoachmarkDismissed,
+  initializePoolsBalanceCoachmarkDismissed,
+  setExploreEarnCoachmarkDismissed,
   setHasDismissedPoolsOutageBanner,
   setHasAcknowledgedEarnHowItWorks,
   recordEarnSwapUpsellQualifyingSwap,

@@ -2,7 +2,6 @@ import { isMobileApp } from '@universe/environment'
 import { put, select, takeLatest } from 'typed-redux-saga'
 import { AssetType } from 'uniswap/src/entities/assets'
 import { getEarnPlanDisplayInfo } from 'uniswap/src/features/activity/utils/getEarnPlanDisplayInfo'
-import { getIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { getEarnSwapUpsellOutputCurrencyId } from 'uniswap/src/features/earn/swapUpsell'
 import { STALE_TRANSACTION_TIME_MS } from 'uniswap/src/features/notifications/constants'
 import { makeSelectAddressNotifications } from 'uniswap/src/features/notifications/slice/selectors'
@@ -201,7 +200,7 @@ function getEarnSwapUpsellNotificationOutputCurrencyId({
   status: TransactionStatus
   typeInfo: TransactionDetails['typeInfo']
 }): string | undefined {
-  if (!isMobileApp || !getIsEarnEnabled()) {
+  if (!isMobileApp) {
     return undefined
   }
 

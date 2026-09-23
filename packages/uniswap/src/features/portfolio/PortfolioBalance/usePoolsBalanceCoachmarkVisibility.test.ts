@@ -30,17 +30,17 @@ vi.mock('uniswap/src/features/dataApi/balances/balancesRest', () => ({
 const WALLET_A = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 
 /**
- * The initial redux state defaults `hasDismissedPoolsBalanceCoachmark` to `true` (so brand-new
- * users never see the coachmark). To exercise the "existing user" path, tests preload the slice
- * with the flag explicitly set to `false`.
+ * `hasDismissedPoolsBalanceCoachmark` is a tri-state: `undefined` = fresh state awaiting startup
+ * init, `false` = eligible, `true` = never show. Only exactly `false` can ever show the coachmark.
  */
-const asExistingUser = (overrides: Partial<UniswapBehaviorHistoryState> = {}) => ({
+const withCoachmarkState = (hasDismissedPoolsBalanceCoachmark: boolean | undefined) => ({
   uniswapBehaviorHistory: {
     ...initialUniswapBehaviorHistoryState,
-    hasDismissedPoolsBalanceCoachmark: false,
-    ...overrides,
-  },
+    hasDismissedPoolsBalanceCoachmark,
+  } satisfies UniswapBehaviorHistoryState,
 })
+
+const asEligibleUser = () => withCoachmarkState(false)
 
 const mockSliceData = (balanceUSD: number | undefined) => {
   mockUsePortfolioBalancePart.mockReturnValue({
@@ -60,52 +60,71 @@ describe(usePoolsBalanceCoachmarkVisibility, () => {
     mockSliceData(100)
   })
 
-  it('returns shouldShow=true for an existing user when flag is on, wallet has pool positions, and not dismissed', () => {
+  it('returns shouldShow=true for an eligible user when flag is on and wallet has pool positions', () => {
     const { result } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }), {
-      preloadedState: asExistingUser(),
+      preloadedState: asEligibleUser(),
     })
     expect(result.current.shouldShow).toBe(true)
   })
 
-  it('defaults to dismissed for brand-new users (no preloaded behavior history override)', () => {
-    const { result } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }))
-    expect(result.current.shouldShow).toBe(false)
-  })
-
-  it('returns shouldShow=false when the feature flag is off', () => {
-    mockUseFeatureFlag.mockReturnValue(false)
-    const { result } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }), {
-      preloadedState: asExistingUser(),
-    })
-    expect(result.current.shouldShow).toBe(false)
-  })
-
-  it('returns shouldShow=false when no wallet address is provided', () => {
-    const { result } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({}), {
-      preloadedState: asExistingUser(),
-    })
-    expect(result.current.shouldShow).toBe(false)
-  })
-
-  it('returns shouldShow=false when the wallet has zero pool positions', () => {
+  it('never shows for uninitialized fresh state, and does not auto-dismiss it', () => {
     mockSliceData(0)
-    const { result } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }), {
-      preloadedState: asExistingUser(),
+    const { result, store } = renderHookWithProviders(
+      () => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }),
+      { preloadedState: withCoachmarkState(undefined) },
+    )
+    expect(result.current.shouldShow).toBe(false)
+    // Startup state-init owns classification of fresh state; the zero-balance auto-dismiss must not preempt it.
+    expect(store.getState().uniswapBehaviorHistory.hasDismissedPoolsBalanceCoachmark).toBeUndefined()
+  })
+
+  it('returns shouldShow=false when the feature flag is off, without auto-dismissing', () => {
+    mockUseFeatureFlag.mockReturnValue(false)
+    mockSliceData(0)
+    const { result, store } = renderHookWithProviders(
+      () => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }),
+      { preloadedState: asEligibleUser() },
+    )
+    expect(result.current.shouldShow).toBe(false)
+    expect(store.getState().uniswapBehaviorHistory.hasDismissedPoolsBalanceCoachmark).toBe(false)
+  })
+
+  it('returns shouldShow=false when no wallet address is provided, without auto-dismissing', () => {
+    mockSliceData(0)
+    const { result, store } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({}), {
+      preloadedState: asEligibleUser(),
     })
+    expect(result.current.shouldShow).toBe(false)
+    expect(store.getState().uniswapBehaviorHistory.hasDismissedPoolsBalanceCoachmark).toBe(false)
+  })
+
+  it('permanently dismisses a wallet evaluated with zero pool positions, even if pools appear later', () => {
+    mockSliceData(0)
+    const { result, store, rerender } = renderHookWithProviders(
+      () => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }),
+      { preloadedState: asEligibleUser() },
+    )
+    expect(result.current.shouldShow).toBe(false)
+    expect(store.getState().uniswapBehaviorHistory.hasDismissedPoolsBalanceCoachmark).toBe(true)
+
+    mockSliceData(100)
+    rerender()
     expect(result.current.shouldShow).toBe(false)
   })
 
-  it('returns shouldShow=false while pool balance data is still loading', () => {
+  it('does not auto-dismiss while pool balance data is still loading', () => {
     mockSliceData(undefined)
-    const { result } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }), {
-      preloadedState: asExistingUser(),
-    })
+    const { result, store } = renderHookWithProviders(
+      () => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }),
+      { preloadedState: asEligibleUser() },
+    )
     expect(result.current.shouldShow).toBe(false)
+    expect(store.getState().uniswapBehaviorHistory.hasDismissedPoolsBalanceCoachmark).toBe(false)
   })
 
   it('returns shouldShow=false when the user has already dismissed', () => {
     const { result } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }), {
-      preloadedState: asExistingUser({ hasDismissedPoolsBalanceCoachmark: true }),
+      preloadedState: withCoachmarkState(true),
     })
     expect(result.current.shouldShow).toBe(false)
   })
@@ -113,14 +132,14 @@ describe(usePoolsBalanceCoachmarkVisibility, () => {
   it('still considers an svm-only wallet for showing the coachmark', () => {
     const { result } = renderHookWithProviders(
       () => usePoolsBalanceCoachmarkVisibility({ svmAddress: 'SVMaddress1111111111111111' }),
-      { preloadedState: asExistingUser() },
+      { preloadedState: asEligibleUser() },
     )
     expect(result.current.shouldShow).toBe(true)
   })
 
   it('reads from the cache without triggering a fetch (passes cacheOnly to the data hook)', () => {
     renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }), {
-      preloadedState: asExistingUser(),
+      preloadedState: asEligibleUser(),
     })
 
     expect(mockUsePortfolioBalancePart).toHaveBeenCalledWith(
@@ -133,7 +152,7 @@ describe(usePoolsBalanceCoachmarkVisibility, () => {
   it('persists dismissal as a single per-user flag', () => {
     const { result, store } = renderHookWithProviders(
       () => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }),
-      { preloadedState: asExistingUser() },
+      { preloadedState: asEligibleUser() },
     )
 
     expect(result.current.shouldShow).toBe(true)
@@ -148,7 +167,7 @@ describe(usePoolsBalanceCoachmarkVisibility, () => {
 
   it('fires the coachmark dismiss analytics event on dismiss', () => {
     const { result } = renderHookWithProviders(() => usePoolsBalanceCoachmarkVisibility({ evmAddress: WALLET_A }), {
-      preloadedState: asExistingUser(),
+      preloadedState: asEligibleUser(),
     })
 
     act(() => {

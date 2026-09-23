@@ -1,3 +1,4 @@
+import { Flex, Loader } from '@universe/mycelium'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ViewStyle } from 'react-native'
@@ -9,7 +10,6 @@ import { TabMeasuredLayout } from 'src/screens/HomeScreen/portfolio/tabs/common/
 import { EmptyNftsCard } from 'src/screens/HomeScreen/portfolio/tabs/nfts/empty/EmptyNftsCard'
 import { MOBILE_NFT_LOADING_ITEM, NftPairRow, NftSpecialRow } from 'src/screens/HomeScreen/portfolio/tabs/nfts/NftRows'
 import type { NftTabRenderData } from 'src/screens/HomeScreen/portfolio/types'
-import { Flex, Loader } from 'ui/src'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import type { NFTItem } from 'uniswap/src/features/nfts/types'
 import { getNFTAssetKey } from 'uniswap/src/features/nfts/utils'

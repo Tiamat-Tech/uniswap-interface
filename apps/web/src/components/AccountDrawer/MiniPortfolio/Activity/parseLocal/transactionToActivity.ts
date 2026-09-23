@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
+import { CoinConvert } from '@universe/mycelium/icons/CoinConvert'
 import { createElement } from 'react'
-import { SwapDotted } from 'ui/src/components/icons/SwapDotted'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { FORTransaction } from 'uniswap/src/features/fiatOnRamp/types'
 import { hasTradeType } from 'uniswap/src/features/transactions/swap/utils/trade'
 import type { InterfaceTransactionDetails } from 'uniswap/src/features/transactions/types/transactionDetails'
@@ -55,21 +55,16 @@ import { isConfirmedTx } from '~/state/transactions/utils'
 export async function transactionToActivity({
   details,
   formatNumber,
-  isEarnActivityDisplayEnabled = true,
 }: {
   details?: InterfaceTransactionDetails
   formatNumber: FormatNumberFunctionType
-  isEarnActivityDisplayEnabled?: boolean
 }): Promise<Activity | undefined> {
   if (!details) {
     return undefined
   }
   const { chainId } = details
   try {
-    const isEarnPlan =
-      isEarnActivityDisplayEnabled &&
-      details.typeInfo.type === TransactionType.Plan &&
-      details.typeInfo.earnAction !== undefined
+    const isEarnPlan = details.typeInfo.type === TransactionType.Plan && details.typeInfo.earnAction !== undefined
     const isUniswapX = details.typeInfo.type === TransactionType.Swap && isUniswapXActivity(details)
     // UniswapXCancel provides its own status-specific titles (incl. Canceled, which the generic
     // title table does not cover)
@@ -97,7 +92,6 @@ export async function transactionToActivity({
       details,
       formatNumber,
       chainId,
-      isEarnActivityDisplayEnabled,
     })
 
     const activity = { ...defaultFields, ...additionalFields }
@@ -120,12 +114,10 @@ async function parseTransactionTypeFields({
   details,
   formatNumber,
   chainId,
-  isEarnActivityDisplayEnabled,
 }: {
   details: InterfaceTransactionDetails
   formatNumber: FormatNumberFunctionType
   chainId: UniverseChainId
-  isEarnActivityDisplayEnabled: boolean
 }): Promise<Partial<Activity>> {
   const info = details.typeInfo
 
@@ -214,7 +206,7 @@ async function parseTransactionTypeFields({
       return {
         title: i18n.t('common.permit'),
         descriptor: i18n.t('notification.transaction.unknown.success.short'),
-        portfolioLogoCustomIcon: createElement(SwapDotted, {
+        portfolioLogoCustomIcon: createElement(CoinConvert, {
           size: '$icon.24',
           color: '$neutral2',
         }),
@@ -238,7 +230,6 @@ async function parseTransactionTypeFields({
         formatNumber,
         chainId,
         status: details.status,
-        isEarnActivityDisplayEnabled,
       })
     default:
       return {}

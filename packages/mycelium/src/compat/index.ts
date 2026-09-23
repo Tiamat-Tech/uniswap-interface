@@ -5,6 +5,18 @@
  * universal style-object translation, pool orchestration, the DOM wrapper,
  * media/group/animation machinery, and the shared prop surfaces.
  */
+export type { ColorTokens } from './color-tokens'
+export type { IconSizeTokens } from './icon-size-tokens'
+export type { SheetSnapPointsMode } from './sheet-props'
+export type { SpaceTokens } from './space-tokens'
+export type {
+  ViewBorderRadiusProp,
+  ViewFlexProp,
+  ViewGapProp,
+  ViewMaxHeightProp,
+  ViewMaxWidthProp,
+  ViewPositionProp,
+} from './view-props'
 export { composeCompatClassName, type ComposeCompatOptions } from './compose'
 export { createCompatComponent, type CompatDomProps } from './dom'
 export {
@@ -21,6 +33,7 @@ export {
   spacePx,
 } from './style-classes'
 export {
+  curveToAnimationTiming,
   ENTER_EXIT_PRESET_CLASSES,
   ENTER_PRESET_CLASSES,
   EXIT_PRESET_CLASSES,
@@ -37,6 +50,29 @@ export {
   parseGroupStateSuffix,
 } from './group'
 export { MEDIA_VARIANT } from './media'
+export { REJECTED_COLOR_TOKENS } from './color-token-coverage'
+export { REJECTED_ICON_PROPS } from './icon-prop-coverage'
+export {
+  cloneGlyphBox,
+  isIconGlyph,
+  isMyceliumIcon,
+  isMyceliumPrimitive,
+  markIconGlyph,
+  markMyceliumIcon,
+  markMyceliumPrimitive,
+  MYCELIUM_PRIMITIVE_KEY,
+  type GlyphMarkable,
+  type IconMarkable,
+  type Markable,
+} from './primitive-marker'
+export {
+  SUPPORTED_ICON_STYLE_PROPS,
+  iconStyleClasses,
+  type IconCompatPoolProps,
+  type IconCompatStyleProps,
+  type IconColor,
+  type IconSize,
+} from './icon-props'
 export {
   COLOR_TOKEN_CLASS,
   lookupToken,
@@ -48,6 +84,7 @@ export {
   THEMED_COLOR_TOKEN_CLASSES,
 } from './tokens'
 export {
+  COLOR_LONG_TAIL_PROPS,
   CSS_PROP_NAME_OVERRIDES,
   cssPropertyName,
   LONG_TAIL_STYLE_PROPS,

@@ -1,6 +1,6 @@
+import { Platform } from '@universe/chains'
 import { HexString } from '@universe/encoding'
 import { AccountType } from 'uniswap/src/features/accounts/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { EVMAccountDetails } from 'uniswap/src/features/wallet/types/AccountDetails'
 import { WalletMeta } from 'uniswap/src/features/wallet/types/WalletMeta'
 

@@ -1,20 +1,20 @@
-import { ListLaunchesResponse } from '@uniswap/client-data-api/dist/data/v2/api_pb'
-import { LaunchesOrderBy } from '@uniswap/client-data-api/dist/data/v2/types_pb'
-import { dataApiServiceClientV2 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClientV2'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { ListLaunchesResponse } from '@uniswap/client-launches/dist/launches/v1/api_pb'
+import { LaunchesOrderBy } from '@uniswap/client-launches/dist/launches/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
+import { launchServiceClient } from 'uniswap/src/data/apiClients/dataApiService/clients/LaunchServiceClient'
 import type { Mock } from 'vitest'
 import { vi } from 'vitest'
 import { LAUNCHES_API_PAGE_SIZE, useLaunches } from '~/pages/Launches/data/useLaunches'
 import { act, renderHook, waitFor } from '~/test-utils/render'
 
-vi.mock('uniswap/src/data/apiClients/dataApiService/clients/DataApiClientV2', () => ({
-  dataApiServiceClientV2: {
+vi.mock('uniswap/src/data/apiClients/dataApiService/clients/LaunchServiceClient', () => ({
+  launchServiceClient: {
     listLaunches: vi.fn(),
     listLaunchpads: vi.fn(),
   },
 }))
 
-const mockListLaunches = dataApiServiceClientV2.listLaunches as Mock
+const mockListLaunches = launchServiceClient.listLaunches as Mock
 
 function createLaunch({
   launchpadId,

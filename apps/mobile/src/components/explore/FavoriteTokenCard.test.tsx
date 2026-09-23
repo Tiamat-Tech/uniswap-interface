@@ -135,7 +135,7 @@ describe('FavoriteTokenCard', () => {
       const removeButton = await findByTestId('explore/remove-button')
 
       await waitFor(() => {
-        expect(removeButton).toHaveAnimatedStyle({ opacity: 0 })
+        expect((removeButton as unknown as HTMLElement).getAttribute('aria-disabled')).toBe('true')
       })
     })
   })
@@ -149,7 +149,7 @@ describe('FavoriteTokenCard', () => {
       const removeButton = await findByTestId('explore/remove-button')
 
       await waitFor(() => {
-        expect(removeButton).toHaveAnimatedStyle({ opacity: 1 })
+        expect((removeButton as unknown as HTMLElement).getAttribute('aria-disabled')).toBeNull()
       })
     })
 
@@ -157,6 +157,7 @@ describe('FavoriteTokenCard', () => {
       const store = mockStore({
         favorites: { tokens: [] },
         userSettings: { currentCurrency: FiatCurrency.UnitedStatesDollar, currentLanguage: Language.English },
+        wallet: { accounts: {}, activeAccountAddress: null },
       })
       const { findByTestId } = render(<FavoriteTokenCard {...defaultProps} isEditing />, {
         resolvers,

@@ -1,6 +1,6 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { X } from 'ui/src/components/icons/X'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 
@@ -39,15 +39,17 @@ function MarketSegmentButton({ selected, disabled, highlighted, onPress, childre
     disabled: Boolean(disabled),
     highlighted,
   })
+  // `as const` keeps the `0` literals narrow; TouchableArea's border-radius props reject the
+  // widened `number` type a plain object literal would infer for them.
   const borderRadiusProps = highlighted
-    ? {
+    ? ({
         borderTopLeftRadius: '$roundedFull',
         borderBottomLeftRadius: '$roundedFull',
         borderTopRightRadius: 0,
         borderBottomRightRadius: 0,
         borderRightWidth: 0,
-      }
-    : { borderRadius: '$roundedFull' }
+      } as const)
+    : ({ borderRadius: '$roundedFull' } as const)
   return (
     <TouchableArea
       row

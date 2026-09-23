@@ -1,5 +1,5 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 
 /**
  * Inline alert shown on approval requests from sites Blockaid returns as unverified.

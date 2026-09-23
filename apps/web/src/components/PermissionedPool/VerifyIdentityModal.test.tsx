@@ -1,8 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
-import type { PropsWithChildren } from 'react'
-import { TamaguiProvider } from 'ui/src'
-import config from 'ui/src/tamagui.config'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { VerifyIdentityModal } from '~/components/PermissionedPool/VerifyIdentityModal'
 import { useModalState } from '~/hooks/useModalState'
@@ -58,15 +55,7 @@ vi.mock('uniswap/src/components/modals/Modal', () => ({
   }) => (isModalOpen ? <div data-testid="mock-modal">{children}</div> : null),
 }))
 
-function ThemeWrapper({ children }: PropsWithChildren) {
-  return (
-    <TamaguiProvider config={config} defaultTheme="light">
-      {children}
-    </TamaguiProvider>
-  )
-}
-
-const renderWithTheme = (ui: React.ReactElement) => render(ui, { wrapper: ThemeWrapper })
+const renderWithTheme = (ui: React.ReactElement) => render(ui)
 
 const mockUseModalState = useModalState as ReturnType<typeof vi.fn>
 

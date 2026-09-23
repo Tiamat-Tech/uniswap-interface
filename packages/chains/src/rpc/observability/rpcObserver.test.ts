@@ -227,7 +227,7 @@ describe('rpcObserver structured error fields', () => {
     getRpcObserver().onError({ ...makeError(), httpStatus: 403 })
 
     const payload = lastWarnPayload()
-    expect(payload.httpStatus).toBe(403)
+    expect(payload['httpStatus']).toBe(403)
     expect(payload).not.toHaveProperty('rpcErrorCode')
   })
 })

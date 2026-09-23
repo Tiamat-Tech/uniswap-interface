@@ -1,29 +1,31 @@
 import { useMemo } from 'react'
-import { getMultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/getMultichainTokenEntry'
+import { getRestMultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/getMultichainTokenEntry'
 import {
   type MultichainTokenEntry,
   useOrderedMultichainEntries,
 } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
-import { useFeatureFlaggedChainIds } from 'uniswap/src/features/chains/hooks/useFeatureFlaggedChainIds'
+import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import type { MultiChainMap } from '~/pages/TokenDetails/context/TDPContext'
 
 /** Maps TDP `multiChainMap` to ordered multichain entries (same ordering as balances / address dropdown). */
 export function useMultichainTokenEntries(multiChainMap: MultiChainMap): MultichainTokenEntry[] {
-  const featureFlaggedChainIds = useFeatureFlaggedChainIds()
+  // includeTestnets keeps the set testnet-mode-independent: mainnet deployments must not
+  // drop out of the multichain UI when testnet mode is on.
+  const { chains: enabledChainIds } = useEnabledChains({ includeTestnets: true })
   const entries = useMemo(() => {
     const result: MultichainTokenEntry[] = []
-    for (const [graphqlChain, data] of Object.entries(multiChainMap)) {
+    for (const [chainIdKey, data] of Object.entries(multiChainMap)) {
       // oxlint-disable-next-line typescript/no-unnecessary-condition -- biome-parity: oxlint is stricter here
       if (!data) {
         continue
       }
 
-      const entry = getMultichainTokenEntry({ chain: graphqlChain, address: data.address }, featureFlaggedChainIds)
+      const entry = getRestMultichainTokenEntry({ chainIdKey, address: data.address ?? '' }, enabledChainIds)
       if (entry) {
         result.push(entry)
       }
     }
     return result
-  }, [multiChainMap, featureFlaggedChainIds])
+  }, [multiChainMap, enabledChainIds])
   return useOrderedMultichainEntries(entries)
 }

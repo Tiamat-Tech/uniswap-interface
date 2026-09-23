@@ -1,13 +1,21 @@
-import { useApolloClient } from '@apollo/client'
-import { useQueryClient } from '@tanstack/react-query'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { useQueryClient, type InfiniteData, type Query } from '@tanstack/react-query'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
-import { EXPLORE_TRANSACTIONS_APOLLO_QUERY_NAMES } from '~/data/useAllTransactions'
 import { useFixedIntervalHeartbeatCoordinator } from '~/lib/hooks/useHeartbeatCoordinator'
 import { ExploreTab } from '~/types/explore'
 
 // Explore polls on a fixed cadence — not driven by the synchronized_heartbeats config.
 const EXPLORE_POLL_INTERVAL_SECONDS = 60
+
+// Refetching an infinite query re-fetches every loaded page sequentially, so one pass costs
+// pages × RTT. Deep enough, a pass outlasts the poll interval — each tick then cancels and
+// restarts the cascade from page 1, so data never commits while requests fire non-stop. A tick
+// only buys freshness at the head of the list anyway, so skip queries scrolled past this depth.
+const MAX_HEARTBEAT_REFETCH_PAGES = 5
+
+export function isShallowInfiniteQuery(query: Query): boolean {
+  const pages = (query.state.data as InfiniteData<unknown> | undefined)?.pages
+  return !Array.isArray(pages) || pages.length <= MAX_HEARTBEAT_REFETCH_PAGES
+}
 
 type UseExploreHeartbeatCoordinatorParams = {
   tab: ExploreTab
@@ -20,8 +28,14 @@ type UseExploreHeartbeatCoordinatorParams = {
  */
 export function useExploreHeartbeatCoordinator({ tab, enabled }: UseExploreHeartbeatCoordinatorParams): void {
   const queryClient = useQueryClient()
-  const apolloClient = useApolloClient()
-  const isV2TransactionsEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTransactions)
+
+  const refetchShallowInfiniteQueries = (queryKey: readonly unknown[]): Promise<unknown> =>
+    queryClient.refetchQueries(
+      { queryKey, type: 'active', predicate: isShallowInfiniteQuery },
+      // Cancelling an in-flight fetchNextPage makes the user's load-more complete with zero row
+      // growth, which permanently latches the table's infinite scroll — never cancel.
+      { cancelRefetch: false },
+    )
 
   const refresh = async (): Promise<void> => {
     const tasks: Promise<unknown>[] = [
@@ -31,22 +45,13 @@ export function useExploreHeartbeatCoordinator({ tab, enabled }: UseExploreHeart
 
     switch (tab) {
       case ExploreTab.Tokens:
-        tasks.push(queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.TopTokens], type: 'active' }))
+        tasks.push(refetchShallowInfiniteQueries([ReactQueryCacheKey.TopTokens]))
         break
       case ExploreTab.Pools:
-        tasks.push(
-          queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.DataApiService, 'listTopPools'], type: 'active' }),
-        )
+        tasks.push(refetchShallowInfiniteQueries([ReactQueryCacheKey.DataApiService, 'listPools']))
         break
       case ExploreTab.Transactions:
-        tasks.push(
-          isV2TransactionsEnabled
-            ? queryClient.refetchQueries({
-                queryKey: [ReactQueryCacheKey.DataApiService, 'listTransactions'],
-                type: 'active',
-              })
-            : apolloClient.refetchQueries({ include: [...EXPLORE_TRANSACTIONS_APOLLO_QUERY_NAMES] }),
-        )
+        tasks.push(refetchShallowInfiniteQueries([ReactQueryCacheKey.DataApiService, 'listTransactions']))
         break
       case ExploreTab.Toucan:
         break

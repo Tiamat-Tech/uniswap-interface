@@ -1,6 +1,13 @@
 import { isWebApp, isWebPlatform } from '@universe/environment'
+import {
+  Flex,
+  type FlexCompatProps as FlexProps,
+  type ModifierPressProps,
+  Text,
+  type TextCompatProps as TextProps,
+} from '@universe/mycelium'
 import { memo, ReactNode, useCallback } from 'react'
-import { Flex, FlexProps, type ModifierPressProps, Text, TextProps, TouchableArea } from 'ui/src'
+import { OptionItemPressableArea } from 'uniswap/src/components/lists/items/OptionItemPressableArea'
 import { dismissNativeKeyboard } from 'utilities/src/device/keyboard/dismissNativeKeyboard'
 import { KeyAction } from 'utilities/src/device/keyboard/types'
 import { useIsKeyboardOpen } from 'utilities/src/device/keyboard/useIsKeyboardOpen'
@@ -108,11 +115,8 @@ function OptionItemInner({
 
   return (
     <>
-      <TouchableArea
-        animation="300ms"
-        opacity={disabled ? 0.5 : 1}
-        width="100%"
-        px="$spacing12"
+      <OptionItemPressableArea
+        disabled={disabled}
         modifierPressHref={modifierPressHref}
         onPress={onPressOption}
         onLongPress={onLongPress}
@@ -183,7 +187,7 @@ function OptionItemInner({
             </Flex>
           )}
         </Flex>
-      </TouchableArea>
+      </OptionItemPressableArea>
 
       {modal}
     </>

@@ -1,6 +1,6 @@
 import { Currency, Percent, TradeType } from '@uniswap/sdk-core'
+import { Flex, Text } from '@universe/mycelium'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import { CurrencyField } from 'uniswap/src/types/currency'
 import { AmountHeader } from '~/components/AmountHeader'

@@ -1,14 +1,16 @@
 /**
- * The Flex-specific prop contract: the flexbox layout style props, composed
- * with the shared compat surfaces (`CompatProps`) to form `FlexCompatProps`.
- * The universal style props (margin/padding, sizing, visuals, positioning,
- * transforms, shadows) and every non-layout surface live in `../compat/props`.
+ * Flex-specific layout props; universal style props (spacing, sizing,
+ * visuals, positioning, transforms, shadows) live in `../compat/props`.
  *
- * The parity suite in `packages/tailwind/src/parity` asserts at the type level
- * that this contract covers `FlexProps` (`GetProps<typeof Flex>`) up to an
- * explicit exclusion list.
+ * `packages/tailwind/src/parity` type-checks that this contract covers
+ * `FlexProps` up to an explicit exclusion list.
  */
+import type * as React from 'react'
+// Reused rather than re-declared, so the pool shape `flexStyleClasses`
+// compiles cannot drift from the shared `$platform-web` surface.
+import type { InheritedTextStyleProps } from '../compat/inherited-text-props'
 import type {
+  ColorValue,
   CompatProps,
   CompatPseudoProps,
   CompatStyleProps,
@@ -59,6 +61,14 @@ export interface FlexLayoutStyleProps {
   gap?: SpaceValue
   rowGap?: SpaceValue
   columnGap?: SpaceValue
+  /**
+   * `$platform-web`-only — RN has no grid layout. Values are named
+   * grid-template areas, an open-ended string family, so this can't ride the
+   * closed-set class lane and always takes the arbitrary-property twin.
+   */
+  gridArea?: string
+  /** `$platform-web`-only. Same `ColorValue` contract as everywhere else. */
+  color?: ColorValue
 }
 
 /** The full Flex style-object surface: layout + universal styles + long tail. */
@@ -69,5 +79,33 @@ export type FlexCompatStyleProps = CompatStyleProps &
 /** Pseudo-state style objects keyed to the Flex style surface. */
 export type FlexCompatPseudoProps = CompatPseudoProps<FlexCompatStyleProps>
 
-/** The full Flex prop contract: Flex styles + every shared compat surface. */
-export type FlexCompatProps = CompatProps<FlexCompatStyleProps>
+/**
+ * `onScroll` is declared per-component rather than on the shared
+ * `CompatEventProps` surface because ScrollViewCompat owns a
+ * differently-shaped `onScroll` (the RN scroll payload) and one shared prop
+ * couldn't carry both signatures. Type-level only: `dom.tsx` still forwards a
+ * raw `onScroll` to every compat component at runtime, and ScrollViewCompat
+ * re-attaches its translated handler AFTER that spread, so its RN-shaped
+ * handler wins there.
+ */
+export interface FlexCompatOwnEventProps {
+  onScroll?(this: void, event: React.UIEvent<HTMLElement>): void
+}
+
+/**
+ * The `$platform-web` style slice beyond the base Flex surface: `textAlign`
+ * compiles to a real `text-*` Tailwind utility (see `./flex-style-classes`),
+ * not the generic long tail. Web-only, matching legacy Tamagui — the native
+ * leg ignores this pool.
+ */
+export type FlexCompatPlatformWebStyleProps = FlexCompatStyleProps & InheritedTextStyleProps
+
+/**
+ * `title` is omitted because several call sites intersect `FlexProps` with
+ * their own `title?: ReactNode`, and a Flex is a layout box, never itself the
+ * thing with a tooltip. It is kept on every other compat component.
+ *
+ * `$platform-web` needs no widening: the shared `CompatPlatformProps` pool
+ * already carries `InheritedTextStyleProps`.
+ */
+export type FlexCompatProps = Omit<CompatProps<FlexCompatStyleProps>, 'title'> & FlexCompatOwnEventProps

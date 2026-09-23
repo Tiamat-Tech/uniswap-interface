@@ -28,7 +28,7 @@ describe('generateChartData (demand mode)', () => {
     const chartData = generateChartData({
       bidData,
       bidTokenInfo,
-      totalSupply: undefined,
+      tokenTotalSupply: undefined,
       auctionTokenDecimals,
       clearingPrice: clearingPriceQ96,
       floorPrice: floorPriceQ96,

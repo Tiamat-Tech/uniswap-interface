@@ -3,7 +3,6 @@ import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetails
 import { useTokenDetailsCrossChainBalances } from 'src/components/TokenDetails/useTokenDetailsCrossChainBalances'
 import { computeAggregateBalance } from 'uniswap/src/components/tokenDetails/utils'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import {
   useTokenDetailsEarnData,
   type TokenDetailsEarnData,
@@ -15,9 +14,8 @@ export function useMobileTokenDetailsEarnData(): {
   activeAddress: Address | undefined
   earnData: TokenDetailsEarnData
 } {
-  const isEarnEnabled = useIsEarnEnabled()
   const { isTestnetModeEnabled } = useEnabledChains()
-  const enabled = isEarnEnabled && !isTestnetModeEnabled
+  const enabled = !isTestnetModeEnabled
 
   const { currencyId } = useTokenDetailsContext()
   const activeAddress = useActiveAccountAddress() ?? undefined

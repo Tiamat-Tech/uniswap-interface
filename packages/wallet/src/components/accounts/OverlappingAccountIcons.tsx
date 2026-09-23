@@ -1,5 +1,4 @@
-import { Flex } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { Flex, iconSizes } from '@universe/mycelium'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
 
 export const OverlappingAccountIcons = ({

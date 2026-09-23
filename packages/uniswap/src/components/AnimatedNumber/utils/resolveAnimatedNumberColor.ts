@@ -1,6 +1,5 @@
-import type { ColorTokens } from 'ui/src'
-import type { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
-import { getIsValidSporeColor } from 'ui/src/theme/tokens'
+import { type ColorTokens, getIsValidSporeColor } from '@universe/mycelium'
+import type { UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 
 /** Resolve an optional color token to a CSS/RN color value; defaults to neutral1. */
 export function resolveAnimatedNumberColor(colors: UseSporeColorsReturn, color?: ColorTokens): string {

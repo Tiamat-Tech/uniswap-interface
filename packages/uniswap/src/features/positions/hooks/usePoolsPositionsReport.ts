@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { UniswapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
+import type { PositionsLifecycleFilter, PositionsRangeFilter } from 'uniswap/src/features/telemetry/types'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 
 interface PoolsPositionCounts {
@@ -37,15 +38,22 @@ export function getPoolsPositionCounts(positions: PositionInfo[]): PoolsPosition
  * The dedupe persists across tab switches, so re-opening the tab with an unchanged set is suppressed -
  * it only re-emits when the composition actually changed since the last emit.
  * `pagesLoaded` + `has_more` let analytics reconstruct scroll depth and whether the set was complete.
+ * `lifecycle_filter`/`range_filter` name the selection producing the set and are part of the dedupe,
+ * so switching filters re-emits even when the counts happen to match.
  */
 export function usePoolsPositionsReport({
   positions,
+  lifecycleFilter,
+  rangeFilter,
   pagesLoaded,
   hasMore,
   isLoading,
   enabled,
 }: {
   positions: PositionInfo[]
+  lifecycleFilter: PositionsLifecycleFilter
+  /** Omit on surfaces without a range control (mobile/extension). */
+  rangeFilter?: PositionsRangeFilter
   pagesLoaded: number
   hasMore: boolean
   isLoading: boolean
@@ -65,7 +73,7 @@ export function usePoolsPositionsReport({
     }
 
     const counts = getPoolsPositionCounts(positions)
-    const signature = `${counts.total}-${counts.inRange}-${counts.outOfRange}-${counts.closed}-${pagesLoaded}-${hasMore}`
+    const signature = `${counts.total}-${counts.inRange}-${counts.outOfRange}-${counts.closed}-${pagesLoaded}-${hasMore}-${lifecycleFilter}-${rangeFilter}`
     if (signature === lastSignatureRef.current) {
       return
     }
@@ -76,9 +84,11 @@ export function usePoolsPositionsReport({
       in_range_count: counts.inRange,
       out_of_range_count: counts.outOfRange,
       closed_count: counts.closed,
+      lifecycle_filter: lifecycleFilter,
+      range_filter: rangeFilter,
       pages_loaded: pagesLoaded,
       has_more: hasMore,
       ...traceRef.current,
     })
-  }, [enabled, isLoading, positions, pagesLoaded, hasMore])
+  }, [enabled, isLoading, positions, lifecycleFilter, rangeFilter, pagesLoaded, hasMore])
 }

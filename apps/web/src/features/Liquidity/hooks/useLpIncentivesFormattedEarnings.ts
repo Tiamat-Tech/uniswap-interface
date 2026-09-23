@@ -1,13 +1,11 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { type Currency, CurrencyAmount } from '@uniswap/sdk-core'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import JSBI from 'jsbi'
 import { useMemo } from 'react'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { PositionInfo } from 'uniswap/src/features/positions/types'
-import { useUSDCPrice } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import { NumberType } from 'utilities/src/format/types'
-import { LP_INCENTIVES_REWARD_TOKEN } from '~/features/Liquidity/LPIncentives/constants'
+import type { PositionRewardBalance } from '~/features/Liquidity/LPIncentives/hooks/usePositionRewardEarnings'
+import { selectPositionRewardBalances } from '~/features/Liquidity/LPIncentives/hooks/usePositionRewardEarnings'
 
 interface UseLpIncentivesFormattedEarningsProps {
   liquidityPosition: PositionInfo
@@ -16,9 +14,15 @@ interface UseLpIncentivesFormattedEarningsProps {
 }
 
 interface LpIncentivesEarningsResult {
-  uniLpRewardsCurrencyAmount?: CurrencyAmount<Currency>
-  uniLpRewardsFiatValue?: CurrencyAmount<Currency>
-  totalEarningsFiatValue?: CurrencyAmount<Currency>
+  /** One entry per reward denomination, highest USD value first. Empty when the position has none. */
+  rewardBalances: PositionRewardBalance[]
+  /** Sum of the priced reward balances. Rewards with no USD value contribute nothing. */
+  rewardsUsdValue: number
+  /**
+   * Fees plus rewards, in USD. Undefined only when neither could be valued — the surfaces read that
+   * as "USD value unavailable" rather than as zero earnings.
+   */
+  totalEarningsUsd?: number
   totalFormattedEarnings?: string
   totalFeesFiatValue?: CurrencyAmount<Currency>
   formattedFeesValue?: string
@@ -27,14 +31,18 @@ interface LpIncentivesEarningsResult {
   hasFees: boolean
 }
 
+/**
+ * Fee and reward earnings for a position, formatted for display.
+ *
+ * Rewards come from the position's `rewardBalances`, one entry per denomination carrying the USD
+ * value the backend priced.
+ */
 export function useLpIncentivesFormattedEarnings({
   liquidityPosition,
   fiatFeeValue0,
   fiatFeeValue1,
 }: UseLpIncentivesFormattedEarningsProps): LpIncentivesEarningsResult {
   const { convertFiatAmountFormatted } = useLocalizationContext()
-  const isLPIncentivesEnabled = useFeatureFlag(FeatureFlags.LpIncentives)
-  const { price: uniPrice } = useUSDCPrice(LP_INCENTIVES_REWARD_TOKEN)
 
   return useMemo(() => {
     const formatCurrency = (value: CurrencyAmount<Currency>) => {
@@ -42,14 +50,14 @@ export function useLpIncentivesFormattedEarnings({
     }
 
     const result: LpIncentivesEarningsResult = {
-      uniLpRewardsCurrencyAmount: undefined,
-      uniLpRewardsFiatValue: undefined,
+      rewardBalances: [],
+      rewardsUsdValue: 0,
       totalFeesFiatValue: undefined,
       formattedFeesValue: undefined,
       formattedRewardsValue: undefined,
       hasRewards: false,
       hasFees: false,
-      totalEarningsFiatValue: undefined,
+      totalEarningsUsd: undefined,
       totalFormattedEarnings: undefined,
     }
 
@@ -67,52 +75,34 @@ export function useLpIncentivesFormattedEarnings({
       result.hasFees = result.totalFeesFiatValue.greaterThan(0)
     }
 
-    const shouldIncludeRewards =
-      liquidityPosition.version === ProtocolVersion.V4 &&
-      liquidityPosition.unclaimedRewardsAmountUni &&
-      liquidityPosition.unclaimedRewardsAmountUni !== '0' &&
-      isLPIncentivesEnabled
-
-    result.totalEarningsFiatValue = result.totalFeesFiatValue
+    const feesUsd = result.totalFeesFiatValue ? Number(result.totalFeesFiatValue.toExact()) : undefined
+    result.totalEarningsUsd = feesUsd
     result.totalFormattedEarnings = result.formattedFeesValue
 
-    // If no rewards and no LP incentives enabled, return early with just fees data
-    if (!shouldIncludeRewards) {
+    // Merkl only reports unclaimed amounts for v4, so v3 positions carry a boosted APR but no
+    // balances — nothing to render even though the field exists on both.
+    if (liquidityPosition.version !== ProtocolVersion.V4) {
       return result
     }
 
-    // Create a UNI token amount from the unclaimed rewards (using Mainnet UNI)
-    const uniLpRewardsCurrencyAmount = CurrencyAmount.fromRawAmount(
-      LP_INCENTIVES_REWARD_TOKEN,
-      liquidityPosition.unclaimedRewardsAmountUni as string,
-    )
+    const rewardBalances = selectPositionRewardBalances(liquidityPosition.rewardBalances)
 
-    // Set the UNI rewards currency amount in the result
-    result.uniLpRewardsCurrencyAmount = uniLpRewardsCurrencyAmount
-    result.hasRewards = uniLpRewardsCurrencyAmount.greaterThan(0)
+    if (rewardBalances.length === 0) {
+      return result
+    }
 
-    const uniLpRewardsFiatValue = uniPrice ? uniPrice.quote(uniLpRewardsCurrencyAmount) : undefined
-    result.uniLpRewardsFiatValue = uniLpRewardsFiatValue
+    result.rewardBalances = rewardBalances
+    result.hasRewards = true
+    // Unpriced rewards add nothing to the total, so an entirely unpriced set leaves the earnings
+    // total reading as fees alone rather than inventing a value for the reward rows.
+    result.rewardsUsdValue = rewardBalances.reduce((sum, balance) => sum + (balance.unclaimedAmountUsd ?? 0), 0)
 
-    if (uniLpRewardsFiatValue) {
-      result.formattedRewardsValue = formatCurrency(uniLpRewardsFiatValue)
-      // Fees and rewards may be in different USDC tokens with different decimals
-      // (e.g. BNB USDC has 18 decimals, Mainnet USDC has 6). Add as numbers via
-      // toExact() to avoid mixing quotients from different decimal scales.
-      const feesExact = result.totalFeesFiatValue ? Number(result.totalFeesFiatValue.toExact()) : 0
-      const rewardsExact = Number(uniLpRewardsFiatValue.toExact())
-      const totalExact = feesExact + rewardsExact
-
-      result.totalFormattedEarnings = convertFiatAmountFormatted(totalExact.toString(), NumberType.FiatStandard)
-      // Build totalEarningsFiatValue in the fees currency so percentage calculations
-      // in consumers (which compare against fiatFeeValue0/1.quotient) stay consistent.
-      const targetCurrency = result.totalFeesFiatValue?.currency ?? uniLpRewardsFiatValue.currency
-      result.totalEarningsFiatValue = CurrencyAmount.fromRawAmount(
-        targetCurrency,
-        JSBI.BigInt(Math.round(totalExact * 10 ** targetCurrency.decimals)),
-      )
+    if (result.rewardsUsdValue > 0) {
+      result.formattedRewardsValue = convertFiatAmountFormatted(result.rewardsUsdValue, NumberType.FiatStandard)
+      result.totalEarningsUsd = (feesUsd ?? 0) + result.rewardsUsdValue
+      result.totalFormattedEarnings = convertFiatAmountFormatted(result.totalEarningsUsd, NumberType.FiatStandard)
     }
 
     return result
-  }, [fiatFeeValue0, fiatFeeValue1, liquidityPosition, isLPIncentivesEnabled, uniPrice, convertFiatAmountFormatted])
+  }, [fiatFeeValue0, fiatFeeValue1, liquidityPosition, convertFiatAmountFormatted])
 }

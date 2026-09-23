@@ -1,8 +1,10 @@
 /**
- * Native leg lands with the native parity harness (INFRA-2353); until then
- * the compat must fail loudly rather than return unverified values.
+ * Native leg of the `useIsDarkMode` compat (INFRA-2353): true when uniwind's
+ * runtime theme (`Uniwind.setTheme`, driven by the app's theme provider — the
+ * native analog of the web root class) is `dark`.
  */
-import { PlatformSplitStubError } from '@universe/environment'
+import { useUniwind } from 'uniwind'
+
 export function useIsDarkMode(): boolean {
-  throw new PlatformSplitStubError('useIsDarkMode (theme-hooks compat): native leg is blocked on INFRA-2353')
+  return useUniwind().theme === 'dark'
 }

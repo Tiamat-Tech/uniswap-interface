@@ -1,7 +1,7 @@
 import { GraphQLApi } from '@universe/api'
+import { Flex, type FlexCompatProps, Text } from '@universe/mycelium'
 import { UTCTimestamp } from 'lightweight-charts'
 import { ReactElement, ReactNode } from 'react'
-import { Flex, styled, Text } from 'ui/src'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { FiatNumberType, NumberType } from 'utilities/src/format/types'
@@ -12,29 +12,39 @@ import { EllipsisTamaguiStyle } from '~/theme/components/styles'
 
 type ChartHeaderProtocolInfo = { protocol: GraphQLApi.PriceSource; value?: number }
 
-const ProtocolLegendWrapper = styled(Flex, {
-  position: 'absolute',
-  right: 0,
-  py: '$spacing4',
-  px: '$spacing12',
-  gap: '$gap12',
-  pointerEvents: 'none',
-  variants: {
-    hover: {
-      true: {
-        right: 'unset',
-        p: '$spacing8',
-        gap: '$gap6',
-        borderRadius: '$rounded12',
-        border: '1px solid',
-        borderColor: '$surface3',
-        backgroundColor: '$surface2',
-        boxShadow: '0px 1px 2px 0px rgba(0, 0, 0, 0.02), 0px 1px 6px 2px rgba(0, 0, 0, 0.03)',
-        zIndex: '$tooltip',
-      },
-    },
-  },
-})
+type ProtocolLegendWrapperProps = FlexCompatProps & {
+  hover?: boolean
+}
+
+// borderWidth must be paired with borderColor (mycelium/Tailwind convention) —
+// width alone with no color class renders a black ring, per checkbox-compat/compile.ts.
+const HOVER_STYLES: FlexCompatProps = {
+  right: 'unset',
+  gap: '$spacing6',
+  borderRadius: '$rounded12',
+  borderWidth: 1,
+  borderColor: '$surface3',
+  backgroundColor: '$surface1',
+  boxShadow: '0px 1px 2px 0px rgba(0, 0, 0, 0.02), 0px 1px 6px 2px rgba(0, 0, 0, 0.03)',
+  zIndex: '$tooltip',
+}
+
+function ProtocolLegendWrapper({ hover, ...rest }: ProtocolLegendWrapperProps): JSX.Element {
+  return (
+    <Flex
+      position="absolute"
+      right={0}
+      // One padding granularity on both branches: the compat cascade resolves
+      // longhands over shorthands, so a hover-side `p` could not beat base `px`/`py`.
+      py={hover ? '$spacing8' : '$spacing4'}
+      px={hover ? '$spacing8' : '$spacing12'}
+      gap="$gap12"
+      pointerEvents="none"
+      {...(hover ? HOVER_STYLES : undefined)}
+      {...rest}
+    />
+  )
+}
 
 function ProtocolLegend({ protocolData }: { protocolData?: ChartHeaderProtocolInfo[] }) {
   const { convertFiatAmountFormatted } = useLocalizationContext()
@@ -103,7 +113,7 @@ interface HeaderTimeDisplayProps {
 function HeaderTimeDisplay({ time, timePlaceholder }: HeaderTimeDisplayProps) {
   const headerDateFormatter = useHeaderDateFormatter()
   return (
-    <Text variant="subheading2" display="flex" alignItems="center" color="neutral2">
+    <Text variant="subheading2" display="flex" alignItems="center" color="$neutral2">
       {time ? headerDateFormatter(time) : timePlaceholder}
     </Text>
   )

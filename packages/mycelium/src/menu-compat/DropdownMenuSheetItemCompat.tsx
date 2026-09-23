@@ -13,9 +13,10 @@
 // oxlint-disable react/forbid-elements -- the compat components ARE the raw DOM boundary (no Tamagui Flex here)
 import * as React from 'react'
 import { cn } from '../cn'
+import { mergeCompatStyle } from '../compat/compose'
 import {
-  dropdownMenuSheetItemFrameClassName,
-  dropdownMenuSheetItemLabelClassName,
+  dropdownMenuSheetItemFrameEmission,
+  dropdownMenuSheetItemLabelEmission,
   dropdownMenuSheetItemSubheaderClassName,
   resolveMenuColor,
 } from './compile'
@@ -77,6 +78,18 @@ export const DropdownMenuSheetItemCompat = React.forwardRef<
   // Web sizes only (the isMobileApp branch is the deferred native leg).
   const externalLinkSize = subheader !== undefined ? 16 : 12
 
+  // Strict emission path (INFRA-3217): a caller `height` outside the closed
+  // set — and a caller `textColor` outside the pinned theme palette — ride
+  // the inline-value lane. The caller's own `style` merges on top.
+  const frameEmission = dropdownMenuSheetItemFrameEmission({ variant, disabled, height })
+  const labelEmission = dropdownMenuSheetItemLabelEmission({
+    variant,
+    destructive,
+    disabled,
+    textColor,
+    allowMultiline,
+  })
+
   return (
     // oxlint-disable-next-line react/forbid-elements -- the compat item IS the raw DOM boundary (no Tamagui TouchableArea here)
     <div
@@ -85,7 +98,8 @@ export const DropdownMenuSheetItemCompat = React.forwardRef<
       data-slot="dropdown-menu-sheet-item-compat"
       role={role}
       aria-disabled={disabled === true ? true : undefined}
-      className={cn(dropdownMenuSheetItemFrameClassName({ variant, disabled, height }), className)}
+      className={cn(frameEmission.className, className)}
+      style={mergeCompatStyle(frameEmission.style, rest.style)}
       // `disabled` detaches the composed interaction surface, like TouchableArea.
       onClick={disabled === true ? undefined : handlePress}
       onPointerDown={disabled === true ? undefined : (onPointerDown ?? stopPointerPropagation)}
@@ -96,16 +110,7 @@ export const DropdownMenuSheetItemCompat = React.forwardRef<
         {icon !== undefined && icon !== null && <div className="w-[8px] flex-shrink-0" />}
         {/* max-width keeps long labels ellipsizing inside the padded frame (legacy web branch). */}
         <div className="flex max-w-[calc(100%-12px)] flex-col">
-          <span
-            data-slot="menu-item-label"
-            className={dropdownMenuSheetItemLabelClassName({
-              variant,
-              destructive,
-              disabled,
-              textColor,
-              allowMultiline,
-            })}
-          >
+          <span data-slot="menu-item-label" className={labelEmission.className} style={labelEmission.style}>
             {label}
           </span>
           {subheader !== undefined && <span className={dropdownMenuSheetItemSubheaderClassName()}>{subheader}</span>}

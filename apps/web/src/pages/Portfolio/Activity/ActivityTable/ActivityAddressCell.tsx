@@ -1,16 +1,14 @@
+import { getValidAddress, type UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, Text } from '@universe/mycelium'
+import { EarnSparkle } from '@universe/mycelium/icons/EarnSparkle'
 import type { TFunction } from 'i18next'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { EarnSparkle } from 'ui/src/components/icons/EarnSparkle'
-import { iconSizes } from 'ui/src/theme'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
-import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { getEarnPlanTransactionType } from 'uniswap/src/features/earn/planActivityTitles'
 import { TransactionDetails, TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { isPlanTransactionInfo } from 'uniswap/src/features/transactions/types/utils'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { shortenHash } from 'utilities/src/addresses'
 import { AddressHoverCard, useShowsAddressHoverCard } from '~/components/AddressHoverCard/AddressHoverCard'
 import { InternalLink } from '~/components/InternalLink'
@@ -22,7 +20,6 @@ import { ClickableTamaguiStyle } from '~/theme/components/styles'
 
 interface ActivityAddressCellProps {
   transaction: TransactionDetails
-  isEarnActivityDisplayEnabled?: boolean
 }
 
 type EarnActivityAddressDirection = 'to' | 'from'
@@ -32,7 +29,7 @@ type ActivityAddressContent =
   | { type: 'protocol'; protocolInfo: ActivityProtocolInfo }
   | { type: 'transactionActions'; actionCount: number }
   | { type: 'transactionHash'; hash: string }
-  | { type: 'address'; address: Address; chainId: number }
+  | { type: 'address'; address: Address; chainId: UniverseChainId }
 
 interface ActivityAddressDisplay {
   label?: string
@@ -47,12 +44,7 @@ const EARN_ACTIVITY_ADDRESS_LABEL_KEY: Record<EarnActivityAddressDirection, stri
 
 export function getEarnActivityAddressDirection(
   transaction: TransactionDetails,
-  { isEarnActivityDisplayEnabled = true }: { isEarnActivityDisplayEnabled?: boolean } = {},
 ): EarnActivityAddressDirection | undefined {
-  if (!isEarnActivityDisplayEnabled) {
-    return undefined
-  }
-
   const { typeInfo } = transaction
 
   if (typeInfo.type === TransactionType.Deposit && typeInfo.isVault) {
@@ -70,25 +62,23 @@ export function getEarnActivityAddressDirection(
   return undefined
 }
 
-function getAddressContent(address: Address | null, chainId: number): ActivityAddressContent | undefined {
+function getAddressContent(address: Address | null, chainId: UniverseChainId): ActivityAddressContent | undefined {
   return address ? { type: 'address', address, chainId } : undefined
 }
 
-function getActivityAddressDisplay({
+export function getActivityAddressDisplay({
   t,
   transaction,
   otherPartyAddress,
   protocolInfo,
-  isEarnActivityDisplayEnabled,
 }: {
   t: TFunction
   transaction: TransactionDetails
   otherPartyAddress: Address | null
   protocolInfo: ActivityProtocolInfo | null | undefined
-  isEarnActivityDisplayEnabled: boolean
 }): ActivityAddressDisplay {
   const transactionType = transaction.typeInfo.type
-  const earnActivityAddressDirection = getEarnActivityAddressDirection(transaction, { isEarnActivityDisplayEnabled })
+  const earnActivityAddressDirection = getEarnActivityAddressDirection(transaction)
 
   if (earnActivityAddressDirection) {
     return {
@@ -109,6 +99,9 @@ function getActivityAddressDisplay({
         label: t('common.text.sender'),
         content: getAddressContent(otherPartyAddress, transaction.chainId),
       }
+    // Wraps reach this arm rather than the protocol fallback below: the adapter resolves protocol
+    // metadata for them, but a wrap's protocol version is noise, so show the hash like other trades.
+    case TransactionType.Wrap:
     case TransactionType.Swap:
     case TransactionType.Bridge:
     case TransactionType.UniswapXCancel:
@@ -208,11 +201,9 @@ function PrioritizedContent({
         </Flex>
       )
     case 'address': {
-      const chainInfo = getChainInfo(content.chainId)
-
       return (
         <Flex row alignItems="center" gap="$gap4">
-          <AddressHoverCard address={content.address} platform={chainInfo.platform}>
+          <AddressHoverCard address={content.address} chainId={content.chainId}>
             <InternalLink
               to={buildPortfolioUrl({ externalAddress: content.address })}
               hoverStyle={ClickableTamaguiStyle.hoverStyle}
@@ -238,9 +229,9 @@ function PrioritizedContent({
   }
 }
 
-function ActivityAddressCellInner({ transaction, isEarnActivityDisplayEnabled = true }: ActivityAddressCellProps) {
+function ActivityAddressCellInner({ transaction }: ActivityAddressCellProps) {
   const { t } = useTranslation()
-  const { counterparty, protocolInfo } = buildActivityRowFragments(transaction, { isEarnActivityDisplayEnabled })
+  const { counterparty, protocolInfo } = buildActivityRowFragments(transaction)
 
   // Use counterparty from adapter if available, otherwise fall back to from address
   const rawAddress = counterparty ?? transaction.from
@@ -254,7 +245,6 @@ function ActivityAddressCellInner({ transaction, isEarnActivityDisplayEnabled = 
     transaction,
     otherPartyAddress,
     protocolInfo,
-    isEarnActivityDisplayEnabled,
   })
 
   return (

@@ -1,7 +1,7 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { getEmbeddedWalletCallsStatus } from '@universe/embedded-wallet/src/connection/getCallsStatus'
 import { TradingApiClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 vi.mock('uniswap/src/data/apiClients/tradingApi/TradingApiClient', () => ({
   TradingApiClient: { fetchSwaps: vi.fn() },

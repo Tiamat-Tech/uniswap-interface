@@ -1,6 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useMedia } from 'ui/src'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { BidAveragePriceSection } from '~/features/Toucan/Auction/Bids/BidDetailsModal/BidAveragePriceSection'
@@ -10,9 +11,16 @@ import { BidFdvSummary } from '~/features/Toucan/Auction/Bids/BidDetailsModal/Bi
 import { BidSpendSummary } from '~/features/Toucan/Auction/Bids/BidDetailsModal/BidSpendSummary'
 import { BidTotalsSection } from '~/features/Toucan/Auction/Bids/BidDetailsModal/BidTotalsSection'
 import { useBidDetails } from '~/features/Toucan/Auction/hooks/useBidDetails'
-import { AuctionDetails, AuctionProgressState, BidTokenInfo, UserBid } from '~/features/Toucan/Auction/store/types'
-import { useAuctionStore, useIsAuctionFailed } from '~/features/Toucan/Auction/store/useAuctionStore'
+import {
+  AuctionDetails,
+  AuctionOutcome,
+  AuctionProgressState,
+  BidTokenInfo,
+  UserBid,
+} from '~/features/Toucan/Auction/store/types'
+import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getClearingPrice } from '~/features/Toucan/Auction/utils/clearingPrice'
+import { shouldUsePreClaimWindow } from '~/features/Toucan/Auction/utils/preClaimWindow'
 import { ToucanActionButton } from '~/features/Toucan/Shared/ToucanActionButton'
 
 interface BidDetailsModalProps {
@@ -32,15 +40,23 @@ export function BidDetailsModal({
   onClose,
   onOpenWithdraw,
 }: BidDetailsModalProps): JSX.Element {
-  const { auctionDetails, checkpointData, onchainCheckpoint, isGraduated, auctionProgressState, currentBlockNumber } =
-    useAuctionStore((state) => ({
-      auctionDetails: state.auctionDetails,
-      checkpointData: state.checkpointData,
-      onchainCheckpoint: state.onchainCheckpoint,
-      isGraduated: state.progress.isGraduated,
-      auctionProgressState: state.progress.state,
-      currentBlockNumber: state.currentBlockNumber,
-    }))
+  const {
+    auctionDetails,
+    checkpointData,
+    onchainCheckpoint,
+    outcome,
+    hasMetThreshold,
+    auctionProgressState,
+    currentBlockNumber,
+  } = useAuctionStore((state) => ({
+    auctionDetails: state.auctionDetails,
+    checkpointData: state.checkpointData,
+    onchainCheckpoint: state.onchainCheckpoint,
+    outcome: state.progress.outcome,
+    hasMetThreshold: state.progress.isGraduated,
+    auctionProgressState: state.progress.state,
+    currentBlockNumber: state.currentBlockNumber,
+  }))
 
   // Check if we're in the window between auction end and claim period start
   const isInPreClaimWindow = useMemo(() => {
@@ -59,8 +75,11 @@ export function BidDetailsModal({
   const onchainClearingPrice = getClearingPrice(onchainCheckpoint, auctionDetails)
   const { t } = useTranslation()
 
-  // TODO | Toucan -- technically should never hit this state, but determine if we need error or loading states
-  if (!auctionDetails) {
+  // An undecided outcome cannot say whether this bid's funds are refundable, so it stays on the
+  // loading state instead of guessing.
+  // TODO | Toucan -- technically should never hit the missing-auctionDetails state, but determine if
+  // we need error states
+  if (!auctionDetails || outcome === AuctionOutcome.UNKNOWN) {
     return (
       <Modal name={ModalName.BidDetails} isModalOpen={isOpen} onClose={onClose} maxWidth={420} padding={0}>
         <Flex centered p="$spacing8" width="100%">
@@ -92,7 +111,8 @@ export function BidDetailsModal({
       auctionDetails={auctionDetails}
       clearingPrice={clearingPrice}
       onchainClearingPrice={onchainClearingPrice}
-      isGraduated={isGraduated}
+      outcome={outcome}
+      hasMetThreshold={hasMetThreshold}
       isInPreClaimWindow={isInPreClaimWindow}
       auctionProgressState={auctionProgressState}
       isOpen={isOpen}
@@ -109,7 +129,8 @@ interface BidDetailsModalContentProps {
   auctionDetails: AuctionDetails
   clearingPrice: string
   onchainClearingPrice: string
-  isGraduated: boolean
+  outcome: AuctionOutcome
+  hasMetThreshold: boolean
   isInPreClaimWindow: boolean
   auctionProgressState: AuctionProgressState
   isOpen: boolean
@@ -125,7 +146,8 @@ function BidDetailsModalContent({
   clearingPrice,
   // oxlint-disable-next-line no-unused-vars -- biome-parity: oxlint is stricter here
   onchainClearingPrice,
-  isGraduated,
+  outcome,
+  hasMetThreshold,
   isInPreClaimWindow,
   auctionProgressState,
   isOpen,
@@ -155,7 +177,8 @@ function BidDetailsModalContent({
     bidTokenInfo,
     auctionDetails,
     clearingPrice,
-    isGraduated,
+    outcome,
+    hasMetThreshold,
     auctionProgressState,
   })
 
@@ -177,15 +200,16 @@ function BidDetailsModalContent({
   const shouldShowRefundButton = buttonState.isVisible && isRefundEligible
 
   const isAuctionEnded = auctionProgressState === AuctionProgressState.ENDED
-  const isAuctionFailed = useIsAuctionFailed()
-  // Pass isPreClaimWindow when we're in pre-claim window for a graduated auction
-  const shouldUsePreClaimWindow = isAuctionEnded && isGraduated && isInPreClaimWindow
+  const isAuctionFailed = outcome === AuctionOutcome.FAILED
+  // Selects the pre-claim contract path downstream, so it must stay off live auctions — see
+  // shouldUsePreClaimWindow.
+  const usePreClaimWindow = shouldUsePreClaimWindow({ outcome, isInPreClaimWindow })
 
   const handleWithdraw = () => {
     onOpenWithdraw({
       bidId: bid.bidId,
       mode: buttonState.action,
-      isPreClaimWindowOverride: shouldUsePreClaimWindow,
+      isPreClaimWindowOverride: usePreClaimWindow,
     })
   }
 

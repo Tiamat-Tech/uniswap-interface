@@ -1,6 +1,6 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 
 export interface NetworkCostRowProps {

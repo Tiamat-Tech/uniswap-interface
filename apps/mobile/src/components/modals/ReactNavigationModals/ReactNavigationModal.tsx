@@ -1,5 +1,5 @@
 import { PasskeyManagementModal } from '@universe/embedded-wallet'
-import { type ComponentType, memo } from 'react'
+import { type ComponentProps, type ComponentType, memo } from 'react'
 import type { AppStackParamList, AppStackScreenProp } from 'src/app/navigation/types'
 import { EarnDepositAmountModal } from 'src/components/earn/EarnDepositAmountModal'
 import { EarnDepositReviewModal } from 'src/components/earn/EarnDepositReviewModal'
@@ -10,7 +10,6 @@ import { EarnWithdrawNetworkSelectorModal } from 'src/components/earn/EarnWithdr
 import { EarnWithdrawReviewModal } from 'src/components/earn/EarnWithdrawReviewModal'
 import { EarnYouNeedTokenModal } from 'src/components/earn/EarnYouNeedTokenModal'
 import { useReactNavigationModal } from 'src/components/modals/useReactNavigationModal'
-import type { GetProps } from 'ui/src'
 import { BridgedAssetModal } from 'uniswap/src/components/BridgedAsset/BridgedAssetModal'
 import { WormholeModal } from 'uniswap/src/components/BridgedAsset/WormholeModal'
 import { ReportPortfolioDataModal } from 'uniswap/src/components/reporting/ReportPortfolioDataModal'
@@ -54,28 +53,28 @@ type ValidModalNames = keyof Pick<
 >
 
 type ModalNameWithComponentProps = {
-  [ModalName.TestnetMode]: GetProps<typeof TestnetModeModal>
-  [ModalName.HiddenTokenInfoModal]: GetProps<typeof HiddenTokenInfoModal>
-  [ModalName.PasskeyManagement]: GetProps<typeof PasskeyManagementModal>
-  [ModalName.SmartWalletNudge]: GetProps<typeof SmartWalletNudge>
-  [ModalName.SmartWalletAdvancedSettingsModal]: GetProps<typeof SmartWalletAdvancedSettingsModal>
-  [ModalName.SmartWalletEnabledModal]: GetProps<typeof SmartWalletEnabledModal>
-  [ModalName.PermissionsModal]: GetProps<typeof PermissionsModal>
-  [ModalName.PortfolioBalanceModal]: GetProps<typeof PortfolioBalanceModal>
-  [ModalName.About]: GetProps<typeof AboutModal>
-  [ModalName.BridgedAsset]: GetProps<typeof BridgedAssetModal>
-  [ModalName.Wormhole]: GetProps<typeof WormholeModal>
-  [ModalName.ReportPortfolioData]: GetProps<typeof ReportPortfolioDataModal>
-  [ModalName.ReportTokenIssue]: GetProps<typeof ReportTokenIssueModal>
-  [ModalName.ReportTokenData]: GetProps<typeof ReportTokenDataModal>
-  [ModalName.EarnDepositAmount]: GetProps<typeof EarnDepositAmountModal>
-  [ModalName.EarnDepositReview]: GetProps<typeof EarnDepositReviewModal>
-  [ModalName.EarnDepositSourceSelector]: GetProps<typeof EarnDepositSourceSelectorModal>
-  [ModalName.EarnHowItWorks]: GetProps<typeof EarnHowItWorksModal>
-  [ModalName.EarnVault]: GetProps<typeof EarnVaultModal>
-  [ModalName.EarnWithdrawNetworkSelector]: GetProps<typeof EarnWithdrawNetworkSelectorModal>
-  [ModalName.EarnWithdrawReview]: GetProps<typeof EarnWithdrawReviewModal>
-  [ModalName.EarnYouNeedToken]: GetProps<typeof EarnYouNeedTokenModal>
+  [ModalName.TestnetMode]: ComponentProps<typeof TestnetModeModal>
+  [ModalName.HiddenTokenInfoModal]: ComponentProps<typeof HiddenTokenInfoModal>
+  [ModalName.PasskeyManagement]: ComponentProps<typeof PasskeyManagementModal>
+  [ModalName.SmartWalletNudge]: ComponentProps<typeof SmartWalletNudge>
+  [ModalName.SmartWalletAdvancedSettingsModal]: ComponentProps<typeof SmartWalletAdvancedSettingsModal>
+  [ModalName.SmartWalletEnabledModal]: ComponentProps<typeof SmartWalletEnabledModal>
+  [ModalName.PermissionsModal]: ComponentProps<typeof PermissionsModal>
+  [ModalName.PortfolioBalanceModal]: ComponentProps<typeof PortfolioBalanceModal>
+  [ModalName.About]: ComponentProps<typeof AboutModal>
+  [ModalName.BridgedAsset]: ComponentProps<typeof BridgedAssetModal>
+  [ModalName.Wormhole]: ComponentProps<typeof WormholeModal>
+  [ModalName.ReportPortfolioData]: ComponentProps<typeof ReportPortfolioDataModal>
+  [ModalName.ReportTokenIssue]: ComponentProps<typeof ReportTokenIssueModal>
+  [ModalName.ReportTokenData]: ComponentProps<typeof ReportTokenDataModal>
+  [ModalName.EarnDepositAmount]: ComponentProps<typeof EarnDepositAmountModal>
+  [ModalName.EarnDepositReview]: ComponentProps<typeof EarnDepositReviewModal>
+  [ModalName.EarnDepositSourceSelector]: ComponentProps<typeof EarnDepositSourceSelectorModal>
+  [ModalName.EarnHowItWorks]: ComponentProps<typeof EarnHowItWorksModal>
+  [ModalName.EarnVault]: ComponentProps<typeof EarnVaultModal>
+  [ModalName.EarnWithdrawNetworkSelector]: ComponentProps<typeof EarnWithdrawNetworkSelectorModal>
+  [ModalName.EarnWithdrawReview]: ComponentProps<typeof EarnWithdrawReviewModal>
+  [ModalName.EarnYouNeedToken]: ComponentProps<typeof EarnYouNeedTokenModal>
 }
 
 type NavigationModalProps<ModalName extends ValidModalNames> = {

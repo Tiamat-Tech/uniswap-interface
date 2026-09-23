@@ -1,10 +1,12 @@
 import { isMobileWeb } from '@universe/environment'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, WebBottomSheet } from '@universe/mycelium'
+import { AnimatedPager } from '@universe/mycelium/animate-presence-pager'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { heights } from '@universe/mycelium/tokens'
 import { atom, useAtom } from 'jotai'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AnimatedPager, Flex, useMedia, WebBottomSheet } from 'ui/src'
-import { HeightAnimator } from 'ui/src/animations/components/HeightAnimator'
-import { INTERFACE_NAV_HEIGHT } from 'ui/src/theme'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -77,12 +79,12 @@ export function GetTheAppModal() {
   const keyboardHeight = useIOSBodyScrollLock(isOpen)
 
   const content = (
-    <Flex data-testid={TestID.DownloadUniswapModal} position="relative" userSelect="none" width="100%">
+    <Flex testID={TestID.DownloadUniswapModal} position="relative" userSelect="none" width="100%">
       {showNewOnboardingFlow && <EmbeddedWalletOnboardingFlow onClose={close} />}
       {!showNewOnboardingFlow && (
         <HeightAnimator animation="quickLong">
           {/* The Page enum value corresponds to the modal page's index */}
-          <AnimatedPager animation="quickLong" currentIndex={page}>
+          <AnimatedPager curve="quickLong" currentIndex={page}>
             <DownloadAppsModal onClose={close} initialInnerPage={showMobileDownload ? 'mobile' : undefined} />
             <ChooseUnitagModal
               setUnitag={setUnitag}
@@ -110,11 +112,11 @@ export function GetTheAppModal() {
       <WebBottomSheet
         isOpen={isOpen}
         onClose={isDismissible ? close : undefined}
-        maxHeight={`calc(100dvh - ${INTERFACE_NAV_HEIGHT}px)`}
+        maxHeight={`calc(100dvh - ${heights['interface-nav']}px)`}
         px="$spacing24"
         pb="$spacing24"
       >
-        <Flex pb={keyboardHeight ? `${keyboardHeight}px` : undefined}>{content}</Flex>
+        <Flex pb={keyboardHeight || undefined}>{content}</Flex>
       </WebBottomSheet>
     )
   }

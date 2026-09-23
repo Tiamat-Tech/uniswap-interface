@@ -8,11 +8,10 @@ import type { Logger } from 'utilities/src/logger/logger'
 
 interface ApiInitProps {
   getSessionInitService: () => SessionInitializationService
-  isSessionServiceEnabled: boolean
   getLogger?: () => Logger
 }
 
-function ApiInit({ getSessionInitService, isSessionServiceEnabled, getLogger }: ApiInitProps): null {
+function ApiInit({ getSessionInitService, getLogger }: ApiInitProps): null {
   const [query] = useState(() => {
     // Both calls only build the query *options* (cheap, idempotent). The fetch
     // itself runs once: the `useQuery` below and the gate's `fetchQuery` share
@@ -21,7 +20,7 @@ function ApiInit({ getSessionInitService, isSessionServiceEnabled, getLogger }: 
     return sessionInitQuery({ getService: getSessionInitService, getLogger })
   })
 
-  useQuery({ ...query, enabled: isSessionServiceEnabled })
+  useQuery(query)
 
   return null
 }

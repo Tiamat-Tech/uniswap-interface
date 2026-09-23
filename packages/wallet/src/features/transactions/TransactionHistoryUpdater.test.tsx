@@ -8,6 +8,7 @@ import {
   TokenType,
   Transaction,
 } from '@uniswap/client-data-api/dist/data/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import dayjs from 'dayjs'
 import MockDate from 'mockdate'
 import { DAI } from 'uniswap/src/constants/tokens'
@@ -16,7 +17,6 @@ import {
   useListTransactionsQuery,
 } from 'uniswap/src/data/apiClients/dataApiService/activity/listTransactions'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { STALE_TRANSACTION_TIME_MS } from 'uniswap/src/features/notifications/constants'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { SAMPLE_SEED_ADDRESS_1, SAMPLE_SEED_ADDRESS_2 } from 'uniswap/src/test/fixtures'

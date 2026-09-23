@@ -1,13 +1,9 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
 import { EXPANDABLE_ASSET_SHELL_HEADER_GAP_PX } from 'uniswap/src/features/expandableAsset/expandableAssetLayout'
 import { ExpandableSearchRow } from 'uniswap/src/features/expandableAsset/ExpandableSearchRow'
 import type { ExpandableSearchRowContainerProps } from 'uniswap/src/features/expandableAsset/ExpandableSearchRowContainer'
 
-/**
- * Native: no animation. FlashList force-sizes each cell via `getExpandableSearchRowHeightPx` and can't animate a
- * cell's height, so the panel renders instantly. The parent↔panel gap is a `pt` spacer (the shell carries gap=0),
- * keeping the rendered height in sync with the layout helper. `issuerPanelHeightPx` is web-only and ignored here.
- */
 export function ExpandableSearchRowContainer({
   isExpanded,
   canExpand,
@@ -29,11 +25,11 @@ export function ExpandableSearchRowContainer({
       isExpanded={isExpanded}
       header={header}
       panelSlot={
-        showShell ? (
+        <HeightAnimator unmountChildrenWhenCollapsed open={showShell}>
           <Flex pt={EXPANDABLE_ASSET_SHELL_HEADER_GAP_PX} width="100%">
             {issuerPanel}
           </Flex>
-        ) : null
+        </HeightAnimator>
       }
       focusedRowControl={focusedRowControl}
       testID={testID}

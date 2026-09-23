@@ -6,7 +6,6 @@
     "@ast-grep/napi": "0.44.1",
     "@commitlint/cli": "17.5.0",
     "@commitlint/config-conventional": "17.4.4",
-    "@crowdin/cli": "3.14.0",
     "@ethersproject/keccak256": "5.7.0",
     "@jambit/eslint-plugin-typed-redux-saga": "0.4.0",
     "@manypkg/cli": "0.19.2",
@@ -39,7 +38,8 @@
     "oxlint-tsgolint": "0.24.0",
     "playwright-slack-report": "1.1.109",
     "syncpack": "8.5.14",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vercel": "57.0.0"
   },
   "type": "module",
   "engines": {
@@ -83,9 +83,6 @@
     "react-native-sortables@1.10.0": "Fabric: favorites grid wedges after a few reorders — a tile stops lifting and reordering freezes. (1) MeasurementsProvider always flushes immediately and never gates on exact measuredItemKeys===itemsCount; removeItemMeasurements reassigns shared values; and item measurements are diffed against itemWidths/itemHeights instead of a JS-side cache of the last onLayout — that cache went stale whenever sizes were dropped from the shared values (item unmount, data change), after which an unchanged re-measure was skipped forever and the key stayed in indexToKey with no size, unliftable and unsortable. (2) calculateLayout uses a fallback cross-size when one item is missing a measurement instead of returning null. (3) useItemZIndex only elevates the active item. (4) LayerProvider updateLayer is a no-op. (5) DragProvider drops upstream's per-item `activationAnimationProgress > 0` activation guard: it rejects long-press on the tile you just dropped, and rejects it permanently whenever that withTiming(0) doesn't land on exactly 0 — the 'one tile stops lifting while the others work' symptom. Replaced by a time-boxed drop-settle window that only *delays* activation; the window must never fail() the gesture, because fail() outside a gesture event breaks that item's native handler for good. Every item's position/animation is also snapped after each drop. (6) ItemsProvider skips React node rebuilds on index-only reorders (prevents remounting item content on every drop). (7) useItemLayoutFabric clears transforms immediately on drop so hit-testing matches the visual slot (esp. odd tile in an incomplete row). App defers Redux persist until Done. Should be upstreamed.",
     "@react-native-community/cli-server-api": "Pinning previous version because of excessive logging thats not fixed until RN 0.79 https://github.com/facebook/hermes/commit/c615b115dfa471c108256982ce07f10adee63667",
     "@react-native/dev-middleware": "Pinning previous version because of excessive logging thats not fixed until RN 0.79 https://github.com/facebook/hermes/commit/c615b115dfa471c108256982ce07f10adee63667",
-    "@tamagui/portal@1.136.1": "Fixes issue with not rendering content in sheets on mweb (e.g. Selecting a token on swap flow) on web production builds via PortalHostWeb mounted-state guard + useEffect-deferred host registration. Also force-disables USE_NATIVE_PORTAL on iOS — required to avoid RN 0.81 crash 'NSInternalInconsistencyException: This method must not be called before the JS thread is created' (RCTBridge dispatches a JS-to-native call before the JS thread is created when using iOS native createPortal). Tradeoff: bottom sheets render their content one render cycle late on iOS (visible blank-then-fills); the better fix is to pre-mount PortalHost early in the app tree (before any sheet can open) so registerHost completes before any portal item dispatches — investigate before next merge attempt.",
-    "@tamagui/static@1.136.1": "Fixes applying styles (e.g. with hoverStyle) for buttons on web production builds.",
-    "@tamagui/web@1.136.1": "Resets the internal lastInteractionWasKeyboard flag on window blur. Cmd/Alt+Tab app-switching fires a keydown that flips the flag to keyboard mode; on window refocus onFocus re-applies focusVisibleStyle, painting a spurious focus ring on mouse-focused elements until clicked (CONS-2055). Web-only (inside the isWeb guard). TODO: upstream to Tamagui and drop once merged.",
     "@expo/metro-config@54.0.9": "Fixes 'TypeError: Invalid URL' on every Fast Refresh in HMR serializer fork (build/serializer/fork/hmrJSBundle.js). Expo's fork calls 'new URL(options.clientUrl)' where clientUrl is a legacy Node url.Url object (from url.parse); Url doesn't override toString, so WHATWG URL coerces it to '[object Object]' and throws. Upstream Metro avoids this by passing url.format(options.clientUrl). Patch round-trips via node:url format() at both call sites (also fixes a sibling .toString() in prepareModule that was silently producing '[object Object]' sourceUrls in dev source maps). Should be upstreamed.",
     "@react-native-community/slider@5.1.1": "Issue with importing fabric code: https://github.com/callstack/react-native-slider/issues/744",
     "zod@4.3.6": "Enables jitless mode by default to avoid CSP unsafe-eval violations in browser extension content scripts. See https://github.com/colinhacks/zod/issues/4461",
@@ -98,8 +95,11 @@
     "react-native-svg@15.12.1": "Holds RNSVGImage's RCTImageResponseObserverProxy in a shared_ptr so the Fabric image observer outlives in-flight callbacks (fixes a use-after-free crash on <Image> under Fabric).",
     "i18next@23.10.0": "Adds $NoUndefinedValues and applies it to the t() options argument so t() rejects possibly-undefined interpolation values at compile time (e.g. t('k', { v: maybeUndefined }) is now a type error). Resource-type-independent — works despite this repo erasing resources to Record<string,string> for typecheck perf, which disables i18next's own placeholder typing.",
     "@expo/require-utils@56.1.3": "typescript >= 7.0.2 resolves its \".\" export to a version-only stub with no compiler API, so loadTypescript() would hand Expo config evaluation a ts without transpileModule and crash at ts.ModuleKind (breaks the Android/iOS native builds at expo-constants createExpoConfig). Treat the stub like typescript-not-installed so the module.stripTypeScriptTypes fallback transpiles app.config.ts. Should be upstreamed to Expo; drop when @expo/require-utils supports TS 7 (still unfixed as of 57.0.1).",
-    "react-native-gesture-handler@3.0.0": "Makes RNGestureHandlerDetectorView.setModuleId tolerant of moduleId changing on a live view instead of asserting write-once. Under the new architecture, globalThis._RNGH_MODULE_ID advances every time the native RNGH module re-inits (JS reload / RN context recreation), and Fabric re-applies the new moduleId to still-mounted detector views — tripping the assert and crashing the app with 'Tried to change moduleId of a native detector'. Mirrors iOS updateProps, which reassigns _moduleId freely; on a real change we detach handlers from the previous registry before wiring up the new one. Should be upstreamed.",
-    "danger@11.2.6": "danger's transpiler gates its native-TS path on a bare require.resolve('typescript'), which typescript >= 7.0.2 satisfies with a version-only stub that has no transpileModule — danger would then crash transpiling dangerfile.ts on every PR. Gate on transpileModule actually existing so danger keeps using its babel fallback (same behavior as under 7.0.1-rc, whose missing \".\" export made the resolve throw). Drop when danger supports TS 7 (still unfixed as of 13.0.10)."
+    "react-native-gesture-handler@3.2.1": "Three Android hunks; all three verified still absent as of 3.3.0-nightly-20260828 (3.2.1 is still `latest`), so none of them is fixed by a bump. (1) RNGestureHandlerDetectorView.setModuleId tolerates moduleId changing on a live view: globalThis._RNGH_MODULE_ID advances every time the native module re-inits (JS reload / RN context recreation) and Fabric re-applies the new id to still-mounted detector views, where upstream's `assert(this.moduleId == -1)` crashes with 'Tried to change moduleId of a native detector'. Replaced with a detachAllHandlers() teardown so handlers bound to the previous registry are released first; mirrors iOS updateProps, which reassigns _moduleId freely. REMOVE WHEN: upstream stops asserting write-once in setModuleId. (2) ButtonViewGroup finalizes its managed NativeViewGestureHandler when the app window loses focus. A window opening over the app (native context menu, dialog, permission prompt) keeps the tail of the touch stream, so that handler never reaches a terminal state and every RNGH-button-backed pressable in the app dies until relaunch, while raw Gesture.Tap surfaces keep working. Upstream knows this shape: the ButtonViewGroup.requestDisallowInterceptTouchEvent override (upstream #4367, in 3.2.1) only fires when the call comes from below the button, and the view taking the touch is an ancestor; upstream #4441 (3.3.0) adds a deferred shouldCancelOnNativeTouchGrab sweep for the ScrollView case. Neither covers this: #4441 arms the sweep only between onNativeDispatchStart/End, i.e. inside super.dispatchTouchEvent, and our grab arrives from ContextMenuView.onLongPress \u2014 which Android's GestureDetector delivers from a posted Handler message \u2014 and on the close path from onWindowFocusChanged, both outside any dispatch pass. REMOVE WHEN: upstream finalizes a button's managed handler on window-focus loss, or otherwise handles a native touch grab raised outside touch dispatch. (3) That same managed handler no longer cancels the JS responder. It backs the button's own press and its view is the responder target, so cancelling on activation \u2014 which lands on the first move past the tap timeout \u2014 made RN deliver touch-cancel instead of touch-end, silently dropping onPress and any responder-timed onLongPress for every press that moved at all. This is upstream's own rule extended, not a fight with it: upstream #4297 opted the internal root handler out of the same flag for the same reason (restoring stock RN semantics, where core cancels the responder only through explicit onChildStartedNativeGesture calls from ScrollView / SwipeRefreshLayout, plus iOS parity), and the managed button handler landed in 3.2.0 after that PR. Scoped to the button's own handler, so ScrollView and RN core still cancel the responder through their own paths and scroll-vs-press arbitration is unchanged. Not reachable from JS: Touchable/PressableWithTouchable do not expose cancelsTouchesInView. REMOVE WHEN: upstream sets cancelsJSResponder=false on the managed button handler, or exposes it as a prop. All three should be upstreamed.",
+
+
+    "danger@11.2.6": "danger's transpiler gates its native-TS path on a bare require.resolve('typescript'), which typescript >= 7.0.2 satisfies with a version-only stub that has no transpileModule — danger would then crash transpiling dangerfile.ts on every PR. Gate on transpileModule actually existing so danger keeps using its babel fallback (same behavior as under 7.0.1-rc, whose missing \".\" export made the resolve throw). Drop when danger supports TS 7 (still unfixed as of 13.0.10).",
+    "uniwind@1.7.0": "css-processor parseRuleRec overwrites the inherited selector config when it enters a nested pseudo rule: `dark:active:`/`dark:focus:` lower to `&:focus` nested inside `&:where(.dark, .dark *)`, and the nested rule replaced the inherited theme='dark' with null, so the declaration lost its theme gate on native and applied in both themes (INFRA-3264). Merge the nested rule's selector config with the inherited one and restore it after recursion (instead of nulling, which also leaked a cleared config to sibling rules). Same change in all five shipped copies of the processor (src + dist/common + dist/module + both dist/metro transformer bundles — Metro executes the cjs). Should be upstreamed to uni-stack/uniwind. Also: height range media features now resolve to minHeight/maxHeight and are evaluated against screen height instead of being ignored (INFRA-3281). CAUTION on version bumps: bun silently ignores a patchedDependencies entry whose version key does not match the resolved version (no error, no warning), so on any uniwind bump verify the patch still applies (the parity dist-drift gate in packages/tailwind goes red if it did not)."
   },
   "resolutions": {
     "react": "19.2.3",
@@ -114,14 +114,13 @@
     "@react-native-community/cli": "18.0.1",
     "@react-native-community/cli-server-api": "15.0.1",
     "@react-native/dev-middleware": "0.85.3",
-    "@shopify/flash-list": "2.2.0",
     "@sideway/formula": "3.0.1",
     "@swc-node/register": "1.9.1",
     "@swc/core": "1.5.7",
     "@swc/helpers": "0.5.11",
     "@types/react": "19.2.16",
     "@uniswap/router-sdk": "2.10.3",
-    "@uniswap/sdk-core": "7.19.0",
+    "@uniswap/sdk-core": "7.19.1",
     "@uniswap/v2-sdk": "4.20.3",
     "@uniswap/v3-sdk": "3.31.0",
     "@uniswap/v4-sdk": "2.3.0",
@@ -161,10 +160,10 @@
     "phin": "3.7.1",
     "qs": "6.14.2",
     "react-native": "0.85.3",
-    "react-native-reanimated": "4.4.2",
+    "react-native-reanimated": "4.4.3",
     "react-native-worklets": "0.9.1",
     "react-native-safe-area-context": "5.7.0",
-    "react-native-gesture-handler": "3.0.0",
+    "react-native-gesture-handler": "3.2.1",
     "react-native-device-info": "10.11.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "react-native-svg": "15.12.1",
@@ -219,12 +218,8 @@
     "// ── Tooling Maintenance ──": "Package generation, dependency upgrades, cleanup",
     "generate:package": "nx generate @universe/uniswap-nx:package",
     "sync:bun-version": "bun run ./scripts/sync-bun-version.ts",
-    "upgrade:tamagui": "bun update '*tamagui*' '@tamagui/*'",
-    "upgrade:tamagui:canary": "bun update '*tamagui*'@canary '@tamagui/*'@canary",
     "// ── Other Utilities ──": "Various other utilities, including i18n, codegen, and release management",
-    "census:tamagui": "bun run ./scripts/tamagui-migration/tamagui-census.ts",
     "i18n:extract": "i18next",
-    "i18n:upload": "crowdin upload",
     "tradingapi:schema": "nx run-many -t tradingapi:schema",
     "tradingapi:generate": "nx run-many -t tradingapi:generate",
     "wallet:release:setup-cherry-pick-branches": "bun run ./scripts/wallet-releases/generate-cherry-pick-branches-for-release.ts",
@@ -282,8 +277,6 @@
     "@react-native-community/slider@5.2.0": "patches/@react-native-community%2Fslider@5.2.0.patch",
     "@shopify/react-native-performance@4.1.2": "patches/@shopify%2Freact-native-performance@4.1.2.patch",
     "@vercel/og@0.5.8": "patches/@vercel%2Fog@0.5.8.patch",
-    "@tamagui/portal@1.136.1": "patches/@tamagui%2Fportal@1.136.1.patch",
-    "@tamagui/static@1.136.1": "patches/@tamagui%2Fstatic@1.136.1.patch",
     "fumadocs-core@16.5.0": "patches/fumadocs-core@16.5.0.patch",
     "fumadocs-ui@16.5.0": "patches/fumadocs-ui@16.5.0.patch",
     "@fumadocs/ui@16.5.0": "patches/@fumadocs%2Fui@16.5.0.patch",
@@ -292,7 +285,6 @@
     "@ethersproject/providers@5.7.2": "patches/@ethersproject%2Fproviders@5.7.2.patch",
     "nx@22.5.4": "patches/nx@22.5.4.patch",
     "@expo/metro-config@54.0.9": "patches/@expo%2Fmetro-config@54.0.9.patch",
-    "@tamagui/web@1.136.1": "patches/@tamagui%2Fweb@1.136.1.patch",
     "@expo/require-utils@56.1.3": "patches/@expo%2Frequire-utils@56.1.3.patch",
     "expo-constants@18.0.13": "patches/expo-constants@18.0.13.patch",
     "expo-modules-core@56.0.16": "patches/expo-modules-core@56.0.16.patch",
@@ -301,8 +293,9 @@
     "react-native@0.85.3": "patches/react-native@0.85.3.patch",
     "i18next@23.10.0": "patches/i18next@23.10.0.patch",
     "react-scripts@5.0.1": "patches/react-scripts@5.0.1.patch",
-    "react-native-gesture-handler@3.0.0": "patches/react-native-gesture-handler@3.0.0.patch",
+    "react-native-gesture-handler@3.2.1": "patches/react-native-gesture-handler@3.2.1.patch",
     "danger@11.2.6": "patches/danger@11.2.6.patch",
-    "react-native-wagmi-charts@2.10.0": "patches/react-native-wagmi-charts@2.10.0.patch"
+    "react-native-wagmi-charts@2.10.0": "patches/react-native-wagmi-charts@2.10.0.patch",
+    "uniwind@1.7.0": "patches/uniwind@1.7.0.patch"
   }
 }

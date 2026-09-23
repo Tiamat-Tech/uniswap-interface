@@ -1,8 +1,6 @@
 import { Connection } from '@solana/web3.js'
-import { generateRequestId, getRpcObserver } from '@universe/chains'
+import { generateRequestId, getRpcObserver, UniverseChainId } from '@universe/chains'
 import { SOLANA_CHAIN_INFO } from 'uniswap/src/features/chains/svm/info/solana'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-
 const SOLANA_RPC_URL = SOLANA_CHAIN_INFO.rpcUrls.default.http[0]
 
 /**

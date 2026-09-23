@@ -1,16 +1,14 @@
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { TokenOption } from 'uniswap/src/components/lists/items/types'
-import { shouldShowCategoryTag } from 'uniswap/src/components/TokenSelector/TokenSelectorList'
 import { getWarningIconColors } from 'uniswap/src/components/warnings/utils'
 import WarningIcon from 'uniswap/src/components/warnings/WarningIcon'
 import { formatIssuerLabel } from 'uniswap/src/data/apiClients/dataApiService/rwa/formatIssuerDisplaySymbol'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { CategoryTag } from 'uniswap/src/features/expandableAsset/CategoryTag'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { useRowCategoryTag } from 'uniswap/src/features/tokenCategories/useRowCategoryTag'
 import { getTokenWarningSeverity } from 'uniswap/src/features/tokens/warnings/safetyUtils'
 import { shortenAddress } from 'utilities/src/addresses'
 import { NumberType } from 'utilities/src/format/types'
@@ -39,12 +37,13 @@ export const TokenSelectorV2Row = memo(function TokenSelectorV2Row({
   const { convertFiatAmountFormatted, formatNumberOrString, formatPercent } = useLocalizationContext()
   const { isTestnetModeEnabled } = useEnabledChains()
 
-  const { currencyInfo, quantity, balanceUSD, priceUsd, pricePercentChange24h, rwaCategory } = option
+  const { currencyInfo, quantity, balanceUSD, priceUsd, pricePercentChange24h } = option
   const { currency } = currencyInfo
 
   const networkCount = option.networkCount ?? currencyInfo.searchMultichainParent?.tokenCurrencyIds.length
 
   const hasBalance = Boolean(quantity && quantity !== 0)
+  const categoryTag = useRowCategoryTag({ rwaCategory: option.rwaCategory, categoryIds: currencyInfo.categoryIds })
 
   // Pre-tap risk cue for Medium+ severity, mirroring legacy TokenOptionItem's badge.
   const severity = getTokenWarningSeverity(currencyInfo)
@@ -92,18 +91,14 @@ export const TokenSelectorV2Row = memo(function TokenSelectorV2Row({
       )
     }
 
-    if (rwaCategory != null && shouldShowCategoryTag({ rwaCategory, hasBalance })) {
-      return <CategoryTag category={rwaCategory} />
-    }
-
-    return undefined
+    return categoryTag
   }, [
     hasBalance,
     quantity,
     balanceUSD,
     priceUsd,
     pricePercentChange24h,
-    rwaCategory,
+    categoryTag,
     isTestnetModeEnabled,
     convertFiatAmountFormatted,
     formatNumberOrString,

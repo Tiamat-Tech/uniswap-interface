@@ -1,11 +1,10 @@
 {
   "extends": "../../config/tsconfig/app.json",
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.json"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.spec.tsx", "src/**/*.test.ts", "src/**/*.test.tsx"],
   "compilerOptions": {
     "noEmit": false,
     "emitDeclarationOnly": true,
-    "types": ["node"],
+    "types": ["node", "vitest/globals"],
     "paths": {}
   },
   "references": [
@@ -38,6 +37,9 @@
     },
     {
       "path": "../chains"
+    },
+    {
+      "path": "../mycelium"
     }
   ]
 }

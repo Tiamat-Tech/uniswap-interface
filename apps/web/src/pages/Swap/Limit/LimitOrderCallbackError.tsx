@@ -1,30 +1,39 @@
+import { Flex, type FlexCompatProps, Text } from '@universe/mycelium'
 import { ReactNode } from 'react'
-import { Flex, styled, Text } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
+function LimitOrderCallbackErrorInner(props: FlexCompatProps): JSX.Element {
+  return (
+    <Flex
+      flexDirection="row"
+      backgroundColor="$statusCritical2"
+      borderRadius="$rounded12"
+      alignItems="center"
+      mt={-32}
+      width="100%"
+      zIndex={-1}
+      pt={48}
+      pr={20}
+      pb={16}
+      pl={16}
+      {...props}
+    />
+  )
+}
 
-const LimitOrderCallbackErrorInner = styled(Flex, {
-  flexDirection: 'row',
-  backgroundColor: '$statusCritical2',
-  borderRadius: '$rounded12',
-  alignItems: 'center',
-  mt: -32,
-  width: '100%',
-  zIndex: -1,
-  pt: 48,
-  pr: 20,
-  pb: 16,
-  pl: 16,
-})
-
-const LimitOrderCallbackErrorInnerAlertTriangle = styled(Flex, {
-  backgroundColor: '$statusCritical2',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginRight: 12,
-  borderRadius: '$rounded12',
-  minWidth: 48,
-  height: 48,
-})
+function LimitOrderCallbackErrorInnerAlertTriangle(props: FlexCompatProps): JSX.Element {
+  return (
+    <Flex
+      backgroundColor="$statusCritical2"
+      alignItems="center"
+      justifyContent="center"
+      marginRight={12}
+      borderRadius="$rounded12"
+      minWidth={48}
+      height={48}
+      {...props}
+    />
+  )
+}
 
 export function LimitOrderCallbackError({ error }: { error: ReactNode }) {
   return (

@@ -2,168 +2,201 @@
 
 exports[`AccountSwitcher > renders correctly 1`] = `
 <DocumentFragment>
-  <span
-    class=""
-    style="display: contents;"
+  <div
+    class="css-view-175oi2r"
+    style="padding-bottom: 16px; max-height: -36px;"
   >
     <div
-      class="_pb-_short_t-space-non101 _display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _maxHeight--36px _pb-t-space-spa1360334080"
+      class="css-view-175oi2r"
+      style="gap: 16px; margin-right: 12px; margin-left: 12px; padding-top: 12px; padding-bottom: 16px;"
     >
       <div
-        class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _gap-t-space-spa1360334076 _pb-t-space-spa1360334076 _pt-t-space-spa1360334080 _mr-t-space-spa1360334080 _ml-t-space-spa1360334080"
+        class="css-view-175oi2r"
+        style="gap: 8px;"
       >
         <div
-          class="_display-flex _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-1 _flexDirection-column _gap-t-space-spa94665593 _alignItems-center"
+          class="css-view-175oi2r"
         >
           <div
-            class="_display-flex _alignItems-center _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _justifyContent-center"
+            class="css-view-175oi2r"
+            data-testid="account-icon"
+            style="width: 56px; height: 56px; border-top-left-radius: 999999px; border-top-right-radius: 999999px; border-bottom-right-radius: 999999px; border-bottom-left-radius: 999999px; border-top-width: 0px; border-right-width: 0px; border-bottom-width: 0px; border-left-width: 0px;"
           >
             <div
-              class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _borderTopColor-transparent _borderRightColor-transparent _borderBottomColor-transparent _borderLeftColor-transparent _borderTopLeftRadius-t-radius-ro1041013639 _borderTopRightRadius-t-radius-ro1041013639 _borderBottomRightRadius-t-radius-ro1041013639 _borderBottomLeftRadius-t-radius-ro1041013639 _borderTopWidth-t-space-non101 _borderRightWidth-t-space-non101 _borderBottomWidth-t-space-non101 _borderLeftWidth-t-space-non101 _position-relative _width-56px _height-56px _borderBottomStyle-solid _borderTopStyle-solid _borderLeftStyle-solid _borderRightStyle-solid"
-              data-testid="account-icon"
+              class="css-view-175oi2r"
             >
               <div
-                class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-1 _flexDirection-column _flexGrow-1"
+                class="css-view-175oi2r"
+                style="width: 56px; height: 56px;"
               >
                 <div
-                  class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column"
-                  style="width: 56px; height: 56px;"
+                  height="56"
+                  viewbox="0 0 56 56"
+                  width="56"
                 >
                   <div
-                    class="css-view-175oi2r"
-                    style="width: 56px; height: 56px;"
+                    cx="28"
+                    cy="28"
+                    fill="#00C3A0"
+                    opacity="0.1216"
+                    r="28"
+                  />
+                  <div
+                    transform="translate(9.333333333333332, 9.333333333333332) scale(0.7777777777777778)"
                   >
                     <div
-                      class="css-view-175oi2r"
+                      clip-rule="evenodd"
+                      d="M20.9454 0.0175773C22.4936 -0.167833 23.763 1.13917 23.763 2.72944V21.3625C23.763 22.9527 22.4993 24.2419 20.9405 24.2419L2.67549 24.2419C1.11665 24.2419 -0.16452 22.9469 0.0172307 21.3675C1.30306 10.1936 9.99222 1.32931 20.9454 0.0175773Z"
+                      fill="#00C3A0"
+                      fill-rule="evenodd"
                     />
                     <div
-                      class="css-view-175oi2r"
-                    >
-                      <div
-                        class="css-view-175oi2r"
-                      >
-                        <div
-                          class="css-view-175oi2r"
-                        />
-                      </div>
-                    </div>
+                      clip-rule="evenodd"
+                      d="M27.0546 47.9824C25.5064 48.1678 24.237 46.8608 24.237 45.2706V26.6375C24.237 25.0473 25.5007 23.7581 27.0595 23.7581L45.3245 23.7581C46.8833 23.7581 48.1645 25.0531 47.9828 26.6325C46.6969 37.8064 38.0078 46.6707 27.0546 47.9824Z"
+                      fill="#00C3A0"
+                      fill-rule="evenodd"
+                    />
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div
-            class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-1 _flexDirection-column _gap-t-space-non101"
-          >
-            <div
-              class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-row _gap-t-space-spa1360334080"
-            >
-              <div
-                class="_display-flex _alignItems-center _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexDirection-row _flexGrow-1 _gap-t-space-spa94665589 _flexShrink-1 _justifyContent-center"
-              >
-                <span
-                  class="font_heading _display-inline _boxSizing-border-box _mt-0px _mr-0px _mb-0px _ml-0px _color-neutral1 _wordWrap-break-word _fontFamily-f-family _fontSize-19px _fontWeight-f-weight-bo3548 _lineHeight-24px _maxWidth-10037 _overflowX-hidden _overflowY-hidden _textOverflow-ellipsis _whiteSpace-initial _textAlign-center _flexShrink-1"
-                  data-disable-theme="true"
-                  data-testid="address-display/name/undefined"
-                />
-              </div>
-            </div>
-            <div
-              class="_display-flex _alignItems-center _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _justifyContent-center"
-            >
-              <div
-                class="_display-flex _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-row _alignItems-center _justifyContent-center _backgroundColor-transparent _borderTopLeftRadius-t-radius-ro1041013639 _borderTopRightRadius-t-radius-ro1041013639 _borderBottomRightRadius-t-radius-ro1041013639 _borderBottomLeftRadius-t-radius-ro1041013639 _mt-t-space-non101 _pr-t-space-non101 _pl-t-space-non101 _pt-t-space-non101 _pb-t-space-non101"
-              >
-                <button
-                  class="is_TouchableArea "
-                  data-testid="copy"
-                  style="border-top-left-radius: 12px; border-top-right-radius: 12px; border-bottom-right-radius: 12px; border-bottom-left-radius: 12px; background-color: transparent; flex-direction: row; opacity: 1; gap: 4px; align-items: center; position: relative; transform: [object Object];"
-                  testid="copy"
-                >
-                  <div
-                    class="_maxWidth-_platformweb_calc100-0px38074892 _whiteSpace-_platformweb_nowrap _overflowX-_platformweb_hidden _overflowY-_platformweb_hidden _textOverflow-_platformweb_ellipsis _display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column"
-                  >
-                    <span
-                      class="font_subHeading _display-inline _boxSizing-border-box _whiteSpace-pre-wrap _mt-0px _mr-0px _mb-0px _ml-0px _color-neutral2 _fontFamily-f-family _wordWrap-break-word _fontSize-f-size-smal108 _fontWeight-f-weight-bo3548 _lineHeight-f-lineHeigh1269072494"
-                      data-disable-theme="true"
-                    >
-                      0x​82D56A...373Fa6
-                    </span>
-                  </div>
-                  <div
-                    class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _position-relative _width-17px _height-17px"
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
         <div
-          class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-row _pr-t-space-spa1360334080 _pl-t-space-spa1360334080"
-        >
-          <button
-            class="is_Button  t_group_item"
-            data-testid="wallet-settings"
-            dd-action-name="account.wallet.button.manage"
-            style="border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px; align-items: center; justify-content: center; background-color: rgba(19, 19, 19, 0.08); border-top-color: transparent; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; cursor: pointer; height: auto; align-self: stretch; flex-grow: 1; flex-shrink: 1; flex-basis: 0px; outline-color: rgba(0, 0, 0, 0); padding: 12px 16px 12px 16px; border-top-left-radius: 16px; border-top-right-radius: 16px; border-bottom-right-radius: 16px; border-bottom-left-radius: 16px; gap: 8px; flex-direction: row; border-bottom-style: solid; border-top-style: solid; border-left-style: solid; border-right-style: solid; transform: [object Object];"
-            testid="wallet-settings"
-          >
-            <span
-              class="font_button _color-_groupitem-hover_neutral1Hov3121676 _display-inline _boxSizing-border-box _wordWrap-break-word _whiteSpace-nowrap _mt-0px _mr-0px _mb-0px _ml-0px _color-neutral1 _fontFamily-f-family _maxWidth-10037 _overflowX-hidden _overflowY-hidden _textOverflow-ellipsis _textAlign-center _fontSize-f-size-medi3736 _fontWeight-f-weight-me3083741"
-              line-height-disabled="true"
-            >
-              account.wallet.button.manage
-            </span>
-          </button>
-        </div>
-      </div>
-      <div
-        class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _maxHeight--18px"
-      >
-        <div
-          class="_display-flex _alignItems-stretch _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-1 _flexDirection-column"
-        >
-          ExpoLinearGradient
-          <div />
-          ExpoLinearGradient
-        </div>
-      </div>
-      <button
-        class="is_TouchableArea "
-        data-testid="account-switcher-add-wallet"
-        style="border-top-left-radius: 12px; border-top-right-radius: 12px; border-bottom-right-radius: 12px; border-bottom-left-radius: 12px; background-color: transparent; flex-direction: column; opacity: 1; margin-top: 16px; transform: [object Object];"
-        testid="account-switcher-add-wallet"
-      >
-        <div
-          class="_display-flex _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-row _alignItems-center _gap-t-space-spa94665593 _ml-t-space-spa1360334047"
+          class="css-view-175oi2r"
+          style="gap: 0px; max-width: 100%;"
         >
           <div
-            class="_display-flex _alignItems-center _flexBasis-auto _boxSizing-border-box _position-relative _minHeight-0px _minWidth-0px _flexShrink-0 _flexDirection-column _justifyContent-center _backgroundColor-surface1 _borderTopColor-surface3 _borderRightColor-surface3 _borderBottomColor-surface3 _borderLeftColor-surface3 _borderTopLeftRadius-t-radius-ro1041013639 _borderTopRightRadius-t-radius-ro1041013639 _borderBottomRightRadius-t-radius-ro1041013639 _borderBottomLeftRadius-t-radius-ro1041013639 _borderTopWidth-t-space-spa94665586 _borderRightWidth-t-space-spa94665586 _borderBottomWidth-t-space-spa94665586 _borderLeftWidth-t-space-spa94665586 _height-32px _pt-t-space-spa94665593 _pr-t-space-spa94665593 _pb-t-space-spa94665593 _pl-t-space-spa94665593 _width-32px _borderBottomStyle-solid _borderTopStyle-solid _borderLeftStyle-solid _borderRightStyle-solid _boxShadow-0px0px10pxv169431092"
+            class="css-view-175oi2r"
+            style="gap: 12px;"
           >
             <div
-              fill="none"
-              stroke-width="2"
-              style="width: 16px; height: 16px; color: rgba(19, 19, 19, 0.63);"
-              viewbox="0 0 24 24"
+              class="css-view-175oi2r"
+              style="flex-shrink: 1; gap: 4px;"
             >
               <div
-                d="M19 11H13V5C13 4.448 12.552 4 12 4C11.448 4 11 4.448 11 5V11H5C4.448 11 4 11.448 4 12C4 12.552 4.448 13 5 13H11V19C11 19.552 11.448 20 12 20C12.552 20 13 19.552 13 19V13H19C19.552 13 20 12.552 20 12C20 11.448 19.552 11 19 11Z"
-                fill="currentColor"
+                class="css-text-146c3p1 r-maxWidth-dnmrzs r-overflow-1udh08x r-textOverflow-1udbk01 r-whiteSpace-3s2u2q r-wordWrap-1iln25a"
+                data-testid="address-display/name/undefined"
+                dir="auto"
+                style="flex-shrink: 1; font-size: 19px; line-height: 24px; font-family: Basel Grotesk; font-weight: 400;"
               />
             </div>
           </div>
-          <span
-            class="font_button _display-inline _boxSizing-border-box _whiteSpace-nowrap _mt-0px _mr-0px _mb-0px _ml-0px _color-neutral1 _fontFamily-f-family _wordWrap-break-word _maxWidth-10037 _overflowX-hidden _overflowY-hidden _textOverflow-ellipsis _width-10037 _fontSize-f-size-medi3736 _fontWeight-f-weight-me3083741 _lineHeight-f-lineHeigh507465454"
-            data-disable-theme="true"
+          <div
+            class="css-view-175oi2r"
           >
-            account.wallet.button.add
-          </span>
+            <div
+              class="css-view-175oi2r"
+              style="margin-top: 0px; padding: 0px 0px 0px 0px; border-top-left-radius: 999999px; border-top-right-radius: 999999px; border-bottom-right-radius: 999999px; border-bottom-left-radius: 999999px;"
+            >
+              <button
+                android_ripple="[object Object]"
+                data-testid="copy"
+                role="button"
+                style="background-color: transparent; gap: 4px;"
+              >
+                <div
+                  class="css-view-175oi2r"
+                  style="max-width: calc(100% - 21px);"
+                >
+                  <div
+                    class="css-text-146c3p1"
+                    dir="auto"
+                    style="font-size: 17px; line-height: 20px; font-family: Basel Grotesk; font-weight: 400;"
+                  >
+                    0x​82D56A...373Fa6
+                  </div>
+                </div>
+                <div
+                  class="css-view-175oi2r"
+                  style="width: 17px; height: 17px;"
+                >
+                  <div
+                    fill="none"
+                    height="17"
+                    viewbox="0 0 24 24"
+                    width="17"
+                  >
+                    <div
+                      d="M18.375 6.25H9.625C7.448 6.25 6.25 7.448 6.25 9.625V18.375C6.25 20.552 7.448 21.75 9.625 21.75H18.375C20.552 21.75 21.75 20.552 21.75 18.375V9.625C21.75 7.448 20.552 6.25 18.375 6.25ZM20.25 18.375C20.25 19.707 19.707 20.25 18.375 20.25H9.625C8.293 20.25 7.75 19.707 7.75 18.375V9.625C7.75 8.293 8.293 7.75 9.625 7.75H18.375C19.707 7.75 20.25 8.293 20.25 9.625V18.375ZM3.75 5.62V14.38C3.75 15.578 4.23309 15.873 4.39209 15.971C4.74609 16.187 4.85589 16.649 4.63989 17.002C4.49789 17.233 4.25202 17.36 3.99902 17.36C3.86602 17.36 3.72991 17.324 3.60791 17.25C2.70691 16.698 2.25 15.733 2.25 14.38V5.62C2.25 3.478 3.47912 2.25 5.62012 2.25H14.3799C16.0649 2.25 16.87 2.98897 17.25 3.60797C17.466 3.96097 17.355 4.42298 17.002 4.63898C16.648 4.85598 16.1879 4.74399 15.9709 4.39099C15.8739 4.23199 15.5779 3.74902 14.3799 3.74902H5.62012C4.29212 3.75002 3.75 4.292 3.75 5.62Z"
+                      fill="rgba(19, 19, 19, 0.63)"
+                    />
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
-      </button>
+      </div>
+      <div
+        class="css-view-175oi2r"
+        style="padding-right: 12px; padding-left: 12px;"
+      >
+        <button
+          accessibilitystate="[object Object]"
+          class="relative box-border flex min-h-0 min-w-0 cursor-pointer items-center justify-center border border-solid border-transparent gap-2 rounded-16 px-4 py-3 flex-row flex-1 basis-0 self-stretch bg-surface3"
+          data-testid="wallet-settings"
+          dd-action-name="account.wallet.button.manage"
+          role="button"
+          style="transform: [object Object];"
+        >
+          <div
+            class="css-text-146c3p1 r-maxWidth-dnmrzs r-overflow-1udh08x r-textOverflow-1udbk01 r-whiteSpace-3s2u2q r-wordWrap-1iln25a"
+            dir="auto"
+            style="font-family: Basel Grotesk; font-weight: 500;"
+          >
+            account.wallet.button.manage
+          </div>
+        </button>
+      </div>
     </div>
     <div
-      style="display: contents;"
-    />
-  </span>
+      class="css-view-175oi2r"
+      style="max-height: -18px;"
+    >
+      <div
+        class="css-view-175oi2r"
+      >
+        ExpoLinearGradient
+        <div />
+        ExpoLinearGradient
+      </div>
+    </div>
+    <button
+      android_ripple="[object Object]"
+      data-testid="account-switcher-add-wallet"
+      role="button"
+      style="background-color: transparent; margin-top: 16px;"
+    >
+      <div
+        class="css-view-175oi2r"
+        style="gap: 8px; margin-left: 24px;"
+      >
+        <div
+          class="css-view-175oi2r"
+          style="box-shadow: 0px 0px 10px rgba(0,0,0,1.00); padding: 8px 8px 8px 8px; width: 32px; height: 32px; border-top-left-radius: 999999px; border-top-right-radius: 999999px; border-bottom-right-radius: 999999px; border-bottom-left-radius: 999999px; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px;"
+        >
+          <div
+            fill="none"
+            stroke-width="2"
+            style="width: 16px; height: 16px; color: rgba(19, 19, 19, 0.63);"
+            viewbox="0 0 24 24"
+          >
+            <div
+              d="M19 11H13V5C13 4.448 12.552 4 12 4C11.448 4 11 4.448 11 5V11H5C4.448 11 4 11.448 4 12C4 12.552 4.448 13 5 13H11V19C11 19.552 11.448 20 12 20C12.552 20 13 19.552 13 19V13H19C19.552 13 20 12.552 20 12C20 11.448 19.552 11 19 11Z"
+              fill="currentColor"
+            />
+          </div>
+        </div>
+        <div
+          class="css-text-146c3p1 r-maxWidth-dnmrzs r-overflow-1udh08x r-textOverflow-1udbk01 r-whiteSpace-3s2u2q r-wordWrap-1iln25a"
+          dir="auto"
+          style="width: 100%; font-size: 17px; line-height: 19.549999999999997px; font-family: Basel Grotesk; font-weight: 500;"
+        >
+          account.wallet.button.add
+        </div>
+      </div>
+    </button>
+  </div>
 </DocumentFragment>
 `;

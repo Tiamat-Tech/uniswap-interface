@@ -1,7 +1,7 @@
 import { CurrencyAmount } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import JSBI from 'jsbi'
 import { DAI, nativeOnChain, PATHUSD_TEMPO, USDC_E_TEMPO } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useMaxAmountSpend } from 'uniswap/src/features/gas/hooks/useMaxAmountSpend'
 import { TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { MAINNET_CURRENCY } from 'uniswap/src/test/fixtures/wallet/currencies'

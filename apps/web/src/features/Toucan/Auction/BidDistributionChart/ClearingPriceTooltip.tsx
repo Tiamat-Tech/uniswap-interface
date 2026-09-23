@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
@@ -24,7 +24,7 @@ interface ClearingPriceTooltipState {
 interface ClearingPriceTooltipProps {
   state: ClearingPriceTooltipState
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals: number
   /** Override left position when stacked with BidLineTooltip */
   overrideLeft?: number
@@ -42,7 +42,7 @@ interface ClearingPriceTooltipProps {
  * volume percentage, and bid volume at the clearing price tick.
  */
 export const ClearingPriceTooltip = forwardRef<HTMLDivElement, ClearingPriceTooltipProps>(function ClearingPriceTooltip(
-  { state, bidTokenInfo, totalSupply, auctionTokenDecimals, overrideLeft, overrideTop, flipLeft, isAuctionEnded },
+  { state, bidTokenInfo, tokenTotalSupply, auctionTokenDecimals, overrideLeft, overrideTop, flipLeft, isAuctionEnded },
   ref,
 ) {
   const { t } = useTranslation()
@@ -59,7 +59,7 @@ export const ClearingPriceTooltip = forwardRef<HTMLDivElement, ClearingPriceTool
   const fdvDisplay = formatTickForDisplay({
     tickValue: clearingPriceDecimal,
     bidTokenInfo,
-    totalSupply,
+    tokenTotalSupply,
     auctionTokenDecimals,
     formatter: (amount: number) => convertFiatAmountFormatted(amount, NumberType.FiatTokenStats),
   })

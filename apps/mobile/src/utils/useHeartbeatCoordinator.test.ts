@@ -20,12 +20,10 @@ vi.mock('react-native', async (importOriginal) => ({
 
 const mockUseInterval = vi.mocked(useInterval)
 
-function makeParams(overrides?: { enabled?: boolean }) {
+function makeParams() {
   return {
     refresh: vi.fn().mockResolvedValue(undefined),
     priceRefresh: vi.fn().mockResolvedValue(undefined),
-    enabled: true,
-    ...overrides,
   }
 }
 
@@ -38,18 +36,11 @@ describe('useHeartbeatCoordinator', () => {
     })
   })
 
-  it('passes half the heartbeat interval when enabled and active, so price ticks land at the midpoint', () => {
+  it('passes half the heartbeat interval when active, so price ticks land at the midpoint', () => {
     renderHook(() => useHeartbeatCoordinator(makeParams()))
 
     const [, delay] = mockUseInterval.mock.calls[0]!
     expect(delay).toBe(PollingInterval.KindaFast)
-  })
-
-  it('passes null delay when disabled', () => {
-    renderHook(() => useHeartbeatCoordinator(makeParams({ enabled: false })))
-
-    const [, delay] = mockUseInterval.mock.calls[0]!
-    expect(delay).toBeNull()
   })
 
   it('passes null delay when app is backgrounded', () => {
@@ -62,6 +53,34 @@ describe('useHeartbeatCoordinator', () => {
 
     const [, delay] = mockUseInterval.mock.calls[0]!
     expect(delay).toBeNull()
+  })
+
+  it('passes null delay when disabled, even while the app is active', () => {
+    renderHook(() => useHeartbeatCoordinator({ ...makeParams(), enabled: false }))
+
+    const [, delay] = mockUseInterval.mock.calls[0]!
+    expect(delay).toBeNull()
+  })
+
+  it('skips the foreground-return refresh while disabled', async () => {
+    const params = makeParams()
+    Object.defineProperty(AppState, 'currentState', {
+      configurable: true,
+      get: () => 'background',
+    })
+
+    renderHook(() => useHeartbeatCoordinator({ ...params, enabled: false }))
+
+    Object.defineProperty(AppState, 'currentState', {
+      configurable: true,
+      get: () => 'active',
+    })
+    const listener = vi.mocked(AppState.addEventListener).mock.calls[0]?.[1]
+    await act(async () => {
+      listener?.('active')
+    })
+
+    expect(params.refresh).not.toHaveBeenCalled()
   })
 
   it('calls refresh on the first (even) tick', async () => {
@@ -110,6 +129,38 @@ describe('useHeartbeatCoordinator', () => {
     expect(params.priceRefresh).toHaveBeenCalledTimes(2)
   })
 
+  it('fires a full refresh immediately when enabled flips back to true and resets the phase to price-only', async () => {
+    const params = makeParams()
+    const { rerender } = renderHook(({ enabled }) => useHeartbeatCoordinator({ ...params, enabled }), {
+      initialProps: { enabled: false },
+    })
+
+    expect(params.refresh).not.toHaveBeenCalled()
+
+    await act(async () => {
+      rerender({ enabled: true })
+    })
+
+    expect(params.refresh).toHaveBeenCalledTimes(1)
+
+    params.refresh.mockClear()
+
+    const [callback] = mockUseInterval.mock.calls[0]!
+    await act(async () => {
+      await callback() // next scheduled tick should be price-only
+    })
+
+    expect(params.priceRefresh).toHaveBeenCalledTimes(1)
+    expect(params.refresh).not.toHaveBeenCalled()
+  })
+
+  it('does not fire a refresh on mount when it starts out enabled', () => {
+    const params = makeParams()
+    renderHook(() => useHeartbeatCoordinator(params))
+
+    expect(params.refresh).not.toHaveBeenCalled()
+  })
+
   it('fires a full refresh immediately on foreground return and resets the phase to price-only', async () => {
     const params = makeParams()
     Object.defineProperty(AppState, 'currentState', {
@@ -140,27 +191,6 @@ describe('useHeartbeatCoordinator', () => {
     })
 
     expect(params.priceRefresh).toHaveBeenCalledTimes(1)
-    expect(params.refresh).not.toHaveBeenCalled()
-  })
-
-  it('does not fire an extra refresh when returning to foreground while disabled', async () => {
-    const params = makeParams({ enabled: false })
-    Object.defineProperty(AppState, 'currentState', {
-      configurable: true,
-      get: () => 'background',
-    })
-
-    renderHook(() => useHeartbeatCoordinator(params))
-
-    Object.defineProperty(AppState, 'currentState', {
-      configurable: true,
-      get: () => 'active',
-    })
-    const listener = vi.mocked(AppState.addEventListener).mock.calls[0]?.[1]
-    await act(async () => {
-      listener?.('active')
-    })
-
     expect(params.refresh).not.toHaveBeenCalled()
   })
 })

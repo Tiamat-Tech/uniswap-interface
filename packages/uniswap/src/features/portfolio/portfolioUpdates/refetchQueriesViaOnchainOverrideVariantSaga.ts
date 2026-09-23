@@ -2,6 +2,7 @@ import { GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_
 import { Balance } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import { Portfolio } from '@uniswap/client-data-api/dist/data/v1/types_pb.d'
 import { SharedQueryClient } from '@universe/api'
+import { chainIdToPlatform } from '@universe/chains'
 import { all, call, delay, put } from 'typed-redux-saga'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import {
@@ -15,7 +16,6 @@ import {
   storeBalanceOverrideSnapshots,
 } from 'uniswap/src/data/apiClients/dataApiService/balances/portfolioBalanceOverrides'
 import { NFT_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/dataApiService/nfts/queries'
-import { chainIdToPlatform } from 'uniswap/src/features/platforms/utils/chains'
 import {
   fetchOnChainBalances,
   type OnChainMap,

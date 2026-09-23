@@ -1,9 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
 import { isMobileWeb } from '@universe/environment'
 import { useCallback, useState } from 'react'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import { useWalletNfts } from 'uniswap/src/data/apiClients/dataApiService/nfts/useWalletNfts'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useGroupNftsByVisibility } from 'uniswap/src/features/nfts/hooks/useGroupNftsByVisibility'
 import { type NFTItem } from 'uniswap/src/features/nfts/types'
 

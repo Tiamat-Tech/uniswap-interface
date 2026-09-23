@@ -1,6 +1,8 @@
 import { useBottomSheetInternal } from '@gorhom/bottom-sheet'
 import { useNetInfo } from '@react-native-community/netinfo'
 import { GasFeeResult } from '@universe/api'
+import { Flex, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { useTranslation } from 'react-i18next'
 import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import { ClientDetails, PermitInfo } from 'src/components/Requests/RequestModal/ClientDetails'
@@ -10,8 +12,6 @@ import {
   isUserOpRequest,
   WalletConnectSigningRequest,
 } from 'src/features/walletConnect/walletConnectSlice'
-import { Flex, Text } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { EthMethod } from 'uniswap/src/features/dappRequests/types'
@@ -36,6 +36,9 @@ import {
 
 const isPotentiallyUnsafe = (request: WalletConnectSigningRequest): boolean => request.type !== EthMethod.PersonalSign
 
+// Erc20Send is deliberately excluded: gas is re-estimated by the wallet at send time, so gating
+// Confirm on the scan-time gas estimate would let a transient gas-fee error permanently disable the
+// pay flow with no retry. The scan-based fail-closed gate still applies to non-wallet-built sends.
 export const getDoesMethodCostGas = (request: WalletConnectSigningRequest): boolean =>
   request.type === EthMethod.EthSendTransaction || request.type === EthMethod.WalletSendCalls
 
@@ -73,7 +76,8 @@ type WalletConnectRequestModalContentProps = {
   gasOverrides?: GasFeeOverrides
   onConfirmRisk: (confirmed: boolean) => void
   onChangeGasOverrides?: (overrides: GasFeeOverrides | undefined) => void
-  onRiskLevelChange: (riskLevel: TransactionRiskLevel) => void
+  onRiskLevelChange: (riskLevel: TransactionRiskLevel | null) => void
+  onCriticalRiskChange: (isCriticalRisk: boolean) => void
 }
 
 export function WalletConnectRequestModalContent({
@@ -86,6 +90,7 @@ export function WalletConnectRequestModalContent({
   onConfirmRisk,
   onChangeGasOverrides,
   onRiskLevelChange,
+  onCriticalRiskChange,
 }: WalletConnectRequestModalContentProps): JSX.Element {
   const chainId = request.chainId
   const permitInfo = getPermitInfo(request)
@@ -136,6 +141,7 @@ export function WalletConnectRequestModalContent({
           onConfirmRisk={onConfirmRisk}
           onChangeGasOverrides={onChangeGasOverrides}
           onRiskLevelChange={onRiskLevelChange}
+          onCriticalRiskChange={onCriticalRiskChange}
         />
 
         <RequestWarnings
@@ -249,6 +255,7 @@ function ScanningContent({
   onConfirmRisk,
   onChangeGasOverrides,
   onRiskLevelChange,
+  onCriticalRiskChange,
 }: {
   request: WalletConnectSigningRequest
   chainId: number
@@ -259,10 +266,12 @@ function ScanningContent({
   gasOverrides?: GasFeeOverrides
   onConfirmRisk: (confirmed: boolean) => void
   onChangeGasOverrides?: (overrides: GasFeeOverrides | undefined) => void
-  onRiskLevelChange: (riskLevel: TransactionRiskLevel) => void
+  onRiskLevelChange: (riskLevel: TransactionRiskLevel | null) => void
+  onCriticalRiskChange: (isCriticalRisk: boolean) => void
 }): JSX.Element {
   switch (request.type) {
     case EthMethod.EthSendTransaction:
+    case UwULinkMethod.Erc20Send:
       return (
         <DappTransactionScanningContent
           transaction={request.transaction}
@@ -271,22 +280,15 @@ function ScanningContent({
           dappUrl={request.dappRequestInfo.url}
           siteVerificationStatus={siteVerificationStatus}
           gasFee={gasFee}
-          requestMethod={request.type}
+          requestMethod={request.type === UwULinkMethod.Erc20Send ? EthMethod.EthSendTransaction : request.type}
           showSmartWalletActivation={showSmartWalletActivation}
           confirmedRisk={confirmedRisk}
           gasOverrides={gasOverrides}
           onConfirmRisk={onConfirmRisk}
           onChangeGasOverrides={onChangeGasOverrides}
           onRiskLevelChange={onRiskLevelChange}
+          onCriticalRiskChange={onCriticalRiskChange}
         />
-      )
-
-    case UwULinkMethod.Erc20Send:
-      // WalletConnectRequestModal short-circuits this request type and renders
-      // UwULinkErc20SendModal before WalletConnectRequestModalContent is mounted,
-      // so this branch is unreachable. If we hit it, the parent dispatcher is broken.
-      throw new Error(
-        'UwULinkMethod.Erc20Send must be handled by UwULinkErc20SendModal, not WalletConnectRequestModalContent',
       )
 
     case EthMethod.PersonalSign:
@@ -306,13 +308,14 @@ function ScanningContent({
           confirmedRisk={confirmedRisk}
           onConfirmRisk={onConfirmRisk}
           onRiskLevelChange={onRiskLevelChange}
+          onCriticalRiskChange={onCriticalRiskChange}
         />
       )
 
     case EthMethod.WalletSendCalls:
       return (
         <DappSendCallsScanningContent
-          calls={request.calls}
+          request={request}
           chainId={chainId}
           account={request.account}
           dappUrl={request.dappRequestInfo.url}
@@ -327,6 +330,7 @@ function ScanningContent({
           onConfirmRisk={onConfirmRisk}
           onChangeGasOverrides={onChangeGasOverrides}
           onRiskLevelChange={onRiskLevelChange}
+          onCriticalRiskChange={onCriticalRiskChange}
         />
       )
 
@@ -337,16 +341,16 @@ function ScanningContent({
           chainId={chainId}
           account={request.account}
           method={request.type}
-          params={
-            request.type === EthMethod.SignTypedDataV4
-              ? [request.account, request.rawMessage]
-              : [request.rawMessage, request.account]
-          }
+          // Both legacy eth_signTypedData and _v4 are parsed and signed as [account, typedData]
+          // (see getAddressAndMessageToSign), so the Blockaid scan must use the same order — otherwise
+          // legacy requests scan reversed params and silently lose malicious-request detection.
+          params={[request.account, request.rawMessage]}
           dappUrl={request.dappRequestInfo.url}
           confirmedRisk={confirmedRisk}
           typedData={request.rawMessage}
           onConfirmRisk={onConfirmRisk}
           onRiskLevelChange={onRiskLevelChange}
+          onCriticalRiskChange={onCriticalRiskChange}
         />
       )
   }

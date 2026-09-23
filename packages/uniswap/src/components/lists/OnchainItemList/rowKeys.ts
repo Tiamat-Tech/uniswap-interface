@@ -1,21 +1,26 @@
-// Section-scoped row identity for OnchainItemList, shared by the web (react-window) and native (FlashList) lists.
+// Section-scoped row identity for OnchainItemList, shared by the web (react-window) and native (Legend List) lists.
 // Position-independent so a row keeps its identity when sibling rows are inserted/removed/reordered (e.g. Recents
 // cleared, or a stock entering Recents).
 
-export function getSectionHeaderRowKey(sectionKey: string): string {
-  return `section-${sectionKey}`
+/** Row-key namespace for a section: `sectionId` when set, else the shared `sectionKey`. */
+export function getSectionRowId(section: { sectionKey: string; sectionId?: string }): string {
+  return section.sectionId ?? section.sectionKey
+}
+
+export function getSectionHeaderRowKey(sectionRowId: string): string {
+  return `section-${sectionRowId}`
 }
 
 export function getSectionItemRowKey({
-  sectionKey,
+  sectionRowId,
   itemKey,
   index,
 }: {
-  sectionKey: string
+  sectionRowId: string
   itemKey: string | undefined
   index: number
 }): string {
-  return `item-${sectionKey}-${itemKey ?? index}`
+  return `item-${sectionRowId}-${itemKey ?? index}`
 }
 
 /**

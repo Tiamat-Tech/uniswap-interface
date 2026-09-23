@@ -1,7 +1,7 @@
+import { Platform } from '@universe/chains'
 import { isWebApp } from '@universe/environment'
 import { CONNECTION_PROVIDER_IDS } from 'uniswap/src/constants/web3'
 import { useActiveWallet } from 'uniswap/src/features/accounts/store/hooks'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 
 /**
  * Whether the current platform + active-wallet combination should expose the

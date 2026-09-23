@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import type { ReactNode } from 'react'
 import type { TieredNetworkOptions } from 'uniswap/src/components/network/NetworkFilterV2/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { NetworkFilter } from './NetworkFilter'
 import { fireEvent, render, screen } from '~/test-utils/render'
@@ -65,7 +65,7 @@ describe(NetworkFilter, () => {
       />,
     )
 
-    expect(screen.getByText('With balances')).toBeInTheDocument()
+    expect(screen.getByText('Your networks')).toBeInTheDocument()
     expect(screen.getByText('Other networks')).toBeInTheDocument()
     expect(screen.queryByText('All networks')).not.toBeInTheDocument()
 

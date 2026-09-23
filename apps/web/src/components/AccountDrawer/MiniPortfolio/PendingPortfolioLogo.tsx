@@ -1,6 +1,6 @@
+import { Flex, zIndexes } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import type { ComponentProps } from 'react'
-import { Flex, useSporeColors } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { PortfolioLogo, PORTFOLIO_LOGO_DEFAULT_SIZE } from '~/components/AccountDrawer/MiniPortfolio/PortfolioLogo'
 import { StyledRotatingSVG } from '~/components/Icons/shared'
@@ -61,7 +61,7 @@ export function PendingPortfolioLogo(props: PendingPortfolioLogoProps): JSX.Elem
   return (
     <Flex
       alignItems="center"
-      data-testid={TestID.ActivityPopupPendingLogo}
+      testID={TestID.ActivityPopupPendingLogo}
       height={frameSize}
       justifyContent="center"
       position="relative"

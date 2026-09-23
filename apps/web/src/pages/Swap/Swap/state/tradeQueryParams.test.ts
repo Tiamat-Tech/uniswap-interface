@@ -1,7 +1,7 @@
 import { UNI_ADDRESSES } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { parse } from 'qs'
 import { DAI, nativeOnChain, UNI, USDC_OPTIMISM } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyField } from 'uniswap/src/types/currency'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import {

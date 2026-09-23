@@ -1,5 +1,7 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import type { ComponentProps } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DropdownButton, Flex, Shine, Text, TouchableArea } from 'ui/src'
+import { DropdownButton, Shine } from 'ui/src'
 import { X } from 'ui/src/components/icons/X'
 import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
@@ -14,6 +16,9 @@ export const CurrencySelector = ({
   placeholder,
   emphasis = 'primary',
   index,
+  fill,
+  chevronColor,
+  chevronSize,
 }: {
   loading?: boolean
   currencyInfo: Maybe<CurrencyInfo>
@@ -24,10 +29,25 @@ export const CurrencySelector = ({
   emphasis?: 'primary' | 'tertiary'
   // When multiple clearable selectors render together, pass a unique index so each "x" button gets a distinct testID.
   index?: number
+  /**
+   * Defaults to the button's own `fill` (stretch to the parent). Pass false where the selectors sit in a
+   * plain row: filling makes each `flex: 1 basis-0`, which splits the row's content width evenly and
+   * clips the label of whichever placeholder is wider (e.g. "Token 2" vs "Token 1").
+   */
+  fill?: boolean
+  /**
+   * Chevron overrides, forwarded to the button. Supplied by the caller rather than inferred from
+   * `emphasis` so a surface opts into the treatment explicitly: left unset the chevron uses the
+   * emphasis colour at the glyph's own 24px default.
+   */
+  chevronColor?: ComponentProps<typeof DropdownButton>['chevronColor']
+  chevronSize?: ComponentProps<typeof DropdownButton>['chevronSize']
 }) => {
   const { t } = useTranslation()
   const currency = currencyInfo?.currency
   const emptyTextColor = emphasis === 'tertiary' ? '$neutral2' : '$surface1'
+  // A selected currency drops to the frame's own default emphasis (its logo carries the button).
+  const resolvedEmphasis = currencyInfo ? undefined : emphasis
 
   if (loading) {
     return (
@@ -79,7 +99,10 @@ export const CurrencySelector = ({
 
   return (
     <DropdownButton
-      emphasis={currencyInfo ? undefined : emphasis}
+      emphasis={resolvedEmphasis}
+      chevronColor={chevronColor}
+      chevronSize={chevronSize}
+      fill={fill}
       onPress={onPress}
       elementPositioning="grouped"
       isExpanded={false}

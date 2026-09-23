@@ -1,8 +1,10 @@
+/* oxlint-disable universe-custom/no-tolowercase-address-currencyid -- all .toLowerCase() below normalize transaction/order hashes (wrapped in ensure0xHex), not addresses */
+import { UniverseChainId } from '@universe/chains'
+import { ensure0xHex } from '@universe/encoding'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useMemo } from 'react'
 import { useDispatch } from 'react-redux'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useSelectAddressTransactions } from 'uniswap/src/features/transactions/selectors'
 import { finalizeTransaction, updateTransactionWithoutWatch } from 'uniswap/src/features/transactions/slice'
 import {
@@ -20,7 +22,6 @@ import {
   isFinalizedTx,
   isPlanTransactionDetails,
 } from 'uniswap/src/features/transactions/types/utils'
-import { ensureLeading0x } from 'uniswap/src/utils/addresses'
 import { areCurrencyIdsEqual, buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { useStore } from 'zustand'
 
@@ -33,7 +34,7 @@ function collectPlanStepHashesFromArray(transactions: TransactionDetails[]): Set
     if (tx.typeInfo.type === TransactionType.Plan) {
       for (const step of tx.typeInfo.stepDetails) {
         if (step.hash) {
-          planStepHashes.add(ensureLeading0x(step.hash.toLowerCase()))
+          planStepHashes.add(ensure0xHex(step.hash.toLowerCase()))
         }
       }
     }
@@ -53,7 +54,7 @@ function filterPlanStepTransactions(
     if (!tx.hash) {
       return true
     }
-    const hash = ensureLeading0x(tx.hash.toLowerCase())
+    const hash = ensure0xHex(tx.hash.toLowerCase())
     return !planStepHashes.has(hash)
   })
 }
@@ -68,7 +69,7 @@ function collectSuppressedCancelTxHashes(localTransactions: TransactionDetails[]
   const hashes = new Set<string>()
   for (const tx of localTransactions ?? []) {
     if (tx.typeInfo.type === TransactionType.UniswapXCancel && tx.hash) {
-      hashes.add(ensureLeading0x(tx.hash.toLowerCase()))
+      hashes.add(ensure0xHex(tx.hash.toLowerCase()))
     }
   }
   return hashes
@@ -96,6 +97,49 @@ function withDisplayStatusForTrackedPlans(tx: TransactionDetails): TransactionDe
     }
   }
   return tx
+}
+
+function getTransactionTime(transaction: TransactionDetails): number {
+  return isPlanTransactionDetails(transaction) ? transaction.updatedTime : transaction.addedTime
+}
+
+function isMatchingApprovalForSwap(approval: TransactionDetails, swap: TransactionDetails): boolean {
+  if (approval.typeInfo.type !== TransactionType.Approve || swap.typeInfo.type !== TransactionType.Swap) {
+    return false
+  }
+
+  const approvalCurrencyId = buildCurrencyId(approval.chainId, approval.typeInfo.tokenAddress)
+  return areCurrencyIdsEqual(approvalCurrencyId, swap.typeInfo.inputCurrencyId)
+}
+
+function sortTransactionsNewestFirst(transactions: TransactionDetails[]): TransactionDetails[] {
+  const newestFirst = [...transactions].sort((a, b) => {
+    const timeA = getTransactionTime(a)
+    const timeB = getTransactionTime(b)
+
+    return timeB - timeA
+  })
+
+  // Keep unrelated equal-time rows stable while ensuring a swap precedes its matching approval.
+  // Encoding this pair-specific rule in the comparator is non-transitive when another tied row separates the pair.
+  const orderedTransactions: TransactionDetails[] = []
+  for (const transaction of newestFirst) {
+    if (transaction.typeInfo.type === TransactionType.Swap) {
+      const transactionTime = getTransactionTime(transaction)
+      const matchingApprovalIndex = orderedTransactions.findIndex(
+        (candidate) =>
+          getTransactionTime(candidate) === transactionTime && isMatchingApprovalForSwap(candidate, transaction),
+      )
+      if (matchingApprovalIndex !== -1) {
+        orderedTransactions.splice(matchingApprovalIndex, 0, transaction)
+        continue
+      }
+    }
+
+    orderedTransactions.push(transaction)
+  }
+
+  return orderedTransactions
 }
 
 /** Returns a stable key that changes when the set of tracked plans changes. */
@@ -232,20 +276,27 @@ export function useMergeLocalAndRemoteTransactions({
   return useMemo((): TransactionDetails[] | undefined => {
     if (skipLocalTransactions) {
       const planStepHashes = collectPlanStepHashesFromArray(remoteTransactions ?? [])
-      return filterPlanStepTransactions(remoteTransactions ?? [], planStepHashes).map(withDisplayStatusForTrackedPlans)
+      return sortTransactionsNewestFirst(
+        filterPlanStepTransactions(remoteTransactions ?? [], planStepHashes).map(withDisplayStatusForTrackedPlans),
+      )
     }
 
     if (!remoteTransactions?.length) {
       const visibleLocalTransactions = isCancelRowSuppressionEnabled
         ? localTransactions?.filter((tx) => !isSuppressedCancelTx(tx))
         : localTransactions
-      return visibleLocalTransactions?.map(withDisplayStatusForTrackedPlans)
+      if (!visibleLocalTransactions) {
+        return undefined
+      }
+      return sortTransactionsNewestFirst(visibleLocalTransactions.map(withDisplayStatusForTrackedPlans))
     }
 
     // If only remote transactions exist, filter out plan step transactions and return
     if (!localTransactions?.length) {
       const planStepHashes = collectPlanStepHashesFromArray(remoteTransactions)
-      return filterPlanStepTransactions(remoteTransactions, planStepHashes).map(withDisplayStatusForTrackedPlans)
+      return sortTransactionsNewestFirst(
+        filterPlanStepTransactions(remoteTransactions, planStepHashes).map(withDisplayStatusForTrackedPlans),
+      )
     }
 
     // This map enables `getTrackingHash` to deduplicate UniswapX orders in the event that one source
@@ -253,8 +304,8 @@ export function useMergeLocalAndRemoteTransactions({
     const orderHashToTxHashMap = new Map<string, string>()
     function populateOrderHashToTxHashMap(tx: TransactionDetails): void {
       if (isUniswapX(tx) && tx.hash && tx.orderHash) {
-        const txHash = ensureLeading0x(tx.hash.toLowerCase())
-        const orderHash = ensureLeading0x(tx.orderHash.toLowerCase())
+        const txHash = ensure0xHex(tx.hash.toLowerCase())
+        const orderHash = ensure0xHex(tx.orderHash.toLowerCase())
         orderHashToTxHashMap.set(orderHash, txHash)
       }
     }
@@ -276,9 +327,9 @@ export function useMergeLocalAndRemoteTransactions({
     /** Returns the hash that should be used to deduplicate transactions. */
     function getTrackingHash(tx: TransactionDetails): string | undefined {
       if (tx.hash) {
-        return ensureLeading0x(tx.hash.toLowerCase())
+        return ensure0xHex(tx.hash.toLowerCase())
       } else if (isUniswapX(tx) && tx.orderHash) {
-        const orderHash = ensureLeading0x(tx.orderHash.toLowerCase())
+        const orderHash = ensure0xHex(tx.orderHash.toLowerCase())
         return orderHashToTxHashMap.get(orderHash) ?? orderHash
       } else if (tx.typeInfo.type === TransactionType.Plan) {
         return tx.typeInfo.planId
@@ -341,33 +392,7 @@ export function useMergeLocalAndRemoteTransactions({
       }
     }
 
-    return deDupedTxs.map(withDisplayStatusForTrackedPlans).sort((a, b) => {
-      const timeA = isPlanTransactionDetails(a) ? a.updatedTime : a.addedTime
-      const timeB = isPlanTransactionDetails(b) ? b.updatedTime : b.addedTime
-      // If inclusion times are equal, then sequence approve txs before swap txs
-      if (timeA === timeB) {
-        if (a.typeInfo.type === TransactionType.Approve && b.typeInfo.type === TransactionType.Swap) {
-          const aCurrencyId = buildCurrencyId(a.chainId, a.typeInfo.tokenAddress)
-          const bCurrencyId = b.typeInfo.inputCurrencyId
-          if (areCurrencyIdsEqual(aCurrencyId, bCurrencyId)) {
-            return 1
-          }
-        }
-
-        if (a.typeInfo.type === TransactionType.Swap && b.typeInfo.type === TransactionType.Approve) {
-          const aCurrencyId = a.typeInfo.inputCurrencyId
-          const bCurrencyId = buildCurrencyId(b.chainId, b.typeInfo.tokenAddress)
-          if (areCurrencyIdsEqual(aCurrencyId, bCurrencyId)) {
-            return -1
-          }
-        }
-
-        // If timestamps are equal, then keep the order of the transactions
-        return 0
-      }
-
-      return timeA > timeB ? -1 : 1
-    })
+    return sortTransactionsNewestFirst(deDupedTxs.map(withDisplayStatusForTrackedPlans))
     // oxlint-disable-next-line react/exhaustive-deps -- biome-parity: oxlint is stricter here
   }, [
     dispatch,

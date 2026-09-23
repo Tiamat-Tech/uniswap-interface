@@ -1,13 +1,12 @@
 import { type Currency, type CurrencyAmount } from '@uniswap/sdk-core'
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, Text } from '@universe/mycelium'
+import { CheckCircleFilled } from '@universe/mycelium/icons/CheckCircleFilled'
+import { QuestionInCircleFilled } from '@universe/mycelium/icons/QuestionInCircleFilled'
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { CheckCircleFilled } from 'ui/src/components/icons/CheckCircleFilled'
-import { QuestionInCircleFilled } from 'ui/src/components/icons/QuestionInCircleFilled'
-import { iconSizes } from 'ui/src/theme'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useCurrencyInfo, useNativeCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
@@ -19,7 +18,11 @@ import {
 import { HookTileContainer } from '~/pages/Liquidity/CreateAuction/components/HookTile'
 import { type FloorPriceInputState, type InputCurrency } from '~/pages/Liquidity/CreateAuction/types'
 import { RaiseCurrency } from '~/pages/Liquidity/CreateAuction/types'
-import { getPrimaryStablecoin, getRaiseCurrencyAddress } from '~/pages/Liquidity/CreateAuction/utils'
+import {
+  areRaiseCurrencyOptionsSameToken,
+  getPrimaryStablecoin,
+  getRaiseCurrencyAddress,
+} from '~/pages/Liquidity/CreateAuction/utils'
 import { ExternalLink } from '~/theme/components/Links'
 
 const LOGO_SIZE = iconSizes.icon24
@@ -76,6 +79,7 @@ export const PriceSettingsSection = forwardRef<PriceSettingsSectionHandle, Price
       [chainId],
     )
     const stablecoinCurrencyInfo = useCurrencyInfo(stablecoinCurrencyId)
+    const hasSingleRaiseCurrency = areRaiseCurrencyOptionsSameToken(chainId)
 
     return (
       <Flex gap="$spacing12">
@@ -84,96 +88,100 @@ export const PriceSettingsSection = forwardRef<PriceSettingsSectionHandle, Price
             {t('toucan.createAuction.step.configureAuction.priceSettings')}
           </Text>
           <Text variant="body3" color="$neutral2">
-            {t('toucan.createAuction.step.configureAuction.priceSettings.description')}
+            {hasSingleRaiseCurrency
+              ? t('toucan.createAuction.step.configureAuction.priceSettings.description.singleRaiseCurrency')
+              : t('toucan.createAuction.step.configureAuction.priceSettings.description')}
           </Text>
         </Flex>
         <Flex gap="$spacing8">
-          <Flex row gap="$spacing8" width="100%">
-            <Trace
-              logPress
-              element={ElementName.AuctionRaiseCurrency}
-              properties={{
-                raise_currency: RaiseCurrency.NATIVE,
-                raise_currency_address: getRaiseCurrencyAddress(RaiseCurrency.NATIVE, chainId),
-              }}
-            >
-              <HookTileContainer
-                flex={1}
-                flexBasis={0}
-                minWidth={0}
-                onPress={handleSelectNative}
-                background={raiseCurrency === RaiseCurrency.NATIVE ? '$surface3' : '$surface1'}
+          {!hasSingleRaiseCurrency && (
+            <Flex row gap="$spacing8" width="100%">
+              <Trace
+                logPress
+                element={ElementName.AuctionRaiseCurrency}
+                properties={{
+                  raise_currency: RaiseCurrency.NATIVE,
+                  raise_currency_address: getRaiseCurrencyAddress(RaiseCurrency.NATIVE, chainId),
+                }}
               >
-                <Flex row alignItems="center" gap="$spacing8" position="relative">
-                  <Flex width={LOGO_SIZE} height={LOGO_SIZE} flexShrink={0}>
-                    {nativeCurrencyInfo ? (
-                      <CurrencyLogo hideNetworkLogo currencyInfo={nativeCurrencyInfo} size={LOGO_SIZE} />
-                    ) : (
-                      <Flex
-                        width={LOGO_SIZE}
-                        height={LOGO_SIZE}
-                        borderRadius="$roundedFull"
-                        backgroundColor="$surface3"
-                      />
+                <HookTileContainer
+                  flex={1}
+                  flexBasis={0}
+                  minWidth={0}
+                  onPress={handleSelectNative}
+                  backgroundColor={raiseCurrency === RaiseCurrency.NATIVE ? '$surface3' : '$surface1'}
+                >
+                  <Flex row alignItems="center" gap="$spacing8" position="relative">
+                    <Flex width={LOGO_SIZE} height={LOGO_SIZE} flexShrink={0}>
+                      {nativeCurrencyInfo ? (
+                        <CurrencyLogo hideNetworkLogo currencyInfo={nativeCurrencyInfo} size={LOGO_SIZE} />
+                      ) : (
+                        <Flex
+                          width={LOGO_SIZE}
+                          height={LOGO_SIZE}
+                          borderRadius="$roundedFull"
+                          backgroundColor="$surface3"
+                        />
+                      )}
+                    </Flex>
+                    <Text variant="buttonLabel3" color="$neutral1">
+                      {nativeCurrencyInfo?.currency.symbol}
+                    </Text>
+                    {raiseCurrency === RaiseCurrency.NATIVE && (
+                      <Flex position="absolute" top={-4} right={-4}>
+                        <CheckCircleFilled size="$icon.20" />
+                      </Flex>
                     )}
                   </Flex>
-                  <Text variant="buttonLabel3" color="$neutral1">
-                    {nativeCurrencyInfo?.currency.symbol}
+                  <Text variant="body4" color="$neutral2">
+                    {t('toucan.createAuction.step.configureAuction.raiseCurrency.native.description')}
                   </Text>
-                  {raiseCurrency === RaiseCurrency.NATIVE && (
-                    <Flex position="absolute" top={-4} right={-4}>
-                      <CheckCircleFilled size="$icon.20" />
-                    </Flex>
-                  )}
-                </Flex>
-                <Text variant="body4" color="$neutral2">
-                  {t('toucan.createAuction.step.configureAuction.raiseCurrency.native.description')}
-                </Text>
-              </HookTileContainer>
-            </Trace>
-            <Trace
-              logPress
-              element={ElementName.AuctionRaiseCurrency}
-              properties={{
-                raise_currency: RaiseCurrency.STABLECOIN,
-                raise_currency_address: getRaiseCurrencyAddress(RaiseCurrency.STABLECOIN, chainId),
-              }}
-            >
-              <HookTileContainer
-                flex={1}
-                flexBasis={0}
-                minWidth={0}
-                onPress={handleSelectStablecoin}
-                background={raiseCurrency === RaiseCurrency.STABLECOIN ? '$surface3' : '$surface1'}
+                </HookTileContainer>
+              </Trace>
+              <Trace
+                logPress
+                element={ElementName.AuctionRaiseCurrency}
+                properties={{
+                  raise_currency: RaiseCurrency.STABLECOIN,
+                  raise_currency_address: getRaiseCurrencyAddress(RaiseCurrency.STABLECOIN, chainId),
+                }}
               >
-                <Flex row alignItems="center" gap="$spacing8" position="relative">
-                  <Flex width={LOGO_SIZE} height={LOGO_SIZE} flexShrink={0}>
-                    {stablecoinCurrencyInfo ? (
-                      <CurrencyLogo hideNetworkLogo currencyInfo={stablecoinCurrencyInfo} size={LOGO_SIZE} />
-                    ) : (
-                      <Flex
-                        width={LOGO_SIZE}
-                        height={LOGO_SIZE}
-                        borderRadius="$roundedFull"
-                        backgroundColor="$surface3"
-                      />
+                <HookTileContainer
+                  flex={1}
+                  flexBasis={0}
+                  minWidth={0}
+                  onPress={handleSelectStablecoin}
+                  backgroundColor={raiseCurrency === RaiseCurrency.STABLECOIN ? '$surface3' : '$surface1'}
+                >
+                  <Flex row alignItems="center" gap="$spacing8" position="relative">
+                    <Flex width={LOGO_SIZE} height={LOGO_SIZE} flexShrink={0}>
+                      {stablecoinCurrencyInfo ? (
+                        <CurrencyLogo hideNetworkLogo currencyInfo={stablecoinCurrencyInfo} size={LOGO_SIZE} />
+                      ) : (
+                        <Flex
+                          width={LOGO_SIZE}
+                          height={LOGO_SIZE}
+                          borderRadius="$roundedFull"
+                          backgroundColor="$surface3"
+                        />
+                      )}
+                    </Flex>
+                    <Text variant="buttonLabel3" color="$neutral1">
+                      {stablecoinCurrencyInfo?.currency.symbol}
+                    </Text>
+                    {raiseCurrency === RaiseCurrency.STABLECOIN && (
+                      <Flex position="absolute" top={-4} right={-4}>
+                        <CheckCircleFilled size="$icon.20" />
+                      </Flex>
                     )}
                   </Flex>
-                  <Text variant="buttonLabel3" color="$neutral1">
-                    {stablecoinCurrencyInfo?.currency.symbol}
+                  <Text variant="body4" color="$neutral2">
+                    {t('toucan.createAuction.step.configureAuction.raiseCurrency.stablecoin.description')}
                   </Text>
-                  {raiseCurrency === RaiseCurrency.STABLECOIN && (
-                    <Flex position="absolute" top={-4} right={-4}>
-                      <CheckCircleFilled size="$icon.20" />
-                    </Flex>
-                  )}
-                </Flex>
-                <Text variant="body4" color="$neutral2">
-                  {t('toucan.createAuction.step.configureAuction.raiseCurrency.stablecoin.description')}
-                </Text>
-              </HookTileContainer>
-            </Trace>
-          </Flex>
+                </HookTileContainer>
+              </Trace>
+            </Flex>
+          )}
           <FloorPriceSelector
             ref={floorPriceSelectorRef}
             key={raiseCurrency}
@@ -187,14 +195,16 @@ export const PriceSettingsSection = forwardRef<PriceSettingsSectionHandle, Price
             onInputCurrencyChange={onInputCurrencyChange}
             onFloorPriceChange={onFloorPriceChange}
           />
-          <Flex row gap="$spacing4" alignItems="center">
-            <QuestionInCircleFilled size="$icon.16" color="$neutral2" />
-            <ExternalLink href={UniswapHelpUrls.articles.toucanLaunchAuctionConfigureAuctionHelp}>
-              <Text variant="body3" color="$neutral2" textDecorationLine="underline" textDecorationStyle="dashed">
-                {t('toucan.createAuction.step.configureAuction.raiseCurrency.helpLink')}
-              </Text>
-            </ExternalLink>
-          </Flex>
+          {!hasSingleRaiseCurrency && (
+            <Flex row gap="$spacing4" alignItems="center">
+              <QuestionInCircleFilled size="$icon.16" color="$neutral2" />
+              <ExternalLink href={UniswapHelpUrls.articles.toucanLaunchAuctionConfigureAuctionHelp}>
+                <Text variant="body3" color="$neutral2" textDecorationLine="underline" textDecorationStyle="dashed">
+                  {t('toucan.createAuction.step.configureAuction.raiseCurrency.helpLink')}
+                </Text>
+              </ExternalLink>
+            </Flex>
+          )}
         </Flex>
       </Flex>
     )

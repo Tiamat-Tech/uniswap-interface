@@ -1,13 +1,6 @@
 import 'src/app/tailwind.css'
 import { ApiInit, getEntryGatewayUrl, provideSessionService } from '@universe/api'
-import {
-  getIsHashcashSolverEnabled,
-  getIsSessionServiceEnabled,
-  getIsSessionsPerformanceTrackingEnabled,
-  getIsSessionUpgradeAutoEnabled,
-  getIsTurnstileSolverEnabled,
-  useIsSessionServiceEnabled,
-} from '@universe/gating'
+import { getIsHashcashSolverEnabled } from '@universe/gating'
 import {
   type ChallengeSolver,
   ChallengeType,
@@ -35,6 +28,7 @@ import { useSelectedColorScheme } from 'uniswap/src/features/appearance/hooks'
 import { useCurrentLanguage } from 'uniswap/src/features/language/hooks'
 import { LocalizationContextProvider } from 'uniswap/src/features/language/LocalizationContext'
 import { getLocale } from 'uniswap/src/features/language/navigatorLocale'
+import { usePoolsBalanceCoachmarkStateInit } from 'uniswap/src/features/portfolio/PortfolioBalance/usePoolsBalanceCoachmarkStateInit'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import i18n, { changeLanguage } from 'uniswap/src/i18n'
 import { getLogger } from 'utilities/src/logger/logger'
@@ -43,19 +37,14 @@ import { StatsigUserIdentifiersUpdater } from 'wallet/src/features/gating/Statsi
 import { SharedWalletProvider } from 'wallet/src/providers/SharedWalletProvider'
 
 const provideSessionInitializationService = (): SessionInitializationService => {
-  // Create performance tracker with feature flag control
   const performanceTracker = createPerformanceTracker({
-    getIsPerformanceTrackingEnabled: getIsSessionsPerformanceTrackingEnabled,
     getNow: () => performance.now(),
   })
 
   const solvers = new Map<ChallengeType, ChallengeSolver>()
 
-  if (getIsTurnstileSolverEnabled()) {
-    solvers.set(ChallengeType.TURNSTILE, createTurnstileMockSolver())
-  } else {
-    solvers.set(ChallengeType.TURNSTILE, createTurnstileMockSolver())
-  }
+  // Turnstile is web-only; the extension stubs it with a mock.
+  solvers.set(ChallengeType.TURNSTILE, createTurnstileMockSolver())
 
   if (getIsHashcashSolverEnabled()) {
     solvers.set(
@@ -89,13 +78,11 @@ const provideSessionInitializationService = (): SessionInitializationService => 
     getSessionService: () =>
       provideSessionService({
         getBaseUrl: getEntryGatewayUrl,
-        getIsSessionServiceEnabled,
       }),
     challengeSolverService: createChallengeSolverService({
       solvers,
     }),
     performanceTracker,
-    getIsSessionUpgradeAutoEnabled,
     getLogger,
     analytics: sessionInitAnalytics,
   })
@@ -110,8 +97,6 @@ function ErrorBoundaryWrapper({ children }: PropsWithChildren): JSX.Element {
 }
 
 function BaseAppContainerInner({ children }: PropsWithChildren): JSX.Element {
-  const isSessionServiceEnabled = useIsSessionServiceEnabled()
-
   return (
     <I18nextProvider i18n={i18n}>
       <SharedWalletProvider reduxStore={getReduxStore()}>
@@ -123,10 +108,8 @@ function BaseAppContainerInner({ children }: PropsWithChildren): JSX.Element {
               <LocalizationContextProvider>
                 <TraceUserProperties />
                 <StatsigUserIdentifiersUpdater />
-                <ApiInit
-                  getSessionInitService={provideSessionInitializationService}
-                  isSessionServiceEnabled={isSessionServiceEnabled}
-                />
+                <PoolsBalanceCoachmarkStateInit />
+                <ApiInit getSessionInitService={provideSessionInitializationService} />
                 {children}
               </LocalizationContextProvider>
             </BlankUrlProvider>
@@ -148,6 +131,11 @@ export function BaseAppContainer({
       </ExtensionStatsigProvider>
     </Trace>
   )
+}
+
+function PoolsBalanceCoachmarkStateInit(): null {
+  usePoolsBalanceCoachmarkStateInit()
+  return null
 }
 
 function LanguageSync(): null {

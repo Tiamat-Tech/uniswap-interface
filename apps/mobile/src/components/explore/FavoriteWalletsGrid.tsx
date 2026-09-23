@@ -1,3 +1,4 @@
+import { AnimatedFlex, Flex } from '@universe/mycelium'
 import { default as React, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ScrollView } from 'react-native'
@@ -11,8 +12,6 @@ import { useReportFavoritesSorting } from 'src/components/explore/favoritesSorti
 import FavoriteWalletCard from 'src/components/explore/FavoriteWalletCard'
 import { useFavoritesDraftOrder } from 'src/components/explore/useFavoritesDraftOrder'
 import { Loader } from 'src/components/loading/loaders'
-import { Flex } from 'ui/src'
-import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { selectWatchedAddressSet } from 'uniswap/src/features/favorites/selectors'
 import { setFavoriteWallets } from 'uniswap/src/features/favorites/slice'
 

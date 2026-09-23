@@ -1,14 +1,14 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
 import { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { CheckCircleFilled } from 'ui/src/components/icons/CheckCircleFilled'
 import { Eye } from 'ui/src/components/icons/Eye'
 import { Shuffle } from 'ui/src/components/icons/Shuffle'
-import { spacing } from 'ui/src/theme'
+import { spacing } from 'ui/src/theme/spacing'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EarnSwapUpsellToast } from '~/components/Popups/EarnSwapUpsellToast'
 import { MismatchToastItem } from '~/components/Popups/MismatchToastItem'
 import {
@@ -130,8 +130,6 @@ function getSwitchNetworkTitle({
       return t('notification.lp.network', { network: label })
     case SwitchNetworkAction.Limit:
       return t('notification.limit.network', { network: label })
-    case SwitchNetworkAction.PoolFinder:
-      return t('notification.poolFinder.network', { network: label })
     default:
       return ''
   }

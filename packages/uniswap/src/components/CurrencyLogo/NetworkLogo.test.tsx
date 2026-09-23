@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { NetworkLogo, TransactionSummaryNetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { render } from 'uniswap/src/test/test-utils'
 
 vi.mock('uniswap/src/features/chains/chainInfo', async (importOriginal) => {

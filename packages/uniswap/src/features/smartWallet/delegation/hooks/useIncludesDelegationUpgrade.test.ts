@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { useFeatureFlag } from '@universe/gating'
 import { useUniswapContextSelector } from 'uniswap/src/contexts/UniswapContext'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useIncludesDelegationUpgrade } from 'uniswap/src/features/smartWallet/delegation/hooks/useIncludesDelegationUpgrade'
 import type { SwapDelegationInfo } from 'uniswap/src/features/smartWallet/delegation/types'
 import { renderHook } from 'uniswap/src/test/test-utils'

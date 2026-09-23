@@ -1,5 +1,6 @@
+import { Flex } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { ComponentProps } from 'react'
-import { Flex, useMedia } from 'ui/src'
 import { HEADER_TRANSITION } from '~/components/StickyCollapsibleHeader/constants'
 import { useAppHeaderHeight } from '~/hooks/useAppHeaderHeight'
 
@@ -38,7 +39,7 @@ export function StickyCollapsibleHeader({
       <Flex
         width="100%"
         borderBottomWidth={1}
-        borderBottomColor="$surface3"
+        borderColor="$surface3"
         py={isCompact && media.sm ? '$spacing12' : '$spacing20'}
         transition={HEADER_TRANSITION}
       >

@@ -1,12 +1,11 @@
 import { MultichainToken } from '@uniswap/client-data-api/dist/data/v1/searchTypes_pb'
-import { parseProtectionInfo, parseSafetyLevel } from '@universe/api'
-import { chainTokenToCurrencyInfo } from 'uniswap/src/data/apiClients/dataApiService/search/searchTokensAndPools'
+import { chainTokenToCurrencyInfo } from 'uniswap/src/data/apiClients/dataApiService/search/searchV1'
 import {
   type CurrencyInfo,
   type MultichainSearchResult,
   type SearchMultichainParent,
 } from 'uniswap/src/features/dataApi/types'
-import { getCurrencySafetyInfo } from 'uniswap/src/features/dataApi/utils/getCurrencySafetyInfo'
+import { parseCurrencySafetyInfo } from 'uniswap/src/features/dataApi/utils/getCurrencySafetyInfo'
 import type { CurrencyId } from 'uniswap/src/types/currency'
 
 /**
@@ -28,9 +27,6 @@ export function toMultichainSearchResult(multichainToken: MultichainToken): Mult
     return undefined
   }
 
-  const parentSafetyLevel = parseSafetyLevel(multichainToken.safetyLevel)
-  const parentProtectionInfo = parseProtectionInfo(multichainToken.protectionInfo)
-
   const searchMultichainParent: SearchMultichainParent = {
     id: multichainToken.multichainId,
     tokenCurrencyIds: tokens.map((t) => t.currencyId) as CurrencyId[],
@@ -41,7 +37,7 @@ export function toMultichainSearchResult(multichainToken: MultichainToken): Mult
     name: multichainToken.name,
     symbol: multichainToken.symbol,
     logoUrl: multichainToken.logoUrl || undefined,
-    safetyInfo: getCurrencySafetyInfo(parentSafetyLevel, parentProtectionInfo),
+    safetyInfo: parseCurrencySafetyInfo(multichainToken.safetyLevel, multichainToken.protectionInfo),
     tokens: tokens.map((t) => ({ ...t, searchMultichainParent })),
   }
 }

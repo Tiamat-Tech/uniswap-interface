@@ -1,4 +1,5 @@
-import { Button, type ButtonEmphasis, type ButtonVariant, Flex, type FlexProps } from 'ui/src'
+import { Flex, type FlexProps } from '@universe/mycelium'
+import { Button, type ButtonEmphasis, type ButtonVariant } from 'ui/src'
 import { TestIDType } from 'uniswap/src/test/fixtures/testIDs'
 
 export type ButtonConfig = {

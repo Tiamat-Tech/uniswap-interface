@@ -1,4 +1,5 @@
 import { GraphQLApi } from '@universe/api'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { useCallback, useMemo } from 'react'
 import { shuffleArray } from 'uniswap/src/components/IconCloud/utils'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
@@ -11,7 +12,7 @@ function tokensPromoLookupKey(chain: string, address: string): string {
   if (address === NATIVE_CHAIN_ID) {
     return chain
   }
-  return chain + address.toLowerCase()
+  return chain + normalizeTokenAddressForCache(address)
 }
 
 export function usePromoTokensData(): {

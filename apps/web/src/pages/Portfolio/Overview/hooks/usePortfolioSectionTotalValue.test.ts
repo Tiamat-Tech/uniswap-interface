@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { PortfolioBalancePart } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { usePortfolioBalanceBreakdown } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { usePortfolioAddresses } from '~/pages/Portfolio/hooks/usePortfolioAddresses'
@@ -24,10 +24,12 @@ const EVM_ADDRESS = '0x0000000000000000000000000000000000000001'
 function mockBreakdown({
   tokensUSD,
   poolsUSD,
+  poolsCount,
   loading = false,
 }: {
   tokensUSD?: number
   poolsUSD?: number
+  poolsCount?: number
   loading?: boolean
 }): void {
   mocked(usePortfolioBalanceBreakdown).mockReturnValue({
@@ -37,7 +39,7 @@ function mockBreakdown({
         : {
             total: { balanceUSD: (tokensUSD ?? 0) + (poolsUSD ?? 0) },
             tokens: { balanceUSD: tokensUSD },
-            pools: { balanceUSD: poolsUSD },
+            pools: { balanceUSD: poolsUSD, count: poolsCount },
           },
     loading,
   } as ReturnType<typeof usePortfolioBalanceBreakdown>)
@@ -77,6 +79,26 @@ describe('usePortfolioSectionTotalValue', () => {
 
     expect(result.current.totalValueFormatted).toBe('$6958.23')
     expect(result.current.totalValueNumeric).toBe(6958.23)
+  })
+
+  it('exposes the selected part count', () => {
+    mockBreakdown({ tokensUSD: 8783.76, poolsUSD: 6958.23, poolsCount: 8 })
+
+    const { result } = renderHook(() =>
+      usePortfolioSectionTotalValue({ part: PortfolioBalancePart.Pools, enabled: true }),
+    )
+
+    expect(result.current.count).toBe(8)
+  })
+
+  it('returns no count when the breakdown omits it', () => {
+    mockBreakdown({ tokensUSD: 8783.76, poolsUSD: 6958.23 })
+
+    const { result } = renderHook(() =>
+      usePortfolioSectionTotalValue({ part: PortfolioBalancePart.Pools, enabled: true }),
+    )
+
+    expect(result.current.count).toBeUndefined()
   })
 
   it('returns an undefined total when the slice balance is unavailable', () => {
@@ -136,15 +158,16 @@ describe('usePortfolioSectionTotalValue', () => {
     expect(usePortfolioBalanceBreakdown).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
   })
 
-  it('returns no total when disabled even if the shared breakdown cache is populated', () => {
-    mockBreakdown({ tokensUSD: 8783.76, poolsUSD: 6958.23 })
+  it('returns no total or count when disabled even if the shared breakdown cache is populated', () => {
+    mockBreakdown({ tokensUSD: 8783.76, poolsUSD: 6958.23, poolsCount: 8 })
 
     const { result } = renderHook(() =>
-      usePortfolioSectionTotalValue({ part: PortfolioBalancePart.Tokens, enabled: false }),
+      usePortfolioSectionTotalValue({ part: PortfolioBalancePart.Pools, enabled: false }),
     )
 
     expect(result.current.totalValueFormatted).toBeUndefined()
     expect(result.current.totalValueNumeric).toBeUndefined()
     expect(result.current.totalValueLoading).toBe(false)
+    expect(result.current.count).toBeUndefined()
   })
 })

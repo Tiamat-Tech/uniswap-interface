@@ -11,13 +11,13 @@ import {
 
 interface RankedMultichainTokenOverrides
   extends
-    Pick<MultichainToken, 'multichainId' | 'name' | 'symbol' | 'decimals' | 'addresses'>,
+    Pick<MultichainToken, 'multichainId' | 'name' | 'symbol' | 'decimals' | 'addresses' | 'categoryIds'>,
     Pick<TokenSafety, 'isSpam' | 'isVerified' | 'isBlocked'>,
     Pick<TokenProject, 'logoUrl'>,
     Pick<ChainTokenRankStats, 'chainId'>,
     Pick<
       TokenRankStats,
-      'volume1h' | 'volume1d' | 'volume7d' | 'volume30d' | 'volume1y' | 'volumeAll' | 'tvl' | 'fdv'
+      'volume1h' | 'volume1d' | 'volume7d' | 'volume30d' | 'volume1y' | 'volumeAll' | 'tvl' | 'fdv' | 'marketCap'
     > {
   address: string
   price: number
@@ -58,13 +58,7 @@ function buildPrice(o: Partial<RankedMultichainTokenOverrides>): TokenPriceData 
 }
 
 function buildStats(o: Partial<RankedMultichainTokenOverrides>): TokenRankStats | undefined {
-  const hasAny = [o.volume1h, o.volume1d, o.volume7d, o.volume30d, o.volume1y, o.volumeAll, o.tvl, o.fdv].some(
-    (v) => v !== undefined,
-  )
-  if (!hasAny) {
-    return undefined
-  }
-  return new TokenRankStats({
+  const stats = {
     volume1h: o.volume1h,
     volume1d: o.volume1d,
     volume7d: o.volume7d,
@@ -73,7 +67,12 @@ function buildStats(o: Partial<RankedMultichainTokenOverrides>): TokenRankStats 
     volumeAll: o.volumeAll,
     tvl: o.tvl,
     fdv: o.fdv,
-  })
+    marketCap: o.marketCap,
+  }
+  if (Object.values(stats).every((v) => v === undefined)) {
+    return undefined
+  }
+  return new TokenRankStats(stats)
 }
 
 /**
@@ -95,6 +94,7 @@ export function createRankedMultichainToken(
       decimals: overrides.decimals ?? 6,
       type: TokenType.ERC20,
       addresses: buildAddresses(overrides),
+      categoryIds: overrides.categoryIds ?? [],
       ...(price && { price }),
       safety: new TokenSafety({
         isSpam: overrides.isSpam ?? false,

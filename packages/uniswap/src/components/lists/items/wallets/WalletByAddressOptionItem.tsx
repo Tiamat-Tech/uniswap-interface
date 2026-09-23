@@ -1,5 +1,4 @@
-import type { ModifierPressProps } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { iconSizes, type ModifierPressProps } from '@universe/mycelium'
 import { OptionItemProps } from 'uniswap/src/components/lists/items/OptionItem'
 import {
   ENSAddressOption,

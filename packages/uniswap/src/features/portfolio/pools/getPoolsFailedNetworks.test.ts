@@ -1,10 +1,10 @@
-import type { AppTFunction } from 'ui/src/i18n/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import {
   getPoolsUnavailableMessage,
   MAX_NAMED_FAILED_NETWORKS,
 } from 'uniswap/src/features/portfolio/pools/getPoolsFailedNetworks'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 
 const t = ((key: string, options?: Record<string, unknown>) => {
   if (key === 'portfolio.pools.unavailable.otherNetworks') {

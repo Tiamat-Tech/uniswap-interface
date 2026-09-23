@@ -1,4 +1,5 @@
 import { UNCONNECTED_ADDRESS } from '@universe/api'
+import { AddressStringFormat, normalizeAddress, normalizeTokenAddressForCache } from '@universe/chains'
 import { useCheckPermissionsQuery } from 'uniswap/src/data/apiClients/tradingApi/useCheckPermissionsQuery'
 import { sanitizeUrl } from 'utilities/src/format/urls'
 
@@ -28,8 +29,8 @@ export function useTokenKYCStatus({
   const params =
     chainId && tokenAddress
       ? {
-          walletAddress: (walletAddress ?? UNCONNECTED_ADDRESS).toLowerCase(),
-          tokens: [tokenAddress.toLowerCase()],
+          walletAddress: normalizeAddress(walletAddress ?? UNCONNECTED_ADDRESS, AddressStringFormat.Lowercase),
+          tokens: [normalizeTokenAddressForCache(tokenAddress)],
           chainId,
         }
       : undefined
@@ -37,8 +38,10 @@ export function useTokenKYCStatus({
   // queryFn-level error is already logged in useCheckPermissionsQuery; failing open here.
   const { data, isLoading } = useCheckPermissionsQuery({ params })
 
-  const tokenLower = tokenAddress?.toLowerCase()
-  const apiResult = tokenLower ? data?.results.find((r) => r.token.toLowerCase() === tokenLower) : undefined
+  const tokenLower = tokenAddress ? normalizeTokenAddressForCache(tokenAddress) : undefined
+  const apiResult = tokenLower
+    ? data?.results.find((r) => normalizeTokenAddressForCache(r.token) === tokenLower)
+    : undefined
 
   if (!apiResult || !apiResult.isPermissioned) {
     return { isPermissioned: false, isAllowlisted: true, isLoading, kycUrl: undefined, issuer: undefined }

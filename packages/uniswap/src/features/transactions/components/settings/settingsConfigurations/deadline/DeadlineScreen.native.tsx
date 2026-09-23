@@ -1,5 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, PlusMinusButton, PlusMinusButtonType, Text, useSporeColors } from 'ui/src'
+import { PlusMinusButton, PlusMinusButtonType, useSporeColors } from 'ui/src'
 import { fonts, spacing } from 'ui/src/theme'
 import { BottomSheetTextInput } from 'uniswap/src/components/modals/Modal'
 import { LearnMoreLink } from 'uniswap/src/components/text/LearnMoreLink'

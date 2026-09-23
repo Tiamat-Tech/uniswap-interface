@@ -1,13 +1,17 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import type { ListTokensResponse } from '@uniswap/client-data-api/dist/data/v2/api_pb'
 import { HistoryDuration, TokensOrderBy } from '@uniswap/client-data-api/dist/data/v2/types_pb'
-import { GqlResult } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { useMemo } from 'react'
 import { dataApiServiceClientV2 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClientV2'
 import { dataApiMultichainTokenToSearchResult } from 'uniswap/src/data/apiClients/dataApiService/utils/dataApiMultichainToken'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { MultichainSearchResult } from 'uniswap/src/features/dataApi/types'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
+
+function selectMultichainSearchResults(data: ListTokensResponse): MultichainSearchResult[] {
+  return data.multichainTokens
+    .map((token) => dataApiMultichainTokenToSearchResult(token))
+    .filter((r): r is MultichainSearchResult => r !== undefined)
+}
 
 /**
  * Fetches tokens from the ListTokens API with multichain grouping.
@@ -19,11 +23,10 @@ export function useSearchMultichainListTokens({
 }: {
   pageSize: number
   skip: boolean
-}): GqlResult<MultichainSearchResult[]> {
+}): UseQueryResult<MultichainSearchResult[]> {
   const { chains: enabledChainIds } = useEnabledChains()
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
 
-  const { data, isLoading, error, refetch } = useQuery({
+  return useQuery({
     queryKey: [
       ReactQueryCacheKey.DataApiService,
       'listTokens',
@@ -39,21 +42,7 @@ export function useSearchMultichainListTokens({
         // Required by BE — UNSPECIFIED is rejected, mirrors apps/web's listTokensService.ts.
         sparklineDuration: HistoryDuration.DAY,
       }),
-    enabled: !skip && isV2TokensEnabled,
+    select: selectMultichainSearchResults,
+    enabled: !skip,
   })
-
-  const results = useMemo(() => {
-    const multichainTokens = data?.multichainTokens
-    if (!multichainTokens) {
-      return undefined
-    }
-    return multichainTokens
-      .map(dataApiMultichainTokenToSearchResult)
-      .filter((r): r is MultichainSearchResult => r !== undefined)
-  }, [data])
-
-  return useMemo(
-    () => ({ data: results, loading: isLoading, error: error ?? undefined, refetch }),
-    [results, isLoading, error, refetch],
-  )
 }

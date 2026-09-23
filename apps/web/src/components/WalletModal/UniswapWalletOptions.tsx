@@ -1,12 +1,11 @@
 import { isMobileWeb, isWebIOS } from '@universe/environment'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, iconSizes, Text } from '@universe/mycelium'
+import { AppStoreLogo } from '@universe/mycelium/icons/AppStoreLogo'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
+import { PhoneDownload } from '@universe/mycelium/icons/PhoneDownload'
 import { useAtom } from 'jotai'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { AppStoreLogo } from 'ui/src/components/icons/AppStoreLogo'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { PhoneDownload } from 'ui/src/components/icons/PhoneDownload'
-import { iconSizes } from 'ui/src/theme'
 import { CONNECTION_PROVIDER_IDS } from 'uniswap/src/constants/web3'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -114,7 +113,9 @@ export function UniswapWalletOptions() {
               openDownloadApp({ element: ElementName.UniswapWalletModalDownloadButton })
             }}
           >
-            <PhoneDownload size="$icon.40" minWidth={40} color="$accent1" backgroundColor="$accent2" borderRadius={8} />
+            <Flex minWidth={40} backgroundColor="$accent2" borderRadius={8}>
+              <PhoneDownload size="$icon.40" color="$accent1" />
+            </Flex>
             <Flex row grow alignItems="center">
               <Flex grow>
                 <Text variant="buttonLabel3" color="$neutral1" whiteSpace="nowrap">

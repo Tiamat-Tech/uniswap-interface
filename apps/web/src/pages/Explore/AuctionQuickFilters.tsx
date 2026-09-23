@@ -1,7 +1,7 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { CheckmarkCircle } from 'ui/src/components/icons/CheckmarkCircle'
 import { GridView } from 'ui/src/components/icons/GridView'
 import { Lightning } from 'ui/src/components/icons/Lightning'
@@ -16,6 +16,7 @@ import {
   useExploreTablesFilterStoreActions,
 } from '~/features/Explore/state/exploreTablesFilterStore'
 import { ExploreFilterChip } from '~/pages/Explore/categories/ExploreCategoryChips'
+import { useSyncAuctionQuickFilterParam } from '~/pages/Explore/hooks/useAuctionQuickFilterParam'
 
 type QuickFilterOption = {
   value: AuctionQuickFilter
@@ -35,35 +36,37 @@ export function AuctionQuickFilters() {
   const { setQuickFilter } = useExploreTablesFilterStoreActions()
   // QuickLaunch: quick-launch chip is flag-gated; classification from the backend, see isQuickLaunchAuction.
   const isQuickLaunchFilterEnabled = useFeatureFlag(FeatureFlags.QuickLaunch)
+  // Keep the selected filter in the URL so specific tabs are directly linkable.
+  useSyncAuctionQuickFilterParam()
 
   const options: readonly QuickFilterOption[] = useMemo(
     () => [
       {
         value: AuctionQuickFilter.All,
         label: t('common.all'),
-        renderIcon: (color) => <GridView size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
+        renderIcon: (color) => <GridView size="$icon.16" color={color} />,
       },
       {
         value: AuctionQuickFilter.Verified,
         label: t('toucan.filter.verified'),
-        renderIcon: (color) => <CheckmarkCircle size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
+        renderIcon: (color) => <CheckmarkCircle size="$icon.16" color={color} />,
       },
       {
         value: AuctionQuickFilter.New,
         label: t('common.new'),
-        renderIcon: (color) => <Sparkle size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
+        renderIcon: (color) => <Sparkle size="$icon.16" color={color} />,
       },
       {
         value: AuctionQuickFilter.Completed,
         label: t('toucan.auction.timeRemaining.completed'),
-        renderIcon: (color) => <Rocket size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
+        renderIcon: (color) => <Rocket size="$icon.16" color={color} />,
       },
       ...(isQuickLaunchFilterEnabled
         ? [
             {
               value: AuctionQuickFilter.QuickLaunch,
               label: t('toucan.filter.quickLaunches'),
-              renderIcon: (color) => <Lightning size="$icon.16" color={color} $group-hover={{ color: '$neutral1' }} />,
+              renderIcon: (color) => <Lightning size="$icon.16" color={color} />,
               tooltip: t('toucan.filter.quickLaunches.tooltip'),
             } satisfies QuickFilterOption,
           ]

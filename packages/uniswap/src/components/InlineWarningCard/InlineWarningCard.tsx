@@ -1,7 +1,8 @@
 import { SharedEventName } from '@uniswap/analytics-events'
-import { useState } from 'react'
+import { Flex, type FlexProps, Text, TouchableArea } from '@universe/mycelium'
+import { type ComponentProps, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, FlexProps, GeneratedIcon, IconProps, InlineCard, LabeledCheckbox, Text, TouchableArea } from 'ui/src'
+import { GeneratedIcon, IconProps, InlineCard, LabeledCheckbox } from 'ui/src'
 import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { LearnMoreLink } from 'uniswap/src/components/text/LearnMoreLink'
@@ -28,7 +29,7 @@ type InlineWarningCardProps = {
   heroIcon?: boolean
   inlineLearnMore?: boolean
   iconSize?: IconProps['size']
-  padding?: FlexProps['p']
+  padding?: ComponentProps<typeof InlineCard>['padding']
   descriptionMaxWidth?: FlexProps['maxWidth']
 }
 

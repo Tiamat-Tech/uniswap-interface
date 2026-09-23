@@ -1,16 +1,11 @@
+import { UniverseChainId } from '@universe/chains'
 import { SplitLogo } from 'uniswap/src/components/CurrencyLogo/SplitLogo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { DAI_CURRENCY_INFO, daiCurrencyInfo, ETH_CURRENCY_INFO, ethCurrencyInfo } from 'uniswap/src/test/fixtures'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { render, within } from 'uniswap/src/test/test-utils'
 
 const arbitrumNetworkLogoTestID = `${TestID.NetworkLogoPrefix}${UniverseChainId.ArbitrumOne}`
 const mainnetNetworkLogoTestID = `${TestID.NetworkLogoPrefix}${UniverseChainId.Mainnet}`
-
-vi.mock('ui/src/components/UniversalImage/internal/PlainImage', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('ui/src/components/UniversalImage/internal/PlainImage.web')>()
-  return { ...actual }
-})
 
 describe(SplitLogo, () => {
   it('renders without error', () => {
@@ -132,6 +127,50 @@ describe(SplitLogo, () => {
       )
 
       expect(getByTestId(mainnetNetworkLogoTestID)).toBeTruthy()
+    })
+  })
+
+  describe('stacked orientation', () => {
+    it('renders without error', () => {
+      const tree = render(
+        <SplitLogo
+          chainId={UniverseChainId.ArbitrumOne}
+          inputCurrencyInfo={DAI_CURRENCY_INFO}
+          outputCurrencyInfo={ETH_CURRENCY_INFO}
+          orientation="stacked"
+          size={10}
+        />,
+      )
+
+      expect(tree).toMatchSnapshot()
+    })
+
+    it('renders icon when chainId is specified', () => {
+      const { getByTestId } = render(
+        <SplitLogo
+          chainId={UniverseChainId.ArbitrumOne}
+          inputCurrencyInfo={daiCurrencyInfo()}
+          outputCurrencyInfo={ethCurrencyInfo()}
+          orientation="stacked"
+          size={10}
+        />,
+      )
+
+      expect(getByTestId(arbitrumNetworkLogoTestID)).toBeTruthy()
+    })
+
+    it('does not render icon when chainId is not specified', () => {
+      const { queryByTestId } = render(
+        <SplitLogo
+          chainId={null}
+          inputCurrencyInfo={daiCurrencyInfo()}
+          outputCurrencyInfo={ethCurrencyInfo()}
+          orientation="stacked"
+          size={10}
+        />,
+      )
+
+      expect(queryByTestId(arbitrumNetworkLogoTestID)).toBeFalsy()
     })
   })
 })

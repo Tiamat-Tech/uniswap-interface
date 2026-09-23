@@ -1,4 +1,5 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { defaultResolveRpcConfig } from 'uniswap/src/features/providers/resolveRpcConfig'
 import type { MockedFunction } from 'vitest'
 import { isPrivateRpcSupportedOnChain } from 'wallet/src/features/providers/utils'
 import { createTransactionConfigService } from 'wallet/src/features/transactions/executeTransaction/services/transactionConfigServiceImpl'
@@ -8,8 +9,14 @@ vi.mock('wallet/src/features/providers/utils', () => ({
   isPrivateRpcSupportedOnChain: vi.fn(),
 }))
 
+// Mock the platform-split rpc config resolver
+vi.mock('uniswap/src/features/providers/resolveRpcConfig', () => ({
+  defaultResolveRpcConfig: vi.fn(),
+}))
+
 describe('TransactionConfigService', () => {
   let mockIsPrivateRpcSupportedOnChain: MockedFunction<typeof isPrivateRpcSupportedOnChain>
+  let mockDefaultResolveRpcConfig: MockedFunction<typeof defaultResolveRpcConfig>
   let transactionConfigService: ReturnType<typeof createTransactionConfigService>
 
   beforeEach(() => {
@@ -18,6 +25,7 @@ describe('TransactionConfigService', () => {
     mockIsPrivateRpcSupportedOnChain = isPrivateRpcSupportedOnChain as MockedFunction<
       typeof isPrivateRpcSupportedOnChain
     >
+    mockDefaultResolveRpcConfig = defaultResolveRpcConfig as MockedFunction<typeof defaultResolveRpcConfig>
 
     transactionConfigService = createTransactionConfigService()
   })
@@ -154,6 +162,44 @@ describe('TransactionConfigService', () => {
 
       expect(result).toBe(false)
       expect(mockIsPrivateRpcSupportedOnChain).toHaveBeenCalledWith(UniverseChainId.Base)
+    })
+  })
+
+  describe('getPrivateRpcProviderType', () => {
+    it('returns unirpc when the private route resolves to UniRPC swap protection', () => {
+      mockDefaultResolveRpcConfig.mockReturnValue({
+        rpcUrl: 'https://gateway.example/rpc/1',
+        isUniRpc: true,
+        headers: { 'x-uni-swap-protection': 'true' },
+      })
+
+      const result = transactionConfigService.getPrivateRpcProviderType({ chainId: UniverseChainId.Mainnet })
+
+      expect(result).toBe('unirpc')
+    })
+
+    it('returns flashbots when the private route resolves to Flashbots', () => {
+      mockDefaultResolveRpcConfig.mockReturnValue({
+        rpcUrl: 'https://rpc.flashbots.net/fast',
+        shouldUseFlashbots: true,
+        flashbotsConfig: { refundPercent: 90, calldataHintsEnabled: true },
+      })
+
+      const result = transactionConfigService.getPrivateRpcProviderType({ chainId: UniverseChainId.Mainnet })
+
+      expect(result).toBe('flashbots')
+    })
+
+    it('falls back to mevblocker for a plain private endpoint or unresolvable config', () => {
+      mockDefaultResolveRpcConfig.mockReturnValue({ rpcUrl: 'https://rpc.mevblocker.io' })
+      expect(transactionConfigService.getPrivateRpcProviderType({ chainId: UniverseChainId.Mainnet })).toBe(
+        'mevblocker',
+      )
+
+      mockDefaultResolveRpcConfig.mockReturnValue(null)
+      expect(transactionConfigService.getPrivateRpcProviderType({ chainId: UniverseChainId.Mainnet })).toBe(
+        'mevblocker',
+      )
     })
   })
 })

@@ -1,9 +1,10 @@
 /* oxlint-disable max-lines */
 import { AnyAction } from '@reduxjs/toolkit'
 import { WalletKitTypes } from '@reown/walletkit'
+import { UniverseChainId, Platform, areAddressesEqual } from '@universe/chains'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
 import { PendingRequestTypes, ProposalTypes, SessionTypes, SignClientTypes, Verify } from '@walletconnect/types'
-import { buildApprovedNamespaces, getSdkError, populateAuthPayload } from '@walletconnect/utils'
+import { buildApprovedNamespaces, getInternalError, getSdkError, populateAuthPayload } from '@walletconnect/utils'
 import { Alert } from 'react-native'
 import { EventChannel, eventChannel } from 'redux-saga'
 import { MobileState } from 'src/app/mobileReducer'
@@ -35,23 +36,23 @@ import {
   replaceSession,
   SignRequest,
   setHasPendingSessionError,
+  TransactionRequest,
+  WalletSendCallsRequest,
 } from 'src/features/walletConnect/walletConnectSlice'
 import { call, fork, put, select, take } from 'typed-redux-saga'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { EthMethod, type EthSignMethod } from 'uniswap/src/features/dappRequests/types'
-import { isSelfCallWithData } from 'uniswap/src/features/dappRequests/utils'
+import { isSelfCallWithData, isSignTypedDataMethod } from 'uniswap/src/features/dappRequests/utils'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { getEnabledChainIdsSaga } from 'uniswap/src/features/settings/saga'
 import { MobileEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import i18n from 'uniswap/src/i18n'
 import { DappRequestType, EthEvent, WalletConnectEvent } from 'uniswap/src/types/walletConnect'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { logger } from 'utilities/src/logger/logger'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
+import { InvalidSendCallsRequestError } from 'wallet/src/features/batchedTransactions/normalizeSendCalls'
 import {
   selectAccounts,
   selectActiveAccountAddress,
@@ -372,6 +373,98 @@ function* respondUnauthorizedAccount({ topic, id }: { topic: string; id: number 
   })
 }
 
+function* respondInvalidSessionRequest({
+  topic,
+  id,
+  method,
+  error,
+}: {
+  topic: string
+  id: number
+  method: string
+  error: unknown
+}) {
+  const errorReason =
+    error instanceof InvalidSendCallsRequestError ? error.message : error instanceof Error ? error.name : typeof error
+  logger.warn(
+    'walletConnect/saga.ts',
+    'respondInvalidSessionRequest',
+    `Rejected invalid ${method} request (${errorReason})`,
+  )
+  try {
+    yield* call([wcWeb3Wallet, wcWeb3Wallet.respondSessionRequest], {
+      topic,
+      response: {
+        id,
+        jsonrpc: '2.0',
+        error: getInternalError('MISSING_OR_INVALID', 'Request parameters could not be parsed.'),
+      },
+    })
+  } catch (responseError) {
+    // A relay failure must not terminate cold-start replay or the live WalletConnect watcher.
+    logger.error(responseError, {
+      tags: { file: 'walletConnect/saga', function: 'respondInvalidSessionRequest' },
+      extra: { method },
+    })
+  }
+}
+
+function* handleSignSessionRequest({
+  method,
+  topic,
+  id,
+  chainId,
+  dapp,
+  requestParams,
+  requestSession,
+  verifyContext,
+}: {
+  method: EthSignMethod
+  topic: string
+  id: number
+  chainId: UniverseChainId
+  dapp: SignClientTypes.Metadata
+  requestParams: WalletKitTypes.SessionRequest['params']['request']['params']
+  requestSession: SessionTypes.Struct
+  verifyContext?: Verify.Context
+}) {
+  let request: SignRequest
+  try {
+    request = {
+      ...parseSignRequest({ method, topic, internalId: id, chainId, dapp, requestParams }),
+      verifyStatus: parseVerifyStatus(verifyContext),
+      trustedOriginUrl: verifyContext?.verified.origin,
+    }
+  } catch (error) {
+    yield* call(respondInvalidSessionRequest, { topic, id, method, error })
+    return
+  }
+
+  if (!isAccountInSessionNamespace({ session: requestSession, chainId, account: request.account })) {
+    yield* call(respondUnauthorizedAccount, { topic, id })
+    return
+  }
+
+  if (isSignTypedDataMethod(method)) {
+    const domainChainId = getTypedDataDomainChainId(request.rawMessage)
+    if (domainChainId !== chainId) {
+      yield* call(respondTypedDataChainMismatch, {
+        topic,
+        id,
+        method,
+        dapp,
+        session: requestSession,
+        account: request.account,
+        envelopeChainId: chainId,
+        domainChainId,
+      })
+      return
+    }
+  }
+
+  yield* put(addRequest(request))
+}
+
 const eip5792Methods = [EthMethod.WalletGetCallsStatus, EthMethod.WalletSendCalls, EthMethod.WalletGetCapabilities].map(
   (m) => m.valueOf(),
 )
@@ -481,55 +574,36 @@ export function* handleSessionRequest(
     case EthMethod.PersonalSign:
     case EthMethod.SignTypedData:
     case EthMethod.SignTypedDataV4: {
-      const request = {
-        ...parseSignRequest({
-          method,
-          topic,
-          internalId: id,
-          chainId,
-          dapp,
-          requestParams,
-        }),
-        verifyStatus: parseVerifyStatus(sessionRequest.verifyContext),
-        trustedOriginUrl: sessionRequest.verifyContext?.verified.origin,
-      }
-      if (!isAccountInSessionNamespace({ session: requestSession, chainId, account: request.account })) {
-        yield* call(respondUnauthorizedAccount, { topic, id })
-        return
-      }
-
-      if (method === EthMethod.SignTypedData || method === EthMethod.SignTypedDataV4) {
-        const domainChainId = getTypedDataDomainChainId(request.rawMessage)
-        if (domainChainId !== chainId) {
-          yield* call(respondTypedDataChainMismatch, {
-            topic,
-            id,
-            method,
-            dapp,
-            session: requestSession,
-            account: request.account,
-            envelopeChainId: chainId,
-            domainChainId,
-          })
-          return
-        }
-      }
-
-      yield* put(addRequest(request))
+      yield* call(handleSignSessionRequest, {
+        method,
+        topic,
+        id,
+        chainId,
+        dapp,
+        requestParams,
+        requestSession,
+        verifyContext: sessionRequest.verifyContext,
+      })
       break
     }
     case EthMethod.EthSendTransaction: {
-      const request = {
-        ...parseTransactionRequest({
-          method,
-          topic,
-          internalId: id,
-          chainId,
-          dapp,
-          requestParams,
-        }),
-        verifyStatus: parseVerifyStatus(sessionRequest.verifyContext),
-        trustedOriginUrl: sessionRequest.verifyContext?.verified.origin,
+      let request: TransactionRequest
+      try {
+        request = {
+          ...parseTransactionRequest({
+            method,
+            topic,
+            internalId: id,
+            chainId,
+            dapp,
+            requestParams,
+          }),
+          verifyStatus: parseVerifyStatus(sessionRequest.verifyContext),
+          trustedOriginUrl: sessionRequest.verifyContext?.verified.origin,
+        }
+      } catch (error) {
+        yield* call(respondInvalidSessionRequest, { topic, id, method, error })
+        return
       }
       if (!isAccountInSessionNamespace({ session: requestSession, chainId, account: request.account })) {
         yield* call(respondUnauthorizedAccount, { topic, id })
@@ -557,17 +631,23 @@ export function* handleSessionRequest(
       break
     }
     case EthMethod.WalletSendCalls: {
-      const request = {
-        ...parseSendCallsRequest({
-          topic,
-          internalId: id,
-          chainId,
-          dapp,
-          requestParams,
-          account: accountAddress,
-        }),
-        verifyStatus: parseVerifyStatus(sessionRequest.verifyContext),
-        trustedOriginUrl: sessionRequest.verifyContext?.verified.origin,
+      let request: WalletSendCallsRequest
+      try {
+        request = {
+          ...parseSendCallsRequest({
+            topic,
+            internalId: id,
+            chainId,
+            dapp,
+            requestParams,
+            account: accountAddress,
+          }),
+          verifyStatus: parseVerifyStatus(sessionRequest.verifyContext),
+          trustedOriginUrl: sessionRequest.verifyContext?.verified.origin,
+        }
+      } catch (error) {
+        yield* call(respondInvalidSessionRequest, { topic, id, method, error })
+        return
       }
       if (!isAccountInSessionNamespace({ session: requestSession, chainId, account: request.account })) {
         yield* call(respondUnauthorizedAccount, { topic, id })
@@ -764,7 +844,7 @@ function* fetchPendingSessionProposals() {
 }
 
 // Load any existing pending session requests from the WC connection
-function* fetchPendingSessionRequests() {
+export function* fetchPendingSessionRequests() {
   const pendingSessionRequests = wcWeb3Wallet.getPendingSessionRequests()
   for (const sessionRequest of Object.values(pendingSessionRequests)) {
     yield* call(handleSessionRequest, sessionRequest)

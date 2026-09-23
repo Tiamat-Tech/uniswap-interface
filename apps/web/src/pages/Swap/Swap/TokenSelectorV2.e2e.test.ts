@@ -1,9 +1,11 @@
+import type { Locator, Page } from '@playwright/test'
 import { searchTokens } from '@uniswap/client-data-api/dist/data/v1/search-SearchService_connectquery'
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags } from '@universe/gating'
 import { OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { expect, getTest } from '~/playwright/fixtures'
+import { mockGetPortfolioResponse } from '~/playwright/fixtures/account'
 import { createTestUrlBuilder } from '~/playwright/fixtures/urls'
 
 const test = getTest()
@@ -17,6 +19,11 @@ const buildSwapUrl = createTestUrlBuilder({
 
 const buildSendUrl = createTestUrlBuilder({
   basePath: '/send',
+  defaultFeatureFlags: { [FeatureFlags.TokenSelectorUxRevamp]: true },
+})
+
+const buildLimitUrl = createTestUrlBuilder({
+  basePath: '/limit',
   defaultFeatureFlags: { [FeatureFlags.TokenSelectorUxRevamp]: true },
 })
 
@@ -95,9 +102,20 @@ test.describe(
       await polygonChip.click()
       await expect(polygonChip).toHaveAttribute('aria-selected', 'false')
       await expect(allNetworksChip).toHaveAttribute('aria-selected', 'true')
-      await expect(
-        page.getByTestId(`${TestID.SectionHeaderPrefix}${OnchainItemSectionName.TrendingTokens}`),
-      ).toBeVisible()
+
+      // On All Networks the output selector stacks Recent → Suggested → Stocks → Bridging above
+      // Trending (SWAP-3039 section order), putting the trending header below the react-window
+      // render window — unmounted rows can never become visible without scrolling. Wheel in
+      // small steps until it mounts: steps stay well under the list viewport so the 40px header
+      // row can't jump across it in one step, and once scrolled past, the sticky section header
+      // remounts the same testID, so an overshoot still terminates the loop.
+      const trendingHeader = page.getByTestId(`${TestID.SectionHeaderPrefix}${OnchainItemSectionName.TrendingTokens}`)
+      // Put the pointer over the scrollable list so wheel events land on it
+      await page.getByTestId(`${TestID.TokenSelectorV2SuggestedTilePrefix}ETH`).first().hover()
+      await expect(async () => {
+        await page.mouse.wheel(0, 250)
+        await expect(trendingHeader).toBeVisible({ timeout: 500 })
+      }).toPass({ timeout: 15_000, intervals: [100] })
     })
 
     test('chip row - stays visible and functional during search', async ({ page }) => {
@@ -219,6 +237,90 @@ test.describe(
       await page.getByTestId(TestID.ChooseOutputToken).click()
 
       await expect(page.getByText('Crosschain swaps are here')).toBeVisible()
+    })
+
+    test('mobile web - limit selector keeps its sections on reopen (SWAP-3250)', async ({ page }) => {
+      // ≤640px renders the selector as the mobile-web bottom sheet instead of the dialog
+      await page.setViewportSize({ width: 449, height: 900 })
+      await mockGetPortfolioResponse({ page })
+      await page.goto(buildLimitUrl({}))
+
+      // Wheel in small steps until the section header mounts: sections below the react-window
+      // render window are unmounted and can never become visible without scrolling (same
+      // pattern as the chip-select test above).
+      const scrollUntilVisible = async (locator: Locator): Promise<void> => {
+        await page.getByTestId(`${TestID.TokenSelectorV2SuggestedTilePrefix}ETH`).first().hover()
+        await expect(async () => {
+          await page.mouse.wheel(0, 250)
+          await expect(locator).toBeVisible({ timeout: 500 })
+        }).toPass({ timeout: 15_000, intervals: [100] })
+      }
+
+      const yourTokensHeader = page.getByTestId(`${TestID.SectionHeaderPrefix}${OnchainItemSectionName.YourTokens}`)
+      const openBuySelector = () => page.locator('.open-currency-select-button').last().click()
+
+      await openBuySelector()
+      await scrollUntilVisible(yourTokensHeader)
+
+      await page.keyboard.press('Escape')
+      await expect(yourTokensHeader).not.toBeVisible()
+
+      // Reopening with all queries cached must still render the full list: the sheet takes its
+      // height from the snap point, not content-fit, so the height-fitting list can't collapse it.
+      await openBuySelector()
+      await scrollUntilVisible(yourTokensHeader)
+    })
+
+    test.describe('mobile web - drag-dismiss then reopen (SWAP-3263)', () => {
+      // ≤640px renders the selector as the mobile-web bottom sheet; hasTouch enables the
+      // touch input a phone user drag-dismisses with.
+      test.use({ hasTouch: true, viewport: { width: 449, height: 900 } })
+
+      const OPEN_SHEET = '.uw-sheet-frame[data-state="open"]'
+
+      /** Drag the sheet's handlebar down far past the dismiss threshold with real touch input. */
+      async function dragDismissSheet(page: Page): Promise<void> {
+        const frame = page.locator(OPEN_SHEET).last()
+        const box = await frame.boundingBox()
+        expect(box).not.toBeNull()
+        if (!box) {
+          return
+        }
+        const cdp = await page.context().newCDPSession(page)
+        const startY = box.y + 12
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 224, y: startY }] })
+        for (let step = 1; step <= 12; step++) {
+          await cdp.send('Input.dispatchTouchEvent', {
+            type: 'touchMove',
+            touchPoints: [{ x: 224, y: startY + step * 40 }],
+          })
+          await page.waitForTimeout(16)
+        }
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+        await expect(page.locator(OPEN_SHEET)).toHaveCount(0)
+      }
+
+      test('selector reopens full-height with rows after drag-dismissing the sheet', async ({ page }) => {
+        await mockGetPortfolioResponse({ page })
+        await page.goto(buildSwapUrl({}))
+        const suggestedEth = page.getByTestId(`${TestID.TokenSelectorV2SuggestedTilePrefix}ETH`).first()
+
+        await page.getByTestId(TestID.ChooseOutputToken).tap()
+        const frame = page.locator(OPEN_SHEET).last()
+        await expect(frame).toBeVisible()
+        await expect(suggestedEth).toBeVisible()
+
+        await dragDismissSheet(page)
+
+        // Reopen with all queries cached: the sheet must come back at its snap-point height with
+        // content rendered — not collapsed to chrome height with an empty list (SWAP-3263).
+        await page.getByTestId(TestID.ChooseOutputToken).tap()
+        await expect(frame).toBeVisible()
+        await expect(suggestedEth).toBeVisible()
+        const reopenedBox = await frame.boundingBox()
+        expect(reopenedBox).not.toBeNull()
+        expect(reopenedBox?.height ?? 0).toBeGreaterThan(300)
+      })
     })
   },
 )

@@ -1,4 +1,6 @@
-import { Flex, SpinningLoader, useSporeColors } from 'ui/src'
+import { Flex } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { SpinningLoader } from 'ui/src'
 import { getDisplayStateColor, useBidStatusColors } from '~/features/Toucan/Auction/hooks/useBidStatusColors'
 import { type BidDisplayState } from '~/features/Toucan/Auction/utils/bidDetails'
 

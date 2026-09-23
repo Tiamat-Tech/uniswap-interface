@@ -1,6 +1,7 @@
 import { GetWalletTokensProfitLossResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { Token } from '@uniswap/sdk-core'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import type { CurrencyInfo, PortfolioChainBalance } from 'uniswap/src/features/dataApi/types'
 import { createPortfolioChainBalance } from 'uniswap/src/test/fixtures/dataApi/portfolioMultichainBalances'
 import { describe, expect, it } from 'vitest'
@@ -116,6 +117,112 @@ describe('buildPnlLookupsFromProfitLoss', () => {
       unrealizedPnlPercent: -5,
     })
     expect(aggArb).toBe(aggMain)
+  })
+
+  it('joins natives returned under the chain backend address (POL 0x…1010, CELO 0x471e…)', () => {
+    const data = {
+      tokenProfitLosses: [],
+      multichainTokenProfitLoss: [
+        {
+          aggregated: {
+            averageCostUsd: 0.2,
+            unrealizedReturnUsd: -0.2,
+            unrealizedReturnPercent: -10,
+            token: { address: '0x0000000000000000000000000000000000001010', chainId: UniverseChainId.Polygon },
+          },
+          chainBreakdown: [
+            {
+              tokenAddress: '0x0000000000000000000000000000000000001010',
+              chainId: UniverseChainId.Polygon,
+              averageCostUsd: 0.2,
+              unrealizedReturnUsd: -0.2,
+              unrealizedReturnPercent: -10,
+            },
+          ],
+        },
+        {
+          aggregated: {
+            averageCostUsd: 0.3,
+            unrealizedReturnUsd: 0.1,
+            unrealizedReturnPercent: 33,
+            token: { address: '0x471EcE3750Da237f93B8E339c536989b8978a438', chainId: UniverseChainId.Celo },
+          },
+          chainBreakdown: [
+            {
+              tokenAddress: '0x471EcE3750Da237f93B8E339c536989b8978a438',
+              chainId: UniverseChainId.Celo,
+              averageCostUsd: 0.3,
+              unrealizedReturnUsd: 0.1,
+              unrealizedReturnPercent: 33,
+            },
+          ],
+        },
+      ],
+    } as unknown as GetWalletTokensProfitLossResponse
+
+    const { perChainPnlLookup, aggregatedJoinByLegKey } = buildPnlLookupsFromProfitLoss(data)
+
+    const polLeg = createChainBalanceForPnlTest(
+      { currency: nativeOnChain(UniverseChainId.Polygon), currencyId: 'POL' } as CurrencyInfo,
+      { chainId: UniverseChainId.Polygon },
+    )
+    const celoLeg = createChainBalanceForPnlTest(
+      { currency: nativeOnChain(UniverseChainId.Celo), currencyId: 'CELO' } as CurrencyInfo,
+      { chainId: UniverseChainId.Celo },
+    )
+
+    expect(perChainPnlLookup.get(pnlLookupKeyFromPortfolioChainBalance(polLeg))).toEqual({
+      avgCost: 0.2,
+      unrealizedPnl: -0.2,
+      unrealizedPnlPercent: -10,
+    })
+    expect(perChainPnlLookup.get(pnlLookupKeyFromPortfolioChainBalance(celoLeg))).toEqual({
+      avgCost: 0.3,
+      unrealizedPnl: 0.1,
+      unrealizedPnlPercent: 33,
+    })
+    expect(resolveAggregatedPnlForChainTokens([polLeg], aggregatedJoinByLegKey)).toEqual({
+      avgCost: 0.2,
+      unrealizedPnl: -0.2,
+      unrealizedPnlPercent: -10,
+    })
+  })
+
+  it('does not collapse Arc USDC ERC-20 into the native key (distinct 6-decimal token)', () => {
+    const arcUsdcAddress = '0x3600000000000000000000000000000000000000'
+    const data = {
+      tokenProfitLosses: [],
+      multichainTokenProfitLoss: [
+        {
+          aggregated: {
+            averageCostUsd: 1,
+            unrealizedReturnUsd: 5,
+            unrealizedReturnPercent: 2,
+            token: { address: arcUsdcAddress, chainId: UniverseChainId.Arc },
+          },
+          chainBreakdown: [
+            {
+              tokenAddress: arcUsdcAddress,
+              chainId: UniverseChainId.Arc,
+              averageCostUsd: 1,
+              unrealizedReturnUsd: 5,
+              unrealizedReturnPercent: 2,
+            },
+          ],
+        },
+      ],
+    } as unknown as GetWalletTokensProfitLossResponse
+
+    const { perChainPnlLookup, aggregatedJoinByLegKey } = buildPnlLookupsFromProfitLoss(data)
+
+    const nativeLeg = createChainBalanceForPnlTest(
+      { currency: nativeOnChain(UniverseChainId.Arc), currencyId: 'ARC-NATIVE' } as CurrencyInfo,
+      { chainId: UniverseChainId.Arc },
+    )
+
+    // The 18-decimal native row must not claim the ERC-20's PnL entry.
+    expect(perChainPnlLookup.get(pnlLookupKeyFromPortfolioChainBalance(nativeLeg))).toBeUndefined()
+    expect(resolveAggregatedPnlForChainTokens([nativeLeg], aggregatedJoinByLegKey)).toBeUndefined()
   })
 
   it('registers aggregated join from aggregated.token when chainBreakdown is empty', () => {

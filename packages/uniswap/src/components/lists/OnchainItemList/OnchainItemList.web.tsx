@@ -1,9 +1,9 @@
+import { Flex } from '@universe/mycelium'
 import isArray from 'lodash/isArray'
 import isEqual from 'lodash/isEqual'
 import React, {
   CSSProperties,
   Fragment,
-  Key,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -11,20 +11,28 @@ import React, {
   useRef,
   useState,
 } from 'react'
+import { useWindowDimensions } from 'react-native'
 import AutoSizer from 'react-virtualized-auto-sizer'
 import { VariableSizeList as List } from 'react-window'
-import { Flex, useWindowDimensions } from 'ui/src'
 import { zIndexes } from 'ui/src/theme'
 import { OnchainItemListOption } from 'uniswap/src/components/lists/items/types'
 import { useRowHeightObserver } from 'uniswap/src/components/lists/OnchainItemList/hooks/useRowHeightObserver'
+import { OnchainItemListProps } from 'uniswap/src/components/lists/OnchainItemList/OnchainItemList'
+import { toSectionHeaderProps } from 'uniswap/src/components/lists/OnchainItemList/processSectionsToRows'
 import {
-  ItemRowInfo,
-  OnchainItemListProps,
-  SectionRowInfo,
-} from 'uniswap/src/components/lists/OnchainItemList/OnchainItemList'
+  findFocusableRowIndex,
+  getFirstFocusableRowIndex,
+  isDynamicHeightRowInfo,
+  isHorizontalTokenRowInfo,
+  isSectionHeader,
+  type ListItemRowInfo,
+  type ListSectionRowInfo,
+  type OnchainItemListData,
+} from 'uniswap/src/components/lists/OnchainItemList/rowInfo'
 import {
   getRowsStructuralSignature,
   getSectionHeaderRowKey,
+  getSectionRowId,
   getSectionItemRowKey,
 } from 'uniswap/src/components/lists/OnchainItemList/rowKeys'
 import { OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
@@ -35,43 +43,10 @@ import { useKeyDown } from 'utilities/src/device/keyboard/useKeyDown'
 const ITEM_ROW_HEIGHT = 64
 const HORIZONTAL_TOKEN_ROW_HEIGHT = 88
 
-type OnchainItemListRowInfo = {
-  key: Key | undefined
-  measurementKey: string
-}
-type ListSectionRowInfo<T extends OnchainItemListOption> = SectionRowInfo &
-  OnchainItemListRowInfo &
-  Pick<OnchainItemListProps<T>, 'renderSectionHeader'>
-type ListItemRowInfo<T extends OnchainItemListOption> = ItemRowInfo<T> &
-  OnchainItemListRowInfo &
-  Pick<OnchainItemListProps<T>, 'renderItem'>
-
-type OnchainItemListData<T extends OnchainItemListOption> = ListItemRowInfo<T> | ListSectionRowInfo<T>
 type RowHeightUpdate = {
   index: number
   measurementKey: string
   height: number
-}
-
-function isSectionHeader<T extends OnchainItemListOption>(
-  rowInfo: OnchainItemListData<T>,
-): rowInfo is ListSectionRowInfo<T> {
-  return !('renderItem' in rowInfo)
-}
-
-function isHorizontalTokenRowInfo<T extends OnchainItemListOption>(rowInfo: OnchainItemListData<T>): boolean {
-  const isHeader = isSectionHeader(rowInfo)
-  return !isHeader && isArray(rowInfo.item)
-}
-
-function isDynamicHeightRowInfo<T extends OnchainItemListOption>(rowInfo: OnchainItemListData<T>): boolean {
-  if (isHorizontalTokenRowInfo(rowInfo)) {
-    return true
-  }
-  // Rows that opt into dynamic height via `rowLayout` (e.g. expandable collections) are measured at runtime;
-  // fixed rows are not. Keeping fixed rows off the dynamic path avoids a needless ResizeObserver +
-  // per-commit getBoundingClientRect.
-  return !isSectionHeader(rowInfo) && !isArray(rowInfo.item) && rowInfo.item.rowLayout?.dynamicHeight === true
 }
 
 function getSectionHeaderHeight<T extends OnchainItemListOption>(rowInfo: ListSectionRowInfo<T>): number {
@@ -87,6 +62,7 @@ export function OnchainItemList<T extends OnchainItemListOption>({
   sectionListRef,
   expandedItems,
   focusedRowControl,
+  autoFocusFirstRowKey,
 }: OnchainItemListProps<T>): JSX.Element {
   const ref = useRef<List>(null)
   const listOuterRef = useRef<HTMLDivElement>(null)
@@ -117,17 +93,9 @@ export function OnchainItemList<T extends OnchainItemListOption>({
     return sections.reduce((acc: OnchainItemListData<T>[], section) => {
       if (section.sectionKey !== OnchainItemSectionName.SuggestedTokens) {
         const sectionInfo: ListSectionRowInfo<T> = {
-          section: {
-            sectionKey: section.sectionKey,
-            name: section.name,
-            rightElement: section.rightElement,
-            endElement: section.endElement,
-            sectionHeader: section.sectionHeader,
-            sectionHeaderHeight: section.sectionHeaderHeight,
-            icon: section.icon,
-          },
-          key: section.sectionKey,
-          measurementKey: getSectionHeaderRowKey(section.sectionKey),
+          section: toSectionHeaderProps(section),
+          key: getSectionRowId(section),
+          measurementKey: getSectionHeaderRowKey(getSectionRowId(section)),
           renderSectionHeader,
         }
         rowIndex += 1
@@ -143,7 +111,7 @@ export function OnchainItemList<T extends OnchainItemListOption>({
             index,
             key: keyExtractor?.(item, index),
             measurementKey: getSectionItemRowKey({
-              sectionKey: section.sectionKey,
+              sectionRowId: getSectionRowId(section),
               itemKey: keyExtractor?.(item, index),
               index,
             }),
@@ -187,6 +155,21 @@ export function OnchainItemList<T extends OnchainItemListOption>({
     resetRowOffsets()
   }, [resetRowOffsets, structuralSignature])
 
+  // Once per key: retries on row-set changes until a focusable row lands, then stops so late sections don't yank focus.
+  const focusRow = focusedRowControl?.setFocusedRowIndex
+  const [autoFocusedKey, setAutoFocusedKey] = useState<string | undefined>()
+  useLayoutEffect(() => {
+    if (autoFocusFirstRowKey === undefined || autoFocusFirstRowKey === autoFocusedKey || !focusRow) {
+      return
+    }
+    const firstFocusableIndex = getFirstFocusableRowIndex(itemsRef.current)
+    if (firstFocusableIndex === undefined) {
+      return
+    }
+    setAutoFocusedKey(autoFocusFirstRowKey)
+    focusRow(firstFocusableIndex)
+  }, [autoFocusFirstRowKey, autoFocusedKey, focusRow, structuralSignature])
+
   // Used for rendering the sticky header
   const activeSessionIndex = useMemo(() => {
     // oxlint-disable-next-line max-params
@@ -195,10 +178,28 @@ export function OnchainItemList<T extends OnchainItemListOption>({
     }, -1)
   }, [firstVisibleIndex, items])
 
+  // Rows measure in their layout effects, which run before the List's ref attaches on the same commit (the List
+  // mounts a render after AutoSizer reports a size). Without this, a measurement taken then never invalidates
+  // react-window's offset cache and the row stays at its pre-measurement fallback height, e.g. on a cached reopen.
+  const pendingResetIndex = useRef<number | undefined>(undefined)
+
   const updateRowHeight = useCallback(({ index, measurementKey, height }: RowHeightUpdate) => {
-    if (rowHeightMap.current[measurementKey] !== height) {
-      rowHeightMap.current[measurementKey] = height
-      ref.current?.resetAfterIndex(index)
+    if (rowHeightMap.current[measurementKey] === height) {
+      return
+    }
+    rowHeightMap.current[measurementKey] = height
+    if (ref.current) {
+      ref.current.resetAfterIndex(index)
+    } else {
+      pendingResetIndex.current = Math.min(pendingResetIndex.current ?? index, index)
+    }
+  }, [])
+
+  const setListRef = useCallback((list: List | null): void => {
+    ref.current = list
+    if (list && pendingResetIndex.current !== undefined) {
+      list.resetAfterIndex(pendingResetIndex.current)
+      pendingResetIndex.current = undefined
     }
   }, [])
 
@@ -265,12 +266,20 @@ export function OnchainItemList<T extends OnchainItemListOption>({
     [resetRowOffsets, updateRowHeight, windowWidth, activeSessionIndex],
   )
 
+  const focusRowWithKeyboard = useCallback(
+    (index: number): void => {
+      focusedRowControl?.setFocusedRowIndex(index)
+      ref.current?.scrollToItem(index)
+    },
+    [focusedRowControl],
+  )
+
   const handleArrowKeyListScrolling = useCallback(
     (event: KeyboardEvent) => {
       if (!focusedRowControl) {
         return
       }
-      const { focusedRowIndex, setFocusedRowIndex } = focusedRowControl
+      const { focusedRowIndex } = focusedRowControl
 
       if (listOuterRef.current) {
         listOuterRef.current.tabIndex = 0
@@ -278,35 +287,22 @@ export function OnchainItemList<T extends OnchainItemListOption>({
 
       event.preventDefault()
 
-      const firstItemRowIndex = items.length && items[0] && isSectionHeader(items[0]) ? 1 : 0 // if first row is a header, skip to the next row
+      const firstItemRowIndex = getFirstFocusableRowIndex(items)
+      if (firstItemRowIndex === undefined) {
+        return
+      }
       if (focusedRowIndex === undefined) {
-        setFocusedRowIndex(firstItemRowIndex)
+        focusRowWithKeyboard(firstItemRowIndex)
         return
       }
 
-      if (event.key === 'ArrowDown') {
-        const newFocusedIndex = Math.min(items.length - 1, focusedRowIndex + 1)
-        const itemAtNewFocusedIndex = items[newFocusedIndex]
-        if (itemAtNewFocusedIndex && isSectionHeader(itemAtNewFocusedIndex)) {
-          // skip focusing on section header
-          setFocusedRowIndex(Math.min(items.length - 1, focusedRowIndex + 2))
-        } else {
-          setFocusedRowIndex(newFocusedIndex)
-        }
-      }
-
-      if (event.key === 'ArrowUp') {
-        const newFocusedIndex = Math.max(firstItemRowIndex, focusedRowIndex - 1)
-        const itemAtNewFocusedIndex = items[newFocusedIndex]
-        if (itemAtNewFocusedIndex && isSectionHeader(itemAtNewFocusedIndex)) {
-          // skip focusing on section header
-          setFocusedRowIndex(Math.max(firstItemRowIndex, focusedRowIndex - 2))
-        } else {
-          setFocusedRowIndex(newFocusedIndex)
-        }
+      const direction = event.key === 'ArrowDown' ? 1 : -1
+      const nextFocusedIndex = findFocusableRowIndex({ items, from: focusedRowIndex + direction, direction })
+      if (nextFocusedIndex !== undefined) {
+        focusRowWithKeyboard(nextFocusedIndex)
       }
     },
-    [focusedRowControl, items],
+    [focusedRowControl, focusRowWithKeyboard, items],
   )
 
   useKeyDown({
@@ -318,27 +314,23 @@ export function OnchainItemList<T extends OnchainItemListOption>({
     shouldTriggerInInput: true,
   })
 
-  useEffect(() => {
-    const list = ref.current
-    const { focusedRowIndex } = focusedRowControl ?? {}
-    if (!list || focusedRowIndex === undefined) {
-      return
-    }
-
-    list.scrollToItem(focusedRowIndex)
-  }, [focusedRowControl])
-
   return (
-    <Flex grow maxHeight="100dvh">
+    // AutoSizer's own element is `height: 0; overflow: visible`, so the list's real pixels escape it and
+    // count toward an ancestor scroll container's scrollHeight. Clipping here keeps a list that ends up a
+    // fraction of a pixel too tall from putting a second scrollbar on the hosting modal card (CONS-139);
+    // popovers (hover cards, row context menus) portal out, so nothing that should escape is clipped.
+    <Flex grow maxHeight="100dvh" overflow="hidden">
       {!sections.length && ListEmptyComponent}
       <AutoSizer disableWidth>
-        {({ height }: { height: number }): JSX.Element => {
+        {({ scaledHeight }: { scaledHeight: number }): JSX.Element => {
           if (!sections.length) {
             return <Fragment />
           }
 
-          // Prevent overfitting the list, resulting in showing double scroll bar
-          const correctedHeight = height - 1
+          // Fit the list inside the pt=1 wrapper below, measuring off the FRACTIONAL height: AutoSizer's
+          // `height` is the parent's integer offsetHeight, which rounds a fractional flex height up, so
+          // `height - 1` could still exceed the space available and bring the double scrollbar back.
+          const listHeight = Math.max(0, Math.floor(scaledHeight - 1))
           // pt=1 closes the sub-pixel gap react-window leaves above section headers
           return (
             <Flex position="relative" pt={1}>
@@ -348,9 +340,9 @@ export function OnchainItemList<T extends OnchainItemListOption>({
                 )}
               </Flex>
               <List
-                ref={ref}
+                ref={setListRef}
                 outerRef={listOuterRef}
-                height={correctedHeight}
+                height={listHeight}
                 itemCount={items.length}
                 itemData={items}
                 itemKey={(index): string => items[index]?.measurementKey ?? `${index}`}
@@ -464,4 +456,5 @@ function RowInner<T extends OnchainItemListOption>({
   )
 }
 
-const Row = React.memo(RowInner, isEqual)
+// memo() erases RowInner's type parameter; the cast keeps `T` flowing from the caller's row data.
+const Row = React.memo(RowInner, isEqual) as typeof RowInner

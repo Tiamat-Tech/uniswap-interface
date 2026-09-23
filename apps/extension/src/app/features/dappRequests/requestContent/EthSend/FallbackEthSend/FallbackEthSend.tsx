@@ -1,4 +1,7 @@
 import { GasFeeResult } from '@universe/api'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { AnimatedCopySheets } from '@universe/mycelium/icons/CopySheets'
+import { ExternalLink } from '@universe/mycelium/icons/ExternalLink'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDappLastChainId } from 'src/app/features/dapp/hooks'
@@ -6,8 +9,6 @@ import { DappRequestContent } from 'src/app/features/dappRequests/DappRequestCon
 import { useDappRequestQueueContext } from 'src/app/features/dappRequests/DappRequestQueueContext'
 import { isNonZeroBigNumber } from 'src/app/features/dappRequests/requestContent/EthSend/Swap/utils'
 import { SendTransactionRequest } from 'src/app/features/dappRequests/types/DappRequestTypes'
-import { Anchor, Flex, Text, TouchableArea } from 'ui/src'
-import { AnimatedCopySheets, ExternalLink } from 'ui/src/components/icons'
 import { ContentRow } from 'uniswap/src/components/transactions/requests/ContentRow'
 import { CopyNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { ExplorerDataType, getExplorerLink } from 'uniswap/src/utils/linking'
@@ -52,7 +53,13 @@ export function FallbackEthSendRequestContent({
       }),
     [calldata, copyToClipboard],
   )
-  const showSpendingEthDetails = isNonZeroBigNumber(sending) && chainId
+  const spendingEthDetails =
+    chainId && isNonZeroBigNumber(sending)
+      ? {
+          chainId,
+          value: sending,
+        }
+      : undefined
 
   return (
     <DappRequestContent
@@ -72,17 +79,17 @@ export function FallbackEthSendRequestContent({
         p="$spacing16"
         width="100%"
       >
-        {showSpendingEthDetails && <SpendingEthDetails chainId={chainId} value={sending} />}
+        {spendingEthDetails && <SpendingEthDetails {...spendingEthDetails} />}
         {toAddress && (
           <ContentRow label={t('common.text.contract')}>
-            <Anchor href={recipientLink} rel="noopener noreferrer" target="_blank" textDecorationLine="none">
+            <Text tag="a" href={recipientLink} target="_blank" rel="noopener noreferrer" textDecorationLine="none">
               <Flex row alignItems="center" gap="$spacing8">
                 <Text color="$neutral1" variant="body4">
                   {shortenAddress({ address: toAddress })}
                 </Text>
                 <ExternalLink color="$neutral3" size="$icon.16" />
               </Flex>
-            </Anchor>
+            </Text>
           </ContentRow>
         )}
         <ContentRow label={t('dapp.request.fallback.function.label')}>

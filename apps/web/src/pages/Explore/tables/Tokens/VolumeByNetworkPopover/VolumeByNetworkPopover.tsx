@@ -1,12 +1,13 @@
 import type { RankedMultichainToken } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, Text, useIsTouchDevice } from '@universe/mycelium'
+import { AdaptiveWebPopoverContentCompat, PopoverCompat } from '@universe/mycelium/popover-compat'
+import { useShadowPropsMedium } from '@universe/mycelium/theme-hooks-compat'
 import { type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Popover, Text, useIsTouchDevice, useShadowPropsMedium } from 'ui/src'
-import { iconSizes, zIndexes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { NetworkPile } from 'uniswap/src/components/network/NetworkPile/NetworkPile'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { type TdpChainSelection, TdpChainSelectionType } from 'uniswap/src/utils/linking'
 import useResizeObserver from 'use-resize-observer'
@@ -68,6 +69,16 @@ export function VolumeByNetworkPopover({
   const onRowHover = useEvent((id: string | null) => {
     onHover(id)
     setHoverSource(id === null ? null : 'row')
+  })
+
+  // Rows unmount with the popover content, so a close mid-hover never fires their
+  // onMouseLeave — clear hover state here or the row reopens tinted with its label pre-slid.
+  const onOpenChange = useEvent((open: boolean) => {
+    if (!open) {
+      onHover(null)
+      setHoverSource(null)
+      setListSurfaceItemId(null)
+    }
   })
   const { ref: barContainerRef, width: chartWidth } = useResizeObserver<HTMLElement>()
   const navigateToTokenDetails = useNavigateToTokenDetails()
@@ -133,28 +144,28 @@ export function VolumeByNetworkPopover({
   }
 
   return (
-    <Popover
+    <PopoverCompat
       hoverable={{ delay: { open: 200 }, restMs: 100 }}
       placement="bottom-start"
       stayInFrame
       allowFlip
       offset={{ mainAxis: 10 }}
+      onOpenChange={onOpenChange}
     >
-      <Popover.Trigger>
+      <PopoverCompat.Trigger>
         <Flex cursor="default" flex={1} minWidth={0} {...stopPropagationPressProps}>
           {children}
         </Flex>
-      </Popover.Trigger>
-      <Popover.Content
-        zIndex={zIndexes.popover}
+      </PopoverCompat.Trigger>
+      <AdaptiveWebPopoverContentCompat
+        isOpen
+        // Legacy `Popover.Content` carried no `Popover.Adapt`, so it never became a bottom
+        // sheet; the compat content adapts at `media.sm` unless opted out.
+        adaptWhen={false}
         backgroundColor="$surface1"
         borderColor="$surface3"
         borderRadius="$rounded20"
         borderWidth="$spacing1"
-        enterStyle={{ y: -10, opacity: 0 }}
-        exitStyle={{ y: -10, opacity: 0 }}
-        animation="quick"
-        animateOnly={['transform', 'opacity']}
         p="$spacing16"
         px="$spacing8"
         minWidth={POPOVER_MIN_WIDTH}
@@ -211,6 +222,7 @@ export function VolumeByNetworkPopover({
                       <VolumeBreakdownRowLabel
                         primaryLabel={convertFiatAmountFormatted(volume, NumberType.FiatTokenStats)}
                         hoverLabel={getChainInfo(chainId).name}
+                        isHovered={listSurfaceItemId === itemId}
                       />
                     </Flex>
                     <Flex row alignItems="center" gap="$spacing8">
@@ -259,6 +271,7 @@ export function VolumeByNetworkPopover({
                     <VolumeBreakdownRowLabel
                       primaryLabel={convertFiatAmountFormatted(otherVolumeSum, NumberType.FiatTokenStats)}
                       hoverLabel={t('common.others')}
+                      isHovered={listSurfaceItemId === 'other'}
                     />
                   </Flex>
                   <Flex row alignItems="center" gap="$spacing8">
@@ -278,7 +291,7 @@ export function VolumeByNetworkPopover({
             </Flex>
           )}
         </Flex>
-      </Popover.Content>
-    </Popover>
+      </AdaptiveWebPopoverContentCompat>
+    </PopoverCompat>
   )
 }

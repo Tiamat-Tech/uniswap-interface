@@ -58,7 +58,7 @@ describe('Real Backend Integration - Session-authed viem transport', () => {
 
   it('eth_blockNumber succeeds through the session-authed transport', { timeout: 60_000, retry: 3 }, async () => {
     const blockNumber = await transport.request({ method: 'eth_blockNumber', params: [] })
-    expect(hexToBigInt(toHex(blockNumber))).toBeGreaterThan(0n)
+    expect(hexToBigInt(toHex(blockNumber))).toBeGreaterThan(BigInt(0))
   })
 
   it('eth_chainId returns mainnet', { timeout: 30_000, retry: 3 }, async () => {
@@ -71,6 +71,6 @@ describe('Real Backend Integration - Session-authed viem transport', () => {
       method: 'eth_call',
       params: [{ to: USDC_ADDRESS, data: DECIMALS_SELECTOR }, 'latest'],
     })
-    expect(hexToBigInt(toHex(result))).toBe(6n)
+    expect(hexToBigInt(toHex(result))).toBe(BigInt(6))
   })
 })

@@ -4,6 +4,7 @@ vi.mock('uniswap/src/features/accounts/store/hooks', () => ({
   useActiveAddresses: vi.fn(),
 }))
 
+import { Price } from '@uniswap/sdk-core'
 import { DAI, USDC_MAINNET } from 'uniswap/src/constants/tokens'
 import { useActiveAddresses } from 'uniswap/src/features/accounts/store/hooks'
 import { LimitsExpiry } from 'uniswap/src/types/limits'
@@ -130,5 +131,60 @@ describe('LimitPriceInputPanel', () => {
     expect(screen.getByText('DAI')).toBeVisible()
     expect(container.querySelector('.token-symbol-container')).toHaveTextContent('USDC')
     expect(screen.getByPlaceholderText('0')).toBeVisible()
+  })
+
+  it('disables the Market button when there is no market price, like the presets', () => {
+    const onCurrencySelect = vi.fn()
+    renderWithUniswapContext(
+      <MultichainContext.Provider value={mockMultichainContextValue}>
+        <SwapAndLimitContext.Provider
+          value={{
+            ...mockSwapAndLimitContextValue,
+            currencyState: {
+              ...mockSwapAndLimitContextValue.currencyState,
+              outputCurrency: USDC_MAINNET,
+            },
+          }}
+        >
+          <LimitContext.Provider value={mockLimitContextValue}>
+            <LimitPriceInputPanel onCurrencySelect={onCurrencySelect} />
+          </LimitContext.Provider>
+        </SwapAndLimitContext.Provider>
+      </MultichainContext.Provider>,
+    )
+    expect(screen.getByText('Market').closest('[aria-disabled="true"]')).not.toBeNull()
+    expect(screen.getByText('+1%').closest('[aria-disabled="true"]')).not.toBeNull()
+  })
+
+  it('enables the Market button when a market price is available', () => {
+    const onCurrencySelect = vi.fn()
+    renderWithUniswapContext(
+      <MultichainContext.Provider value={mockMultichainContextValue}>
+        <SwapAndLimitContext.Provider
+          value={{
+            ...mockSwapAndLimitContextValue,
+            currencyState: {
+              ...mockSwapAndLimitContextValue.currencyState,
+              outputCurrency: USDC_MAINNET,
+            },
+          }}
+        >
+          <LimitContext.Provider
+            value={{
+              ...mockLimitContextValue,
+              derivedLimitInfo: {
+                ...mockLimitContextValue.derivedLimitInfo,
+                // 1 DAI = 1 USDC
+                marketPrice: new Price(DAI, USDC_MAINNET, '1000000000000000000', '1000000'),
+              },
+            }}
+          >
+            <LimitPriceInputPanel onCurrencySelect={onCurrencySelect} />
+          </LimitContext.Provider>
+        </SwapAndLimitContext.Provider>
+      </MultichainContext.Provider>,
+    )
+    expect(screen.getByText('Market').closest('[aria-disabled="true"]')).toBeNull()
+    expect(screen.getByText('+1%').closest('[aria-disabled="true"]')).toBeNull()
   })
 })

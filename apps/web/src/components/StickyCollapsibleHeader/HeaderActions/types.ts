@@ -1,4 +1,4 @@
-import type { TextProps } from 'ui/src'
+import type { TextCompatProps as TextProps } from '@universe/mycelium'
 
 export type HeaderActionDropdownItem = {
   title: string

@@ -1,5 +1,5 @@
+import { Flex, Shine } from '@universe/mycelium'
 import Animated from 'react-native-reanimated'
-import { Flex, Shine } from 'ui/src'
 import type { AnimatedNumberProps } from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { CharRow } from 'uniswap/src/components/AnimatedNumber/native/CharRow'
 import { CHAR_SPACE_SIZE } from 'uniswap/src/components/AnimatedNumber/native/constants'

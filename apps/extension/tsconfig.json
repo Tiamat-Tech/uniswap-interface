@@ -49,6 +49,12 @@
     },
     {
       "path": "../../packages/embedded-wallet"
+    },
+    {
+      "path": "../../packages/mycelium"
+    },
+    {
+      "path": "../../packages/chains"
     }
   ],
   "compilerOptions": {

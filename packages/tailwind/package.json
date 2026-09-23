@@ -16,25 +16,26 @@
     "./fonts": "./css/fonts.css",
     "./fonts/*": "./fonts/*",
     "./types": "./src/types.ts",
-    "./internal/parity/matrix": "./src/parity/flex/matrix.ts",
-    "./internal/parity/tooltip-matrix": "./src/parity/tooltip/matrix.ts",
-    "./internal/parity/menu-matrix": "./src/parity/menu/matrix.ts",
-    "./internal/parity/option-list-matrix": "./src/parity/option-list/matrix.ts",
-    "./internal/parity/palette-drift": "./src/parity/core/palette-drift.ts",
-    "./internal/parity/class-manifest": "./src/parity/flex/class-manifest.ts",
-    "./internal/parity/touchable-area-matrix": "./src/parity/touchable-area/matrix.ts",
-    "./internal/parity/touchable-area-class-manifest": "./src/parity/touchable-area/class-manifest.ts",
-    "./internal/parity/view-class-manifest": "./src/parity/view/class-manifest.ts",
-    "./internal/parity/view-matrix": "./src/parity/view/matrix.ts"
+    "./animations": "./src/animations/curves.ts",
+    "./animations/reanimated": "./src/animations/reanimated.ts",
+    "./animations/slide-fade-presence": "./src/animations/slide-fade-presence.ts",
+    "./native-dev/class-map-miss": "./src/native-dev/class-map-miss.ts"
+  },
+  "dependencies": {
+    "@universe/environment": "workspace:^",
+    "react-native-reanimated": "4.4.3"
   },
   "peerDependencies": {
     "tailwindcss": ">=4.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/node": "4.3.2",
+    "@tailwindcss/oxide": "4.3.2",
     "@types/node": "22.19.17",
     "@vitejs/plugin-react": "5.2.0",
     "tailwindcss": "4.3.2",
-    "vitest": "3.2.1"
+    "vitest": "3.2.1",
+    "vitest-presets": "workspace:^"
   },
   "scripts": {
     "test": "nx test tailwind",

@@ -1,9 +1,9 @@
 import { MaxUint256, TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { BigNumber } from 'ethers'
 import JSBI from 'jsbi'
 import { USDC } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { SwapTradeBaseProperties } from 'uniswap/src/features/telemetry/types'
 import { transactionActions } from 'uniswap/src/features/transactions/slice'
 import {
@@ -201,6 +201,7 @@ export const mockAnalytics: SwapTradeBaseProperties = {
   token_out_symbol: 'USDC',
   estimated_network_fee_usd: '5',
   chain_id: UniverseChainId.Mainnet,
+  is_permissioned: undefined,
 }
 
 export const prepareSwapTxContext = createFixture<ValidatedSwapTxContext>()(() => ({

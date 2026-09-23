@@ -1,3 +1,4 @@
+import { Platform } from '@universe/chains'
 import { useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import {
@@ -12,7 +13,6 @@ import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledCh
 import { selectFavoriteTokens } from 'uniswap/src/features/favorites/selectors'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useCurrentLanguageInfo } from 'uniswap/src/features/language/hooks'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useAccounts, useActiveAccountAddress } from 'wallet/src/features/wallet/hooks'
 
 export function useSyncWidgetUserDefaults(): void {

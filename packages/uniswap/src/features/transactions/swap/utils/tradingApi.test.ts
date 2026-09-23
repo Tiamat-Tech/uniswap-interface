@@ -1,8 +1,8 @@
 import { CurrencyAmount, TradeType as SdkTradeType } from '@uniswap/sdk-core'
 import type { ChainedQuoteResponse } from '@universe/api'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { USDC_MAINNET, USDC_UNICHAIN } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { FrontendSupportedProtocol } from 'uniswap/src/features/transactions/swap/utils/protocols'
 import { useProtocols } from 'uniswap/src/features/transactions/swap/utils/protocols'
 import {

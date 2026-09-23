@@ -1,6 +1,6 @@
 import { type Currency, type CurrencyAmount } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { logger } from 'utilities/src/logger/logger'
 
 // Nodes report gas fees in 18-decimal native units. On chains that pay gas in a

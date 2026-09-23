@@ -1,4 +1,5 @@
 import { FeatureFlags, useFeatureFlagWithExposureLoggingDisabled } from '@universe/gating'
+import { Flex, Loader } from '@universe/mycelium'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ViewStyle } from 'react-native'
@@ -8,7 +9,6 @@ import { useScrollWindow } from 'src/screens/HomeScreen/portfolio/tabs/common/ho
 import { TabMeasuredLayout } from 'src/screens/HomeScreen/portfolio/tabs/common/TabMeasuredLayout'
 import type { PoolsTabRenderData } from 'src/screens/HomeScreen/portfolio/tabs/pools/hooks/usePoolsListRenderData'
 import { PoolPositionRow } from 'src/screens/HomeScreen/portfolio/tabs/pools/PoolPositionRow'
-import { Flex, Loader } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { ExpandoRow } from 'uniswap/src/components/ExpandoRow/ExpandoRow'
@@ -19,6 +19,7 @@ import {
   POSITION_STATUS_FILTER_TO_STATUSES,
   PositionStatusFilterValue,
 } from 'uniswap/src/features/positions/components/PositionStatusFilter'
+import { usePoolsPositionsReport } from 'uniswap/src/features/positions/hooks/usePoolsPositionsReport'
 import { filterAndSortPositions, getPositionKey } from 'uniswap/src/features/positions/utils'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
@@ -32,6 +33,8 @@ const poolPlaceholderStyle: ViewStyle = { height: POOL_POSITION_ROW_HEIGHT, widt
 interface HomeScreenPoolsTabProps {
   testID?: string
   owner: string
+  /** Whether Pools is the selected home tab; gates the positions report (the tab stays mounted). */
+  isActiveTab: boolean
   shouldLoadPools: boolean
   poolsListRenderData: PoolsTabRenderData
   onHeightChange: (height: number) => void
@@ -48,6 +51,7 @@ interface HomeScreenPoolsTabProps {
 export const HomeScreenPoolsTab = memo(function HomeScreenPoolsTabInner({
   testID,
   owner,
+  isActiveTab,
   shouldLoadPools,
   poolsListRenderData,
   onHeightChange,
@@ -63,8 +67,16 @@ export const HomeScreenPoolsTab = memo(function HomeScreenPoolsTabInner({
     evmAddress: owner,
     enabled: portfolioPoolsBalancesEnabled,
   })
-  const { positions, hiddenPositions, isFetchingNextPage, isLoadingFirstPage, hasErrorWithoutData, refetch } =
-    poolsListRenderData
+  const {
+    positions,
+    hiddenPositions,
+    isFetchingNextPage,
+    isLoadingFirstPage,
+    hasErrorWithoutData,
+    refetch,
+    pagesLoaded,
+    hasNextPage,
+  } = poolsListRenderData
   const { value: hiddenExpanded, toggle: toggleHidden } = useBooleanState(false)
 
   // Filter client-side (the query fetches every status) and keep closed positions last.
@@ -82,6 +94,15 @@ export const HomeScreenPoolsTab = memo(function HomeScreenPoolsTabInner({
     [positions],
   )
   const viewOpenPositions = useEvent(() => onStatusFilterChange(PositionStatusFilterValue.Open))
+
+  usePoolsPositionsReport({
+    positions: visiblePositions,
+    lifecycleFilter: statusFilter,
+    pagesLoaded,
+    hasMore: hasNextPage,
+    isLoading: isLoadingFirstPage,
+    enabled: isActiveTab,
+  })
 
   const isRowVisible = useScrollWindow({
     feedScrollValue,

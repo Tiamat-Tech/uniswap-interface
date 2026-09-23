@@ -2,10 +2,11 @@ import { DeepPartial } from '@apollo/client/utilities'
 import { DataTag, DefaultError, QueryKey, queryOptions, UndefinedInitialDataOptions } from '@tanstack/react-query'
 import { Currency } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
-import { ColorTokens } from 'ui/src'
+import { Platform, UniverseChainId, areAddressesEqual } from '@universe/chains'
+import { ColorTokens } from '@universe/mycelium'
 import { nativeOnChain, WRAPPED_NATIVE_CURRENCY } from 'uniswap/src/constants/tokens'
 import { MELD_NATIVE_SOL_ADDRESS_SOLANA } from 'uniswap/src/features/chains/svm/defaults'
-import { GqlChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { GqlChainId } from 'uniswap/src/features/chains/types'
 import {
   isBackendSupportedChain,
   isUniverseChainId,
@@ -14,8 +15,7 @@ import {
 } from 'uniswap/src/features/chains/utils'
 import { buildCurrency } from 'uniswap/src/features/dataApi/utils/buildCurrency'
 import { FORSupportedToken } from 'uniswap/src/features/fiatOnRamp/types'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
-import { isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
+import { isDefaultNativeAddress, isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { ExploreTab, TokenStat } from '~/types/explore'
 import { getNativeTokenDBAddress } from '~/utils/nativeTokens'
@@ -81,6 +81,8 @@ export function gqlToCurrency(token: DeepPartial<GraphQLApi.Token | TokenStat>):
     }
   }
 
+  // Fee-on-transfer data only rides GraphQL tokens; REST TokenStat rows don't carry it.
+  const feeData = 'feeData' in token ? token.feeData : undefined
   return buildCurrency({
     ...token,
     decimals: token.decimals ?? 18,
@@ -88,8 +90,8 @@ export function gqlToCurrency(token: DeepPartial<GraphQLApi.Token | TokenStat>):
     name: token.name ?? token.project?.name ?? undefined,
     chainId,
     bypassChecksum: false,
-    buyFeeBps: token.feeData?.buyFeeBps,
-    sellFeeBps: token.feeData?.sellFeeBps,
+    buyFeeBps: feeData?.buyFeeBps,
+    sellFeeBps: feeData?.sellFeeBps,
   })
 }
 
@@ -144,6 +146,13 @@ export function getTokenDetailsURL({
     if (addr === MELD_NATIVE_SOL_ADDRESS_SOLANA) {
       return NATIVE_CHAIN_ID
     }
+    // The backend can represent native currency as the zero address (or legacy 0xeee...) even on
+    // chains like Celo/Polygon whose native currency has a real token address, which
+    // isNativeCurrencyAddress doesn't recognize — no real token lives at either sentinel.
+    // Platform.EVM (not selectedChainId, which can be undefined): both sentinels are EVM-only addresses.
+    if (isDefaultNativeAddress({ address: addr, platform: Platform.EVM })) {
+      return NATIVE_CHAIN_ID
+    }
     if (selectedChainId !== undefined && isNativeCurrencyAddress(selectedChainId, addr)) {
       return NATIVE_CHAIN_ID
     }
@@ -179,12 +188,15 @@ export function unwrapToken<
     return token
   }
 
-  if (
-    !areAddressesEqual({
-      addressInput1: { address: token.address, chainId },
-      addressInput2: { address: WRAPPED_NATIVE_CURRENCY[chainId]?.address, chainId },
-    })
-  ) {
+  const isWrappedNativeAddress = areAddressesEqual({
+    addressInput1: { address: token.address, chainId },
+    addressInput2: { address: WRAPPED_NATIVE_CURRENCY[chainId]?.address, chainId },
+  })
+  // The backend is migrating native tokens from wrapped-native addresses to the zero address
+  // (e.g. ListTokens) — accept both formats, matching the isNativeCurrencyAddress shim in currencyId.ts
+  const isNativeAddress = isUniverseChainId(chainId) && isNativeCurrencyAddress(chainId, token.address)
+
+  if (!isWrappedNativeAddress && !isNativeAddress) {
     return token
   }
 

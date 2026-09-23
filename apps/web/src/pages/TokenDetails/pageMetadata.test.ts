@@ -2,8 +2,8 @@ import type { PlainMessage } from '@bufbuild/protobuf'
 import { TokenType } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import type { Token as V2Token } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import { Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import i18n from 'uniswap/src/i18n'
 import { getTokenPageDescription, getTokenPageTitle, getTokenStructuredData } from '~/pages/TokenDetails/pageMetadata'
 
@@ -103,6 +103,7 @@ describe('pages/TokenDetails/util', () => {
     const buildV2Token = (overrides: Partial<PlainMessage<V2Token>> = {}): PlainMessage<V2Token> => ({
       chainId: UniverseChainId.Mainnet,
       address: USDC_ADDRESS,
+      categoryIds: [],
       symbol: 'USDC',
       decimals: 6,
       name: 'USD Coin',

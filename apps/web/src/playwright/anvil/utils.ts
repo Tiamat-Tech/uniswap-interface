@@ -1,12 +1,12 @@
 import { WETH_ADDRESS } from '@uniswap/universal-router-sdk'
+import { UniverseChainId, normalizeTokenAddressForCache } from '@universe/chains'
 import { HexString, isValidHexString } from '@universe/encoding'
 import { DAI, USDC, USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
 import { concat, keccak256, pad, toHex } from 'viem/utils'
 import type { Address } from '~/chains'
 import { erc20Abi } from '~/chains'
 import type { AnvilClient } from '~/playwright/anvil/anvil-manager'
+
 export const ONE_MILLION_USDT = 1_000_000_000_000n
 
 /**

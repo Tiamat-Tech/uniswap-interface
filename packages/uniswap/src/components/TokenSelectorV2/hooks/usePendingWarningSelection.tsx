@@ -1,3 +1,4 @@
+import { getValidAddress } from '@universe/chains'
 import { isWebApp } from '@universe/environment'
 import { useCallback, useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
@@ -13,7 +14,6 @@ import {
   dismissedWarningTokensSelector,
 } from 'uniswap/src/features/tokens/warnings/slice/selectors'
 import TokenWarningModal from 'uniswap/src/features/tokens/warnings/TokenWarningModal'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { dismissNativeKeyboard } from 'utilities/src/device/keyboard/dismissNativeKeyboard'
 import { useIsKeyboardOpen } from 'utilities/src/device/keyboard/useIsKeyboardOpen'
 import { useEvent } from 'utilities/src/react/hooks'

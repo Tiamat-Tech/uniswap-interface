@@ -54,6 +54,9 @@ type BaseCreatePositionInfo = {
   // Protocol fee (integer pips) for the existing pool, from the poolInfo response. Undefined for a
   // not-yet-created pool (no pool to serve), so surfaces fall back to the fee curve.
   protocolFee?: number
+  // An existing pool with no distribution at the current tick; it may still hold positions further
+  // out. False for a not-yet-created pool and whenever the served liquidity is unknown.
+  poolHasNoActiveLiquidity?: boolean
   poolOrPairLoading?: boolean
   refetchPoolData: () => void
 }

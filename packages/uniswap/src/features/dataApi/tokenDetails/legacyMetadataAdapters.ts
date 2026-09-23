@@ -4,7 +4,10 @@
  * input contract regardless of whether the data came from GraphQL or REST.
  * Delete once the GraphQL path is fully retired.
  */
-import type { TokenMetadataData } from 'uniswap/src/features/dataApi/tokenDetails/tokenMetadataUtils'
+import {
+  normalizeTwitterHandle,
+  type TokenMetadataData,
+} from 'uniswap/src/features/dataApi/tokenDetails/tokenMetadataUtils'
 
 export interface LegacyTokenMetadataInput {
   name?: string
@@ -28,7 +31,7 @@ export function adaptLegacyTokenMetadata(token: LegacyTokenMetadataInput | undef
     logoUrl: token.project?.logoUrl,
     description: token.project?.description,
     homepageUrl: token.project?.homepageUrl,
-    twitterName: token.project?.twitterName,
+    twitterName: normalizeTwitterHandle(token.project?.twitterName),
     isSpam: token.project?.isSpam,
   }
 }

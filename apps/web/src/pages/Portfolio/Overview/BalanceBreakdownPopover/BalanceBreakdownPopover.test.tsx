@@ -14,17 +14,16 @@ const tokensValue: PortfolioTotalValue = { balanceUSD: 8368.94, percentChange: -
 const poolsValue: PortfolioTotalValue = { balanceUSD: 7373.05, percentChange: 1.02, absoluteChangeUSD: 75 }
 const earnValue: PortfolioTotalValue = { balanceUSD: 3259.01, percentChange: 2.2, absoluteChangeUSD: 70 }
 
-vi.mock('ui/src', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('ui/src')>()
+vi.mock('@universe/mycelium/popover-compat', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@universe/mycelium/popover-compat')>()
   const MockPopover = Object.assign(({ children }: { children: ReactNode }) => <>{children}</>, {
     Trigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-    Content: ({ children }: { children: ReactNode }) => <>{children}</>,
   })
 
   return {
     ...actual,
-    Popover: MockPopover,
-    AdaptiveWebPopoverContent: ({ children }: { children: ReactNode }) => <>{children}</>,
+    PopoverCompat: MockPopover,
+    AdaptiveWebPopoverContentCompat: ({ children }: { children: ReactNode }) => <>{children}</>,
   }
 })
 

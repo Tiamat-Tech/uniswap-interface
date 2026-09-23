@@ -1,6 +1,5 @@
+import { styled } from '@universe/mycelium/styled'
 import { useRef, useState } from 'react'
-// oxlint-disable-next-line no-restricted-imports -- styled-components needed for NFT component styling
-import styled from 'styled-components'
 
 // snapshots a src img into a canvas
 function getSnapshot({
@@ -34,22 +33,20 @@ function getSnapshot({
   }
 }
 
-const NFTGrid = styled.div`
-  display: grid;
-  grid-template: 'overlap';
-  min-height: 400px;
-`
+const NFTGrid = styled('div', {
+  platform: 'web',
+  base: "grid [grid-template:'overlap'] min-h-[400px]",
+})
 
-const NFTCanvas = styled.canvas`
-  grid-area: overlap;
-`
+const NFTCanvas = styled('canvas', {
+  platform: 'web',
+  base: '[grid-area:overlap]',
+})
 
-const NFTImage = styled.img`
-  grid-area: overlap;
-  height: 400px;
-  /* Ensures SVG appears on top of canvas. */
-  z-index: 1;
-`
+const NFTImage = styled('img', {
+  platform: 'web',
+  base: '[grid-area:overlap] h-[400px] z-[1]',
+})
 
 export function PositionNFT({ image, height: targetHeight }: { image: string; height: number }) {
   const [animate, setAnimate] = useState(false)

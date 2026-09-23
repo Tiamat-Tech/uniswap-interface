@@ -1,3 +1,6 @@
+import { Button, Flex, InputProps, spacing, Text, zIndexes } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { Lock } from '@universe/mycelium/icons/Lock'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
@@ -9,18 +12,12 @@ import { useUnlockWithBiometricCredentialMutation } from 'src/app/features/biome
 import { useUnlockWithPassword } from 'src/app/features/lockScreen/useUnlockWithPassword'
 import { OnboardingRoutes, TopLevelRoutes } from 'src/app/navigation/constants'
 import { focusOrCreateOnboardingTab } from 'src/app/navigation/focusOrCreateOnboardingTab'
-import { ExtensionState } from 'src/store/extensionReducer'
-import { Button, Flex, InputProps, Text } from 'ui/src'
-import { AlertTriangleFilled, Lock } from 'ui/src/components/icons'
-import { spacing, zIndexes } from 'ui/src/theme'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
-import { SagaStatus, useMonitoredSagaStatus } from 'uniswap/src/utils/saga'
 import { useEvent } from 'utilities/src/react/hooks'
 import { LandingBackground } from 'wallet/src/components/landing/LandingBackground'
-import { authSagaName } from 'wallet/src/features/auth/saga'
-import { AuthSagaError } from 'wallet/src/features/auth/types'
+import { InvalidPasswordError } from 'wallet/src/features/auth/unlockWallet'
 import { EditAccountAction, editAccountActions } from 'wallet/src/features/wallet/accounts/editAccountSaga'
 import { useSignerAccounts } from 'wallet/src/features/wallet/hooks'
 import { Keyring } from 'wallet/src/features/wallet/Keyring/Keyring'
@@ -65,10 +62,11 @@ export function Locked(): JSX.Element {
     [onChangePasswordText],
   )
 
-  const { status, error } = useMonitoredSagaStatus<ExtensionState>(authSagaName)
+  const { mutate: unlockWithPassword, error: unlockError } = useUnlockWithPassword(enteredPassword)
+  const onPressUnlockWithPassword = useEvent(() => unlockWithPassword())
 
-  const unlockWithPassword = useUnlockWithPassword()
-  const onPressUnlockWithPassword = useEvent(() => unlockWithPassword({ password: enteredPassword }))
+  const { mutate: unlockWithBiometricCredential, error: biometricUnlockError } =
+    useUnlockWithBiometricCredentialMutation()
 
   const [forgotPasswordModalOpen, setForgotPasswordModalOpen] = useState(false)
   const [modalStep, setModalStep] = useState(ForgotPasswordModalStep.Initial)
@@ -97,7 +95,8 @@ export function Locked(): JSX.Element {
     )
   }
 
-  const isIncorrectPassword = status === SagaStatus.Failure && error === AuthSagaError.InvalidPassword
+  const isIncorrectPassword =
+    unlockError instanceof InvalidPasswordError || biometricUnlockError instanceof InvalidPasswordError
 
   const recoveryPhraseWordCount = getExpectedMnemonicLength(associatedAccounts[0])
 
@@ -159,8 +158,6 @@ export function Locked(): JSX.Element {
       setContainerPaddingTop(newPaddingTop)
     }
   }, [availableHeight, inputHeight])
-
-  const { mutate: unlockWithBiometricCredential } = useUnlockWithBiometricCredentialMutation()
 
   return (
     <>

@@ -1,4 +1,4 @@
-import { Flex, Text } from 'ui/src'
+import { Flex, Text } from '@universe/mycelium'
 import { LearnMoreLink } from 'uniswap/src/components/text/LearnMoreLink'
 
 export function EarnInlineError({ message, learnMoreUrl }: { message: string; learnMoreUrl?: string }): JSX.Element {

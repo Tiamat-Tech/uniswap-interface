@@ -1,13 +1,13 @@
 import type { Store } from '@reduxjs/toolkit'
 import { type Currency } from '@uniswap/sdk-core'
 import type { ChainedQuoteResponse, TradingApi } from '@universe/api'
+import { Platform } from '@universe/chains'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch, useStore } from 'react-redux'
 import type { MobileState } from 'src/app/mobileReducer'
 import { useBiometricAppSettings } from 'src/features/biometrics/useBiometricAppSettings'
 import { useBiometricPrompt } from 'src/features/biometricsSettings/hooks'
-import { getIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import {
   buildEarnChainedActionTrade,
   buildEarnPlanAnalytics,
@@ -15,7 +15,6 @@ import {
   EarnPlanPriceChangeError,
   EarnPlanUnavailableError,
 } from 'uniswap/src/features/earn/planExecution'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 // oxlint-disable-next-line no-restricted-imports -- execution must read the latest persisted mode after biometrics
 import { selectIsTestnetModeEnabled } from 'uniswap/src/features/settings/selectors'
 import {
@@ -31,6 +30,7 @@ import { useAccountsStore, useActiveAddress } from 'wallet/src/features/accounts
 import { executePlanActions } from 'wallet/src/features/transactions/swap/configuredSagas'
 
 export interface MobileEarnExecuteParams {
+  attemptId: string
   earnIntent: TradingApi.EarnIntent
   inputCurrency: Currency
   outputCurrency: Currency
@@ -51,7 +51,7 @@ export function useEarnExecuteCallback(): MobileEarnExecuteCallback {
   const caip25Info = useAccountsStore((state) => state.getActiveConnector(Platform.EVM).session?.caip25Info)
   const { requiredForTransactions } = useBiometricAppSettings()
   const { trigger: biometricTrigger } = useBiometricPrompt()
-  const canExecuteEarn = useCallback(() => getIsEarnEnabled() && !selectIsTestnetModeEnabled(store.getState()), [store])
+  const canExecuteEarn = useCallback(() => !selectIsTestnetModeEnabled(store.getState()), [store])
 
   return useCallback(
     (params: MobileEarnExecuteParams) => {
@@ -111,7 +111,7 @@ export function useEarnExecuteCallback(): MobileEarnExecuteCallback {
           executePlanActions.trigger({
             address: evmAddress,
             swapTxContext: buildEarnSwapTxContext(trade),
-            analytics: buildEarnPlanAnalytics(trade),
+            analytics: buildEarnPlanAnalytics(trade, params.attemptId),
             caip25Info,
             setCurrentStep: noop,
             setSteps: noop,

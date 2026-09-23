@@ -1,13 +1,16 @@
 import { CellContext, flexRender, Row, RowData } from '@tanstack/react-table'
 import { isMobileWeb } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
+import type { SpaceValue } from '@universe/mycelium/compat'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { WifiError } from '@universe/mycelium/icons/WifiError'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { forwardRef, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, HeightAnimator, styled, Text, useSporeColors } from 'ui/src'
-import { WifiError } from 'ui/src/components/icons/WifiError'
 import { breakpoints } from 'ui/src/theme'
-import { useIsOffline } from 'utilities/src/connection/useIsOffline'
 import { ROW_HEIGHT_DESKTOP, ROW_HEIGHT_MOBILE_WEB } from '~/components/Table/constants'
 import { ErrorModal } from '~/components/Table/ErrorBox'
+import { TableBodyRenderMode, useTableBodyRenderMode } from '~/components/Table/hooks/useTableBodyRenderMode'
 import { useTableVirtualizer } from '~/components/Table/hooks/useTableVirtualizer'
 import { getCommonPinningStyles } from '~/components/Table/PinnedColumns/getCommonPinningStyles'
 import { CellContainer, DataRow, TableRowBase } from '~/components/Table/styled'
@@ -15,18 +18,28 @@ import { TableRow } from '~/components/Table/TableRow'
 import { useTableSize } from '~/components/Table/TableSizeProvider'
 import { TableTopLevelRow } from '~/components/Table/TableTopLevelRow'
 import { TableBodyProps } from '~/components/Table/types'
+import { StaticSkeletonContext } from '~/components/Tokens/loading'
 
 const ROW_GAP_PX = 2
 
-const NoDataFoundTableRow = styled(TableRowBase, {
-  justifyContent: 'center',
-})
+// The error overlay is centered against the skeleton block (top: 50%). On window-scroll tables the
+// container height equals content height, so a full-length skeleton would push the message below the
+// fold — cap the error backdrop to keep it visible without scrolling.
+const ERROR_SKELETON_ROW_COUNT = 8
+
+const NoDataFoundTableRow = forwardRef<HTMLDivElement, React.ComponentProps<typeof TableRowBase>>(
+  function NoDataFoundTableRow(props, ref) {
+    return <TableRowBase ref={ref} justifyContent="center" {...props} />
+  },
+)
 
 function TableBodyInner<T extends RowData>(
   {
     table,
     loading,
     error,
+    errorState,
+    emptyState,
     rowWrapper,
     topLevelRowWrapper,
     subRowsWrapper,
@@ -45,7 +58,7 @@ function TableBodyInner<T extends RowData>(
   const rows = table.getRowModel().rows
   const { width: tableWidth } = useTableSize()
   const colors = useSporeColors()
-  const isOffline = useIsOffline()
+  const renderMode = useTableBodyRenderMode({ loading: !!loading, error: !!error, rowCount: rows.length })
   const { t } = useTranslation()
 
   const skeletonRowHeight = useMemo(
@@ -120,6 +133,7 @@ function TableBodyInner<T extends RowData>(
         />
       ))
       const subRowsContent = subRowsWrapper ? subRowsWrapper(row, <>{subRowElements}</>) : <>{subRowElements}</>
+      const spaceGap = rowGap as SpaceValue | undefined
 
       return (
         <HeightAnimator
@@ -129,7 +143,7 @@ function TableBodyInner<T extends RowData>(
           // overflow-y: hidden would coerce overflow-x to auto (CSS disallows mixing visible with a clipped axis), breaking sticky pinned columns
           styleProps={{ '$platform-web': { overflowY: 'clip', overflowX: 'visible' } }}
         >
-          <Flex gap={rowGap} paddingTop={rowGap}>
+          <Flex gap={spaceGap} paddingTop={spaceGap}>
             {subRowsContent}
           </Flex>
         </HeightAnimator>
@@ -163,7 +177,7 @@ function TableBodyInner<T extends RowData>(
 
   const rowGap = !hasPinnedColumns ? '$spacing2' : undefined
 
-  if (isOffline && rows.length === 0) {
+  if (renderMode === TableBodyRenderMode.Offline) {
     return (
       <NoDataFoundTableRow ref={setContainerRef} py="$spacing20">
         <Flex row centered justifyContent="center" gap="$gap8" py="$spacing4">
@@ -176,11 +190,12 @@ function TableBodyInner<T extends RowData>(
     )
   }
 
-  if (loading || error) {
+  if (renderMode === TableBodyRenderMode.Skeleton) {
+    const skeletonRowCount = error ? Math.min(loadingRowsCount, ERROR_SKELETON_ROW_COUNT) : loadingRowsCount
     return (
-      <>
+      <StaticSkeletonContext.Provider value={!!error}>
         <Flex ref={setContainerRef} gap={!hasPinnedColumns ? '$spacing2' : undefined}>
-          {Array.from({ length: loadingRowsCount }, (_, rowIndex) => (
+          {Array.from({ length: skeletonRowCount }, (_, rowIndex) => (
             <DataRow key={`skeleton-row-${rowIndex}`} height={skeletonRowHeight}>
               {table.getAllColumns().map((column, columnIndex) => (
                 <CellContainer
@@ -198,17 +213,40 @@ function TableBodyInner<T extends RowData>(
             </DataRow>
           ))}
         </Flex>
-        {error && <ErrorModal header={t('common.errorLoadingData.error')} subtitle={t('error.dataUnavailable')} />}
-      </>
+        {error && (
+          <ErrorModal
+            header={errorState?.title ?? t('common.errorLoadingData.error')}
+            subtitle={errorState?.description ?? t('error.dataUnavailable')}
+            onRetry={errorState?.onRetry}
+            retryText={errorState?.retryText}
+          />
+        )}
+      </StaticSkeletonContext.Provider>
     )
   }
 
-  if (!rows.length) {
+  if (renderMode === TableBodyRenderMode.Empty) {
     return (
       <NoDataFoundTableRow ref={setContainerRef} py="$spacing20">
-        <Text variant="body2" color="$neutral2">
-          {t('error.noData')}
-        </Text>
+        {emptyState ? (
+          <Flex centered gap="$gap8" py="$spacing4">
+            {emptyState.title && (
+              <Text variant="subheading2" color="$neutral1">
+                {emptyState.title}
+              </Text>
+            )}
+            {emptyState.description && (
+              <Text variant="body3" color="$neutral2" textAlign="center">
+                {emptyState.description}
+              </Text>
+            )}
+            {emptyState.action}
+          </Flex>
+        ) : (
+          <Text variant="body2" color="$neutral2">
+            {t('error.noData')}
+          </Text>
+        )}
       </NoDataFoundTableRow>
     )
   }

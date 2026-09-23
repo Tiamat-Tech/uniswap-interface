@@ -1,5 +1,5 @@
+import { Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Text } from 'ui/src'
 import { HeaderCell } from '~/components/Table/styled'
 import type { OrderDirection } from '~/data/util'
 import { ExpandableAssetMetricHeaderTooltip } from '~/pages/Explore/rwa/table/ExpandableAssetMetricHeaderTooltip'

@@ -1,7 +1,7 @@
 import { ChainId } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { isValidHexString } from '@universe/encoding'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useCallback, useRef, useState } from 'react'
 import { useSubmitBidMutation } from 'uniswap/src/data/apiClients/dataApiService/auctions/useSubmitBidMutation'
 import { TransactionStep } from 'uniswap/src/features/transactions/steps/types'
@@ -123,7 +123,6 @@ export function useBidFormSubmit({
   const toucanSubmitBid = useToucanSubmitBid()
   const { evmAccount } = useWallet()
   const trace = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const preparedBidRef = useRef<{ signature: string; data: PreparedBidTransaction } | null>(null)
   const [submissionError, setSubmissionError] = useState<Error | undefined>(undefined)
 
@@ -204,8 +203,8 @@ export function useBidFormSubmit({
       amountRaw.toString(),
       sanitizedQ96.toString(),
       chainId.toString(),
-      accountAddress.toLowerCase(),
-      auctionContractAddress.toLowerCase(),
+      normalizeAddress(accountAddress, AddressStringFormat.Lowercase),
+      normalizeAddress(auctionContractAddress, AddressStringFormat.Lowercase),
       (currency ?? zeroAddress).toLowerCase(),
       isNativeBidToken ? '1' : '0',
     ].join(':')
@@ -219,7 +218,7 @@ export function useBidFormSubmit({
         maxPrice: sanitizedQ96.toString(),
         amount: amountRaw.toString(),
         walletAddress: accountAddress,
-        auctionContractAddress: auctionContractAddress.toLowerCase(),
+        auctionContractAddress: normalizeAddress(auctionContractAddress, AddressStringFormat.Lowercase),
         chainId: chainId as ChainId,
       })
 
@@ -267,9 +266,11 @@ export function useBidFormSubmit({
         type: TransactionType.ToucanBid,
         amountRaw: amountRaw.toString(),
         maxPriceQ96: sanitizedQ96.toString(),
-        auctionContractAddress: auctionContractAddress.toLowerCase(),
+        auctionContractAddress: normalizeAddress(auctionContractAddress, AddressStringFormat.Lowercase),
         bidTokenAddress: currencyLower,
-        auctionTokenAddress: auctionTokenAddress?.toLowerCase(),
+        auctionTokenAddress: auctionTokenAddress
+          ? normalizeAddress(auctionTokenAddress, AddressStringFormat.Lowercase)
+          : undefined,
         auctionTokenSymbol,
         requestId,
         dappInfo: {
@@ -324,7 +325,6 @@ export function useBidFormSubmit({
       maxReceivableAmount,
       tokenSymbol: auctionTokenSymbol,
       tokenName: auctionTokenName,
-      isCentralizedPricesEnabled,
     })
 
     // Return a promise that resolves/rejects when the saga completes

@@ -1,5 +1,6 @@
 import { Token } from '@uniswap/sdk-core'
 import { GraphQLApi, TradingApi } from '@universe/api'
+import { UniverseChainId, Platform } from '@universe/chains'
 import { SwapConfigKey } from '@universe/gating'
 import { MONAD_LOGO_FILLED } from 'ui/src/assets'
 import { ALL_APPS_CHAIN_SUPPORTED_APPS } from 'uniswap/src/features/chains/chainAppSupport'
@@ -11,14 +12,7 @@ import {
   getUniRpcEndpointUrl,
 } from 'uniswap/src/features/chains/evm/rpc'
 import { buildChainTokens } from 'uniswap/src/features/chains/evm/tokens'
-import {
-  GqlChainId,
-  NetworkLayer,
-  RPCType,
-  UniverseChainId,
-  UniverseChainInfo,
-} from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
+import { GqlChainId, NetworkLayer, RPCType, UniverseChainInfo } from 'uniswap/src/features/chains/types'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { buildUSDC } from 'uniswap/src/features/tokens/stablecoin'
 
@@ -63,7 +57,10 @@ export const MONAD_CHAIN_INFO = {
   rpcUrls: {
     [RPCType.Public]: { http: [getUniRpcEndpointUrl(UniverseChainId.Monad)] },
     // Default feeds wallet-connector rpc maps (cookieless). Unkeyed, CSP-allowed public endpoint.
-    [RPCType.Default]: { http: ['https://monad.drpc.org'] },
+    // Not drpc: its public Monad tier rejects `eth_estimateGas` sent without an explicit `gas`
+    // field with "user-specified gas exceeds provider limit" (-32603). Connector-signed approvals
+    // hit that path every time, since ethers omits gasLimit and lets the node pick a default.
+    [RPCType.Default]: { http: ['https://rpc.monad.xyz'] },
     [RPCType.Interface]: { http: [getQuicknodeEndpointUrl(UniverseChainId.Monad)] },
   },
   wrappedNativeCurrency: {

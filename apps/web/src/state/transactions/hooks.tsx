@@ -1,9 +1,9 @@
 /* oxlint-disable typescript/no-unnecessary-condition */
 import type { TransactionResponse } from '@ethersproject/providers'
 import type { Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
 import { selectTransactions } from 'uniswap/src/features/transactions/selectors'
 import { deleteTransaction, interfaceCancelTransaction } from 'uniswap/src/features/transactions/slice'
@@ -428,6 +428,13 @@ export function usePendingLPTransactionsChangeListener(callback: () => void) {
   const pendingLPTransactions = usePendingLPTransactions()
   const previousPendingCount = usePrevious(pendingLPTransactions.length)
   useEffect(() => {
+    // `usePrevious` is undefined on the first render, so a bare `!==` reads the mount itself as a
+    // change and fires the callback before any transaction has been added. Consumers pass a query
+    // `refetch`, and TanStack's refetch ignores `enabled` — so that spurious mount call sends a
+    // request whose gating preconditions (a connected wallet address) are not met yet.
+    if (previousPendingCount === undefined) {
+      return
+    }
     if (pendingLPTransactions.length !== previousPendingCount) {
       callback()
     }

@@ -7,8 +7,6 @@ export interface TokenMarketStats {
   marketCap: number | undefined
   fdv: number | undefined
   volume: number | undefined
-  // 'project' = CoinGecko, aggregated across networks; 'market' = Uniswap fallback.
-  volumeSource: 'project' | 'market' | undefined
   high52w: number | undefined
   low52w: number | undefined
   tvl: number | undefined
@@ -36,37 +34,19 @@ export function clamp52wWithCurrentPrice(params: {
   return { high52w, low52w }
 }
 
-// oxlint-disable-next-line complexity
-export function computeTokenMarketStats(params: {
-  market?: MarketStatsData
-  projectMarket?: MarketStatsData
-  currentPrice?: number
-  preferProjectMarketData?: boolean
-}): TokenMarketStats {
-  const { market, projectMarket, currentPrice, preferProjectMarketData } = params
-  const marketVolume = market?.volumeUsd ?? undefined
-  const projectMarketVolume = projectMarket?.volumeUsd ?? undefined
-  const resolvedPrice = preferProjectMarketData
-    ? (projectMarket?.priceUsd ?? currentPrice ?? market?.priceUsd ?? undefined)
-    : (currentPrice ?? projectMarket?.priceUsd ?? market?.priceUsd ?? undefined)
-  const marketCap = projectMarket?.marketCapUsd ?? market?.marketCapUsd ?? undefined
-  const fdv = projectMarket?.fullyDilutedValuationUsd ?? market?.fullyDilutedValuationUsd ?? undefined
-  const tvl = market?.totalValueLockedUsd ?? undefined
-  const volume = preferProjectMarketData ? (projectMarketVolume ?? marketVolume) : marketVolume
-  let volumeSource: TokenMarketStats['volumeSource']
-  if (preferProjectMarketData && projectMarketVolume !== undefined) {
-    volumeSource = 'project'
-  } else if (volume !== undefined) {
-    volumeSource = 'market'
-  } else {
-    volumeSource = undefined
-  }
-  const rawHigh52w = projectMarket?.priceHigh52wUsd ?? market?.priceHigh52wUsd ?? undefined
-  const rawLow52w = projectMarket?.priceLow52wUsd ?? market?.priceLow52wUsd ?? undefined
+export function computeTokenMarketStats(params: { market?: MarketStatsData; currentPrice?: number }): TokenMarketStats {
+  const { market, currentPrice } = params
+  const resolvedPrice = currentPrice ?? market?.priceUsd
+  const marketCap = market?.marketCapUsd
+  const fdv = market?.fullyDilutedValuationUsd
+  const tvl = market?.totalValueLockedUsd
+  const volume = market?.volumeUsd
+  const rawHigh52w = market?.priceHigh52wUsd
+  const rawLow52w = market?.priceLow52wUsd ?? undefined
   const { high52w, low52w } = clamp52wWithCurrentPrice({
     currentPrice: resolvedPrice,
     rawHigh: rawHigh52w,
     rawLow: rawLow52w,
   })
-  return { marketCap, fdv, volume, volumeSource, high52w, low52w, tvl }
+  return { marketCap, fdv, volume, high52w, low52w, tvl }
 }

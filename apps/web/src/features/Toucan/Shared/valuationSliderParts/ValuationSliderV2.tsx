@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Slider, Text } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
@@ -10,7 +10,6 @@ import {
   V2_THUMB_SIZE,
   V2_TRACK_HEIGHT,
 } from '~/features/Toucan/Shared/valuationSliderParts/constants'
-import { SliderThumbUnstyled, StyledSlider } from '~/features/Toucan/Shared/valuationSliderParts/styled'
 
 interface ValuationSliderV2Props {
   value: string
@@ -23,6 +22,14 @@ interface ValuationSliderV2Props {
   progress: number
   onValueChange: (next: number[]) => void
   onPointerDown: () => void
+  /**
+   * Replaces the price inside the thumb label. Swapping the text of a label that is always
+   * there keeps the layout still — nothing enters or leaves — and leaves no room beside the
+   * label for a long translation to collide with.
+   */
+  labelOverride?: React.ReactNode
+  /** Fired when a drag resolves past the end of the track, which the track itself clamps. */
+  onAttemptExceedMax?: () => void
 }
 
 export function ValuationSliderV2({
@@ -36,10 +43,14 @@ export function ValuationSliderV2({
   progress,
   onValueChange,
   onPointerDown,
+  labelOverride,
+  onAttemptExceedMax,
 }: ValuationSliderV2Props): JSX.Element {
   const { t } = useTranslation()
   const { convertFiatAmountFormatted } = useLocalizationContext()
   const containerRef = useRef<HTMLDivElement>(null)
+  // The legacy slider's percent (value/max); distinct from `progress`, which drives the fill.
+  const thumbFraction = totalTicks === 0 ? 0 : clampedSliderIndex / totalTicks
 
   // Token price as a number for SubscriptZeroPrice rendering
   const tokenPriceNum = useMemo(() => {
@@ -61,7 +72,13 @@ export function ValuationSliderV2({
     if (!rect || totalTicks === 0) {
       return 0
     }
-    const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const rawFraction = (clientX - rect.left) / rect.width
+    if (rawFraction > 1) {
+      // The track stops here, so the value stays legal — but the gesture asked for more,
+      // and that intent is the only thing distinguishing this from resting at the end.
+      onAttemptExceedMax?.()
+    }
+    const fraction = Math.max(0, Math.min(1, rawFraction))
     return Math.round(fraction * totalTicks)
   }
 
@@ -136,86 +153,86 @@ export function ValuationSliderV2({
             <Flex key={i} width={4} height={4} borderRadius="$roundedFull" backgroundColor="$neutral3" />
           ))}
         </Flex>
-        {/* Slider — visual only (pointerEvents none); interaction handled by the container above */}
-        <StyledSlider
-          min={0}
-          max={totalTicks}
-          step={1}
-          value={[clampedSliderIndex]}
-          onValueChange={onValueChange}
-          disabled={disabled}
-          backgroundColor="transparent"
-          width="100%"
-          height={V2_TRACK_HEIGHT}
+        {/* Thumb — visual only (pointerEvents none); interaction handled by the container above.
+            Replaces the legacy visual-only Tamagui Slider: left/translate reproduce its
+            quarter-width in-bounds thumb placement (getThumbInBoundsOffset). */}
+        <Flex
+          position="absolute"
+          top="50%"
           zIndex={2}
-          style={{ pointerEvents: 'none' }}
+          pointerEvents="none"
+          style={{
+            left: `calc(${thumbFraction * 100}% + ${V2_THUMB_SIZE / 4 - thumbFraction * (V2_THUMB_SIZE / 2)}px)`,
+            transform: 'translate(-50%, -50%)',
+          }}
         >
-          <Slider.Track style={{ background: 'none', backgroundColor: 'transparent' }} />
-          <SliderThumbUnstyled index={0}>
-            <Flex position="relative">
-              <Flex
-                width={V2_THUMB_SIZE}
-                height={V2_THUMB_SIZE}
-                borderRadius="$roundedFull"
-                backgroundColor="$neutral1"
-              />
-              {/* Positioned label below the thumb — uses a regular Flex instead of
+          <Flex position="relative">
+            <Flex
+              width={V2_THUMB_SIZE}
+              height={V2_THUMB_SIZE}
+              borderRadius="$roundedFull"
+              backgroundColor="$neutral1"
+            />
+            {/* Positioned label below the thumb — uses a regular Flex instead of
                   Tooltip to avoid portaling to the body, which causes the label
                   to render above modals. */}
+            <Flex
+              position="absolute"
+              top={V2_THUMB_SIZE + THUMB_LABEL_OFFSET}
+              {...(progress < 0.5 ? { left: -4 } : { right: -4 })}
+              pointerEvents="none"
+              style={{ width: 'max-content' }}
+            >
+              {/* Arrow up — rotated square, bottom half hidden behind the label box */}
               <Flex
-                position="absolute"
-                top={V2_THUMB_SIZE + THUMB_LABEL_OFFSET}
-                {...(progress < 0.5 ? { left: -4 } : { right: -4 })}
-                pointerEvents="none"
-                style={{ width: 'max-content' }}
+                width="$spacing8"
+                height="$spacing8"
+                backgroundColor="$surface1"
+                borderTopWidth="$spacing1"
+                borderLeftWidth="$spacing1"
+                borderColor="$surface3"
+                mb={-5}
+                zIndex={1}
+                style={{
+                  transform: 'rotate(45deg)',
+                  marginLeft: progress < 0.5 ? 6 : 'auto',
+                  marginRight: progress < 0.5 ? 'auto' : 6,
+                }}
+              />
+              <Flex
+                row
+                backgroundColor="$surface1"
+                borderWidth="$spacing1"
+                borderColor="$surface3"
+                borderRadius="$rounded6"
+                p="$spacing8"
+                alignItems="center"
+                gap="$spacing4"
+                style={{ whiteSpace: 'nowrap' }}
               >
-                {/* Arrow up — rotated square, bottom half hidden behind the label box */}
-                <Flex
-                  width="$spacing8"
-                  height="$spacing8"
-                  backgroundColor="$surface1"
-                  borderTopWidth="$spacing1"
-                  borderLeftWidth="$spacing1"
-                  borderColor="$surface3"
-                  mb={-5}
-                  zIndex={1}
-                  style={{
-                    transform: 'rotate(45deg)',
-                    marginLeft: progress < 0.5 ? 6 : 'auto',
-                    marginRight: progress < 0.5 ? 'auto' : 6,
-                  }}
-                />
-                <Flex
-                  row
-                  backgroundColor="$surface1"
-                  borderWidth="$spacing1"
-                  borderColor="$surface3"
-                  borderRadius="$rounded6"
-                  p="$spacing8"
-                  alignItems="center"
-                  gap="$spacing4"
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  <Text variant="body4" color="$neutral2" whiteSpace="nowrap">
-                    {t('toucan.bidDistribution.legend.tokenPrice')}:
-                  </Text>
-                  {tokenPriceFiatDisplay ? (
+                {labelOverride ?? (
+                  <>
                     <Text variant="body4" color="$neutral2" whiteSpace="nowrap">
-                      {tokenPriceFiatDisplay}
+                      {t('toucan.bidDistribution.legend.tokenPrice')}:
                     </Text>
-                  ) : (
-                    <SubscriptZeroPrice
-                      value={tokenPriceNum}
-                      symbol={bidTokenSymbol}
-                      variant="body4"
-                      color="$neutral2"
-                    />
-                  )}
-                </Flex>
+                    {tokenPriceFiatDisplay ? (
+                      <Text variant="body4" color="$neutral2" whiteSpace="nowrap">
+                        {tokenPriceFiatDisplay}
+                      </Text>
+                    ) : (
+                      <SubscriptZeroPrice
+                        value={tokenPriceNum}
+                        symbol={bidTokenSymbol}
+                        variant="body4"
+                        color="$neutral2"
+                      />
+                    )}
+                  </>
+                )}
               </Flex>
             </Flex>
-          </SliderThumbUnstyled>
-        </StyledSlider>
+          </Flex>
+        </Flex>
       </Flex>
     </Flex>
   )

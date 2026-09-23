@@ -1,6 +1,6 @@
+import type { UniverseChainId } from '@universe/chains'
 import { providers } from 'ethers/lib/ethers'
 import type { AccountMeta, SignerMnemonicAccountMeta } from 'uniswap/src/features/accounts/types'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { SwapTradeBaseProperties } from 'uniswap/src/features/telemetry/types'
 import {
   TransactionDetails,

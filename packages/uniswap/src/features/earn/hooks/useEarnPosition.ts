@@ -34,6 +34,11 @@ export enum EarnPositionStatus {
   Error = 'error',
 }
 
+/** Loading and Error do not confirm a position state. Hold analytics that record has_existing_position while true. */
+export function isEarnPositionUnknown(positionStatus: EarnPositionStatus): boolean {
+  return positionStatus === EarnPositionStatus.Loading || positionStatus === EarnPositionStatus.Error
+}
+
 interface UseEarnPositionResult {
   /** Authoritative "is a position available?" signal — undefined on disconnect/error/pending. */
   position: EarnPositionInfo | undefined

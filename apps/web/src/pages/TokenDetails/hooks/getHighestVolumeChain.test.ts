@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getHighestVolumeChain } from '~/pages/TokenDetails/hooks/getHighestVolumeChain'
 
 const makeEntry = (chainId: UniverseChainId): MultichainTokenEntry => ({

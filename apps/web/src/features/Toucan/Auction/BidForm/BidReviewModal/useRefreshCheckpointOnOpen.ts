@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { GetLatestCheckpointRequest } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
+import { EVMUniverseChainId, AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { auctionQueries } from 'uniswap/src/data/apiClients/dataApiService/auctions/auctionQueries'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import { logger } from 'utilities/src/logger/logger'
 
 interface UseRefreshCheckpointOnOpenParams {
@@ -46,7 +46,7 @@ export function useRefreshCheckpointOnOpen({
     const checkpointQueryOptions = auctionQueries.getLatestCheckpoint({
       params: new GetLatestCheckpointRequest({
         chainId,
-        address: auctionAddress.toLowerCase(),
+        address: normalizeAddress(auctionAddress, AddressStringFormat.Lowercase),
       }),
     })
 
@@ -74,7 +74,7 @@ export function useRefreshCheckpointOnOpen({
       const checkpointQueryOptions = auctionQueries.getLatestCheckpoint({
         params: new GetLatestCheckpointRequest({
           chainId,
-          address: auctionAddress.toLowerCase(),
+          address: normalizeAddress(auctionAddress, AddressStringFormat.Lowercase),
         }),
       })
 

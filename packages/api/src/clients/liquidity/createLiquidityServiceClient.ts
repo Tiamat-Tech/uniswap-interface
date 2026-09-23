@@ -21,10 +21,22 @@ import type {
   DecreasePositionResponse,
   HookListRequest,
   HookListResponse,
+  GetPoolHistoryPriceRequest,
+  GetPoolHistoryPriceResponse,
+  GetPoolHistoryVolumeRequest,
+  GetPoolHistoryVolumeResponse,
+  GetPoolRequest,
+  GetPoolResponse,
+  GetPoolTicksRequest,
+  GetPoolTicksResponse,
+  GetPositionRequest,
+  GetPositionResponse,
+  GetWalletPositionsBalanceRequest,
+  GetWalletPositionsBalanceResponse,
+  GetWalletPositionsRequest,
+  GetWalletPositionsResponse,
   IncreasePositionRequest,
   IncreasePositionResponse,
-  ListPoolsRequest,
-  ListPoolsResponse,
   LPApprovalRequest,
   LPApprovalResponse,
   MigrateV2ToV3LPPositionRequest,
@@ -63,7 +75,15 @@ export interface V2LiquidityServiceClient {
   decreasePosition: (params: DecreasePositionRequest) => Promise<DecreasePositionResponse>
   hookList: (params: HookListRequest) => Promise<HookListResponse>
   increasePosition: (params: IncreasePositionRequest) => Promise<IncreasePositionResponse>
-  listPools: (params: PartialMessage<ListPoolsRequest>) => Promise<ListPoolsResponse>
+  getPool: (params: PartialMessage<GetPoolRequest>) => Promise<GetPoolResponse>
+  getPoolHistoryPrice: (params: PartialMessage<GetPoolHistoryPriceRequest>) => Promise<GetPoolHistoryPriceResponse>
+  getPoolHistoryVolume: (params: PartialMessage<GetPoolHistoryVolumeRequest>) => Promise<GetPoolHistoryVolumeResponse>
+  getPoolTicks: (params: PartialMessage<GetPoolTicksRequest>) => Promise<GetPoolTicksResponse>
+  getPosition: (params: PartialMessage<GetPositionRequest>) => Promise<GetPositionResponse>
+  getWalletPositions: (params: PartialMessage<GetWalletPositionsRequest>) => Promise<GetWalletPositionsResponse>
+  getWalletPositionsBalance: (
+    params: PartialMessage<GetWalletPositionsBalanceRequest>,
+  ) => Promise<GetWalletPositionsBalanceResponse>
   migrateV2ToV3LpPosition: (params: MigrateV2ToV3LPPositionRequest) => Promise<MigrateV2ToV3LPPositionResponse>
 }
 
@@ -78,7 +98,13 @@ export function createV2LiquidityServiceClient({
     decreasePosition: (params) => rpcClient.decreasePosition(params),
     hookList: (params) => rpcClient.hookList(params),
     increasePosition: (params) => rpcClient.increasePosition(params),
-    listPools: (params) => rpcClient.listPools(params),
+    getPool: (params) => rpcClient.getPool(params),
+    getPoolHistoryPrice: (params) => rpcClient.getPoolHistoryPrice(params),
+    getPoolHistoryVolume: (params) => rpcClient.getPoolHistoryVolume(params),
+    getPoolTicks: (params) => rpcClient.getPoolTicks(params),
+    getPosition: (params) => rpcClient.getPosition(params),
+    getWalletPositions: (params) => rpcClient.getWalletPositions(params),
+    getWalletPositionsBalance: (params) => rpcClient.getWalletPositionsBalance(params),
     migrateV2ToV3LpPosition: (params) => rpcClient.migrateV2ToV3LPPosition(params),
   }
 }

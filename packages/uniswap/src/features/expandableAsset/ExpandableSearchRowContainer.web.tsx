@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { useLayoutEffect, useRef, useState } from 'react'
-import { Flex } from 'ui/src'
 import {
   EXPANDABLE_ASSET_ROW_HEIGHT_TRANSITION_MS,
   EXPANDABLE_ASSET_SHELL_HEADER_GAP_PX,

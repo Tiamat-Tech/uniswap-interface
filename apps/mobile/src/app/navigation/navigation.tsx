@@ -1,9 +1,7 @@
 // oxlint-disable typescript/no-var-requires
 import { NavigationContainer, NavigationIndependentTree } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { createStackNavigator, TransitionPresets } from '@react-navigation/stack'
-import { useEffect } from 'react'
-import { DevSettings } from 'react-native'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useSelector } from 'react-redux'
 import { AccountSwitcherModal } from 'src/app/modals/AccountSwitcherModal'
 import { BackupReminderModal } from 'src/app/modals/BackupReminderModal'
@@ -17,18 +15,18 @@ import { SmartWalletInfoModal } from 'src/app/modals/SmartWalletInfoModal'
 import { SwapModal } from 'src/app/modals/SwapModal'
 import { TokenWarningModalWrapper } from 'src/app/modals/TokenWarningModalWrapper'
 import { ViewOnlyExplainerModal } from 'src/app/modals/ViewOnlyExplainerModal'
-import { renderHeaderBackButton, renderHeaderBackImage } from 'src/app/navigation/components'
-import { fiatOnRampNavigationRef, navigationRef } from 'src/app/navigation/navigationRef'
-import { navNativeStackOptions, navStackOptions } from 'src/app/navigation/navStackOptions'
+import { renderHeaderBackButton } from 'src/app/navigation/components'
+import { fiatOnRampNavigationRef } from 'src/app/navigation/navigationRef'
+import { navNativeStackOptions } from 'src/app/navigation/navStackOptions'
+import { SettingsStackGroup } from 'src/app/navigation/SettingsStackGroup'
 import { TabsNavigator } from 'src/app/navigation/tabs/TabsNavigator'
 import { startTracking, stopTracking } from 'src/app/navigation/trackingHelpers'
 import {
   type AppStackParamList,
   type FiatOnRampStackParamList,
   type OnboardingStackParamList,
-  type SettingsStackParamList,
-  useAppStackNavigation,
 } from 'src/app/navigation/types'
+import { UnitagStackNavigator } from 'src/app/navigation/UnitagStackNavigator'
 import { FiatOnRampActionModal } from 'src/components/home/FiatOnRampActionModal'
 import { FundWalletModal } from 'src/components/home/introCards/FundWalletModal'
 import { HorizontalEdgeGestureTarget } from 'src/components/layout/screens/EdgeGestureTarget'
@@ -72,12 +70,10 @@ import { ScreenshotWarningModal } from 'src/features/onboarding/ScreenshotWarnin
 import { ScantasticModal } from 'src/features/scantastic/ScantasticModal'
 import { TestnetSwitchModal } from 'src/features/testnetMode/TestnetSwitchModal'
 import { ClaimUnitagScreen } from 'src/features/unitags/ClaimUnitagScreen'
-import { EditUnitagProfileScreen } from 'src/features/unitags/EditUnitagProfileScreen'
 import { UnitagChooseProfilePicScreen } from 'src/features/unitags/UnitagChooseProfilePicScreen'
-import { UnitagConfirmationScreen } from 'src/features/unitags/UnitagConfirmationScreen'
 import { AppLoadingScreen } from 'src/screens/AppLoadingScreen'
-import { DebugScreensScreen } from 'src/screens/DebugScreensScreen'
-import { DevScreen } from 'src/screens/DevScreen'
+import { CategoryDetailsScreen } from 'src/screens/CategoryDetailsScreen/CategoryDetailsScreen'
+import { CollectionsScreen } from 'src/screens/CollectionsScreen/CollectionsScreen'
 import { EducationScreen } from 'src/screens/EducationScreen'
 import { ExternalProfileScreen } from 'src/screens/ExternalProfileScreen'
 import { FiatOnRampConnectingScreen } from 'src/screens/FiatOnRampConnecting'
@@ -107,35 +103,20 @@ import { WelcomeWalletScreen } from 'src/screens/Onboarding/WelcomeWalletScreen'
 import { PortfolioChartDetailsScreen } from 'src/screens/PortfolioChartDetailsScreen'
 import { PositionDetailsScreen } from 'src/screens/PositionDetailsScreen/PositionDetailsScreen'
 import { ReceiveCryptoModal } from 'src/screens/ReceiveCryptoModal'
-import { SettingsCloudBackupPasswordConfirmScreen } from 'src/screens/SettingsCloudBackupPasswordConfirmScreen'
-import { SettingsCloudBackupPasswordCreateScreen } from 'src/screens/SettingsCloudBackupPasswordCreateScreen'
-import { SettingsCloudBackupProcessingScreen } from 'src/screens/SettingsCloudBackupProcessingScreen'
-import { SettingsCloudBackupStatus } from 'src/screens/SettingsCloudBackupStatus'
-import { SettingsDisclosuresScreen } from 'src/screens/SettingsDisclosuresScreen'
 import { SettingsFiatCurrencyModal } from 'src/screens/SettingsFiatCurrencyModal'
 import { SettingsLanguageModal } from 'src/screens/SettingsLanguageModal'
-import { SettingsNotificationsScreen } from 'src/screens/SettingsNotificationsScreen'
-import { SettingsPrivacyScreen } from 'src/screens/SettingsPrivacyScreen'
-import { SettingsScreen } from 'src/screens/SettingsScreen'
-import { SettingsSmartWalletScreen } from 'src/screens/SettingsSmartWalletScreen'
-import { SettingsStorageScreen } from 'src/screens/SettingsStorageScreen'
-import { SettingsViewSeedPhraseScreen } from 'src/screens/SettingsViewSeedPhraseScreen'
-import { SettingsWalletManageConnection } from 'src/screens/SettingsWalletManageConnection'
+import {
+  isStorybookBuild,
+  StorybookScreen,
+  storybookScreenEnabled,
+  useStorybookDevMenuItem,
+} from 'src/screens/StorybookScreen'
 import { TokenDetailsScreen } from 'src/screens/TokenDetailsScreen/TokenDetailsScreen'
 import { ViewPrivateKeysScreen } from 'src/screens/ViewPrivateKeys/ViewPrivateKeysScreen'
 import { WebViewScreen } from 'src/screens/WebViewScreen'
-import { useSporeColors } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
-import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
 import { OnboardingEntryPoint } from 'uniswap/src/types/onboarding'
-import {
-  FiatOnRampScreens,
-  MobileScreens,
-  OnboardingScreens,
-  UnitagScreens,
-  type UnitagStackParamList,
-} from 'uniswap/src/types/screens/mobile'
+import { FiatOnRampScreens, MobileScreens, OnboardingScreens, UnitagScreens } from 'uniswap/src/types/screens/mobile'
 import { OnboardingContextProvider } from 'wallet/src/features/onboarding/OnboardingContext'
 import { selectFinishedOnboarding } from 'wallet/src/features/wallet/selectors'
 
@@ -152,60 +133,8 @@ const enabledInEnvOrDev =
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>()
 const AppStack = createNativeStackNavigator<AppStackParamList>()
 const FiatOnRampStack = createNativeStackNavigator<FiatOnRampStackParamList>()
-const SettingsStack = createNativeStackNavigator<SettingsStackParamList>()
-const UnitagStack = createStackNavigator<UnitagStackParamList>()
 
 const fullScreenGestureDisabledOptions = { fullScreenGestureEnabled: false }
-
-function SettingsStackGroup(): JSX.Element {
-  return (
-    <SettingsStack.Navigator
-      screenOptions={{
-        ...navNativeStackOptions.noHeader,
-        fullScreenGestureEnabled: true,
-        animation: 'slide_from_right',
-      }}
-    >
-      <SettingsStack.Screen component={SettingsScreen} name={MobileScreens.Settings} />
-      <SettingsStack.Screen
-        component={SettingsWalletManageConnection}
-        name={MobileScreens.SettingsWalletManageConnection}
-      />
-      <SettingsStack.Screen component={WebViewScreen} name={MobileScreens.WebView} />
-      <SettingsStack.Screen component={DevScreen} name={MobileScreens.Dev} />
-      <SettingsStack.Screen component={DebugScreensScreen} name={MobileScreens.DebugScreens} />
-      <SettingsStack.Screen component={SettingsViewSeedPhraseScreen} name={MobileScreens.SettingsViewSeedPhrase} />
-      <SettingsStack.Screen
-        component={SettingsCloudBackupPasswordCreateScreen}
-        name={MobileScreens.SettingsCloudBackupPasswordCreate}
-      />
-      <SettingsStack.Screen
-        component={SettingsCloudBackupPasswordConfirmScreen}
-        name={MobileScreens.SettingsCloudBackupPasswordConfirm}
-      />
-      <SettingsStack.Screen
-        component={SettingsCloudBackupProcessingScreen}
-        name={MobileScreens.SettingsCloudBackupProcessing}
-      />
-      <SettingsStack.Screen component={SettingsCloudBackupStatus} name={MobileScreens.SettingsCloudBackupStatus} />
-      <SettingsStack.Screen component={SettingsSmartWalletScreen} name={MobileScreens.SettingsSmartWallet} />
-      <SettingsStack.Screen component={SettingsStorageScreen} name={MobileScreens.SettingsStorage} />
-      <SettingsStack.Screen component={SettingsPrivacyScreen} name={MobileScreens.SettingsPrivacy} />
-      <SettingsStack.Screen component={SettingsDisclosuresScreen} name={MobileScreens.SettingsDisclosures} />
-      <SettingsStack.Screen component={SettingsNotificationsScreen} name={MobileScreens.SettingsNotifications} />
-      <SettingsStack.Screen component={ViewPrivateKeysScreen} name={MobileScreens.ViewPrivateKeys} />
-      <SettingsStack.Group screenOptions={navNativeStackOptions.presentationBottomSheet}>
-        <SettingsStack.Screen component={NotificationsOSSettingsModal} name={ModalName.NotificationsOSSettings} />
-        <SettingsStack.Screen component={UnitagsIntroModal} name={ModalName.UnitagsIntro} />
-        <SettingsStack.Screen component={RestoreWalletModal} name={ModalName.RestoreWallet} />
-        {enabledInEnvOrDev &&
-          ((): JSX.Element => {
-            return <SettingsStack.Screen component={ExperimentsModal} name={ModalName.Experiments} />
-          })()}
-      </SettingsStack.Group>
-    </SettingsStack.Navigator>
-  )
-}
 
 export function FiatOnRampStackNavigator(): JSX.Element {
   return (
@@ -317,66 +246,15 @@ function OnboardingStackNavigator(): JSX.Element {
   )
 }
 
-function UnitagStackNavigator(): JSX.Element {
-  const colors = useSporeColors()
-  const insets = useAppInsets()
-
-  return (
-    <UnitagStack.Navigator>
-      <UnitagStack.Group
-        screenOptions={{
-          headerMode: 'float',
-          headerTitle: '',
-          headerBackButtonDisplayMode: 'minimal',
-          headerBackImage: renderHeaderBackImage,
-          headerStatusBarHeight: insets.top + spacing.spacing8,
-          headerTransparent: true,
-          headerTintColor: colors.neutral2.val,
-          headerLeftContainerStyle: { paddingLeft: spacing.spacing16 },
-          headerRightContainerStyle: { paddingRight: spacing.spacing16 },
-          ...TransitionPresets.SlideFromRightIOS,
-        }}
-      >
-        <UnitagStack.Screen component={ClaimUnitagScreen} name={UnitagScreens.ClaimUnitag} />
-        <UnitagStack.Screen
-          component={UnitagChooseProfilePicScreen}
-          name={UnitagScreens.ChooseProfilePicture}
-          options={{ ...TransitionPresets.ModalFadeTransition }}
-        />
-        <UnitagStack.Screen
-          component={UnitagConfirmationScreen}
-          name={UnitagScreens.UnitagConfirmation}
-          options={{ ...navStackOptions.noHeader, gestureEnabled: false }}
-        />
-        <UnitagStack.Screen
-          component={EditUnitagProfileScreen}
-          name={UnitagScreens.EditProfile}
-          options={{ ...navStackOptions.noHeader, gestureEnabled: false }}
-        />
-      </UnitagStack.Group>
-    </UnitagStack.Navigator>
-  )
-}
-
 export function AppStackNavigator(): JSX.Element {
   const finishedOnboarding = useSelector(selectFinishedOnboarding)
-  const navigation = useAppStackNavigation()
-
-  useEffect(() => {
-    // Adds a menu item to navigate to Storybook in debug builds
-    if (__DEV__) {
-      DevSettings.addMenuItem('Toggle Storybook', () => {
-        if (navigationRef.getCurrentRoute()?.name === MobileScreens.Storybook) {
-          navigation.goBack()
-        } else {
-          navigation.navigate(MobileScreens.Storybook)
-        }
-      })
-    }
-  }, [navigation])
+  useStorybookDevMenuItem()
 
   return (
     <AppStack.Navigator
+      // Storybook artifacts boot straight into Storybook, bypassing the onboarding wall.
+      // undefined in every other build, preserving the default initial route.
+      initialRouteName={isStorybookBuild ? MobileScreens.Storybook : undefined}
       screenOptions={{
         ...navNativeStackOptions.noHeader,
         fullScreenGestureEnabled: true,
@@ -384,7 +262,13 @@ export function AppStackNavigator(): JSX.Element {
         animation: 'slide_from_right',
       }}
     >
-      {finishedOnboarding && <AppStack.Screen component={TabsNavigator} name={MobileScreens.Home} />}
+      {finishedOnboarding && (
+        <AppStack.Screen
+          component={TabsNavigator}
+          name={MobileScreens.MainTabs}
+          options={navNativeStackOptions.noFreezeOnBlur}
+        />
+      )}
       <AppStack.Screen
         component={OnboardingStackNavigator}
         name={MobileScreens.OnboardingStack}
@@ -405,6 +289,18 @@ export function AppStackNavigator(): JSX.Element {
         component={TokenDetailsScreen}
         name={MobileScreens.TokenDetails}
         // Edge-only swipe-back: full-screen gesture fights the vertical list scroll on iOS and pops back on near-vertical drags.
+        options={fullScreenGestureDisabledOptions}
+      />
+      <AppStack.Screen
+        component={CategoryDetailsScreen}
+        name={MobileScreens.CategoryDetails}
+        // Edge-only swipe-back, same rationale as TokenDetails: the screen body is a vertical list.
+        options={fullScreenGestureDisabledOptions}
+      />
+      <AppStack.Screen
+        component={CollectionsScreen}
+        name={MobileScreens.Collections}
+        // Edge-only swipe-back, same rationale as TokenDetails: the screen body is a vertical list.
         options={fullScreenGestureDisabledOptions}
       />
       <AppStack.Screen component={PositionDetailsScreen} name={MobileScreens.PositionDetails} />
@@ -477,16 +373,15 @@ export function AppStackNavigator(): JSX.Element {
             return <AppStack.Screen component={ExperimentsModal} name={ModalName.Experiments} />
           })()}
       </AppStack.Group>
+      {storybookScreenEnabled && <AppStack.Screen component={StorybookScreen} name={MobileScreens.Storybook} />}
       {/* Explicitly using __DEV__ so that the bundler knows to exclude this code from release builds */}
       {__DEV__ &&
         ((): JSX.Element => {
-          const StorybookUIRoot = require('src/../.storybook').default
           const { HashcashBenchmarkScreen } = require('src/screens/HashcashBenchmarkScreen')
           const { SessionsDebugScreen } = require('src/screens/SessionsDebugScreen')
           const { UniversalListDebugScreen } = require('src/screens/UniversalListDebugScreen')
           return (
             <>
-              <AppStack.Screen component={StorybookUIRoot} name={MobileScreens.Storybook} />
               <AppStack.Screen component={HashcashBenchmarkScreen} name={MobileScreens.HashcashBenchmark} />
               <AppStack.Screen component={SessionsDebugScreen} name={MobileScreens.SessionsDebug} />
               <AppStack.Screen component={UniversalListDebugScreen} name={MobileScreens.UniversalListDebug} />

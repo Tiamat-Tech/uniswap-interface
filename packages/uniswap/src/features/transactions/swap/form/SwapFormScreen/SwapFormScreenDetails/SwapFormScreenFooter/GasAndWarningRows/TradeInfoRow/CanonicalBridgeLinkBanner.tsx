@@ -1,14 +1,17 @@
-import { Flex, Text, TouchableArea } from 'ui/src'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { useTranslation } from 'react-i18next'
 import { Arrow } from 'ui/src/components/arrow/Arrow'
-import { iconSizes, validColor } from 'ui/src/theme'
+import { validColor } from 'ui/src/theme'
+import { iconSizes } from 'ui/src/theme/iconSizes'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { useNetworkColors } from 'uniswap/src/utils/colors'
 import { openUri } from 'uniswap/src/utils/linking'
 
 export function CanonicalBridgeLinkBanner({ chainId }: { chainId: UniverseChainId }): JSX.Element | null {
+  const { t } = useTranslation()
   const { foreground } = useNetworkColors(chainId)
   const canonicalBridgeUrl = getChainInfo(chainId).bridge
 
@@ -24,7 +27,7 @@ export function CanonicalBridgeLinkBanner({ chainId }: { chainId: UniverseChainI
       <Flex row gap="$spacing8" alignItems="center">
         <NetworkLogo chainId={chainId} size={iconSizes.icon20} />
         <Text color={networkColor} variant="buttonLabel3">
-          {networkLabel} Bridge
+          {t('swap.warning.noQuotesFound.bridgeLink', { network: networkLabel })}
         </Text>
         <Arrow color={networkColor} direction="ne" size={iconSizes.icon20} />
       </Flex>

@@ -1,6 +1,6 @@
 import { permit2Address } from '@uniswap/permit2-sdk'
 import { REACTOR_ADDRESS_MAPPING } from '@uniswap/uniswapx-sdk'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { type UniverseChainId, areEvmAddressesEqual } from '@universe/chains'
 import { toSupportedDappChainId } from 'uniswap/src/features/chains/utils'
 import { TypeDefinitionSchema } from 'wallet/src/components/dappRequests/types/EIP712Types'
 import { z } from 'zod'
@@ -36,7 +36,7 @@ function isCanonicalPermit2Domain(domain: { chainId: string | number | bigint; v
     return false
   }
 
-  return domain.verifyingContract.toLowerCase() === permit2Address(chainId).toLowerCase()
+  return areEvmAddressesEqual(domain.verifyingContract, permit2Address(chainId))
 }
 
 const DomainSchema = z

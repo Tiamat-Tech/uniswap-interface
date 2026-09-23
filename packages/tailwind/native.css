@@ -18,9 +18,44 @@
  * blocks in css/variables.css — `src/tokens.parity.test.ts` enforces that.
  * (the deprecated accent3/accent3-hovered neutral1 aliases and
  * `background` are web-only by design and are deliberately absent here.)
+ *
+ * css/compat.css (the media-* variants and animate-spore-* presets) is shared
+ * with the web bundle (INFRA-3238); since INFRA-3281 patched uniwind to
+ * evaluate height range features against the window HEIGHT, its height-keyed
+ * variants work natively as-is. css/base.css must NEVER be imported here:
+ * its `@custom-variant dark (&:is(.dark *))` has no media branch and would
+ * shadow uniwind's two-branch `dark` variant, breaking `dark:` per-theme
+ * resolution under Uniwind.setTheme() (INFRA-3263).
  */
 
 @import "./css/theme.css";
+@import "./css/compat.css";
+
+/*
+ * Restore uniwind's `light` variant for the native bundle: compat.css declares
+ * the WEB spelling of `light` (`&:where(:not(:is(.dark *)))`, INFRA-3263),
+ * which must stay the LAST user variant in the web cascade — but on this entry
+ * it would shadow uniwind's two-branch `light` (last declaration per name
+ * wins, same mechanism as the media-* redeclarations above) and `light:`
+ * classes stop compiling natively, re-opening the dead `$theme-light` pool
+ * INFRA-3263 fixed. This redeclaration is byte-for-byte uniwind's own
+ * generated form (node_modules/uniwind/uniwind.css; generator
+ * src/bundler/artifacts/css/themes.ts), so the mobile entry ends up exactly
+ * where it was before compat.css joined the graph (INFRA-3238). Pinned by
+ * src/parity/native-theme-composite/native-parity.test.ts (light tier
+ * compiles + paints) and the flex/touchable-area light-pool suites.
+ */
+@custom-variant light {
+  &:where(.light, .light *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: light) {
+    &:not(:where(.light, .light *, .dark, .dark *)) {
+      @slot;
+    }
+  }
+}
 
 /*
  * Semantic aliases in uniwind theme format. uniwind requires every theme to
@@ -53,6 +88,7 @@
       --accent2: var(--color-accent2-light);
       --accent2-hovered: var(--color-accent2-hovered-light);
       --accent2-solid: var(--color-accent2-solid-light);
+      --pools-brand-green: var(--color-pools-brand-green-light);
       --success: var(--color-success-light);
       --success-hovered: var(--color-success-hovered-light);
       --success-secondary: var(--color-success-secondary-light);
@@ -87,7 +123,22 @@
       --unicon-7: var(--color-unicon-7-light);
       --unicon-8: var(--color-unicon-8-light);
       --unicon-9: var(--color-unicon-9-light);
-      --unicon-bg-opacity: 0.12;
+      --unicon-bg-opacity: 0.1216;
+
+      /* Theme-reactive shadow values (css/variables.css `:root` — lockstep-pinned
+         by src/parity/native-bundle/native-parity.test.ts). theme.css declares
+         `--shadow-*: var(--shadow-*)` at the root, which uniwind serializes as a
+         self-referential getter (RangeError on any shadow-* class); these
+         per-theme declarations override it in each theme bucket. */
+      --shadow-short: 0px 1px 6px 2px rgba(0, 0, 0, 0.03), 0px 1px 2px 0px rgba(0, 0, 0, 0.02);
+      --shadow-medium: 0px 6px 12px -3px rgba(19, 19, 19, 0.04), 0px 2px 5px -2px rgba(19, 19, 19, 0.03);
+      --shadow-large: 0px 10px 20px -5px rgba(19, 19, 19, 0.05), 0px 4px 12px -3px rgba(19, 19, 19, 0.04);
+
+      /* Theme-reactive shadow colours ($shadowColor/$shadowColorHover) —
+         literals for the same RangeError reason as the shadow values above,
+         lockstep-pinned to css/variables.css */
+      --shadow-color: rgba(0,0,0,0.15);
+      --shadow-color-hover: rgba(0,0,0,0.2);
     }
     @variant dark {
       --surface1: var(--color-surface1-dark);
@@ -111,6 +162,7 @@
       --accent2: var(--color-accent2-dark);
       --accent2-hovered: var(--color-accent2-hovered-dark);
       --accent2-solid: var(--color-accent2-solid-dark);
+      --pools-brand-green: var(--color-pools-brand-green-dark);
       --success: var(--color-success-dark);
       --success-hovered: var(--color-success-hovered-dark);
       --success-secondary: var(--color-success-secondary-dark);
@@ -145,7 +197,17 @@
       --unicon-7: var(--color-unicon-7-dark);
       --unicon-8: var(--color-unicon-8-dark);
       --unicon-9: var(--color-unicon-9-dark);
-      --unicon-bg-opacity: 0.16;
+      --unicon-bg-opacity: 0.1608;
+
+      /* Theme-reactive shadow values (css/variables.css `.dark` — see the light
+         bucket's comment). */
+      --shadow-short: 0px 1px 3px 0px rgba(0, 0, 0, 0.12), 0px 1px 2px 0px rgba(0, 0, 0, 0.24);
+      --shadow-medium: 0px 10px 15px -3px rgba(19, 19, 19, 0.54), 0px 4px 6px -2px rgba(19, 19, 19, 0.4);
+      --shadow-large: 0px 16px 24px -6px rgba(0, 0, 0, 0.6), 0px 8px 12px -4px rgba(0, 0, 0, 0.48);
+
+      /* Theme-reactive shadow colours — see the light bucket's comment */
+      --shadow-color: rgba(0,0,0,0.4);
+      --shadow-color-hover: rgba(0,0,0,0.5);
     }
   }
 }
@@ -178,6 +240,7 @@
   --color-accent2: var(--accent2);
   --color-accent2-hovered: var(--accent2-hovered);
   --color-accent2-solid: var(--accent2-solid);
+  --color-pools-brand-green: var(--pools-brand-green);
   --color-success: var(--success);
   --color-success-hovered: var(--success-hovered);
   --color-success-secondary: var(--success-secondary);
@@ -202,4 +265,6 @@
   --color-network-worldchain: var(--network-worldchain);
   --color-network-xlayer: var(--network-xlayer);
   --color-network-zora: var(--network-zora);
+  --color-shadow-color: var(--shadow-color);
+  --color-shadow-color-hover: var(--shadow-color-hover);
 }

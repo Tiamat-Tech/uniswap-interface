@@ -1,3 +1,4 @@
+import { Platform } from '@universe/chains'
 import { ensure0xHex } from '@universe/encoding'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useMemo } from 'react'
@@ -11,7 +12,6 @@ import { AccountType as ReduxAccountType } from 'uniswap/src/features/accounts/t
 import { DEFAULT_EVM_METHODS, EVM_NAMESPACE_IDENTIFIER } from 'uniswap/src/features/capabilities/caip25/constants'
 import { CAIP25Session } from 'uniswap/src/features/capabilities/caip25/types'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { isNonEmptyArray, NonEmptyArray } from 'utilities/src/primitives/array'
 import { createAccountsStoreGetters } from 'wallet/src/features/accounts/store/getters'
 import {

@@ -1,13 +1,12 @@
+import { UniverseChainId } from '@universe/chains'
+import { AnimatedFlex, getTokenValue, SpinningLoader, Text, TouchableArea } from '@universe/mycelium'
+import { CheckCircleFilled } from '@universe/mycelium/icons/CheckCircleFilled'
+import { ExternalLink } from '@universe/mycelium/icons/ExternalLink'
+import { RoundExclamation } from '@universe/mycelium/icons/RoundExclamation'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getTokenValue, SpinningLoader, Text, TouchableArea } from 'ui/src'
-import { CheckCircleFilled } from 'ui/src/components/icons/CheckCircleFilled'
-import { ExternalLink } from 'ui/src/components/icons/ExternalLink'
-import { RoundExclamation } from 'ui/src/components/icons/RoundExclamation'
-import { Flex } from 'ui/src/components/layout/Flex'
 import { SwapTypeTransactionInfo } from 'uniswap/src/components/activity/details/types'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { getCurrencyAmount, ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
@@ -38,22 +37,22 @@ export function PlanStepItem({ transactionDetails }: { transactionDetails: Trans
   const { typeInfo } = transactionDetails
 
   return (
-    <Flex row centered justifyContent="space-between" gap="$spacing12" width="100%">
+    <AnimatedFlex row centered justifyContent="space-between" gap="$spacing12" width="100%">
       {StepStatusIconMap[transactionDetails.status] ? (
-        <Flex centered width={getTokenValue(PLAN_STEP_ITEM_WIDTH)}>
+        <AnimatedFlex centered width={getTokenValue(PLAN_STEP_ITEM_WIDTH)}>
           {StepStatusIconMap[transactionDetails.status]}
-        </Flex>
+        </AnimatedFlex>
       ) : null}
-      <Flex row grow flexShrink={1} minWidth={0} alignItems="center" gap="$spacing8">
+      <AnimatedFlex row grow flexShrink={1} minWidth={0} alignItems="center" gap="$spacing8">
         <StepDescriptor info={typeInfo} chainId={transactionDetails.chainId} />
         <StepStatusBadge status={transactionDetails.status} />
-      </Flex>
+      </AnimatedFlex>
       {transactionDetails.hash && (
         <TouchableArea onPress={() => openTransactionLink(transactionDetails.hash, transactionDetails.chainId)}>
           <ExternalLink color="$neutral3" size={14} />
         </TouchableArea>
       )}
-    </Flex>
+    </AnimatedFlex>
   )
 }
 
@@ -63,7 +62,7 @@ const StepStatusIconMap: { [key in TransactionStatus]?: React.ReactNode } = {
   [TransactionStatus.AwaitingAction]: <RoundExclamation size="$icon.18" color="$statusCritical" />,
   [TransactionStatus.Pending]: <SpinningLoader unstyled size={16} />,
   [TransactionStatus.Queued]: (
-    <Flex
+    <AnimatedFlex
       width={15}
       height={15}
       borderRadius="$roundedFull"
@@ -89,11 +88,11 @@ function StepStatusBadge({ status }: { status: TransactionStatus }): JSX.Element
   const badgeContent = badgeTextMap[status]
 
   return (
-    <Flex flexShrink={0} borderRadius="$rounded6" backgroundColor="$statusCritical2" p="$spacing4">
+    <AnimatedFlex flexShrink={0} borderRadius="$rounded6" backgroundColor="$statusCritical2" p="$spacing4">
       <Text variant="buttonLabel4" color="$statusCritical">
         {badgeContent}
       </Text>
-    </Flex>
+    </AnimatedFlex>
   )
 }
 

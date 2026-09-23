@@ -1,9 +1,10 @@
 import '~/test-utils/tokens/mocks'
 import { fireEvent } from '@testing-library/react'
+import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import type { AccountsStore } from 'uniswap/src/features/accounts/store/types/AccountsState'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { useLPGeoRestriction } from '~/features/Liquidity/useLPGeoRestriction'
 import { useAccount } from '~/hooks/useAccount'
@@ -11,7 +12,11 @@ import { PoolDetailsStatsButtons } from '~/pages/PoolDetails/components/PoolDeta
 import { useMultiChainPositions } from '~/pages/PoolDetails/Pools/hooks/useMultiChainPositions'
 import { USE_DISCONNECTED_ACCOUNT } from '~/test-utils/constants'
 import { mocked } from '~/test-utils/mocked'
-import { useMultiChainPositionsReturnValue, validBEPoolToken0, validBEPoolToken1 } from '~/test-utils/pools/fixtures'
+import {
+  useMultiChainPositionsReturnValue,
+  validParsedPoolToken0,
+  validParsedPoolToken1,
+} from '~/test-utils/pools/fixtures'
 import { render, screen } from '~/test-utils/render'
 
 vi.mock('~/pages/PoolDetails/Pools/hooks/useMultiChainPositions')
@@ -26,10 +31,11 @@ const BANNER_GENERIC_HEADING = 'This token isn’t available for liquidity provi
 
 const PROPS = {
   chainId: UniverseChainId.Mainnet,
-  token0: validBEPoolToken0,
-  token1: validBEPoolToken1,
+  poolIdOrAddress: '0xpool',
+  token0: validParsedPoolToken0,
+  token1: validParsedPoolToken1,
   feeTier: 500,
-  protocolVersion: GraphQLApi.ProtocolVersion.V3,
+  protocolVersion: ProtocolVersion.V3,
 } as const
 
 function mockGeoRestriction(overrides: Partial<ReturnType<typeof useLPGeoRestriction>>): void {
@@ -80,7 +86,7 @@ describe('PoolDetailsStatsButtons geo gate (pool details CTA seam)', () => {
 
     fireEvent.click(screen.getByTestId(TestID.PoolDetailsAddLiquidityButton))
 
-    expect(globalThis.window.location.pathname).toBe('/positions/create/v3')
+    expect(globalThis.window.location.pathname).toBe('/positions/add/ethereum/0xpool')
     expect(screen.queryByTestId(TestID.LPGeoRestrictionBanner)).toBeNull()
   })
 

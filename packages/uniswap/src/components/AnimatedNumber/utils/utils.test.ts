@@ -1,4 +1,4 @@
-import { opacifyRaw } from 'ui/src/theme/color/utils'
+import { opacifyRaw } from '@universe/mycelium/theme-hooks-compat'
 import { computeCharsSizes } from 'uniswap/src/components/AnimatedNumber/utils/computeCharsSizes'
 import { getAnimatedNumberCharKey } from 'uniswap/src/components/AnimatedNumber/utils/getAnimatedNumberCharKey'
 import { getAnimatedNumberVariantMetrics } from 'uniswap/src/components/AnimatedNumber/utils/getAnimatedNumberVariantMetrics'

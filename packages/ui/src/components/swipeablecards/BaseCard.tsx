@@ -5,6 +5,11 @@ import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 export const SWIPEABLE_CARD_Y_OFFSET = 8
 const SCALE_FACTOR = 0.025
 
+// Anchor scale at the bottom edge so it stays put while the card shrinks — keeps the peek deterministic across platforms.
+// Module-scoped static style, never part of the worklet: a string transformOrigin inside the animated style throws
+// `undefined is not a function` at mount on Android over the plain-View AnimatedFlex base.
+const SCALE_ANCHOR_STYLE = { transformOrigin: 'center bottom' } as const
+
 function getScale(stackIndex: number): number {
   return 1 - stackIndex * SCALE_FACTOR
 }
@@ -72,8 +77,6 @@ export function BaseCard({
   const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateX: panOffset?.value ?? 0 }, { translateY: yOffset.value }, { scale: scale.value }],
-      // Anchor scale at the bottom edge so it stays put while the card shrinks — keeps the peek deterministic across platforms.
-      transformOrigin: 'center bottom',
     }
   }, [panOffset, scale, yOffset])
 
@@ -85,7 +88,7 @@ export function BaseCard({
   return (
     <AnimatedFlex
       minHeight={minHeightValue}
-      style={animatedStyle}
+      style={[SCALE_ANCHOR_STYLE, animatedStyle]}
       onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
     >
       {children}

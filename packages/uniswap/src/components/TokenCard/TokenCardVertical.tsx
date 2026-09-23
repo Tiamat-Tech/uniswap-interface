@@ -1,5 +1,4 @@
-import { Flex, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { Flex, iconSizes, Text } from '@universe/mycelium'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { RelativeChange } from 'uniswap/src/components/RelativeChange/RelativeChange'
 import {

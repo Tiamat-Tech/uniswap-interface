@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Text } from '../text'
 import type { UniversalListRenderItemInfo } from './types'
@@ -24,7 +25,7 @@ vi.mock('./internal/VirtualList', async () => ({
 afterEach(cleanup)
 
 const keyExtractor = (item: string): string => item
-const renderItem = ({ item }: UniversalListRenderItemInfo<string>): JSX.Element => <Text>{item}</Text>
+const renderItem = ({ item }: UniversalListRenderItemInfo<string>): ReactElement => <Text>{item}</Text>
 
 describe('UniversalList', () => {
   it('renders ListEmptyComponent when data is empty', () => {

@@ -1,6 +1,6 @@
 import { ChartPeriod } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { SegmentedControlOption } from '@universe/mycelium/segmented-control-compat'
 import { TFunction } from 'i18next'
-import { SegmentedControlOption } from 'ui/src'
 import { chartPeriodToLabel } from 'uniswap/src/features/portfolio/chartPeriod'
 import { TimePeriod } from '~/data/util'
 

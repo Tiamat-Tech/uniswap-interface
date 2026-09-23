@@ -1,6 +1,6 @@
 import { TradingApi } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { DEFAULT_WITHDRAW_CHAIN_ID } from 'uniswap/src/features/earn/constants'
 import type { EarnPositionInfo, EarnVaultTab } from 'uniswap/src/features/earn/types'
 import { getDevLogger } from 'utilities/src/logger/logger'

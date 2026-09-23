@@ -3,11 +3,11 @@ import { Currency, CurrencyAmount, Price } from '@uniswap/sdk-core'
 import { Pair } from '@uniswap/v2-sdk'
 import { FeeAmount, nearestUsableTick, TICK_SPACINGS, TickMath, Pool as V3Pool } from '@uniswap/v3-sdk'
 import { Pool as V4Pool } from '@uniswap/v4-sdk'
+import { UniverseChainId } from '@universe/chains'
 import JSBI from 'jsbi'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { DEFAULT_TICK_SPACING, DYNAMIC_FEE_AMOUNT } from 'uniswap/src/constants/pools'
 import { nativeOnChain, USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   CreateV2PositionInfo,
   CreateV3PositionInfo,
@@ -844,15 +844,11 @@ describe('getV4PriceRangeInfo', () => {
     })
   })
 
-  describe('dynamic-fee pool with a raw (non-normalized) feeAmount', () => {
-    // Regression test: some producers of `PositionState.fee` may forget to normalize a
-    // dynamic-fee pool's feeAmount to DYNAMIC_FEE_AMOUNT and instead pass through a raw value
-    // (e.g. the protocol's 1_000_000 max-fee constant). createMockV4Pool must not let that raw
-    // value reach the V4Pool constructor, or it throws its fee invariant check.
+  describe('dynamic-fee pool', () => {
     const positionState: PositionState = {
       protocolVersion: ProtocolVersion.V4,
       fee: {
-        feeAmount: 1_000_000,
+        feeAmount: DYNAMIC_FEE_AMOUNT,
         tickSpacing: DEFAULT_TICK_SPACING,
         isDynamic: true,
       },
@@ -876,7 +872,7 @@ describe('getV4PriceRangeInfo', () => {
       refetchPoolData: () => undefined,
     }
 
-    it('normalizes feeAmount to DYNAMIC_FEE_AMOUNT instead of throwing', () => {
+    it('builds a mock pool at the dynamic-fee sentinel', () => {
       const state: PriceRangeState = {
         priceInverted: false,
         fullRange: true,

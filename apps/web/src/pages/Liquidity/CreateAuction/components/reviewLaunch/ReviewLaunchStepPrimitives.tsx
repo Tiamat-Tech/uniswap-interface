@@ -1,6 +1,6 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { Edit } from '@universe/mycelium/icons/Edit'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { Edit } from 'ui/src/components/icons/Edit'
 import { useCurrentLanguageInfo } from 'uniswap/src/features/language/hooks'
 import { useLocalizedDayjs } from 'uniswap/src/features/language/localizedDayjs'
 import { formatTimeForDisplay } from '~/pages/Liquidity/CreateAuction/components/DatePicker/datePickerCardShared'

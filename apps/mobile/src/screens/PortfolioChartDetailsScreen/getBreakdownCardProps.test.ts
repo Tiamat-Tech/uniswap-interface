@@ -13,7 +13,6 @@ const NO_SCRUB = { total: undefined, tokens: undefined, pools: undefined, earn: 
 
 const baseInput = {
   poolsEnabled: true,
-  earnEnabled: false,
   poolsUnavailable: false,
   breakdown: breakdown(8368, 7373),
   scrub: NO_SCRUB,
@@ -33,15 +32,14 @@ const baseInput = {
 }
 
 describe('getBreakdownCardProps', () => {
-  it('hides the card when both category flags are off', () => {
+  it('hides the card when the pools flag is off and there is no earn balance', () => {
     expect(getBreakdownCardProps({ ...baseInput, poolsEnabled: false })).toBeUndefined()
   })
 
-  it('shows Earn while omitting pools when only Earn is enabled', () => {
+  it('shows Earn while omitting pools when the pools flag is off', () => {
     const result = getBreakdownCardProps({
       ...baseInput,
       poolsEnabled: false,
-      earnEnabled: true,
       breakdown: {
         ...breakdown(8368, 7373),
         earn: { balanceUSD: 3259, percentChange: 2.2, absoluteChangeUSD: 70 },
@@ -54,7 +52,7 @@ describe('getBreakdownCardProps', () => {
     expect(result?.pools).toBeUndefined()
   })
 
-  it('omits Earn when only pools are enabled', () => {
+  it('shows Earn alongside pools when the earn balance is positive', () => {
     const result = getBreakdownCardProps({
       ...baseInput,
       breakdown: {
@@ -64,7 +62,7 @@ describe('getBreakdownCardProps', () => {
     })
 
     expect(result?.pools).toBeDefined()
-    expect(result?.earn).toBeUndefined()
+    expect(result?.earn?.valueUSD).toBe(3259)
   })
 
   it('hides the card when pools are unavailable', () => {
@@ -136,7 +134,6 @@ describe('getBreakdownCardProps', () => {
     const result = getBreakdownCardProps({
       ...baseInput,
       poolsEnabled: false,
-      earnEnabled: true,
       breakdown: {
         ...breakdown(60, undefined),
         total: { balanceUSD: 110, percentChange: 2.2, absoluteChangeUSD: 2.4 },

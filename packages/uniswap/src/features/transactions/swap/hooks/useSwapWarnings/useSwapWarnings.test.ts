@@ -1,8 +1,8 @@
 import { CurrencyAmount } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { WarningLabel } from 'uniswap/src/components/modals/WarningModal/types'
 import { DAI, nativeOnChain, USDC } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { ProtectionResult } from 'uniswap/src/features/dataApi/safety'
 import { TokenList } from 'uniswap/src/features/dataApi/types'
 import { Locale } from 'uniswap/src/features/language/constants'
 import { getSwapWarnings } from 'uniswap/src/features/transactions/swap/hooks/useSwapWarnings/useSwapWarnings'
@@ -81,7 +81,7 @@ const blockedTokenState: DerivedSwapInfo = {
     ...swapState.currencies,
     [CurrencyField.INPUT]: {
       ...daiCurrencyInfo(),
-      safetyInfo: { tokenList: TokenList.Blocked, protectionResult: GraphQLApi.ProtectionResult.Unknown },
+      safetyInfo: { tokenList: TokenList.Blocked, protectionResult: ProtectionResult.Unknown },
     },
   },
 }

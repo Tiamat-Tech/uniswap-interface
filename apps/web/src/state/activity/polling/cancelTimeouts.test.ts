@@ -1,7 +1,7 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { getFeatureFlag } from '@universe/gating'
 import { getPublicClient } from '@wagmi/core'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import {

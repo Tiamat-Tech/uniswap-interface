@@ -1,3 +1,4 @@
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { isRawRealtimeTokenPriceMessage } from '@universe/prices/src/sources/websocket/messageParser'
 import type { PriceKey } from '@universe/prices/src/types'
 import { createPriceKey } from '@universe/prices/src/utils/tokenIdentifier'
@@ -111,7 +112,7 @@ export function createRealtimePriceJoiner(): RealtimePriceJoiner {
     const parsedTimestamp = new Date(raw.timestamp).getTime()
     const timestamp = Number.isFinite(parsedTimestamp) ? parsedTimestamp : Date.now()
 
-    const address = tokenAddress.toLowerCase()
+    const address = normalizeTokenAddressForCache(tokenAddress)
     if (address === REALTIME_RATE_TOKEN_ADDRESS) {
       return handleRateTick(chainId, priceUsd, timestamp)
     }

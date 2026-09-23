@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
+import { Lock } from '@universe/mycelium/icons/Lock'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { Lock } from 'ui/src/components/icons/Lock'
 import { MouseoverTooltip, TooltipSize } from '~/components/Tooltip'
 
 /**

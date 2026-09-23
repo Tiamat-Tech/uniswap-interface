@@ -2,12 +2,16 @@ import { PartialMessage, PlainMessage, toPlainMessage } from '@bufbuild/protobuf
 import { QueryKey, UseQueryResult, useQuery } from '@tanstack/react-query'
 import { GetPortfolioChartRequest, GetPortfolioChartResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { transformInput, WithoutWalletAccount } from '@universe/api'
+import { isRetryableSessionGateError } from '@universe/sessions'
 import { dataApiServiceClientV1 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClient'
 import { buildAccountAddressesByPlatform } from 'uniswap/src/data/apiClients/dataApiService/utils/buildAccountAddressesByPlatform'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { persistableQueryOptions } from 'utilities/src/reactQuery/persistableQueryOptions'
 import { QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
 import { ONE_MINUTE_MS } from 'utilities/src/time/time'
+
+// Each session wait can take 10 seconds, so retry only once.
+const MAX_SESSION_GATE_RETRIES = 1
 
 export type GetPortfolioChartInput = {
   input?: WithoutWalletAccount<PartialMessage<GetPortfolioChartRequest>> & {
@@ -45,6 +49,7 @@ export const getPortfolioHistoricalValueChartQuery = ({
     enabled: !!transformedInput && enabled,
     placeholderData: (prev) => prev,
     staleTime: ONE_MINUTE_MS,
+    retry: (failureCount, error) => failureCount < MAX_SESSION_GATE_RETRIES && isRetryableSessionGateError(error),
   }) as QueryOptionsResult<
     PlainMessage<GetPortfolioChartResponse> | undefined,
     Error,

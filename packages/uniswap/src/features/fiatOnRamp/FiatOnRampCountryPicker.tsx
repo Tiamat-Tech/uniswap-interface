@@ -1,7 +1,6 @@
 import { isWebPlatform } from '@universe/environment'
-import { Flex, TouchableArea, UniversalImage } from 'ui/src'
+import { Flex, TouchableArea, iconSizes, UniversalImage } from '@universe/mycelium'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { iconSizes } from 'ui/src/theme'
 import { getCountryFlagSvgUrl } from 'uniswap/src/features/fiatOnRamp/utils'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -36,7 +35,7 @@ export function FiatOnRampCountryPicker({
         py="$spacing2"
         onPress={onPress}
       >
-        <Flex row shrink alignItems="center" data-testid={TestID.FiatOnRampCountryPicker} flex={0} gap="$spacing2">
+        <Flex row shrink alignItems="center" testID={TestID.FiatOnRampCountryPicker} flex={0} gap="$spacing2">
           <Flex borderRadius="$roundedFull" overflow="hidden">
             {isWebPlatform ? (
               <img alt={countryCode} height={ICON_SIZE} src={countryFlagUrl} width={ICON_SIZE} />

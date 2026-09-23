@@ -27,8 +27,8 @@ export function useTDPRWACandidates(): RWACandidate[] {
   }, [currency, multichainToken?.addresses])
 }
 
-export function useTDPRWAMatch({ enabled = true }: { enabled?: boolean } = {}): RWAMatch | undefined {
+export function useTDPRWAMatch(): RWAMatch | undefined {
   const candidates = useTDPRWACandidates()
 
-  return useRWAMatch({ candidates, enabled })
+  return useRWAMatch({ candidates })
 }

@@ -122,14 +122,14 @@ describe('normalizeTypes', () => {
     const result = normalizeTypes(original)
     expect(result).not.toBe(original)
     // Trading API path passes the array through by reference
-    expect(result.Person).toBe(personFields)
+    expect(result['Person']).toBe(personFields)
   })
 
   it('returns fresh field objects when normalizing the Liquidity API format', () => {
     const types: PermitTypes = { Person: { fields: personFields } }
     const result = normalizeTypes(types)
     // Mapped to new array of new objects
-    expect(result.Person).not.toBe(personFields)
-    expect(result.Person).toEqual(personFields)
+    expect(result['Person']).not.toBe(personFields)
+    expect(result['Person']).toEqual(personFields)
   })
 })

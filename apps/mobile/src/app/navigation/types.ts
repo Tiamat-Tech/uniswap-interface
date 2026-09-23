@@ -1,7 +1,9 @@
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 import { useNavigation } from '@react-navigation/native'
 import type { CompositeNavigationProp, CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native'
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import type { UniverseChainId } from '@universe/chains'
 import type { PasskeyManagementModalState } from '@universe/embedded-wallet'
 import type { TokenWarningModalState } from 'src/app/modals/TokenWarningModalState'
 import type { EarnDepositAmountModalState } from 'src/components/earn/EarnDepositAmountModalState'
@@ -32,7 +34,6 @@ import type { WormholeModalProps } from 'uniswap/src/components/BridgedAsset/Wor
 import type { ReportPortfolioDataModalProps } from 'uniswap/src/components/reporting/ReportPortfolioDataModal'
 import type { ReportTokenDataModalProps } from 'uniswap/src/components/reporting/ReportTokenDataModal'
 import type { ReportTokenModalProps } from 'uniswap/src/components/reporting/ReportTokenIssueModal'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { FORServiceProvider } from 'uniswap/src/features/fiatOnRamp/types'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import type { TestnetModeModalState } from 'uniswap/src/features/testnets/TestnetModeModal'
@@ -50,6 +51,17 @@ export type ExploreScreenParams = {
   showFavorites?: boolean
   orderByMetric?: ExploreOrderBy
   chainId?: UniverseChainId
+}
+
+export type HomeScreenParams = {
+  tab?: HomeScreenTabIndex
+  earnCardExpansionRequestId?: number
+}
+
+export type TabsParamList = {
+  [MobileScreens.Home]: HomeScreenParams | undefined
+  [MobileScreens.Explore]: ExploreScreenParams | undefined
+  [MobileScreens.Activity]: undefined
 }
 
 type BackupFormParams = {
@@ -70,6 +82,10 @@ export type ExploreStackParamList = {
   [MobileScreens.ExternalProfile]: {
     address: string
   }
+  [MobileScreens.CategoryDetails]: {
+    categoryId: string
+  }
+  [MobileScreens.Collections]: undefined
   [MobileScreens.TokenDetails]: {
     currencyId: string
     isMultichainAsset?: boolean
@@ -165,14 +181,17 @@ export type OnboardingStackParamList = {
 } & SharedUnitagScreenParams
 
 export type AppStackParamList = {
-  [MobileScreens.Activity]: undefined
+  [MobileScreens.CategoryDetails]: {
+    categoryId: string
+  }
+  [MobileScreens.Collections]: undefined
   [MobileScreens.HashcashBenchmark]: undefined
   [MobileScreens.SessionsDebug]: undefined
   [MobileScreens.UniversalListDebug]: undefined
   [MobileScreens.Education]: {
     type: EducationContentType
   } & OnboardingStackBaseParams
-  [MobileScreens.Home]?: { tab?: HomeScreenTabIndex }
+  [MobileScreens.MainTabs]: NavigatorScreenParams<TabsParamList>
   [MobileScreens.OnboardingStack]: NavigatorScreenParams<OnboardingStackParamList>
   [MobileScreens.PortfolioChartDetails]: undefined
   [MobileScreens.PositionDetails]: {
@@ -261,6 +280,8 @@ export type AppStackScreenProp<Screen extends keyof AppStackParamList> = NativeS
   Screen
 >
 
+export type TabsScreenProp<Screen extends keyof TabsParamList> = BottomTabScreenProps<TabsParamList, Screen>
+
 type ExploreStackNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<ExploreStackParamList>,
   AppStackNavigationProp
@@ -286,7 +307,9 @@ export type UnitagStackScreenProp<Screen extends keyof UnitagStackParamList> = N
   Screen
 >
 
+// This aggregate covers every route that navigationRef can observe for telemetry; nested tabs are still entered through MainTabs.
 export type RootParamList = AppStackParamList &
+  TabsParamList &
   ExploreStackParamList &
   OnboardingStackParamList &
   SettingsStackParamList &

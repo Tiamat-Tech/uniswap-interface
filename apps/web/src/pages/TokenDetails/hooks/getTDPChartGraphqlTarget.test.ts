@@ -1,8 +1,8 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import type { MultichainToken } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { DEFAULT_NATIVE_ADDRESS } from 'uniswap/src/features/chains/evm/rpc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getTDPChartGraphqlTarget } from '~/pages/TokenDetails/hooks/getTDPChartGraphqlTarget'
 import { getNativeTokenDBAddress } from '~/utils/nativeTokens'
 
@@ -18,6 +18,7 @@ function buildMultichainToken(addresses: Record<string, string>): PlainMessage<M
     safety: undefined,
     fees: undefined,
     project: undefined,
+    categoryIds: [],
   }
 }
 

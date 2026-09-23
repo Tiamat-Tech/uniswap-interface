@@ -1,8 +1,8 @@
 import { isWebApp } from '@universe/environment'
+import { Flex, Switch, Text, TouchableArea } from '@universe/mycelium'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Flex, Switch, Text, TouchableArea } from 'ui/src'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import {
   useHideReportedActivitySetting,

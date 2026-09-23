@@ -1,7 +1,7 @@
+import { Flex } from '@universe/mycelium'
 import type { TFunction } from 'i18next'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { ClickableHeaderRow, HeaderArrow, HeaderSortText } from '~/components/Table/shared/SortableHeader'
 import { OrderDirection } from '~/data/util'
 import {

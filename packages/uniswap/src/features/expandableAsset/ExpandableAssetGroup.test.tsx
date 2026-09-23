@@ -1,10 +1,10 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Flex } from 'ui/src'
 import { mapRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/mapRankedRwa'
 import { makeRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/rankedRwaTestHelpers'
 import type { Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ExpandableAssetGroup } from 'uniswap/src/features/expandableAsset/ExpandableAssetGroup'
 import type { RenderIssuerRowArgs } from 'uniswap/src/features/expandableAsset/types'
 import { render } from 'uniswap/src/test/test-utils'
@@ -63,21 +63,43 @@ describe('ExpandableAssetGroup renderIssuerRow wiring', () => {
     expect(typeof captured?.menuControl?.closeMenu).toBe('function')
   })
 
-  it('embeds the category tag inside the collapsed single-issuer menu row exactly once (not duplicated by the shell)', () => {
-    // A single-issuer Stocks-shelf row shows a category tag. It must render ONCE — inside the row body, before the
-    // hover `…` (so the order is tag, then `…`) — and NOT also by the shell header.
+  it('renders the category tag exactly once per placement on a collapsed single-issuer menu row', () => {
     const rwa = rwaWithIssuers([['ondo', 'TSLAON']])
-    const { getAllByText } = render(
-      <ExpandableAssetGroup
-        asset={rwa}
-        enabledChainIds={ENABLED_CHAINS}
-        isExpanded={false}
-        onToggle={vi.fn()}
-        onParentPress={vi.fn()}
-        renderIssuerRow={(args) => <Flex testID="injected">{args.children}</Flex>}
-      />,
-    )
-    expect(getAllByText('Stocks')).toHaveLength(1)
+    for (const placement of ['right', 'title'] as const) {
+      const { getAllByText, unmount } = render(
+        <ExpandableAssetGroup
+          asset={rwa}
+          enabledChainIds={ENABLED_CHAINS}
+          isExpanded={false}
+          categoryTagPlacement={placement}
+          onToggle={vi.fn()}
+          onParentPress={vi.fn()}
+          renderIssuerRow={(args) => <Flex testID="injected">{args.children}</Flex>}
+        />,
+      )
+      expect(getAllByText('Stocks')).toHaveLength(1)
+      unmount()
+    }
+  })
+
+  it('renders the category tag exactly once per placement on a multi-issuer parent row', () => {
+    const rwa = rwaWithIssuers([
+      ['xstocks', 'TSLAX'],
+      ['ondo', 'TSLAON'],
+    ])
+    for (const placement of ['right', 'title'] as const) {
+      const { getAllByText, unmount } = render(
+        <ExpandableAssetGroup
+          asset={rwa}
+          enabledChainIds={ENABLED_CHAINS}
+          isExpanded={false}
+          categoryTagPlacement={placement}
+          onToggle={vi.fn()}
+        />,
+      )
+      expect(getAllByText('Stocks')).toHaveLength(1)
+      unmount()
+    }
   })
 
   it('passes isRowFocused=false for a single-issuer row that is not the focused row', () => {
@@ -116,6 +138,53 @@ describe('ExpandableAssetGroup renderIssuerRow wiring', () => {
       />,
     )
     expect(renderIssuerRow).not.toHaveBeenCalled()
+  })
+
+  it('renders rightElement once in a multi-issuer parent row header', () => {
+    const rwa = rwaWithIssuers([
+      ['xstocks', 'TSLAX'],
+      ['ondo', 'TSLAON'],
+    ])
+    const { getAllByTestId } = render(
+      <ExpandableAssetGroup
+        asset={rwa}
+        enabledChainIds={ENABLED_CHAINS}
+        isExpanded={false}
+        rightElement={<Flex testID="right-slot" />}
+        onToggle={vi.fn()}
+      />,
+    )
+    expect(getAllByTestId('right-slot')).toHaveLength(1)
+  })
+
+  it('embeds rightElement inside the collapsed single-issuer menu row exactly once (not duplicated by the shell)', () => {
+    const rwa = rwaWithIssuers([['ondo', 'TSLAON']])
+    const { getAllByTestId, unmount } = render(
+      <ExpandableAssetGroup
+        asset={rwa}
+        enabledChainIds={ENABLED_CHAINS}
+        isExpanded={false}
+        rightElement={<Flex testID="right-slot" />}
+        onToggle={vi.fn()}
+        onParentPress={vi.fn()}
+        renderIssuerRow={(args) => <Flex testID="injected">{args.children}</Flex>}
+      />,
+    )
+    expect(getAllByTestId('right-slot')).toHaveLength(1)
+    unmount()
+    // A row that drops its children drops the right slot too — it lives in the row body, not the shell header.
+    const { queryByTestId } = render(
+      <ExpandableAssetGroup
+        asset={rwa}
+        enabledChainIds={ENABLED_CHAINS}
+        isExpanded={false}
+        rightElement={<Flex testID="right-slot" />}
+        onToggle={vi.fn()}
+        onParentPress={vi.fn()}
+        renderIssuerRow={() => <Flex testID="injected" />}
+      />,
+    )
+    expect(queryByTestId('right-slot')).toBeNull()
   })
 
   it('forwards renderIssuerRow to the expanded multi-issuer sub-rows with ownsTouchable=true (no menuControl)', () => {

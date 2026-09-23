@@ -1,7 +1,7 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import type { UniverseChainId } from '@universe/chains'
 import { useCallback } from 'react'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { useCopyClipboard } from 'utilities/src/react/useCopyClipboard'

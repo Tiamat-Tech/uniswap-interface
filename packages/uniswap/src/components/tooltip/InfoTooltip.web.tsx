@@ -1,6 +1,9 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import type { PopoverCompatPlacement as TooltipPlacement } from '@universe/mycelium/tooltip-compat'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { PropsWithChildren } from 'react'
-import { Flex, type PopperProps, Text, Tooltip, useMedia } from 'ui/src'
 import { InfoTooltipProps } from 'uniswap/src/components/tooltip/InfoTooltipProps'
 
 const TOOLTIP_REST_MS = 20
@@ -23,7 +26,7 @@ export function InfoTooltip({
   // On xsmall screens, if tooltip placement is right or left
   // Override b/c the tooltip will overflow off the screen
   const media = useMedia()
-  const alignmentsToOverride = ['left', 'right'] as PopperProps['placement'][]
+  const alignmentsToOverride = ['left', 'right'] as TooltipPlacement[]
 
   if (placement && alignmentsToOverride.includes(placement) && media.xs) {
     placement = 'top'

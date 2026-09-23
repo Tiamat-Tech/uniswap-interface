@@ -13,28 +13,39 @@ function fakeSession(behavior: { ready?: () => Promise<void>; recover?: () => Pr
   }
 }
 
-interface CapturedCall {
-  level: string
-  event: string
+interface LogExtras {
   tags?: { source?: string }
   extra?: Record<string, unknown>
+}
+
+interface CapturedCall extends LogExtras {
+  level: string
+  event: string
+}
+
+/** The gate passes its structured payload as the first variadic arg of logger.info/warn. */
+function readExtras(args: unknown[]): LogExtras {
+  const [first] = args
+  return typeof first === 'object' && first !== null ? (first as LogExtras) : {}
 }
 
 function fakeLogger(): { logger: Logger; calls: CapturedCall[] } {
   const calls: CapturedCall[] = []
   const record =
-    (level: string) =>
-    (
-      _file: string,
-      event: string,
-      _msg: string,
-      extras?: { tags?: { source?: string }; extra?: Record<string, unknown> },
-    ): void => {
-      calls.push({ level, event, tags: extras?.tags, extra: extras?.extra })
+    (level: string): Logger['info'] =>
+    (_file, event, _msg, ...args): void => {
+      const { tags, extra } = readExtras(args)
+      calls.push({ level, event, tags, extra })
     }
   return {
     calls,
-    logger: { info: record('info'), warn: record('warn'), error: record('error'), debug: record('debug') } as Logger,
+    logger: {
+      debug: record('debug'),
+      info: record('info'),
+      warn: record('warn'),
+      error: () => {},
+      setDatadogEnabled: () => {},
+    },
   }
 }
 
@@ -79,7 +90,9 @@ describe('gated (throw-based)', () => {
     let attempts = 0
     const call = vi.fn(async () => {
       attempts++
-      if (attempts === 1) throw new Error('401')
+      if (attempts === 1) {
+        throw new Error('401')
+      }
       return 'ok'
     })
     const result = await gated({ ...baseOpts, session: fakeSession(), call, getLogger: () => logger })

@@ -1,6 +1,6 @@
 /**
- * Web entry for the tooltip compat — mirrors the base index.ts (web is the
- * real platform for mycelium; the native leg is a throwing stub, see
+ * Web entry for the tooltip compat — mirrors the base index.ts. The native
+ * leg is real since INFRA-3514 (legacy pass-through/null contract, see
  * index.native.ts). Keep the export list in sync with index.ts.
  */
 export {
@@ -20,6 +20,7 @@ export type {
   PopoverCompatPlacement,
   TooltipAnimationDirection,
   TooltipArrowCompatProps,
+  TooltipCompatConfigContextValue,
   TooltipCompatDelay,
   TooltipCompatProps,
   TooltipCompatTriggerProps,
@@ -27,4 +28,4 @@ export type {
   TooltipContentOwnProps,
   TooltipRootInertProps,
 } from './props'
-export { TooltipCompat, TooltipCompatConfigContext, type TooltipCompatConfigContextValue } from './TooltipCompat'
+export { TooltipCompat, TooltipCompatConfigContext } from './TooltipCompat.web'

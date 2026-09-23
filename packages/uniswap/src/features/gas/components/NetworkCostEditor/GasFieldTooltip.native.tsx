@@ -1,6 +1,6 @@
+import { Flex, TouchableArea } from '@universe/mycelium'
+import { InfoCircle } from '@universe/mycelium/icons/InfoCircle'
 import { useTranslation } from 'react-i18next'
-import { Flex, TouchableArea } from 'ui/src'
-import { InfoCircle } from 'ui/src/components/icons/InfoCircle'
 import { InfoLinkModal } from 'uniswap/src/components/modals/InfoLinkModal'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import type { GasFieldTooltipProps } from 'uniswap/src/features/gas/components/NetworkCostEditor/GasFieldTooltip'

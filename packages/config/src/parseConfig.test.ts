@@ -412,6 +412,8 @@ describe('parseConfig', () => {
           // @ts-expect-error -- 'notAField' is not a key of the schema shape
           [Environment.Production]: { required: ['notAField'] },
         },
+        // @ts-expect-error -- the bad key above leaves no matching overload, and
+        // TypeScript reports that against the property that tells them apart
         extendBaseConfig: false,
       })
 

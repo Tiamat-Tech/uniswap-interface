@@ -35,10 +35,14 @@ vi.mock('uniswap/src/features/accounts/store/hooks', () => ({
   useActiveAccount: vi.fn(),
 }))
 
-vi.mock('uniswap/src/features/platforms/utils/chains', () => ({
-  isSVMChain: vi.fn(),
-  chainIdToPlatform: vi.fn(),
-}))
+vi.mock('@universe/chains', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@universe/chains')>()
+  return {
+    ...actual,
+    isSVMChain: vi.fn(),
+    chainIdToPlatform: vi.fn(),
+  }
+})
 
 vi.mock('uniswap/src/contexts/ShowGetStartedContext', () => ({
   useShowGetStarted: vi.fn().mockReturnValue(false),
@@ -132,12 +136,12 @@ vi.mock('utilities/src/react/hooks', () => ({
   useEvent: <T extends (...args: never[]) => unknown>(handler: T): T => handler,
 }))
 
+import { chainIdToPlatform, isSVMChain } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useColorsFromTokenColor } from 'ui/src'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { useShowGetStarted } from 'uniswap/src/contexts/ShowGetStartedContext'
 import { useActiveAccount, useConnectionStatus } from 'uniswap/src/features/accounts/store/hooks'
-import { chainIdToPlatform, isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { useIsShowingWebFORNudge, useIsWebFORNudgeEnabled } from 'uniswap/src/features/providers/webForNudgeProvider'
 import { useTransactionModalContext } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext'
 import { useIsAmountSelectionInvalid } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/hooks/useIsAmountSelectionInvalid'

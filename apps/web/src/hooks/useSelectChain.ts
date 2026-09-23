@@ -1,13 +1,18 @@
+import { UniverseChainId, isSVMChain, EVMUniverseChainId } from '@universe/chains'
 import { useIsSupportedChainIdCallback } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
-import { EVMUniverseChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
-import { isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { logger } from 'utilities/src/logger/logger'
 import { useEvent } from 'utilities/src/react/hooks'
+import { promiseTimeout } from 'utilities/src/time/timing'
 import { UserRejectedRequestError } from 'viem'
 import { useSwitchChain as useSwitchChainWagmi } from 'wagmi'
 import { useAccount } from '~/hooks/useAccount'
 import { popupRegistry } from '~/state/popups/registry'
 import { PopupType } from '~/state/popups/types'
+
+// Some injected providers (e.g. Binance in-app browser) never settle a `wallet_switchEthereumChain`
+// or `wallet_addEthereumChain` request that the user dismisses natively (Android back button), which
+// would otherwise leave callers awaiting this promise (e.g. transaction sagas) blocked forever.
+const SWITCH_CHAIN_TIMEOUT_MS = 60 * 1000
 
 export function useSelectChain() {
   const isSupportedChainCallback = useIsSupportedChainIdCallback()
@@ -32,20 +37,27 @@ export function useSelectChain() {
         return true
       }
 
-      await new Promise<void>((resolve, reject) => {
-        switchChain(
-          { chainId: targetChain as EVMUniverseChainId },
-          {
-            onSettled(_: unknown, error: unknown) {
-              if (error) {
-                reject(error)
-              } else {
-                resolve()
-              }
+      const switched = await promiseTimeout(
+        new Promise<boolean>((resolve, reject) => {
+          switchChain(
+            { chainId: targetChain as EVMUniverseChainId },
+            {
+              onSettled(_: unknown, error: unknown) {
+                if (error) {
+                  reject(error)
+                } else {
+                  resolve(true)
+                }
+              },
             },
-          },
-        )
-      })
+          )
+        }),
+        SWITCH_CHAIN_TIMEOUT_MS,
+      )
+
+      if (switched === null) {
+        throw new Error(`Timed out switching to chain ${targetChain}`)
+      }
 
       return true
     } catch (error) {

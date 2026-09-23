@@ -1,5 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { Link } from 'react-router'
-import { Flex, Separator, Text } from 'ui/src'
+import { Separator } from 'ui/src'
 import { ElementName, InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'

@@ -12,17 +12,13 @@ import {
   Experiments,
   getDynamicConfigValue,
   getIsHashcashSolverEnabled,
-  getIsSessionServiceEnabled,
-  getIsSessionsPerformanceTrackingEnabled,
-  getIsSessionUpgradeAutoEnabled,
-  getIsTurnstileSolverEnabled,
   getStatsigClient,
   StatsigCustomAppValue,
   type StatsigUser,
   Storage,
-  useIsSessionServiceEnabled,
   WALLET_FEATURE_FLAG_NAMES,
 } from '@universe/gating'
+import { FloatingOverlayProvider } from '@universe/mycelium/floating-overlay'
 import {
   type ChallengeSolver,
   ChallengeType,
@@ -56,6 +52,7 @@ import { useIsPartOfNavigationTree } from 'src/app/navigation/hooks'
 import { AppStackNavigator } from 'src/app/navigation/navigation'
 import { NavigationContainer } from 'src/app/navigation/NavigationContainer'
 import { store } from 'src/app/store'
+import { installUniwindClassMapMissDevWarning } from 'src/app/uniwindClassMapMissDevWarning'
 import { TraceUserProperties } from 'src/components/Trace/TraceUserProperties'
 import { initAppsFlyer } from 'src/features/analytics/appsflyer'
 import { useLogMissingMnemonic } from 'src/features/analytics/useLogMissingMnemonic'
@@ -85,10 +82,12 @@ import { TestnetModeBanner } from 'uniswap/src/components/banners/TestnetModeBan
 import { BlankUrlProvider } from 'uniswap/src/contexts/UrlContext'
 import { initializePortfolioQueryOverrides } from 'uniswap/src/data/apiClients/dataApiService/balances/portfolioBalanceOverrides'
 import { useCurrentAppearanceSetting, useSelectedColorScheme } from 'uniswap/src/features/appearance/hooks'
+import { AppearanceSettingType } from 'uniswap/src/features/appearance/slice'
 import { StatsigProviderWrapper } from 'uniswap/src/features/gating/StatsigProviderWrapper'
 import { mapLanguageToLocale } from 'uniswap/src/features/language/constants'
 import { LocalizationContextProvider } from 'uniswap/src/features/language/LocalizationContext'
 import { clearNotificationQueue } from 'uniswap/src/features/notifications/slice/slice'
+import { usePoolsBalanceCoachmarkStateInit } from 'uniswap/src/features/portfolio/PortfolioBalance/usePoolsBalanceCoachmarkStateInit'
 import { RemotePriceProvider } from 'uniswap/src/features/prices/RemotePriceProvider'
 import { selectCurrentLanguage } from 'uniswap/src/features/settings/selectors'
 import { MobileEventName } from 'uniswap/src/features/telemetry/constants'
@@ -130,6 +129,11 @@ if (__DEV__ && !isTestEnv()) {
   })
   loadDevMessages()
   loadErrorMessages()
+  // Surface uniwind class-map misses, which the store otherwise skips
+  // silently. Module scope (uniwind's store is hydrated by the global.css
+  // import above) so renders during the PersistGate loading phase are
+  // covered too — an effect inside the tree would miss them.
+  installUniwindClassMapMissDevWarning()
 }
 
 initDynamicIntlPolyfills()
@@ -151,25 +155,18 @@ function ErrorBoundaryWrapper({ children }: { children: React.ReactNode }): JSX.
 }
 
 const provideSessionInitializationService = (): SessionInitializationService => {
-  // Create performance tracker with feature flag control
   // Platform-specific: uses React Native's performance.now() API
   const performanceTracker = createPerformanceTracker({
-    getIsPerformanceTrackingEnabled: getIsSessionsPerformanceTrackingEnabled,
     getNow: () => performance.now(),
   })
 
-  // Build solvers map based on feature flags
   const solvers = new Map<ChallengeType, ChallengeSolver>()
 
-  if (getIsTurnstileSolverEnabled()) {
-    // Turnstile not supported on mobile - use mock
-    solvers.set(ChallengeType.TURNSTILE, createTurnstileMockSolver())
-  } else {
-    solvers.set(ChallengeType.TURNSTILE, createTurnstileMockSolver())
-  }
+  // Turnstile is web-only; mobile stubs it with a mock.
+  solvers.set(ChallengeType.TURNSTILE, createTurnstileMockSolver())
+
   if (getIsHashcashSolverEnabled()) {
-    // Use real hashcash solver with native Nitro module
-    // The native implementation runs on background threads via platform-native APIs
+    // The native implementation runs on background threads via platform-native APIs.
     solvers.set(
       ChallengeType.HASHCASH,
       createHashcashSolver({
@@ -186,7 +183,6 @@ const provideSessionInitializationService = (): SessionInitializationService => 
     getSessionService: () =>
       provideSessionService({
         getBaseUrl: getEntryGatewayUrl,
-        getIsSessionServiceEnabled,
         getLogger,
       }),
     challengeSolverService: createChallengeSolverService({
@@ -194,7 +190,6 @@ const provideSessionInitializationService = (): SessionInitializationService => 
       getLogger,
     }),
     performanceTracker,
-    getIsSessionUpgradeAutoEnabled,
     getLogger,
   })
 }
@@ -234,7 +229,7 @@ function App(): JSX.Element | null {
   }
 
   return (
-    // Must wrap TamaguiProvider (inside SharedWalletReduxProvider): its root PortalHost needs the
+    // Must wrap AppPortalProvider (inside SharedWalletReduxProvider): its root PortalHost needs the
     // gesture root's context or portaled content (Popover, ActionSheetDropdown) throws under RNGH 3.
     <GestureHandlerRootView style={flexStyles.fill}>
       <StatsigProviderWrapper user={statsigUser} storageProvider={statsigMMKVStorageProvider} onInit={onStatsigInit}>
@@ -364,15 +359,17 @@ function AppOuter(): JSX.Element | null {
                           <WalletUniswapProvider>
                             <AccountsStoreContextProvider>
                               <DataUpdaters />
-                              <BottomSheetModalProvider>
-                                <AppModals />
-                                <PerformanceProfiler
-                                  errorHandler={ignoreFabricMountStateErrors}
-                                  onReportPrepared={onReportPrepared}
-                                >
-                                  <AppInner />
-                                </PerformanceProfiler>
-                              </BottomSheetModalProvider>
+                              <FloatingOverlayProvider>
+                                <BottomSheetModalProvider>
+                                  <AppModals />
+                                  <PerformanceProfiler
+                                    errorHandler={ignoreFabricMountStateErrors}
+                                    onReportPrepared={onReportPrepared}
+                                  >
+                                    <AppInner />
+                                  </PerformanceProfiler>
+                                </BottomSheetModalProvider>
+                              </FloatingOverlayProvider>
                               <NotificationToastWrapper />
                             </AccountsStoreContextProvider>
                           </WalletUniswapProvider>
@@ -424,9 +421,11 @@ function AppInner(): JSX.Element {
   }, [themeSetting, selectedColorScheme])
 
   useEffect(() => {
-    // Sync uniwind's theme (Tailwind tokens from @universe/tailwind/native) with the resolved color scheme; no DOM, so switched imperatively.
-    Uniwind.setTheme(selectedColorScheme)
-  }, [selectedColorScheme])
+    // Sync uniwind's theme (Tailwind tokens from @universe/tailwind/native) with the appearance setting; no DOM, so switched imperatively.
+    // A resolved 'light'/'dark' pins native Appearance (Android AppCompat night mode), detaching the app from OS
+    // theme changes — pass 'system' so uniwind stays adaptive when the user follows the OS.
+    Uniwind.setTheme(themeSetting === AppearanceSettingType.System ? 'system' : selectedColorScheme)
+  }, [themeSetting, selectedColorScheme])
 
   useLogMissingMnemonic()
   useLogUnexpectedOnboardingReset()
@@ -447,7 +446,6 @@ function AppInner(): JSX.Element {
  */
 function DataUpdaters(): JSX.Element {
   const finishedOnboarding = useSelector(selectFinishedOnboarding)
-  const isSessionServiceEnabled = useIsSessionServiceEnabled()
 
   useDatadogUserAttributesTracking({ isOnboarded: !!finishedOnboarding })
   useDatadogWalletContext()
@@ -455,15 +453,13 @@ function DataUpdaters(): JSX.Element {
   useLastBalancesReporter({ isOnboarded: !!finishedOnboarding })
   useTestnetModeForLoggingAndAnalytics()
   useSyncWidgetUserDefaults()
+  usePoolsBalanceCoachmarkStateInit()
 
   return (
     <>
       <TraceUserProperties />
       <StatsigUserIdentifiersUpdater />
-      <ApiInit
-        getSessionInitService={provideSessionInitializationService}
-        isSessionServiceEnabled={isSessionServiceEnabled}
-      />
+      <ApiInit getSessionInitService={provideSessionInitializationService} />
       <TransactionHistoryUpdater />
     </>
   )

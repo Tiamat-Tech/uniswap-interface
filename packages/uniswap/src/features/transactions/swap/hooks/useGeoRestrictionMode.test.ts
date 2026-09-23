@@ -3,6 +3,12 @@ import { RestrictionReason, useIsFeatureGated, useTokenComplianceStatus } from '
 import { useIsRWAToken } from 'uniswap/src/features/rwa/useIsRWAToken'
 import { useGeoRestrictionMode } from 'uniswap/src/features/transactions/swap/hooks/useGeoRestrictionMode'
 import { useSwapFormStoreDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
+import {
+  SAMPLE_SEED_ADDRESS_1,
+  SAMPLE_SEED_ADDRESS_1_LOWERCASE,
+  SAMPLE_SEED_ADDRESS_2,
+  SAMPLE_SEED_ADDRESS_2_LOWERCASE,
+} from 'uniswap/src/test/fixtures'
 import { renderHookWithProviders } from 'uniswap/src/test/render'
 import type { Mock } from 'vitest'
 
@@ -28,10 +34,10 @@ const mockUseIsFeatureGated = useIsFeatureGated as Mock
 const mockUseIsRWAToken = useIsRWAToken as Mock
 const mockUseSwapFormStoreDerivedSwapInfo = useSwapFormStoreDerivedSwapInfo as Mock
 
-const INPUT_CURRENCY = { chainId: 1, isNative: false, address: '0xINPUT' } as unknown as Currency
-const OUTPUT_CURRENCY = { chainId: 1, isNative: false, address: '0xOUTPUT' } as unknown as Currency
-const INPUT_KEY = '0xinput'
-const OUTPUT_KEY = '0xoutput'
+const INPUT_CURRENCY = { chainId: 1, isNative: false, address: SAMPLE_SEED_ADDRESS_1 } as unknown as Currency
+const OUTPUT_CURRENCY = { chainId: 1, isNative: false, address: SAMPLE_SEED_ADDRESS_2 } as unknown as Currency
+const INPUT_KEY = SAMPLE_SEED_ADDRESS_1_LOWERCASE
+const OUTPUT_KEY = SAMPLE_SEED_ADDRESS_2_LOWERCASE
 
 function setReasonsByAddress(byAddress: Record<string, RestrictionReason[]>): void {
   mockUseTokenComplianceStatus.mockImplementation((token?: { address: string }) => ({

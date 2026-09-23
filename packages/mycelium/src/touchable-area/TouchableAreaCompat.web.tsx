@@ -1,7 +1,8 @@
 import * as React from 'react'
 import { type CompatDomProps, createCompatComponent } from '../compat/dom'
+import { isMyceliumPrimitive, markMyceliumPrimitive } from '../compat/primitive-marker'
 import { THEME_COLOR_TOKENS } from '../text-compat/theme-tokens.generated'
-import { touchableAreaCompatClassName } from './compile'
+import { touchableAreaCompatEmission } from './compile'
 import { isModifierClick } from './modifier-click'
 import type { TouchableAreaCompatEvent, TouchableAreaCompatProps } from './props'
 
@@ -21,11 +22,17 @@ import type { TouchableAreaCompatEvent, TouchableAreaCompatProps } from './props
 /** Minimum web touch target (the legacy `useAutoDimensions` web default). */
 const MIN_DIMENSION = 24
 
+/**
+ * The roles legacy Tamagui (`@tamagui/web` getSplitStyles) grants a default
+ * `tabIndex=0` — non-interactive roles (e.g. `role="none"`) must not be tab stops.
+ */
+const TABBABLE_ROLES: ReadonlySet<string> = new Set(['button', 'checkbox', 'link', 'radio', 'textbox', 'switch'])
+
 /** The wrapper normalizes the nullable press family before the DOM layer sees it. */
 type TouchableAreaFrameProps = TouchableAreaCompatProps & CompatDomProps
 
 const TouchableAreaFrame = createCompatComponent<TouchableAreaFrameProps>(
-  touchableAreaCompatClassName,
+  touchableAreaCompatEmission,
   'TouchableAreaCompatFrame',
 )
 
@@ -55,7 +62,10 @@ interface InjectedColorsOptions {
  * Spore color guidance — `color` (default $accent3), `backgroundColor`, and a
  * `$group-hover` pool with their hovered-token counterparts; disabled swaps
  * to the disabled palette and drops the hover pool. Nested TouchableAreas
- * keep their own styling.
+ * keep their own styling. Mycelium primitives (marked via
+ * `compat/primitive-marker.ts`) are skipped entirely: they style themselves
+ * against `@universe/tailwind`, and the injected `$accent3` default is a
+ * rejected token their compilers throw on.
  */
 function withInjectedColors({ children, disabled, variant, enabled }: InjectedColorsOptions): React.ReactNode {
   if (!enabled) {
@@ -65,7 +75,7 @@ function withInjectedColors({ children, disabled, variant, enabled }: InjectedCo
     if (!React.isValidElement(child)) {
       return child
     }
-    if (child.type === TouchableAreaCompat) {
+    if (child.type === TouchableAreaCompat || isMyceliumPrimitive(child.type)) {
       return child
     }
     const childProps = child.props as Record<string, unknown>
@@ -162,7 +172,7 @@ export const TouchableAreaCompat = React.forwardRef<HTMLElement, TouchableAreaCo
     const tag = anchorMode ? 'a' : props.tag
     const role = props.role ?? (anchorMode ? 'link' : 'button')
     const unfocusable = props.disabled === true || props.focusable === false
-    const tabIndex = props.tabIndex ?? (unfocusable ? -1 : anchorMode ? undefined : 0)
+    const tabIndex = props.tabIndex ?? (unfocusable ? -1 : anchorMode || !TABBABLE_ROLES.has(role) ? undefined : 0)
 
     const frameProps: TouchableAreaFrameProps = {
       ...rest,
@@ -187,3 +197,9 @@ export const TouchableAreaCompat = React.forwardRef<HTMLElement, TouchableAreaCo
     return <TouchableAreaFrame {...frameProps} ref={ref} />
   },
 )
+
+// The wrapper is not a bare `createCompatComponent` call, so the
+// legacy-color-injection opt-out (compat/primitive-marker.ts) is stamped here
+// explicitly — a TouchableAreaCompat nested inside a legacy `ui/src`
+// TouchableArea must keep its own styling, like the nested-compat case above.
+markMyceliumPrimitive(TouchableAreaCompat)

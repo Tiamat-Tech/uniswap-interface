@@ -1,8 +1,8 @@
 import { GqlResult } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { useCurrencies } from 'uniswap/src/components/TokenSelector/hooks/useCurrencies'
 import { USDC, USDT, WBTC } from 'uniswap/src/constants/tokens'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { buildNativeCurrencyId, buildWrappedNativeCurrencyIdWithThrow, currencyId } from 'uniswap/src/utils/currencyId'
 

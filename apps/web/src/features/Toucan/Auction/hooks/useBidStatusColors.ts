@@ -1,5 +1,4 @@
-import { useSporeColors } from 'ui/src'
-import { opacify } from 'ui/src/theme'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { type BidDisplayState } from '~/features/Toucan/Auction/utils/bidDetails'
 
 export function useBidStatusColors() {

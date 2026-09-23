@@ -70,6 +70,10 @@ export function getListTransactionsQueryOptions({
       }),
     getNextPageParam: (lastPage: ListTransactionsResponse) => lastPage.page?.nextPageToken || undefined,
     initialPageParam: '',
+    // The global retry policy only covers FetchError 500s, which a ConnectRPC error never is —
+    // without this, one failed request drops the transactions table into its error state until the
+    // next heartbeat tick (up to 60s away on Explore).
+    retry: 2,
     enabled,
   })
 }

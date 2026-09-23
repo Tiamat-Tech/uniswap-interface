@@ -1,8 +1,9 @@
+import { assertWebElement, Flex, type MyceliumElement } from '@universe/mycelium'
+import { opacify, type SporeThemeColorToken, useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { atom } from 'jotai'
 import { useUpdateAtom } from 'jotai/utils'
 import { ReactElement, TouchEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { assertWebElement, ColorTokens, Flex, TamaguiElement, useMedia, useSporeColors } from 'ui/src'
-import { opacify } from 'ui/src/theme'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ChartModel } from '~/components/Charts/ChartModelCore'
@@ -70,7 +71,7 @@ export function Chart<TParamType extends ChartDataParams<TDataType>, TDataType e
   const setRefitChartContent = useUpdateAtom(refitChartContentAtom)
   // Lightweight-charts injects a canvas into the page through the div referenced below
   // It is stored in state to cause a re-render upon div mount, avoiding delay in chart creation
-  const [chartDivElement, setChartDivElement] = useState<TamaguiElement | null>(null)
+  const [chartDivElement, setChartDivElement] = useState<MyceliumElement | null>(null)
   const [crosshairData, setCrosshairData] = useState<TDataType | undefined>(undefined)
   const [hoverCoordinates, setHoverCoordinates] = useState<{ x: number; y: number } | null>(null)
   const [isZoomed, setIsZoomed] = useState(false)
@@ -100,8 +101,10 @@ export function Chart<TParamType extends ChartDataParams<TDataType>, TDataType e
   )
 
   const colors = useMemo(() => {
+    // Cast: overrideColor is a caller-supplied resolved color string; SporeColor.val is
+    // deliberately token-typed (see SporeThemeColorToken) — same cast the legacy code carried.
     const accent1Overrides = overrideColor
-      ? { val: overrideColor as ColorTokens, get: () => overrideColor as ColorTokens }
+      ? { val: overrideColor as SporeThemeColorToken, get: () => overrideColor }
       : {}
 
     return {
@@ -200,13 +203,21 @@ export function Chart<TParamType extends ChartDataParams<TDataType>, TDataType e
     <Flex
       width="100%"
       position="relative"
-      animation="fast"
+      // scoped to height (the one prop that changes here): `transition: all` would animate theme-token colors on light/dark toggle
+      transition={`height ${SPORE_ANIMATION_CURVE_CSS.fast}`}
       height={height}
       className={className}
       onTouchMove={touchMoveHandler as any} // any is used to avoid needing to import GestureResponderEvent from react-native
     >
       {/* Chart container */}
-      <Flex ref={setChartDivElement} height={height} width="100%" position="relative">
+      <Flex
+        // `MyceliumElement` is `HTMLElement` on web, matching Flex's ref type directly, so the
+        // setter can go straight on the ref with no wrapper or narrowing.
+        ref={setChartDivElement}
+        height={height}
+        width="100%"
+        position="relative"
+      >
         {/* Canvas is injected here by lightweight-charts */}
         {/* Background texture and fade overlay are applied directly to the chart td element */}
       </Flex>

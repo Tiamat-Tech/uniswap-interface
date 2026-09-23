@@ -3,20 +3,16 @@ import { TokenSortMethod } from '~/components/Tokens/constants'
 import type { SparklineMap } from '~/data/types'
 import { TimePeriod, type PricePoint } from '~/data/util'
 
-/**
- * Canonical shape produced by both the legacy adapter and the (real, v1-wire) backend adapter —
- * everything downstream of the service layer only ever sees this v2 domain shape.
- */
 export interface RankedMultichainTokensResult {
   multichainTokens: RankedMultichainToken[]
   /** multichainId → 1d price history, from RankedMultichainToken.sparkline (backend) or stat.priceHistory (legacy). */
   priceHistoryByMultichainId: Partial<Record<string, PricePoint[]>>
 }
 
-/** Result shape returned by useListTokensService (data + loading/pagination + tokenSortRank). */
-export interface UseListTokensServiceResult {
+/** Result shape returned by useListTokens (adds explore-specific sparklines). */
+export interface UseListTokensResult {
   topTokens: RankedMultichainToken[]
-  /** multichainId → 1-based rank from the search-unfiltered list (stable while filtering the table). */
+  /** multichainId → 1-based rank in backend order. */
   tokenSortRank: Record<string, number>
   priceHistoryByMultichainId: Partial<Record<string, PricePoint[]>>
   isLoading: boolean
@@ -24,10 +20,6 @@ export interface UseListTokensServiceResult {
   loadMore: ((params: { onComplete?: () => void }) => void) | undefined
   hasNextPage: boolean
   isFetchingNextPage: boolean
-}
-
-/** Result shape returned by useListTokens (adds explore-specific sparklines). */
-export interface UseListTokensResult extends UseListTokensServiceResult {
   sparklines: SparklineMap
 }
 
@@ -37,6 +29,7 @@ export type UseListTokensOptions = {
   sortAscending?: boolean
   filterString?: string
   filterTimePeriod?: TimePeriod
+  categoryId?: string
 }
 
 export type UseListTokensSortOptions = Required<Pick<UseListTokensOptions, 'sortMethod' | 'sortAscending'>>
@@ -46,12 +39,18 @@ const DEFAULT_OPTIONS: Required<UseListTokensOptions> = {
   sortAscending: false,
   filterString: '',
   filterTimePeriod: TimePeriod.DAY,
+  categoryId: '',
 }
 
+// Per field rather than a spread: callers pass optional props straight through (TopTokensTable's
+// categoryId), and a spread would copy that explicit `undefined` over the default, belying the
+// Required<> return type wherever a field is dereferenced.
 export function getEffectiveListTokensOptions(options?: UseListTokensOptions): Required<UseListTokensOptions> {
-  const o = options ?? {}
   return {
-    ...DEFAULT_OPTIONS,
-    ...o,
+    sortMethod: options?.sortMethod ?? DEFAULT_OPTIONS.sortMethod,
+    sortAscending: options?.sortAscending ?? DEFAULT_OPTIONS.sortAscending,
+    filterString: options?.filterString ?? DEFAULT_OPTIONS.filterString,
+    filterTimePeriod: options?.filterTimePeriod ?? DEFAULT_OPTIONS.filterTimePeriod,
+    categoryId: options?.categoryId ?? DEFAULT_OPTIONS.categoryId,
   }
 }

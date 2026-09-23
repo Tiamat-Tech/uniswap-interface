@@ -1,4 +1,3 @@
-import { AppTFunction } from 'ui/src/i18n/types'
 import { getEarnPlanStatusTitleKeyFromTransactionStatus } from 'uniswap/src/features/earn/planActivityTitles'
 import {
   NFTTradeType,
@@ -7,18 +6,17 @@ import {
   TransactionStatus,
   TransactionType,
 } from 'uniswap/src/features/transactions/types/transactionDetails'
+import { AppTFunction } from 'utilities/src/i18n/types'
 
 export function getTransactionSummaryTitle({
   tx,
   t,
-  isEarnActivityDisplayEnabled = true,
 }: {
   tx: Pick<TransactionDetails, 'typeInfo' | 'status'>
   t: AppTFunction
-  isEarnActivityDisplayEnabled?: boolean
 }): string | undefined {
   // Earn plans share the canonical status→title mapping with notifications and the activity tables.
-  if (isEarnActivityDisplayEnabled && tx.typeInfo.type === TransactionType.Plan && tx.typeInfo.earnAction) {
+  if (tx.typeInfo.type === TransactionType.Plan && tx.typeInfo.earnAction) {
     return t(
       getEarnPlanStatusTitleKeyFromTransactionStatus({
         earnAction: tx.typeInfo.earnAction,

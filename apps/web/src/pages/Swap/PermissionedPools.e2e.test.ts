@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { V1_TRADING_API_PATHS } from '@universe/api'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { expect, getTest } from '~/playwright/fixtures'
 import { getTradingApiEndpointPattern } from '~/playwright/fixtures/tradingApi'
@@ -20,7 +21,7 @@ async function stubCheckPermissionsAsNotPermissioned({ page, tokenAddress }: { p
     await route.fulfill({
       body: JSON.stringify({
         requestId: 'e2e-stub',
-        results: [{ token: tokenAddress.toLowerCase(), isPermissioned: false }],
+        results: [{ token: normalizeTokenAddressForCache(tokenAddress), isPermissioned: false }],
       }),
       contentType: 'application/json',
     })

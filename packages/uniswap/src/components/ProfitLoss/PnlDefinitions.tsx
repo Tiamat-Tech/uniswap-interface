@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { ComponentProps } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 
 export type PnlMetric = 'averageCost' | 'unrealizedReturn' | 'realizedReturn' | 'totalReturn'
 

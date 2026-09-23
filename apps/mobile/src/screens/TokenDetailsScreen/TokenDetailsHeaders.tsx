@@ -1,3 +1,4 @@
+import { Flex, Text, iconSizes, spacing } from '@universe/mycelium'
 import React, { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FadeIn } from 'react-native-reanimated'
@@ -6,18 +7,13 @@ import { navigate } from 'src/app/navigation/rootNavigation'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
 import { TokenDetailsFavoriteButton } from 'src/components/TokenDetails/TokenDetailsFavoriteButton'
 import { useTokenDetailsCurrentChainBalance } from 'src/components/TokenDetails/useTokenDetailsCurrentChainBalance'
-import { Flex, Text } from 'ui/src'
 import { Ellipsis } from 'ui/src/components/icons'
 import { Lock } from 'ui/src/components/icons/Lock'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
-import { iconSizes, spacing } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { ContextMenu } from 'uniswap/src/components/menus/ContextMenu'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
-import { useTokenBasicInfoPartsFragment, useTokenBasicProjectPartsFragment } from 'uniswap/src/data/graphql/fragments'
-import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useTokenMetadata } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
-import { isMultichainProjectTokens } from 'uniswap/src/features/dataApi/tokenProjects/utils/isMultichainProjectTokens'
 import { TokenList } from 'uniswap/src/features/dataApi/types'
 import {
   TokenMenuActionType,
@@ -31,19 +27,13 @@ import { useBooleanState } from 'utilities/src/react/useBooleanState'
 export const HeaderTitleElement = memo(function HeaderTitleElement(): JSX.Element {
   const { t } = useTranslation()
 
-  const { currencyId, isPermissioned, isAllowlisted } = useTokenDetailsContext()
-
-  const token = useTokenBasicInfoPartsFragment({ currencyId }).data
-  const project = useTokenBasicProjectPartsFragment({ currencyId }).data.project
-  const isMultichainToken = isMultichainProjectTokens(project?.tokens)
-  const metadata = useTokenMetadata(currencyId, {
-    legacyToken: { name: token.name, symbol: token.symbol, project: { logoUrl: project?.logoUrl } },
-  })
+  const { currencyId, isPermissioned, isAllowlisted, chainId, hasMultichainAddresses, initialIsMultichainAsset } =
+    useTokenDetailsContext()
+  const metadata = useTokenMetadata(currencyId)
 
   const logo = metadata.logoUrl ?? undefined
   const symbol = metadata.symbol
   const name = metadata.name
-  const chain = token.chain
   // Mirror the top-of-page ticker lock in the sticky header: allowlisted-only.
   const showPermissionedLock = isPermissioned && isAllowlisted
 
@@ -51,8 +41,8 @@ export const HeaderTitleElement = memo(function HeaderTitleElement(): JSX.Elemen
     <Flex alignItems="center" justifyContent="space-between" ml="$spacing32">
       <Flex centered row gap="$spacing4">
         <TokenLogo
-          chainId={fromGraphQLChain(chain) ?? undefined}
-          hideNetworkLogo={isMultichainToken}
+          chainId={chainId}
+          hideNetworkLogo={initialIsMultichainAsset || hasMultichainAddresses}
           name={name}
           size={iconSizes.icon16}
           symbol={symbol ?? undefined}
@@ -81,11 +71,9 @@ export const HeaderRightElement = memo(function HeaderRightElement(): JSX.Elemen
     openContractAddressExplainerModal,
     openMultichainAddressSheet,
     copyAddressToClipboard,
+    hasMultichainAddresses,
   } = useTokenDetailsContext()
   const currentChainBalance = useTokenDetailsCurrentChainBalance()
-
-  const project = useTokenBasicProjectPartsFragment({ currencyId }).data.project
-  const isMultichainToken = (project?.tokens?.length ?? 0) > 1
 
   const openReportTokenModal = useEvent(() => {
     setTimeout(() => {
@@ -93,7 +81,7 @@ export const HeaderRightElement = memo(function HeaderRightElement(): JSX.Elemen
         source: 'token-details',
         currency: currencyInfo?.currency,
         isMarkedSpam: currencyInfo?.isSpam,
-        isMultichainAsset: isMultichainToken,
+        isMultichainAsset: hasMultichainAddresses,
       })
     }, MODAL_OPEN_WAIT_TIME)
   })
@@ -107,14 +95,14 @@ export const HeaderRightElement = memo(function HeaderRightElement(): JSX.Elemen
   const { value: isOpen, setTrue: openMenu, setFalse: closeMenu } = useBooleanState(false)
 
   const onPressCopyAddressOverride = useMemo(() => {
-    if (!isMultichainToken) {
+    if (!hasMultichainAddresses) {
       return undefined
     }
     return (): void => {
       closeMenu()
       openMultichainAddressSheet()
     }
-  }, [isMultichainToken, closeMenu, openMultichainAddressSheet])
+  }, [hasMultichainAddresses, closeMenu, openMultichainAddressSheet])
 
   const menuActions = useTokenContextMenuOptions({
     excludedActions: EXCLUDED_ACTIONS,
@@ -122,7 +110,7 @@ export const HeaderRightElement = memo(function HeaderRightElement(): JSX.Elemen
     isBlocked: currencyInfo?.safetyInfo?.tokenList === TokenList.Blocked,
     tokenSymbolForNotification: currencyInfo?.currency.symbol,
     portfolioBalance: currentChainBalance,
-    isMultichainAsset: isMultichainToken,
+    isMultichainAsset: hasMultichainAddresses,
     openContractAddressExplainerModal,
     openReportDataIssueModal,
     openReportTokenModal,

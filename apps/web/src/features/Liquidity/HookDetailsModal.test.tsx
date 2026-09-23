@@ -1,6 +1,10 @@
+import userEvent from '@testing-library/user-event'
 import { HookEntry, HookFlags } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
+import { UniswapBuiltHookAddressesConfigKey, useDynamicConfigValue } from '@universe/gating'
+import { Link } from 'react-router'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { shortenAddress } from 'utilities/src/addresses'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { HookDetailsModal } from '~/features/Liquidity/HookDetailsModal'
 import { render, screen } from '~/test-utils/render'
 
@@ -16,6 +20,31 @@ const BASE_HOOK = new HookEntry({
 
 function renderModal(hookEntry: HookEntry) {
   return render(<HookDetailsModal hookEntry={hookEntry} chainId={8453} isOpen onClose={vi.fn()} />)
+}
+
+// PoolTable and the position rows open this modal from a cell inside a react-router <Link>. The dialog
+// is portaled out of that anchor in the DOM, but React synthetic clicks still bubble through the portal
+// to the Link, which navigates on any click nothing stopped.
+const ROW_LINK_PATH = '/explore/pools/ethereum/0xpool'
+function renderModalInsideRowLink(hookEntry: HookEntry) {
+  return render(
+    <Link to={ROW_LINK_PATH}>
+      <HookDetailsModal hookEntry={hookEntry} chainId={8453} isOpen onClose={vi.fn()} />
+    </Link>,
+  )
+}
+
+// A navigation leaked by one test must not decide the next one's starting path.
+afterEach(() => {
+  window.history.replaceState({}, '', '/')
+})
+
+// Serves the hook under one list of the `uniswap_built_hook_addresses` config; the other two stay empty.
+function listHookUnder(listKey: UniswapBuiltHookAddressesConfigKey) {
+  vi.mocked(useDynamicConfigValue).mockImplementation(((args: { key: string; defaultValue: unknown }) =>
+    args.key === listKey
+      ? [{ chainId: BASE_HOOK.chainId, address: BASE_HOOK.address }]
+      : args.defaultValue) as typeof useDynamicConfigValue)
 }
 
 describe('HookDetailsModal', () => {
@@ -87,5 +116,75 @@ describe('HookDetailsModal', () => {
     })
     renderModal(hookNoFlags)
     expect(screen.queryByText('beforeSwap')).toBeNull()
+  })
+
+  describe('Uniswap provenance badge', () => {
+    // useDynamicConfigValue is mocked globally in setupTests to return the passed defaultValue. These
+    // render the Uniswap mark too — with the setup's fail-on-console, passing also pins that the mark's
+    // fixed chip colour emits no mycelium compat diagnostic.
+    afterEach(() => {
+      vi.mocked(useDynamicConfigValue).mockImplementation(
+        ((args: { defaultValue: unknown }) => args.defaultValue) as typeof useDynamicConfigValue,
+      )
+    })
+
+    it('renders no badge for a hook the config does not list', () => {
+      renderModal(BASE_HOOK)
+      expect(screen.queryByText(/by Uniswap/)).toBeNull()
+      expect(screen.queryByTestId(TestID.HookProvenanceInfo)).toBeNull()
+    })
+
+    // The badge keys on the chain the modal displays, not the registry entry's self-reported chainId.
+    it('renders no badge when the displayed chain is not the listed one', () => {
+      listHookUnder(UniswapBuiltHookAddressesConfigKey.Built)
+      render(<HookDetailsModal hookEntry={BASE_HOOK} chainId={1} isOpen onClose={vi.fn()} />)
+      expect(screen.queryByText(/by Uniswap/)).toBeNull()
+    })
+
+    it.each([
+      [UniswapBuiltHookAddressesConfigKey.Built, 'Built by Uniswap'],
+      [UniswapBuiltHookAddressesConfigKey.Configured, 'Configured by Uniswap'],
+      [UniswapBuiltHookAddressesConfigKey.Both, 'Built and configured by Uniswap'],
+    ])('badges a hook in the config\'s %s list as "%s"', (listKey, label) => {
+      listHookUnder(listKey)
+      renderModal(BASE_HOOK)
+      expect(screen.getByText(label)).toBeTruthy()
+    })
+
+    it.each([
+      [UniswapBuiltHookAddressesConfigKey.Built, 'Uniswap Labs developed this hook.'],
+      [UniswapBuiltHookAddressesConfigKey.Configured, 'Uniswap Labs set this hook’s configuration.'],
+      [UniswapBuiltHookAddressesConfigKey.Both, 'Uniswap Labs developed this hook and set its configuration.'],
+    ])('explains the %s badge and links to the help center when the badge is hovered', async (listKey, description) => {
+      listHookUnder(listKey)
+      renderModal(BASE_HOOK)
+
+      await userEvent.hover(screen.getByTestId(TestID.HookProvenanceInfo))
+
+      expect(await screen.findByText(description)).toBeInTheDocument()
+      expect(screen.getByText('Learn more')).toBeInTheDocument()
+    })
+
+    // The tooltip popup is portaled even further out than the dialog; a click on its "Learn more" anchor
+    // must not reach the row link either, or it opens the pool page instead of the article.
+    it("does not navigate the row link when the tooltip's Learn more link is clicked", async () => {
+      listHookUnder(UniswapBuiltHookAddressesConfigKey.Built)
+      renderModalInsideRowLink(BASE_HOOK)
+
+      await userEvent.hover(screen.getByTestId(TestID.HookProvenanceInfo))
+      await userEvent.click(await screen.findByText('Learn more'))
+
+      expect(window.location.pathname).toBe('/')
+    })
+  })
+
+  describe('opened from inside a row link', () => {
+    it('does not navigate the row link when content inside the modal is clicked', async () => {
+      renderModalInsideRowLink(BASE_HOOK)
+
+      await userEvent.click(screen.getByText('Adjusts LP fees dynamically'))
+
+      expect(window.location.pathname).toBe('/')
+    })
   })
 })

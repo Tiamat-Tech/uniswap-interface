@@ -1,7 +1,9 @@
+import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { WETH9 } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { useQueryState, useQueryStates } from 'nuqs'
+import { DYNAMIC_FEE_AMOUNT } from 'uniswap/src/constants/pools'
 import { nativeOnChain, USDC, USDC_UNICHAIN } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { vi } from 'vitest'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { useLiquidityUrlState } from '~/features/Liquidity/Create/hooks/useLiquidityUrlState'
@@ -531,6 +533,69 @@ describe('useLiquidityUrlState', () => {
     expect(() => result.current.syncToUrl(mockData)).not.toThrow()
   })
 
+  describe('protocolVersion sync', () => {
+    // `?protocolVersion` is the version's only carrier — there is no path segment for it — so a
+    // switch that isn't written back leaves the URL naming the old version beside the new version's
+    // fee data, and a reload or shared link re-seeds that mix.
+    function syncedVersions(setReplaceState: ReturnType<typeof vi.fn>): unknown[] {
+      return setReplaceState.mock.calls.map((call) => call[0]?.protocolVersion)
+    }
+
+    function renderWithSetter(): { setReplaceState: ReturnType<typeof vi.fn> } {
+      const setReplaceState = vi.fn()
+      useQueryStatesMock.mockReturnValue([
+        {
+          currencyA: '',
+          currencyB: '',
+          chain: null,
+          fee: DEFAULT_FEE_DATA,
+          hook: null,
+          priceRangeState: {},
+          depositState: {},
+        },
+        setReplaceState,
+      ] as unknown as ReturnType<typeof useQueryStates>)
+      return { setReplaceState }
+    }
+
+    beforeEach(() => {
+      // syncToUrl no-ops off the create/add routes, which would make the assertions vacuous.
+      globalThis.window.history.replaceState(null, '', '/positions/add/new')
+    })
+
+    it.each([
+      ['v2', ProtocolVersion.V2],
+      ['v3', ProtocolVersion.V3],
+      ['v4', ProtocolVersion.V4],
+    ])('writes the selected version to the URL as %s', (label, protocolVersion) => {
+      const { setReplaceState } = renderWithSetter()
+      const { result } = renderHook(() => useLiquidityUrlState())
+
+      result.current.syncToUrl({
+        currencyInputs: { tokenA: USDC, tokenB: undefined },
+        positionState: { protocolVersion },
+        priceRangeState: {},
+        depositState: {},
+      })
+
+      expect(syncedVersions(setReplaceState)).toContain(label)
+    })
+
+    it('leaves the param alone when the form has no version yet', () => {
+      const { setReplaceState } = renderWithSetter()
+      const { result } = renderHook(() => useLiquidityUrlState())
+
+      result.current.syncToUrl({
+        currencyInputs: { tokenA: USDC, tokenB: undefined },
+        positionState: {},
+        priceRangeState: {},
+        depositState: {},
+      })
+
+      expect(syncedVersions(setReplaceState).every((v) => v === undefined)).toBe(true)
+    })
+  })
+
   describe('backwards compatibility', () => {
     it('handles currencya and currencyb', () => {
       useQueryStatesMock.mockReturnValue([
@@ -551,6 +616,10 @@ describe('useLiquidityUrlState', () => {
       expect(result.current.tokenB).toEqual(USDC)
     })
 
+    // isDynamic wins over a disagreeing feeTier, and the fee amount is pulled to the pool key's fee.
+    // Not a behavior change for the user: `useDerivedPositionInfo` already queried the dynamic pool
+    // for any isDynamic tier regardless of feeAmount, so this only makes the migrated state agree
+    // with the pool actually being looked up, instead of keying onto the static 0.05% tile.
     it('handles feeTier and isDynamic', () => {
       const mockSetReplaceState = vi.fn()
       useQueryStatesMock.mockReturnValue([
@@ -571,7 +640,7 @@ describe('useLiquidityUrlState', () => {
 
       expect(mockSetReplaceState).toHaveBeenCalledWith({
         fee: {
-          feeAmount: 500,
+          feeAmount: DYNAMIC_FEE_AMOUNT,
           tickSpacing: 10,
           isDynamic: true,
         },
@@ -584,6 +653,34 @@ describe('useLiquidityUrlState', () => {
         isDynamic: null,
         feeTier: null,
       })
+    })
+
+    // `Number('abc')` is NaN, which no downstream guard catches — it would key a tier as 'NaN-60'
+    // and reach formatPercent and the v4 pool-id hash. The params still clear, or the migration
+    // would re-run every render.
+    it('drops an unparseable legacy feeTier but still clears the params', () => {
+      const mockSetReplaceState = vi.fn()
+      useQueryStatesMock.mockReturnValue([
+        {
+          feeTier: 'abc',
+          isDynamic: null,
+          currencyA: '',
+          currencyB: '',
+          chain: null,
+          hook: null,
+          priceRangeState: {},
+          depositState: {},
+        },
+        mockSetReplaceState,
+      ])
+
+      renderHook(() => useLiquidityUrlState())
+
+      const call = mockSetReplaceState.mock.calls[0]?.[0]
+      expect(call).toBeDefined()
+      expect(call.fee).toBeUndefined()
+      expect(call.feeTier).toBeNull()
+      expect(call.isDynamic).toBeNull()
     })
   })
 })

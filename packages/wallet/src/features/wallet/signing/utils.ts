@@ -1,6 +1,6 @@
 import { SignMessageFunc } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { arrayify, isHexString } from 'ethers/lib/utils'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedDappChainId } from 'uniswap/src/features/chains/utils'
 import { Account } from 'wallet/src/features/wallet/accounts/types'
 import { SignerManager } from 'wallet/src/features/wallet/signing/SignerManager'

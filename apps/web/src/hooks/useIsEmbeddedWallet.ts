@@ -1,5 +1,5 @@
+import { Platform } from '@universe/chains'
 import { CONNECTION_PROVIDER_IDS } from 'uniswap/src/constants/web3'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useActiveWallet } from '~/features/accounts/store/hooks'
 
 export function useIsEmbeddedWallet(): boolean {

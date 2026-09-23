@@ -56,6 +56,7 @@ function TDPPageContent() {
       image:
         window.location.origin +
         '/api/image/tokens/' +
+        // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- chain name URL slug, not an address
         currencyChain.toLowerCase() +
         '/' +
         (currency?.isNative ? getNativeTokenDBAddress(currencyChain) : address),

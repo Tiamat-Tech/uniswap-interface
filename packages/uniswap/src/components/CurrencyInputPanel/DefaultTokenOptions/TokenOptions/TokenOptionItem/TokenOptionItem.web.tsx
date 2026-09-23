@@ -1,4 +1,5 @@
-import { Text, Tooltip } from 'ui/src'
+import { Text } from '@universe/mycelium'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { TokenIcon } from 'uniswap/src/components/CurrencyInputPanel/DefaultTokenOptions/TokenIcon'
 import type { TokenOptionItemProps } from 'uniswap/src/components/CurrencyInputPanel/DefaultTokenOptions/TokenOptions/TokenOptionItem/types'
 

@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
 import {
   isMultichainTokenSearchHistoryResult,
@@ -6,9 +7,9 @@ import {
   SearchHistoryResult,
   SearchHistoryResultType,
 } from 'uniswap/src/features/search/SearchHistoryResult'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
 
-const SEARCH_HISTORY_LENGTH = 5
+// Sized for the Search V2 recents pill row (RECENT_SEARCH_PILLS_MAX_COUNT); other surfaces slice further on read.
+const SEARCH_HISTORY_LENGTH = 30
 
 export function searchResultId(searchResult: SearchHistoryResult): string {
   switch (searchResult.type) {

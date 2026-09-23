@@ -1,4 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit'
+import { Platform } from '@universe/chains'
 import { useFeatureFlag } from '@universe/gating'
 import { Provider } from 'react-redux'
 import { AccountsStore } from 'uniswap/src/features/accounts/store/types/AccountsState'
@@ -7,7 +8,6 @@ import { ChainScopeType } from 'uniswap/src/features/accounts/store/types/Sessio
 import { SigningCapability } from 'uniswap/src/features/accounts/store/types/Wallet'
 import { AccountType as ReduxAccountType } from 'uniswap/src/features/accounts/types'
 import { CAIP25Session } from 'uniswap/src/features/capabilities/caip25/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { SwapDelegationInfo } from 'uniswap/src/features/smartWallet/delegation/types'
 import type { MockedFunction } from 'vitest'
 import { AccountsStoreContextProvider, useAccountsStoreContext } from 'wallet/src/features/accounts/store/provider'

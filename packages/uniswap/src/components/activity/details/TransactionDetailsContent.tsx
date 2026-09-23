@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import { ApproveTransactionDetails } from 'uniswap/src/components/activity/details/transactions/ApproveTransactionDetails'
 import { AuctionTransactionDetails } from 'uniswap/src/components/activity/details/transactions/AuctionTransactionDetails'
 import { BridgeTransactionDetails } from 'uniswap/src/components/activity/details/transactions/BridgeTransactionDetails'
@@ -15,11 +15,9 @@ import { TransactionDetails, TransactionType } from 'uniswap/src/features/transa
 
 export function TransactionDetailsContent({
   transactionDetails,
-  isEarnActivityDisplayEnabled = true,
   onClose,
 }: {
   transactionDetails: TransactionDetails
-  isEarnActivityDisplayEnabled?: boolean
   onClose: () => void
 }): JSX.Element | null {
   const { typeInfo } = transactionDetails
@@ -73,14 +71,7 @@ export function TransactionDetailsContent({
       case TransactionType.MigrateLiquidityV3ToV4:
         return <LiquidityTransactionDetails typeInfo={typeInfo} onClose={onClose} />
       case TransactionType.Plan:
-        return (
-          <PlanTransactionDetails
-            status={transactionDetails.status}
-            typeInfo={typeInfo}
-            isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-            onClose={onClose}
-          />
-        )
+        return <PlanTransactionDetails status={transactionDetails.status} typeInfo={typeInfo} onClose={onClose} />
       case TransactionType.AuctionBid:
       case TransactionType.AuctionClaimed:
       case TransactionType.AuctionExited:

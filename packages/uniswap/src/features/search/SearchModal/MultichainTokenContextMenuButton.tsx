@@ -1,8 +1,9 @@
+import { UniverseChainId, Platform } from '@universe/chains'
 import { isWebPlatform } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Flex } from 'ui/src'
 import { CheckCircleFilled } from 'ui/src/components/icons/CheckCircleFilled'
 import { CopyAlt } from 'ui/src/components/icons/CopyAlt'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
@@ -12,21 +13,18 @@ import {
 } from 'uniswap/src/components/lists/items/tokens/useSearchTokenMenuItems'
 import { ContextMenu } from 'uniswap/src/components/menus/ContextMenu'
 import type { ContextMenuHandle, MenuOptionItem } from 'uniswap/src/components/menus/ContextMenu'
-import { MenuContent } from 'uniswap/src/components/menus/ContextMenuContent'
 import { ContextMenuTriggerButton } from 'uniswap/src/components/menus/ContextMenuTriggerButton'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
-import { MultichainAddressTransitionPanel } from 'uniswap/src/components/MultichainTokenDetails/MultichainAddressTransitionPanel'
+import { MultichainContextMenuExpandContent } from 'uniswap/src/components/MultichainTokenDetails/MultichainContextMenuExpandContent'
 import { useMultichainAddressViewState } from 'uniswap/src/components/MultichainTokenDetails/useMultichainAddressViewState'
 import { useOrderedMultichainEntries } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
 import { COPY_CLOSE_DELAY } from 'uniswap/src/constants/misc'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType, CopyNotificationType } from 'uniswap/src/features/notifications/slice/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { usePortfolioBalances } from 'uniswap/src/features/portfolio/balances/hooks'
 import { useDelayedMenuClose } from 'uniswap/src/features/search/SearchModal/hooks/useDelayedMenuClose'
 import { ElementName, SectionName, UniswapEventName } from 'uniswap/src/features/telemetry/constants'
@@ -101,7 +99,7 @@ function MultichainTokenContextMenuButtonInner(
   const trace = useTrace()
 
   const { value: isOpen, setTrue: openMenu, setFalse: rawCloseMenu } = useBooleanState(false)
-  const { viewIndex, animationType, goToAddresses, goBack, resetView } = useMultichainAddressViewState()
+  const { viewIndex, goToAddresses, goBack, resetView } = useMultichainAddressViewState()
   const [copiedAddress, setCopiedAddress] = useState(false)
   // When "Copy address" transitions to the addresses sub-view, DropdownMenuSheetItem
   // fires handleCloseMenu. skipNextClose prevents that single close from dismissing
@@ -200,28 +198,22 @@ function MultichainTokenContextMenuButtonInner(
     allNative,
   ])
 
-  // Analytics props (trackItemClicks, elementName, sectionName) are passed directly to
-  // MenuContent here because contentOverride bypasses ContextMenu's default MenuContent.
   const contentOverride = useMemo(
     () => (
-      <MultichainAddressTransitionPanel
+      <MultichainContextMenuExpandContent
+        trackItemClicks
         viewIndex={viewIndex}
-        animationType={animationType}
+        menuItems={allMenuItems}
         orderedEntries={orderedEntries}
         title={t('common.copy.address')}
-        onCopyAddress={onCopyMultichainAddress}
+        handleCloseMenu={handleContentClose}
+        elementName={ElementName.SearchTokenContextMenu}
+        sectionName={SectionName.NavbarSearch}
         onBack={goBack}
-      >
-        <MenuContent
-          trackItemClicks
-          items={allMenuItems}
-          handleCloseMenu={handleContentClose}
-          elementName={ElementName.SearchTokenContextMenu}
-          sectionName={SectionName.NavbarSearch}
-        />
-      </MultichainAddressTransitionPanel>
+        onCopyAddress={onCopyMultichainAddress}
+      />
     ),
-    [viewIndex, animationType, allMenuItems, handleContentClose, orderedEntries, onCopyMultichainAddress, goBack, t],
+    [viewIndex, allMenuItems, orderedEntries, onCopyMultichainAddress, goBack, handleContentClose, t],
   )
 
   // Web-only: the menu content above uses <div> for event propagation control, which crashes on native.

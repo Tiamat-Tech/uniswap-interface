@@ -1,7 +1,6 @@
+import { Flex, Text, TouchableArea, validColor } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { validColor } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { LaunchItem } from '~/pages/Launches/launchesModel'

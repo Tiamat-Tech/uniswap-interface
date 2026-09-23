@@ -1,6 +1,5 @@
 import { getEntryGatewayUrl, getWebSocketUrl, SharedQueryClient } from '@universe/api'
 import { isDevEnv } from '@universe/environment'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import type { TokenPriceMessage, TokenSubscriptionParams } from '@universe/prices'
 import {
   createPriceKey,
@@ -69,18 +68,10 @@ function createLivePricesClient(): WebSocketClient<TokenSubscriptionParams, Toke
   })
 }
 
+/** Provides remote price fetching backed by the Aurora live-price websocket. */
 export function LivePricesProvider({ children }: { children: ReactNode }): ReactElement {
-  const usesAuroraLivePrices = useFeatureFlag(FeatureFlags.CentralizedPrices)
-
-  if (!usesAuroraLivePrices) {
-    return <RemotePriceProvider>{children}</RemotePriceProvider>
-  }
-
-  return <LivePricesProviderInner>{children}</LivePricesProviderInner>
-}
-
-function LivePricesProviderInner({ children }: { children: ReactNode }): ReactElement {
-  const [wsClient] = useState(() => createLivePricesClient())
+  // Created once and kept for the session; `null` means no live-price transport is available.
+  const [wsClient] = useState(createLivePricesClient)
 
   return <RemotePriceProvider wsClient={wsClient ?? undefined}>{children}</RemotePriceProvider>
 }

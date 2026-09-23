@@ -1,14 +1,16 @@
-import { memo } from 'react'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { ChevronsIn } from '@universe/mycelium/icons/ChevronsIn'
+import { ChevronsOut } from '@universe/mycelium/icons/ChevronsOut'
+import { memo, useContext } from 'react'
 import { useTranslation } from 'react-i18next'
-import { EM_DASH, Flex, Text, TouchableArea } from 'ui/src'
-import { ChevronsIn } from 'ui/src/components/icons/ChevronsIn'
-import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
+import { EM_DASH } from 'ui/src'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { GroupHoverTransition } from 'uniswap/src/components/GroupHoverTransition'
 import { NetworkIconList } from 'uniswap/src/components/network/NetworkIconList/NetworkIconList'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { getSymbolDisplayText } from 'uniswap/src/utils/currency'
+import { TableRowHoverContext } from '~/components/Table/TableRowHoverContext'
 import { EmptyTableCell } from '~/pages/Portfolio/EmptyTableCell'
 
 const SYMBOL_SLOT_HEIGHT = 18
@@ -34,6 +36,7 @@ export const TokenDisplay = memo(function TokenDisplay({
   unifiedExpandableRows = false,
 }: TokenDisplayProps) {
   const { t } = useTranslation()
+  const rowHovered = useContext(TableRowHoverContext)
   if (!currencyInfo) {
     return <EmptyTableCell />
   }
@@ -42,7 +45,7 @@ export const TokenDisplay = memo(function TokenDisplay({
   const displayName = multichainDisplayName ?? currency.name
   const displaySymbol = multichainDisplaySymbol ?? currency.symbol
   const symbolText = getSymbolDisplayText(displaySymbol) || EM_DASH
-  const showNetworksHover = !unifiedExpandableRows && chainIds && chainIds.length > 1
+  const showNetworksHover = chainIds && chainIds.length > 1
   const showUnifiedExpandableSubline = unifiedExpandableRows && chainIds && chainIds.length > 1
 
   const unifiedExpandableSubline = (
@@ -98,6 +101,7 @@ export const TokenDisplay = memo(function TokenDisplay({
         <GroupHoverTransition
           height={SYMBOL_SLOT_HEIGHT}
           showTransition={showNetworksHover}
+          isHovered={rowHovered}
           defaultContent={
             showUnifiedExpandableSubline ? (
               unifiedExpandableSubline
@@ -115,7 +119,7 @@ export const TokenDisplay = memo(function TokenDisplay({
             )
           }
           hoverContent={
-            <Flex row gap="$gap4">
+            <Flex row alignItems="center" gap="$gap4" height={SYMBOL_SLOT_HEIGHT}>
               <Text variant="body4" color="$neutral2">
                 {t('portfolio.tokens.table.balances')}
               </Text>

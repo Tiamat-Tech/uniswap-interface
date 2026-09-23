@@ -1,5 +1,5 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useMemo } from 'react'
-import { useSporeColors } from 'ui/src'
 import { useSrcColor } from '~/hooks/useColor'
 import {
   useCreateAuctionStore,

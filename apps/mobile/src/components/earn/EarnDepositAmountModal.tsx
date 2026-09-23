@@ -1,26 +1,25 @@
 import { TradingApi } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
+import { useDeviceDimensions } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { View } from 'react-native'
 import { useSelector } from 'react-redux'
 import { useAppStackNavigation } from 'src/app/navigation/types'
 import { EarnDepositAmountContent } from 'src/components/earn/EarnDepositAmountContent'
 import type { EarnDepositAmountModalState } from 'src/components/earn/EarnDepositAmountModalState'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import type { BaseModalProps } from 'uniswap/src/components/modals/ModalProps'
 import { selectHasAcknowledgedEarnHowItWorks } from 'uniswap/src/features/behaviorHistory/selectors'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   EarnAnalyticsSurface,
   EarnEntryPoint,
   getEarnVaultAnalyticsProperties,
   logEarnTransactionEvent,
 } from 'uniswap/src/features/earn/analytics'
-import { useEarnPosition } from 'uniswap/src/features/earn/hooks/useEarnPosition'
+import { isEarnPositionUnknown, useEarnPosition } from 'uniswap/src/features/earn/hooks/useEarnPosition'
 import { EarnAction } from 'uniswap/src/features/earn/types'
 import { resolveEarnAmountPosition } from 'uniswap/src/features/earn/utils'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
-import type { UniswapState } from 'uniswap/src/state/uniswapReducer'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useActiveAccountAddress } from 'wallet/src/features/wallet/hooks'
 
@@ -49,24 +48,24 @@ export function EarnDepositAmountModal({
   // Capture navigation outside the bottom-sheet portal; portal navigation may miss `replace`.
   const navigation = useAppStackNavigation()
   const startedAnalyticsKeysRef = useRef(new Set<string>())
-  const hasAcknowledgedHowItWorks = useSelector((state: UniswapState) =>
-    selectHasAcknowledgedEarnHowItWorks(state, vault?.id),
-  )
+  const hasAcknowledgedHowItWorks = useSelector(selectHasAcknowledgedEarnHowItWorks)
   const shouldRedirectToHowItWorks = initialAction !== EarnAction.Withdraw && !hasAcknowledgedHowItWorks
   const walletAddress = useActiveAccountAddress()
-  const { position: livePosition } = useEarnPosition({
+  const { position: livePosition, positionStatus } = useEarnPosition({
     vault,
     walletAddress: walletAddress ?? undefined,
-    isConnected: true,
+    // Signed-out must degrade to NoPosition, not pin Loading (which would hold analytics forever).
+    isConnected: walletAddress !== null,
     enabled: isOpen,
     prefetchedPosition,
   })
   const position = prefetchedPosition
     ? resolveEarnAmountPosition({ livePosition, snapshotPosition: prefetchedPosition })
     : livePosition
+  const isPositionUnknown = isEarnPositionUnknown(positionStatus) && position === undefined
 
   const analyticsProperties = useMemo(() => {
-    if (!vault) {
+    if (!vault || isPositionUnknown) {
       return undefined
     }
 
@@ -76,7 +75,7 @@ export function EarnDepositAmountModal({
       surface: EarnAnalyticsSurface.Mobile,
       vault,
     })
-  }, [analyticsEntryPoint, position, vault])
+  }, [analyticsEntryPoint, isPositionUnknown, position, vault])
 
   const currentStartedAnalyticsKey = useMemo(() => {
     if (!initialAction || !vault) {
@@ -284,6 +283,7 @@ export function EarnDepositAmountModal({
       {/* Give the content an explicit full-screen host so the CTA and keypad align vertically. */}
       <View style={{ height: fullHeight }}>
         <EarnDepositAmountContent
+          analyticsProperties={analyticsProperties}
           vault={vault}
           position={position}
           initialAction={initialAction}

@@ -1,14 +1,16 @@
 import { CurrencyAmount } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
+import { Flex as MyceliumFlex, Flex, Text } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, useSporeColors } from 'ui/src'
+import { useSporeColors } from 'ui/src'
 import { Blocked } from 'ui/src/components/icons/Blocked'
 import { Dialog } from 'uniswap/src/components/dialog/Dialog'
 import { GetHelpHeader } from 'uniswap/src/components/dialog/GetHelpHeader'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
@@ -21,17 +23,9 @@ import { DetailLineItem } from '~/components/DetailLineItem'
 import { LogoLoadingSpinner } from '~/components/LogoLoadingSpinner'
 import { ExternalLink } from '~/theme/components/Links'
 
-const ModalHeader = styled(GetHelpHeader, {
-  py: '$spacing4',
-})
-
-const Container = styled(Flex, {
-  centered: true,
-  backgroundColor: '$surface1',
-  borderRadius: '$rounded16',
-  p: '$spacing24',
-  pt: '$spacing16',
-  width: '100%',
+// pt beats the p shorthand's top, matching the legacy resolution (probed: padding 24 / top 16).
+const Container = styled(MyceliumFlex, {
+  base: 'items-center justify-center p-[24px] pt-[16px] w-[100%] bg-surface1 rounded-[16px]',
 })
 
 export enum CancellationState {
@@ -123,8 +117,10 @@ export function CancelOrdersDialog(props: CancelOrdersDialogProps) {
     const firstOrder = orders[0]
     return (
       <Modal name={ModalName.CancelOrders} isModalOpen onClose={onCancel} padding={0}>
-        <Container gap="lg">
-          <ModalHeader closeModal={onCancel} />
+        <Container gap="$spacing24">
+          {/* The legacy ModalHeader wrapper's py:'$spacing4' never resolved over this plain
+              component base (probed), so the header renders unwrapped and unpadded. */}
+          <GetHelpHeader closeModal={onCancel} />
           <LogoContainer>{icon}</LogoContainer>
           <Text variant="body1" width="100%" textAlign="center">
             {title}
@@ -143,7 +139,7 @@ export function CancelOrdersDialog(props: CancelOrdersDialogProps) {
                     : ''
                 }
                 disabled={!firstOrder}
-                color="neutral2"
+                color="$neutral2"
               >
                 {t('common.viewOnExplorer')}
               </ExternalLink>

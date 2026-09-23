@@ -34,7 +34,7 @@ export function createLiquidityBarsOverlayRenderer({
     }
 
     const { dimensions, isFullRange } = getState()
-    const { setChartState, handleTickChange } = getActions()
+    const { setChartState, handleTickRangeChange } = getActions()
 
     // Calculate overlay positioning
     const liquidityWidth = CHART_DIMENSIONS.LIQUIDITY_CHART_WIDTH - CHART_DIMENSIONS.LIQUIDITY_SECTION_OFFSET
@@ -155,7 +155,11 @@ export function createLiquidityBarsOverlayRenderer({
       const lowerTick = Math.min(startTick, endTick)
       const upperTick = Math.max(startTick, endTick)
       const constrainedMinTick = Math.floor(lowerTick / tickSpacing) * tickSpacing
-      const constrainedMaxTick = Math.ceil(upperTick / tickSpacing) * tickSpacing
+      // A click with no drag puts both on the same boundary, so ceil doesn't widen it
+      const constrainedMaxTick = Math.max(
+        Math.ceil(upperTick / tickSpacing) * tickSpacing,
+        constrainedMinTick + tickSpacing,
+      )
 
       return {
         constrainedMinTick,
@@ -189,8 +193,7 @@ export function createLiquidityBarsOverlayRenderer({
       actions.drawAll()
 
       if (isEnd) {
-        handleTickChange({ changeType: 'min', tick: constrainedMinTick })
-        handleTickChange({ changeType: 'max', tick: constrainedMaxTick })
+        handleTickRangeChange({ minTick: constrainedMinTick, maxTick: constrainedMaxTick })
 
         actions.setChartState({ dragStartY: null, dragCurrentTick: undefined })
       }

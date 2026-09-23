@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { Anchor, clickableStyle, cn, Flex, type FlexCompatProps, Separator, Text } from '@universe/mycelium'
+import { forwardRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Anchor, Flex, Separator, styled, Text } from 'ui/src'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { HelpModal } from '~/components/HelpModal/HelpModal'
@@ -11,16 +11,30 @@ import { NavDropdown } from '~/components/NavBar/NavDropdown'
 import { useTabsVisible } from '~/components/NavBar/ScreenSizes'
 import { useTabsContent } from '~/components/NavBar/Tabs/TabsContent'
 import { Socials } from '~/pages/Landing/sections/Footer'
-import { ClickableTamaguiStyle } from '~/theme/components/styles'
 
-const Container = styled(Flex, {
-  width: '400px',
-  p: '$gap16',
-  userSelect: 'none',
-  height: 'unset',
-  borderRadius: '$rounded12',
-  backgroundColor: '$surface2',
-  boxShadow: '$shadow.1',
+// `width`/`height` are omitted, not just avoided below: `{...props}` spreads last, so a caller
+// passing either would reintroduce the inherited-`--c-w` bug the className works around.
+type ContainerProps = Omit<FlexCompatProps, 'width' | 'height'>
+
+const Container = forwardRef<HTMLDivElement, ContainerProps>(function Container({ className, ...props }, ref) {
+  return (
+    <Flex
+      ref={ref}
+      // Migration scaffolding: size via source classes, not the `width`/`height` props. Those
+      // props compile to `var(--c-w)`/`var(--c-h)` backed by INHERITED custom properties, so a
+      // `width="400px"` prop here publishes `--c-w: 400px` to the whole subtree — and the
+      // descendant Expand's `width="unset"` resolves `width: var(--c-w)` to that 400px instead of
+      // auto, overflowing its own parent and shoving Legal & Privacy onto the social icons.
+      // `h-auto` is what the legacy `height: 'unset'` computed to. Restore the plain props once
+      // INFRA-3925 fixes the keyword lane.
+      className={cn('w-[400px] h-auto', className)}
+      p="$gap16"
+      userSelect="none"
+      borderRadius="$rounded12"
+      backgroundColor="$surface2"
+      {...props}
+    />
+  )
 })
 
 function Section({ title, items, closeMenu }: MenuSection) {
@@ -58,7 +72,7 @@ function ProductSection({ items }: { items: MenuItem[] }) {
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"
-              {...ClickableTamaguiStyle}
+              {...clickableStyle}
               aria-label={item.label}
             >
               <Flex row gap="$gap8" minWidth={168}>
@@ -128,7 +142,7 @@ export function MenuDropdown({ close }: { close?: () => void }) {
             $xl={{ flexDirection: 'column', gap: '$spacing16', alignItems: 'flex-start' }}
           >
             <Flex flex={1} width="100%">
-              <LegalAndPrivacyMenu closeMenu={close} />
+              <LegalAndPrivacyMenu closeMenu={close} singleRowLinks />
             </Flex>
             <Flex row alignSelf="flex-end" alignItems="center" justifyContent="space-between" $xl={{ width: '100%' }}>
               <Flex display="none" $xl={{ display: 'flex' }}>

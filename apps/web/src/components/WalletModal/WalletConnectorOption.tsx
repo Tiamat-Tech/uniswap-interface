@@ -1,14 +1,14 @@
+import { Platform } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, iconSizes, Text } from '@universe/mycelium'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
+import { WalletFilled } from '@universe/mycelium/icons/WalletFilled'
+import { useSporeColors, type UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Image, SpinningLoader, Text, useSporeColors } from 'ui/src'
+import { Image, SpinningLoader } from 'ui/src'
 import { BINANCE_WALLET_ICON } from 'ui/src/assets'
-import { Chevron } from 'ui/src/components/icons/Chevron'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { WalletFilled } from 'ui/src/components/icons/WalletFilled'
-import { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
-import { iconSizes } from 'ui/src/theme'
 import { CONNECTION_PROVIDER_IDS } from 'uniswap/src/constants/web3'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ElementName, InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useEvent } from 'utilities/src/react/hooks'
@@ -191,7 +191,7 @@ export function OtherWalletsOption({ onPress }: { onPress: () => void }) {
     <WalletConnectorOptionBase
       icon={<OtherWalletsIcon />}
       text={t('wallet.other')}
-      rightSideDetail={<Chevron rotate="180deg" size="$icon.24" color="$neutral3" />}
+      rightSideDetail={<RotatableChevron direction="right" size="$icon.24" color="$neutral3" />}
       onPress={onPress}
       isPendingConnection={false}
       isDisabled={false}

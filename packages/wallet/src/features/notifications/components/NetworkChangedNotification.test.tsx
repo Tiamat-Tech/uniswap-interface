@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { NetworkChangedNotification } from 'wallet/src/features/notifications/components/NetworkChangedNotification'
 import { renderWithProviders } from 'wallet/src/test/render'

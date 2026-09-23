@@ -1,10 +1,10 @@
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
+import { LIGHT_THEME_COLORS } from '@universe/mycelium/theme-hooks-compat'
 import * as WebBrowser from 'expo-web-browser'
-import { colorsLight } from 'ui/src/theme'
 import { NATIVE_TOKEN_PLACEHOLDER } from 'uniswap/src/constants/addresses'
 import { UniswapHelpUrls, UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain, toUniswapWebAppLink } from 'uniswap/src/features/chains/utils'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { BACKEND_NATIVE_CHAIN_ADDRESS_STRING } from 'uniswap/src/features/search/utils'
@@ -78,7 +78,7 @@ export async function openUri({
   uri,
   openExternalBrowser = false,
   isSafeUri = false,
-  controlsColor = colorsLight.accent1,
+  controlsColor = LIGHT_THEME_COLORS.accent1,
   throwOnError = false,
 }: {
   uri: string

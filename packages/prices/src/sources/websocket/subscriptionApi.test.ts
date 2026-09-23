@@ -10,6 +10,7 @@ const CONNECTION_ID = 'conn-1'
 const mainnetToken = { chainId: 1, tokenAddress: '0xaaa' }
 const realtimeToken = { chainId: 4663, tokenAddress: '0xbbb' }
 const POOL_ID = '0x' + 'AB'.repeat(32)
+const POOL_ID_LOWERCASE = '0x' + 'ab'.repeat(32)
 const poolRoutedToken = {
   chainId: 4663,
   tokenAddress: '0xccc',
@@ -101,7 +102,7 @@ describe('createPriceSubscriptionHandler channel routing', () => {
       {
         eventSubscriptionType: POOL_TYPE,
         connectionId: CONNECTION_ID,
-        events: [{ pool: { chainId: 4663, protocolVersion: 'v4', poolId: POOL_ID.toLowerCase() } }],
+        events: [{ pool: { chainId: 4663, protocolVersion: 'v4', poolId: POOL_ID_LOWERCASE } }],
       },
     ])
   })
@@ -116,7 +117,7 @@ describe('createPriceSubscriptionHandler channel routing', () => {
     expect(bodies).toContainEqual({
       eventSubscriptionType: POOL_TYPE,
       connectionId: CONNECTION_ID,
-      events: [{ pool: { chainId: 4663, protocolVersion: 'v4', poolId: POOL_ID.toLowerCase() } }],
+      events: [{ pool: { chainId: 4663, protocolVersion: 'v4', poolId: POOL_ID_LOWERCASE } }],
     })
   })
 
@@ -129,7 +130,7 @@ describe('createPriceSubscriptionHandler channel routing', () => {
       {
         eventSubscriptionType: POOL_TYPE,
         connectionId: CONNECTION_ID,
-        events: [{ pool: { chainId: 4663, protocolVersion: 'v4', poolId: POOL_ID.toLowerCase() } }],
+        events: [{ pool: { chainId: 4663, protocolVersion: 'v4', poolId: POOL_ID_LOWERCASE } }],
       },
     ])
   })

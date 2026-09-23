@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import {
   useAllDappConnectionsForAccount,
   useDappConnectedAccounts,
@@ -7,7 +8,6 @@ import {
 } from 'src/app/features/dapp/hooks'
 import { DappState, dappStore } from 'src/app/features/dapp/store'
 import { act, renderHook, waitFor } from 'src/test/test-utils'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { SAMPLE_SEED_ADDRESS_1, SAMPLE_SEED_ADDRESS_3 } from 'uniswap/src/test/fixtures'
 import { useActiveAccountAddress } from 'wallet/src/features/wallet/hooks'
 import { ACCOUNT, ACCOUNT2, ACCOUNT3 } from 'wallet/src/test/fixtures'

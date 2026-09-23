@@ -1,9 +1,9 @@
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { Check } from '@universe/mycelium/icons/Check'
+import { UserCheck } from '@universe/mycelium/icons/UserCheck'
+import { X } from '@universe/mycelium/icons/X'
 import { type PropsWithChildren, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text, TouchableArea } from 'ui/src'
-import { Check } from 'ui/src/components/icons/Check'
-import { UserCheck } from 'ui/src/components/icons/UserCheck'
-import { X } from 'ui/src/components/icons/X'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { shortenAddress } from 'utilities/src/addresses'
 import { KycHookSetupModal } from '~/pages/Liquidity/CreateAuction/components/KycHookSetupModal'
@@ -85,7 +85,7 @@ export function KycCard() {
 
     return (
       <KycCardShell>
-        <Flex row alignItems="center" justifyContent="space-between" width="100%" gap="$spacing10">
+        <Flex row alignItems="center" justifyContent="space-between" width="100%" gap={10}>
           <KycCardTitleRow />
           <Flex
             row

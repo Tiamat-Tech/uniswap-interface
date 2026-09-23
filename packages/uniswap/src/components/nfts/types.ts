@@ -1,5 +1,3 @@
-import { GetThemeValueForKey } from 'ui/src'
-
 /**
  * Shared props type for search input components
  */
@@ -8,5 +6,6 @@ export interface SearchInputProps {
   onChangeText: (value: string) => void
   dataTestId?: string
   placeholder?: string
-  width?: GetThemeValueForKey<'width'>
+  // The concrete values call sites pass; assignable to both the Tamagui Flex and the rebuilt Input
+  width?: number | `${number}%`
 }

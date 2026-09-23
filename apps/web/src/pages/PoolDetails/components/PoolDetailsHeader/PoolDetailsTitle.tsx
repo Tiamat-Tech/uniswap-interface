@@ -1,50 +1,44 @@
-import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { Flex, styled, Text, TouchableArea, useMedia } from 'ui/src'
 import { ArrowDownArrowUp } from 'ui/src/components/icons/ArrowDownArrowUp'
+import { iconSizes } from 'ui/src/theme/iconSizes'
+import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
-import type { FeeData } from 'uniswap/src/features/positions/types'
+import type { ParsedToken } from 'uniswap/src/features/dataApi/utils/parsedToken'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { HEADER_TRANSITION } from '~/components/StickyCollapsibleHeader/constants'
 import { getHeaderTitleVariant } from '~/components/StickyCollapsibleHeader/getHeaderLogoSize'
 import { getTokenDetailsURL } from '~/data/util'
-import { LiquidityPositionInfoBadges } from '~/features/Liquidity/LiquidityPositionInfoBadges'
 import { ClickableTamaguiStyle, EllipsisTamaguiStyle } from '~/theme/components/styles'
 
+// `transition-opacity`, not `all`: `all` animates theme tokens and flashes on a light/dark toggle.
 const StyledLink = styled(Link, {
-  color: '$neutral1',
-  minWidth: 0,
-  flexShrink: 1,
-  ...ClickableTamaguiStyle,
-  '$platform-web': {
-    display: 'flex',
-    textDecoration: 'none',
-  },
+  platform: 'web',
+  base: 'flex min-w-0 shrink no-underline cursor-pointer transition-opacity duration-100 hover:opacity-80 active:opacity-60',
 })
 
 export function PoolDetailsTitle({
   token0,
   token1,
   chainId,
-  feeTier,
-  protocolVersion,
-  protocolFeePips,
   toggleReversed,
-  hookAddress,
   isCompact,
+  poolAddress,
 }: {
-  token0?: GraphQLApi.Token
-  token1?: GraphQLApi.Token
+  token0?: ParsedToken
+  token1?: ParsedToken
   chainId?: UniverseChainId
-  feeTier?: FeeData
-  protocolVersion?: GraphQLApi.ProtocolVersion
-  protocolFeePips?: number
   toggleReversed: React.DispatchWithoutAction
-  hookAddress?: string
   isCompact: boolean
+  poolAddress?: string
 }): JSX.Element {
+  const { t } = useTranslation()
   const media = useMedia()
   const { defaultChainId } = useEnabledChains()
   const graphQLChain = toGraphQLChain(chainId ?? defaultChainId)
@@ -85,16 +79,18 @@ export function PoolDetailsTitle({
           </Text>
         </StyledLink>
       </Flex>
-      <Flex row gap="$spacing2">
-        <LiquidityPositionInfoBadges
-          version={protocolVersion}
-          v4hook={hookAddress}
-          chainId={chainId}
-          feeTier={feeTier}
-          protocolFeePips={protocolFeePips}
-          size="default"
-        />
-      </Flex>
+      {/* Mobile: copy the pool address next to the name (desktop copies it on the second row). */}
+      {media.md && poolAddress && (
+        <Flex alignSelf="center">
+          <CopyHelper
+            toCopy={poolAddress}
+            iconSize={iconSizes.icon16}
+            iconColor="$neutral2"
+            testID={TestID.PoolDetailsCopyAddressButton}
+            ariaLabel={t('common.copy.address')}
+          />
+        </Flex>
+      )}
       <TouchableArea
         hoverable
         {...ClickableTamaguiStyle}

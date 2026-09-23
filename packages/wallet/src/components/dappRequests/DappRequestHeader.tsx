@@ -1,5 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
 import { GlobeFilled, Verified } from 'ui/src/components/icons'
 import { formatDappURL } from 'utilities/src/format/urls'
 import { LinkButton } from 'wallet/src/components/buttons/LinkButton'

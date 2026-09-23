@@ -1,12 +1,15 @@
 /* oxlint-disable complexity */
 import { toScreenInput, useIsBlockedAddress } from '@universe/compliance'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { useDeviceDimensions } from '@universe/mycelium/theme-hooks-compat'
+import { iconSizes, spacing } from '@universe/mycelium/tokens'
+import { withSporeCurve } from '@universe/tailwind/animations/reanimated'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { StyleSheet } from 'react-native'
-import { Flex, Text, TouchableArea } from 'ui/src'
+import { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { AlertCircle } from 'ui/src/components/icons'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
-import { iconSizes, spacing } from 'ui/src/theme'
+import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { CurrencyInputPanel } from 'uniswap/src/components/CurrencyInputPanel/CurrencyInputPanel'
 import type { CurrencyInputPanelRef } from 'uniswap/src/components/CurrencyInputPanel/types'
 import type { TextInputProps } from 'uniswap/src/components/input/TextInput'
@@ -230,6 +233,16 @@ export function SendTokenForm(): JSX.Element {
 
   const [decimalPadReady, setDecimalPadReady] = useState(false)
 
+  // The pad renders transparent until it reports ready, then fades in on the
+  // Spore `quick` curve (the legacy Tamagui preset this site animated with).
+  const decimalPadOpacity = useSharedValue(0)
+
+  useEffect(() => {
+    decimalPadOpacity.value = withSporeCurve('quick', decimalPadReady ? 1 : 0)
+  }, [decimalPadReady, decimalPadOpacity])
+
+  const decimalPadAnimatedStyle = useAnimatedStyle(() => ({ opacity: decimalPadOpacity.value }), [decimalPadOpacity])
+
   const onDecimalPadReady = useCallback(() => setDecimalPadReady(true), [])
 
   const onDecimalPadTriggerInputShake = useCallback(() => {
@@ -408,14 +421,13 @@ export function SendTokenForm(): JSX.Element {
               isDecimalPadReady={decimalPadReady}
             />
 
-            <Flex
-              animation="quick"
+            <AnimatedFlex
               bottom={0}
               gap="$spacing8"
               left={0}
-              opacity={!decimalPadReady ? 0 : 1}
               position="absolute"
               right={0}
+              style={decimalPadAnimatedStyle}
             >
               <DecimalPadInput
                 ref={decimalPadRef}
@@ -427,7 +439,7 @@ export function SendTokenForm(): JSX.Element {
                 onReady={onDecimalPadReady}
                 onTriggerInputShakeAnimation={onDecimalPadTriggerInputShake}
               />
-            </Flex>
+            </AnimatedFlex>
           </>
         )}
       </Flex>

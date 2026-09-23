@@ -3,13 +3,12 @@ import { TradeType } from '@uniswap/sdk-core'
 import { SharedQueryClient } from '@universe/api'
 import {
   DEFAULT_CALLDATA_HINTS_ENABLED,
-  DEFAULT_FLASHBOTS_ENABLED,
   FLASHBOTS_DEFAULT_REFUND_PERCENT,
+  type UniverseChainId,
 } from '@universe/chains'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
 import { BigNumber } from 'ethers'
 import { call, put, select, takeEvery } from 'typed-redux-saga'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { findLocalGasStrategy, getGasPrice } from 'uniswap/src/features/gas/utils'
 import { setNotificationStatus } from 'uniswap/src/features/notifications/slice/slice'
@@ -262,23 +261,27 @@ function logSend(typeInfo: SendTokenTransactionInfo, chainId: UniverseChainId): 
 }
 
 export function logTransactionTimeout(transaction: TransactionDetails): void {
-  const flashbotsEnabled = DEFAULT_FLASHBOTS_ENABLED
+  // Old persisted txs predate the label; every private submission was Flashbots then.
+  const privateRpcProvider = isClassic(transaction)
+    ? (transaction.options.privateRpcProvider ?? (transaction.options.submitViaPrivateRpc ? 'flashbots' : undefined))
+    : undefined
   const flashbotsRefundPercent = FLASHBOTS_DEFAULT_REFUND_PERCENT
   const calldataHintsEnabled = DEFAULT_CALLDATA_HINTS_ENABLED
 
   sendAnalyticsEvent(WalletEventName.PendingTransactionTimeout, {
-    use_flashbots: flashbotsEnabled,
+    use_flashbots: privateRpcProvider === 'flashbots',
     flashbots_refund_percent: flashbotsRefundPercent,
     calldata_hints_enabled: calldataHintsEnabled,
     chain_id: transaction.chainId,
     tx_hash: transaction.hash,
     address: transaction.from,
     private_rpc: (isClassic(transaction) && transaction.options.submitViaPrivateRpc) ?? false,
+    private_rpc_provider: privateRpcProvider,
   })
 
   logger.warn('transactionFinalizationSaga', 'logTransactionTimeout', 'Transaction timed out', {
     chain_id: transaction.chainId,
-    flashbots_enabled: flashbotsEnabled,
+    private_rpc_provider: privateRpcProvider,
     flashbots_refund_percent: flashbotsRefundPercent,
     calldata_hints_enabled: calldataHintsEnabled,
     transaction,

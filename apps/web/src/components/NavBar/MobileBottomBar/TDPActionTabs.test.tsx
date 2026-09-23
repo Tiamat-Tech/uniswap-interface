@@ -1,7 +1,4 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { PropsWithChildren } from 'react'
-import { TamaguiProvider } from 'ui/src'
-import config from 'ui/src/tamagui.config'
 import { TDPActionTabs } from '~/components/NavBar/MobileBottomBar/TDPActionTabs'
 
 const {
@@ -32,8 +29,9 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
 
-vi.mock('ui/src', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('ui/src')>()
+// TDPActionTabs reads `useMedia` from the mycelium compat hook (INFRA-3152 took this file off Tamagui).
+vi.mock('@universe/mycelium/theme-hooks-compat', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@universe/mycelium/theme-hooks-compat')>()
   return {
     ...actual,
     useMedia: () => mockUseMedia(),
@@ -68,15 +66,7 @@ vi.mock('~/hooks/useSelectChain', () => ({
 // TDPSwapComponent (TokenDetails always renders both, so a single mount avoids double
 // portals). This test asserts on the openModal dispatch, not the modal render.
 
-function ThemeWrapper({ children }: PropsWithChildren): JSX.Element {
-  return (
-    <TamaguiProvider config={config} defaultTheme="light">
-      {children}
-    </TamaguiProvider>
-  )
-}
-
-const renderWithTheme = (ui: React.ReactElement): ReturnType<typeof render> => render(ui, { wrapper: ThemeWrapper })
+const renderWithTheme = (ui: React.ReactElement): ReturnType<typeof render> => render(ui)
 
 const TPT2_ADDRESS = '0x7b7c6a29368eebe78bfab9eae09d958da5cad9a4'
 const ETHEREUM = 1
@@ -88,7 +78,7 @@ function setupStore(overrides: Record<string, unknown> = {}): void {
       currencyChainId: ETHEREUM,
       address: TPT2_ADDRESS,
       tokenColor: undefined,
-      multiChainMap: { ethereum: { balance: undefined } },
+      multiChainMap: { [ETHEREUM]: { balance: undefined } },
       currency: { chainId: ETHEREUM, isNative: false, address: TPT2_ADDRESS, symbol: 'TPT2' },
       ...overrides,
     }),
@@ -166,7 +156,7 @@ describe('TDPActionTabs — permissioned gating', () => {
   })
 
   it('renders normal Buy/Sell tabs when wallet is allowlisted and has balance', () => {
-    setupStore({ multiChainMap: { ethereum: { balance: '100' } } })
+    setupStore({ multiChainMap: { [ETHEREUM]: { balance: '100' } } })
     mockUseTokenKYCStatus.mockReturnValue({
       isPermissioned: true,
       isAllowlisted: true,
@@ -179,6 +169,21 @@ describe('TDPActionTabs — permissioned gating', () => {
     expect(screen.getByText('common.buy.label')).toBeTruthy()
     expect(screen.getByText('common.sell.label')).toBeTruthy()
     expect(screen.queryByText('permissionedPool.verifyIdentity.cta')).toBeNull()
+  })
+
+  it('applies a runtime tokenColor hex to the tab buttons', () => {
+    // tokenColor is a runtime-extracted hex, never a $-token: it must reach the DOM
+    // through ButtonCompat's custom-style path (inline style), not the token class map.
+    setupStore({ tokenColor: '#FC72FF' })
+
+    renderWithTheme(<TDPActionTabs />)
+
+    const buyButton = screen.getByText('common.buy.label').closest('button')
+    expect(buyButton).not.toBeNull()
+    // Inline style, not a class: ButtonCompat's custom-style lane (getCustomStyle) carries
+    // dynamic colors. jsdom's CSSOM normalizes the hex to rgb.
+    expect(buyButton?.style.backgroundColor).toBe('rgb(252, 114, 255)')
+    expect(buyButton?.style.borderColor).toBe('#fc72ff')
   })
 
   it('renders normal Buy tab when no wallet is connected (connect-wallet UX defers)', () => {

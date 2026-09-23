@@ -1,9 +1,8 @@
 import { isExtensionApp } from '@universe/environment'
+import { Flex, fonts, type InputProps, Text } from '@universe/mycelium'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { LayoutChangeEvent, TextLayoutEvent } from 'react-native'
-import { Flex, type InputProps, Text } from 'ui/src'
-import { fonts } from 'ui/src/theme'
 import { TextInput } from 'uniswap/src/components/input/TextInput'
 import { useENS } from 'uniswap/src/features/ens/useENS'
 

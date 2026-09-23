@@ -1,4 +1,5 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/core'
+import { Button, Flex } from '@universe/mycelium'
 import { addScreenshotListener } from 'expo-screen-capture'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +10,7 @@ import { WalletRestoreType } from 'src/components/RestoreWalletModal/RestoreWall
 import { useBiometricAppSpeedBump } from 'src/features/biometrics/useBiometricAppSpeedBump'
 import { useLockScreenOnBlur } from 'src/features/lockScreen/hooks/useLockScreenOnBlur'
 import { useWalletRestore } from 'src/features/wallet/useWalletRestore'
-import { Button, Flex, flexStyles } from 'ui/src'
+import { flexStyles } from 'ui/src'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { WarningModal } from 'uniswap/src/components/modals/WarningModal/WarningModal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -72,7 +73,7 @@ export function SeedPhraseDisplay({ mnemonicId, onDismiss, walletNeedsRestore }:
             <MnemonicDisplay mnemonicId={mnemonicId} showMnemonic={showSeedPhrase} />
           </Flex>
         </Flex>
-        <Flex row borderTopColor="$surface3" borderTopWidth={1} pt="$spacing12" px="$spacing16">
+        <Flex row borderColor="$surface3" borderTopWidth={1} pt="$spacing12" px="$spacing16">
           <Button
             size="large"
             emphasis="secondary"

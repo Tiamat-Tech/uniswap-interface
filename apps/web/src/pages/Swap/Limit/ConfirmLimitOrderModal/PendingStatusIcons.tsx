@@ -1,17 +1,14 @@
-import { Flex, styled } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { Flex, iconSizes } from '@universe/mycelium'
 import { ConfirmedIcon, SubmittedIcon } from '~/components/AccountDrawer/MiniPortfolio/Activity/Logos'
 import { LogoLoadingSpinner } from '~/components/LogoLoadingSpinner'
 import { FadePresence } from '~/theme/components/FadePresence'
 
-const LoadingIndicator = styled(LogoLoadingSpinner, {
-  color: '$neutral3',
-  width: 'calc(100% + 8px)',
-  height: 'calc(100% + 8px)',
-  top: -4,
-  left: -4,
-  position: 'absolute',
-})
+/** Oversized absolute overlay ring; color is the spinner's own neutral3 default. */
+const LoadingIndicator = (): JSX.Element => (
+  <LogoLoadingSpinner
+    style={{ width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', top: -4, left: -4, position: 'absolute' }}
+  />
+)
 
 export function LoadingIndicatorOverlay() {
   return (

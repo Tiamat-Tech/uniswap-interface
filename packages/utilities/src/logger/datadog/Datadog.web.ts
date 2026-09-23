@@ -5,7 +5,7 @@ import { isExtensionApp, isWebApp, isTestEnv } from '@universe/environment'
 import { Action, AnyAction, PreloadedState, Reducer, StoreEnhancerStoreCreator } from 'redux'
 import { NotImplementedError } from 'utilities/src/errors'
 import { ReduxEnhancerConfig } from 'utilities/src/logger/datadog/Datadog'
-import { handleReduxAction } from 'utilities/src/logger/datadog/reduxUtils'
+import { getRedactedReduxActionContext, handleReduxAction } from 'utilities/src/logger/datadog/reduxUtils'
 import { LoggerErrorContext, LogLevel } from 'utilities/src/logger/types'
 
 export function logToDatadog(
@@ -91,19 +91,16 @@ export function createDatadogReduxEnhancer({
       const enhancedReducer: Reducer<S, A> = (state, action): S => {
         const newState = reducer(state, action)
 
-        const { isAction, reduxStateToLog } = handleReduxAction({
-          action,
+        const { shouldLogAction, reduxStateToLog } = handleReduxAction({
           newState,
           shouldLogState: shouldLogReduxState(newState),
         })
 
-        if (reduxStateToLog) {
-          reduxState = reduxStateToLog
-        }
+        // Cleared, not merely left stale, on opt-out: the error paths below read this cache.
+        reduxState = reduxStateToLog
 
-        /* Log action to Datadog */
-        if (isAction) {
-          datadogRum.addAction(`Redux Action: ${action.type}`, action)
+        if (shouldLogAction) {
+          datadogRum.addAction(`Redux Action: ${action.type}`, getRedactedReduxActionContext(action))
         }
 
         return newState

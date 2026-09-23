@@ -1,3 +1,5 @@
+import { AnimatedFlex, Flex, Square, Text, TouchableArea, useSporeColors } from '@universe/mycelium'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -18,10 +20,9 @@ import { getScantasticUrl } from 'src/app/features/onboarding/scan/utils'
 import { OnboardingRoutes, TopLevelRoutes } from 'src/app/navigation/constants'
 import { navigate } from 'src/app/navigation/state'
 import UAParser from 'ua-parser-js'
-import { Flex, Image, Square, Text, TouchableArea, useSporeColors } from 'ui/src'
+import { Image } from 'ui/src'
 import { DOT_GRID, UNISWAP_LOGO } from 'ui/src/assets'
 import { FileListLock, Mobile, RotatableChevron, Wifi } from 'ui/src/components/icons'
-import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { iconSizes, zIndexes } from 'ui/src/theme'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { ExtensionOnboardingFlow, ExtensionOnboardingScreens } from 'uniswap/src/types/screens/extension'
@@ -217,12 +218,7 @@ export function ScanToOnboard(): JSX.Element {
           ) : undefined
         }
         Icon={
-          <Square
-            backgroundColor="$surface2"
-            borderRadius="$rounded12"
-            height={iconSizes.icon48}
-            width={iconSizes.icon48}
-          >
+          <Square backgroundColor="$surface2" borderRadius="$rounded12" size={iconSizes.icon48}>
             <Mobile color="$neutral1" size="$icon.24" />
           </Square>
         }
@@ -275,8 +271,7 @@ export function ScanToOnboard(): JSX.Element {
                   <Image height={QR_CODE_SIZE} source={DOT_GRID} width={QR_CODE_SIZE} />
                 ) : (
                   <Flex
-                    animateOnly={['opacity']}
-                    animation="lazy"
+                    transition={`opacity ${SPORE_ANIMATION_CURVE_CSS.lazy}`}
                     enterStyle={{
                       opacity: 0,
                     }}

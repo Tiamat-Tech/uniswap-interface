@@ -1,28 +1,22 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { HookListResponse } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/api_pb'
 import { HookEntry } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
 import { DEFAULT_TICK_SPACING, DYNAMIC_FEE_AMOUNT, V2_DEFAULT_FEE_TIER } from 'uniswap/src/constants/pools'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getFeeBreakdown } from 'uniswap/src/features/fees/getFeeBreakdown'
+import { buildHookRegistryMap, useHookRegistryMap } from 'uniswap/src/features/poolHooks/hooks/useHookRegistryMap'
 import { shortenAddress } from 'utilities/src/addresses'
 import { LiquidityPositionInfoBadges } from '~/features/Liquidity/LiquidityPositionInfoBadges'
-import { buildHookRegistryMap, useHookRegistryMap } from '~/hooks/useHookRegistryMap'
 import { mocked } from '~/test-utils/mocked'
 import { fireEvent, render, screen } from '~/test-utils/render'
 
-vi.mock('~/hooks/useHookRegistryMap', async () => {
-  const actual = await vi.importActual('~/hooks/useHookRegistryMap')
+vi.mock('uniswap/src/features/poolHooks/hooks/useHookRegistryMap', async () => {
+  const actual = await vi.importActual('uniswap/src/features/poolHooks/hooks/useHookRegistryMap')
   return {
     ...actual,
     useHookRegistryMap: vi.fn(),
   }
 })
-
-vi.mock('@universe/gating', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@universe/gating')>()),
-  useFeatureFlag: vi.fn(),
-}))
 
 // Passthrough spy: real engine behavior, observable inputs/outputs.
 vi.mock('uniswap/src/features/fees/getFeeBreakdown', async (importOriginal) => {
@@ -51,10 +45,6 @@ function mockRegistryWithHook() {
 }
 
 describe('LiquidityPositionInfoBadges', () => {
-  beforeEach(() => {
-    mocked(useFeatureFlag).mockReturnValue(false)
-  })
-
   it('should render with default size', () => {
     const { getByText } = render(
       <LiquidityPositionInfoBadges
@@ -75,6 +65,51 @@ describe('LiquidityPositionInfoBadges', () => {
       />,
     )
     expect(getByText('v2')).toBeInTheDocument()
+  })
+
+  // `compact` is defined as "`small`'s type size, but tighter chip padding", so it is only meaningful
+  // relative to the other two sizes. Comparing the emitted style classes pins both halves of that
+  // definition without hard-coding any one styling system's generated class names.
+  function renderBadgeChip(size: 'default' | 'small' | 'compact'): { fontSize: string; padding: string[] } {
+    const { getByText, unmount } = render(
+      <LiquidityPositionInfoBadges
+        version={ProtocolVersion.V2}
+        feeTier={{ feeAmount: 100, tickSpacing: DEFAULT_TICK_SPACING, isDynamic: false }}
+        size={size}
+      />,
+    )
+    // The label's own font size comes from the `size === 'default' ? 'body3' : 'body4'` ternary on the
+    // inner Text; the chip padding comes from the styled `size` variant. They are two separate
+    // mechanisms, so read each from the element that actually carries it.
+    const label = getByText('v2')
+    const chip = label.parentElement
+    if (!chip) {
+      throw new Error('badge chip not found')
+    }
+    const fontSize = label.className.split(' ').find((c) => c.startsWith('text-['))
+    const padding = chip.className
+      .split(' ')
+      .filter((c) => /^p[xytbrl]?-\[/.test(c))
+      .sort()
+    const labelClassName = label.className
+    unmount()
+    if (!fontSize) {
+      throw new Error(`no font size class for size=${size} on "${labelClassName}"`)
+    }
+    return { fontSize, padding }
+  }
+
+  it('should render with compact size: small type with tighter chip padding', () => {
+    const compact = renderBadgeChip('compact')
+    const small = renderBadgeChip('small')
+    const defaultSize = renderBadgeChip('default')
+
+    // compact shares `small`'s smaller type...
+    expect(compact.fontSize).toBe(small.fontSize)
+    expect(compact.fontSize).not.toBe(defaultSize.fontSize)
+    // ...but tightens the chip padding, which `small` leaves at the default.
+    expect(small.padding).toEqual(defaultSize.padding)
+    expect(compact.padding).not.toEqual(small.padding)
   })
 
   it('should render with multiple badges', () => {
@@ -130,6 +165,9 @@ describe('LiquidityPositionInfoBadges', () => {
       <LiquidityPositionInfoBadges version={ProtocolVersion.V4} v4hook={hookAddress} size="default" />,
     )
     expect(getByText(shortenAddress({ address: hookAddress }))).toBeInTheDocument()
+    // No chain to scope to: falls back to the cross-chain registry request, but disabled since the
+    // lookup below can't use it without a chainId.
+    expect(mocked(useHookRegistryMap)).toHaveBeenLastCalledWith({ chainId: undefined, enabled: false })
   })
 
   it('should render the registry name for a known hook and open the details dialog on click', () => {
@@ -146,13 +184,25 @@ describe('LiquidityPositionInfoBadges', () => {
     expect(screen.queryByText('Adjusts LP fees dynamically')).toBeNull()
     fireEvent.click(getByText('TestHook'))
     expect(screen.getByText('Adjusts LP fees dynamically')).toBeTruthy()
+    // Single-chain caller: the registry request is scoped to that chain, not fetched cross-chain.
+    expect(mocked(useHookRegistryMap)).toHaveBeenLastCalledWith({ chainId: UniverseChainId.Mainnet, enabled: true })
   })
 
-  describe('with V4ProtocolFeeDisplay enabled', () => {
-    beforeEach(() => {
-      mocked(useFeatureFlag).mockImplementation((flag) => flag === FeatureFlags.V4ProtocolFeeDisplay)
-    })
+  it('should not fetch the hook registry for a v2/v3 position (no v4hook) even with a chainId', () => {
+    mockRegistryWithHook()
+    render(
+      <LiquidityPositionInfoBadges
+        version={ProtocolVersion.V3}
+        chainId={UniverseChainId.Mainnet}
+        feeTier={{ feeAmount: 100, tickSpacing: DEFAULT_TICK_SPACING, isDynamic: false }}
+        size="default"
+      />,
+    )
+    // No v4hook to look up: the registry fetch would be wasted, so it stays disabled despite chainId.
+    expect(mocked(useHookRegistryMap)).toHaveBeenLastCalledWith({ chainId: UniverseChainId.Mainnet, enabled: false })
+  })
 
+  describe('fee badge', () => {
     it('renders a FeeDisplay for a static v4 fee tier', () => {
       const { getByText } = render(
         <LiquidityPositionInfoBadges

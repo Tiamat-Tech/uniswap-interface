@@ -21,8 +21,7 @@ import { ConnectWalletMutationProvider } from '~/features/wallet/connection/hook
 import { ExternalWalletProvider } from '~/features/wallet/providers/ExternalWalletProvider'
 import { BlockNumberContext } from '~/lib/hooks/useBlockNumber'
 import store from '~/state'
-import { ThemeProvider } from '~/theme'
-import { TamaguiProvider } from '~/theme/tamaguiProvider'
+import { ColorSchemeProvider } from '~/theme/colorSchemeProvider'
 
 const queryClient = new QueryClient()
 
@@ -63,14 +62,12 @@ function CommonTestProviders({ children }: PropsWithChildren) {
         <TransactionWatcherProvider>
           <ReactRouterUrlProvider>
             <MockedBlockNumberProvider>
-              <ThemeProvider>
-                <TamaguiProvider>
-                  <PriceServiceProvider queryClient={SharedQueryClient}>
-                    <WebAccountsStoreUpdater />
-                    <MockedMismatchProvider>{children}</MockedMismatchProvider>
-                  </PriceServiceProvider>
-                </TamaguiProvider>
-              </ThemeProvider>
+              <ColorSchemeProvider>
+                <PriceServiceProvider queryClient={SharedQueryClient}>
+                  <WebAccountsStoreUpdater />
+                  <MockedMismatchProvider>{children}</MockedMismatchProvider>
+                </PriceServiceProvider>
+              </ColorSchemeProvider>
             </MockedBlockNumberProvider>
           </ReactRouterUrlProvider>
         </TransactionWatcherProvider>

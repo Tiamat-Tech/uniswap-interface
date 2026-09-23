@@ -1,6 +1,9 @@
 import userEvent from '@testing-library/user-event'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { USDC_MAINNET } from 'uniswap/src/constants/tokens'
+import type { UseTokenMetadataResult } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
+import { useTokenMetadata } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { ZERO_PERCENT } from '~/constants/misc'
 import { useCurrency } from '~/hooks/Tokens'
@@ -12,7 +15,6 @@ import { ETH_MAINNET } from '~/test-utils/constants'
 import { mocked } from '~/test-utils/mocked'
 import { validUSDCCurrency } from '~/test-utils/pools/fixtures'
 import { render, screen } from '~/test-utils/render'
-import { validTokenProjectResponse } from '~/test-utils/tokens/fixtures'
 
 vi.mock('~/hooks/Tokens')
 vi.mock('~/hooks/useSwapTaxes')
@@ -21,31 +23,56 @@ vi.mock('~/pages/TokenDetails/context/useTDPStore', () => ({
   useTDPStore: vi.fn(),
 }))
 
+vi.mock('uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData')>()),
+  useTokenMetadata: vi.fn(),
+}))
+
 const SINGLE_CHAIN_MAP = {
-  ETHEREUM: { address: USDC_MAINNET.address },
+  [UniverseChainId.Mainnet]: { address: USDC_MAINNET.address },
 }
 
 const MULTI_CHAIN_MAP = {
-  ETHEREUM: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
-  BASE: { address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' },
+  [UniverseChainId.Mainnet]: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+  [UniverseChainId.Base]: { address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' },
+}
+
+const VALID_METADATA: UseTokenMetadataResult = {
+  name: 'USD Coin',
+  symbol: 'USDC',
+  description:
+    'USDC is a fully collateralized US dollar stablecoin. USDC is the bridge between dollars and trading on cryptocurrency exchanges. The technology behind CENTRE makes it possible to exchange value between people, businesses and financial institutions just like email between mail services and texts between SMS providers. We believe by removing artificial economic borders, we can create a more inclusive global economy.',
+  homepageUrl: 'https://www.circle.com/en/usdc',
+  twitterName: 'circle',
+  logoUrl:
+    'https://raw.githubusercontent.com/Uniswap/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',
+  isLoading: false,
+}
+
+const EMPTY_METADATA: UseTokenMetadataResult = { isLoading: false }
+
+function mockTDPState(state: Partial<TDPState>): void {
+  mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
+    selector(state as TDPState)) as typeof useTDPStore)
+}
+
+const USDC_STATE: Partial<TDPState> = {
+  address: USDC_MAINNET.address,
+  currency: USDC_MAINNET,
+  currencyChain: GraphQLApi.Chain.Ethereum,
+  currencyChainId: UniverseChainId.Mainnet,
+  multiChainMap: SINGLE_CHAIN_MAP,
 }
 
 describe('TokenDescription', () => {
   beforeEach(() => {
     mocked(useCurrency).mockReturnValue(validUSDCCurrency)
     mocked(useSwapTaxes).mockReturnValue({ inputTax: ZERO_PERCENT, outputTax: ZERO_PERCENT })
+    mocked(useTokenMetadata).mockReturnValue(VALID_METADATA)
   })
 
   it('renders token information correctly with defaults', () => {
-    const mockState = {
-      address: USDC_MAINNET.address,
-      currency: USDC_MAINNET,
-      currencyChain: GraphQLApi.Chain.Ethereum,
-      tokenProjectQuery: validTokenProjectResponse,
-      multiChainMap: SINGLE_CHAIN_MAP,
-    }
-    mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
-      selector(mockState as TDPState)) as typeof useTDPStore)
+    mockTDPState(USDC_STATE)
     const { asFragment } = render(<TokenDescription />)
     expect(asFragment()).toMatchSnapshot()
 
@@ -57,15 +84,7 @@ describe('TokenDescription', () => {
   })
 
   it('truncates description and shows more', async () => {
-    const mockState = {
-      address: USDC_MAINNET.address,
-      currency: USDC_MAINNET,
-      currencyChain: GraphQLApi.Chain.Ethereum,
-      tokenProjectQuery: validTokenProjectResponse,
-      multiChainMap: SINGLE_CHAIN_MAP,
-    }
-    mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
-      selector(mockState as TDPState)) as typeof useTDPStore)
+    mockTDPState(USDC_STATE)
     const { asFragment } = render(<TokenDescription />)
 
     expect(asFragment()).toMatchSnapshot()
@@ -83,15 +102,8 @@ describe('TokenDescription', () => {
   })
 
   it('no description or social buttons shown when not available', async () => {
-    const mockState = {
-      address: USDC_MAINNET.address,
-      currency: USDC_MAINNET,
-      currencyChain: GraphQLApi.Chain.Ethereum,
-      tokenProjectQuery: { data: undefined, loading: false, error: undefined },
-      multiChainMap: SINGLE_CHAIN_MAP,
-    }
-    mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
-      selector(mockState as TDPState)) as typeof useTDPStore)
+    mocked(useTokenMetadata).mockReturnValue(EMPTY_METADATA)
+    mockTDPState(USDC_STATE)
     const { asFragment } = render(<TokenDescription />)
     expect(asFragment()).toMatchSnapshot()
 
@@ -104,30 +116,12 @@ describe('TokenDescription', () => {
 
   it('does not render website pill for javascript: URI', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const validData = validTokenProjectResponse.data!
-    const unsafeTokenProjectQuery = {
-      ...validTokenProjectResponse,
-      data: {
-        ...validData,
-        token: {
-          ...validData.token,
-          project: {
-            ...validData.token?.project,
-            // oxlint-disable-next-line no-script-url
-            homepageUrl: 'javascript:alert(1)',
-          },
-        },
-      },
-    }
-    const mockState = {
-      address: USDC_MAINNET.address,
-      currency: USDC_MAINNET,
-      currencyChain: GraphQLApi.Chain.Ethereum,
-      tokenProjectQuery: unsafeTokenProjectQuery,
-      multiChainMap: SINGLE_CHAIN_MAP,
-    }
-    mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
-      selector(mockState as TDPState)) as typeof useTDPStore)
+    mocked(useTokenMetadata).mockReturnValue({
+      ...VALID_METADATA,
+      // oxlint-disable-next-line no-script-url
+      homepageUrl: 'javascript:alert(1)',
+    })
+    mockTDPState(USDC_STATE)
 
     render(<TokenDescription />)
 
@@ -140,15 +134,7 @@ describe('TokenDescription', () => {
 
   describe('multichain', () => {
     it('renders single-chain pills when only one chain', () => {
-      const mockState = {
-        address: USDC_MAINNET.address,
-        currency: USDC_MAINNET,
-        currencyChain: GraphQLApi.Chain.Ethereum,
-        tokenProjectQuery: validTokenProjectResponse,
-        multiChainMap: SINGLE_CHAIN_MAP,
-      }
-      mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
-        selector(mockState as TDPState)) as typeof useTDPStore)
+      mockTDPState(USDC_STATE)
 
       render(<TokenDescription />)
 
@@ -160,15 +146,7 @@ describe('TokenDescription', () => {
     })
 
     it('renders multichain dropdown triggers when multiple chains exist', () => {
-      const mockState = {
-        address: USDC_MAINNET.address,
-        currency: USDC_MAINNET,
-        currencyChain: GraphQLApi.Chain.Ethereum,
-        tokenProjectQuery: validTokenProjectResponse,
-        multiChainMap: MULTI_CHAIN_MAP,
-      }
-      mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
-        selector(mockState as TDPState)) as typeof useTDPStore)
+      mockTDPState({ ...USDC_STATE, multiChainMap: MULTI_CHAIN_MAP })
 
       render(<TokenDescription />)
 
@@ -181,15 +159,12 @@ describe('TokenDescription', () => {
     })
 
     it('hides address pill for native token even with multichain', () => {
-      const mockState = {
+      mockTDPState({
+        ...USDC_STATE,
         address: ETH_MAINNET.wrapped.address,
         currency: ETH_MAINNET,
-        currencyChain: GraphQLApi.Chain.Ethereum,
-        tokenProjectQuery: validTokenProjectResponse,
         multiChainMap: MULTI_CHAIN_MAP,
-      }
-      mocked(useTDPStore).mockImplementation(((selector: (s: TDPState) => unknown) =>
-        selector(mockState as TDPState)) as typeof useTDPStore)
+      })
 
       render(<TokenDescription />)
 

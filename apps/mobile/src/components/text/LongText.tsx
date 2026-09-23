@@ -1,8 +1,8 @@
+import { Flex, fonts, SpaceTokens, Text } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React, { ComponentProps, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NativeSyntheticEvent, TextLayoutEventData } from 'react-native'
-import { Flex, SpaceTokens, Text, useSporeColors } from 'ui/src'
-import { fonts } from 'ui/src/theme'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
 type LongTextProps = {

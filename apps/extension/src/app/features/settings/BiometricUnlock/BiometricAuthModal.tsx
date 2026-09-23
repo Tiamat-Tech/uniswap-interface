@@ -1,6 +1,8 @@
+import { Button, Flex, Text } from '@universe/mycelium'
+import type { GeneratedIcon } from '@universe/mycelium/icons'
+import { HelpCenter } from '@universe/mycelium/icons/HelpCenter'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, GeneratedIcon, Square, Text, useSporeColors } from 'ui/src'
-import { HelpCenter } from 'ui/src/components/icons'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -42,9 +44,20 @@ export function BiometricAuthModal({
       </Flex>
 
       <Flex centered gap="$spacing12">
-        <Square backgroundColor="$surface2" borderRadius="$rounded12" size="$spacing48">
+        {/* Legacy Square's `size` variant maps one value onto width/height and their min/max twins. */}
+        <Flex
+          centered
+          backgroundColor="$surface2"
+          borderRadius="$rounded12"
+          width="$spacing48"
+          height="$spacing48"
+          minWidth="$spacing48"
+          maxWidth="$spacing48"
+          minHeight="$spacing48"
+          maxHeight="$spacing48"
+        >
           <Icon color="$neutral1" size="$icon.24" />
-        </Square>
+        </Flex>
 
         <Flex centered gap="$spacing8">
           <Text textAlign="center" variant="subheading2">

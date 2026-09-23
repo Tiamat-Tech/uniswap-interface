@@ -1,16 +1,17 @@
 import { OptionRow } from '@universe/embedded-wallet'
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { ButtonCompat as Button } from '@universe/mycelium/button-compat'
+import { AppleLogo } from '@universe/mycelium/icons/AppleLogo'
+import { BackArrow } from '@universe/mycelium/icons/BackArrow'
+import { EnvelopeHeart } from '@universe/mycelium/icons/EnvelopeHeart'
+import { GoogleLogoGradient } from '@universe/mycelium/icons/GoogleLogoGradient'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
+import { Person } from '@universe/mycelium/icons/Person'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Button, Flex, Separator, SpinningLoader, Text, TouchableArea } from 'ui/src'
-import { AppleLogo } from 'ui/src/components/icons/AppleLogo'
-import { BackArrow } from 'ui/src/components/icons/BackArrow'
+import { Separator, SpinningLoader } from 'ui/src'
 import { Envelope } from 'ui/src/components/icons/Envelope'
-import { EnvelopeHeart } from 'ui/src/components/icons/EnvelopeHeart'
-import { GoogleLogoGradient } from 'ui/src/components/icons/GoogleLogoGradient'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { Person } from 'ui/src/components/icons/Person'
-import { iconSizes } from 'ui/src/theme'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -227,15 +228,22 @@ export function EmbeddedWalletConnectionsModal(): JSX.Element {
           <Trace logPress element={ElementName.SignIn}>
             <TouchableArea
               group
-              animation={null}
               alignSelf="center"
               variant="unstyled"
               hoverable={false}
               testID={TestID.LogIn}
               onPress={handleLogIn}
             >
-              <Flex row gap="$gap4" alignItems="center">
-                <Passkey size="$icon.20" color="$accent1" $group-hover={{ color: '$accent1Hovered' }} />
+              {/* Mycelium icons take only size/color and Flex has no `color` prop, so the
+                  Passkey hover swap rides the enclosing Flex's CSS color via className;
+                  color="currentColor" opts the icon out of its #222222 defaultFill. */}
+              <Flex
+                row
+                gap="$gap4"
+                alignItems="center"
+                className="[color:var(--accent1)] group-hover:[color:var(--accent1-hovered)]"
+              >
+                <Passkey size="$icon.20" color="currentColor" />
                 <Text variant="buttonLabel2" color="$accent1" $group-hover={{ color: '$accent1Hovered' }}>
                   {t('nav.logIn.button')}
                 </Text>

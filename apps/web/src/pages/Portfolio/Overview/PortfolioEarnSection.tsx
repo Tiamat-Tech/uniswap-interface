@@ -1,13 +1,13 @@
-import { CurrencyAmount, type Currency } from '@uniswap/sdk-core'
+import { Flex, iconSizes, Separator, Text, TouchableArea } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Separator, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { FormattedAmountWithMutedDecimals } from 'uniswap/src/components/text/FormattedAmountWithMutedDecimals'
 import { useTokenProjectsByCurrencyId } from 'uniswap/src/features/dataApi/tokenProjects/tokenProjects'
+import type { PortfolioBalance } from 'uniswap/src/features/dataApi/types'
+import { getProjectedAnnualEarnings } from 'uniswap/src/features/earn/amount'
 import { EarnAnalyticsSurface, EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import {
   getEarnDepositSourceOptions,
@@ -16,9 +16,10 @@ import {
 import { useEarnLifetimeEarningsUsd } from 'uniswap/src/features/earn/hooks/useEarnLifetimeEarningsUsd'
 import { useEarnVaults } from 'uniswap/src/features/earn/hooks/useEarnVaults'
 import { useLogEarnSurfaceViewed } from 'uniswap/src/features/earn/hooks/useLogEarnSurfaceViewed'
+import { LiveEarnRewardsAmount } from 'uniswap/src/features/earn/LiveEarnRewardsAmount'
 import { RewardsUnavailableIndicator } from 'uniswap/src/features/earn/RewardsUnavailableIndicator'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
-import { hasEarnPosition } from 'uniswap/src/features/earn/utils'
+import { getDisplayLifetimeEarningsUsd, hasEarnPosition } from 'uniswap/src/features/earn/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { usePortfolioBalances } from 'uniswap/src/features/portfolio/balances/hooks'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
@@ -26,16 +27,22 @@ import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { NumberType } from 'utilities/src/format/types'
 import { EarnVaultModal } from '~/features/earn/EarnVaultModal'
 import { useEarnVaultModalState } from '~/features/earn/hooks/useEarnVaultModalState'
+import { PortfolioEarnVaultRow, PortfolioEarnVaultRowSkeleton } from '~/pages/Portfolio/Overview/PortfolioEarnVaultRow'
 
 const EARN_LOADING_ROWS = 3
 const LIFETIME_EARNINGS_DECIMAL_OPACITY = 0.5
-const VAULT_ROW_MIN_HEIGHT = 44
 
 function hasVisibleVaultRows({ isLoading, vaultCount }: { isLoading: boolean; vaultCount: number }): boolean {
   return !isLoading && vaultCount > 0
 }
 
-export const PortfolioEarnSection = memo(function PortfolioEarnSection({ account }: { account?: string }) {
+export const PortfolioEarnSection = memo(function PortfolioEarnSection({
+  account,
+  isReadOnly = false,
+}: {
+  account?: string
+  isReadOnly?: boolean
+}) {
   const { t } = useTranslation()
   const { convertFiatAmountFormatted } = useLocalizationContext()
   const { closeModal, openDepositModal, openModal, selectedVaultState } = useEarnVaultModalState()
@@ -62,26 +69,23 @@ export const PortfolioEarnSection = memo(function PortfolioEarnSection({ account
     walletAddress: account,
     vaults: vaultsWithActivePosition,
   })
-  const portfolioBalances = usePortfolioBalances({
-    evmAddress: account,
-    skip: !account,
+  const { portfolioBalanceData, hasSettledPortfolioBalances } = useEligibilityPortfolioBalances({
+    account,
+    isReadOnly,
   })
-  const hasCachedPortfolioBalanceData =
-    portfolioBalances.data !== undefined && portfolioBalances.dataUpdatedAt !== undefined
-  const hasFreshPortfolioBalanceData = portfolioBalances.data !== undefined && !portfolioBalances.loading
-  const hasUsablePortfolioBalanceData = hasCachedPortfolioBalanceData || hasFreshPortfolioBalanceData
-  const hasSettledPortfolioBalances =
-    hasUsablePortfolioBalanceData || (!portfolioBalances.loading && !portfolioBalances.error)
-  const portfolioBalanceData = hasUsablePortfolioBalanceData ? portfolioBalances.data : undefined
   const tokenProjectCurrencyIds = useMemo(
-    () => vaultsSortedByPosition.map((vault) => vault.currencyId),
-    [vaultsSortedByPosition],
+    () => (isReadOnly ? [] : vaultsSortedByPosition.map((vault) => vault.currencyId)),
+    [isReadOnly, vaultsSortedByPosition],
   )
   const { data: tokenProjectsByCurrencyId, loading: isLoadingTokenProjects } = useTokenProjectsByCurrencyId(
     account ? tokenProjectCurrencyIds : [],
   )
   const hasTokenBalanceByVaultId = useMemo(() => {
     const vaultBalanceMap = new Map<string, boolean>()
+
+    if (isReadOnly) {
+      return vaultBalanceMap
+    }
 
     vaultsSortedByPosition.forEach((vault) => {
       const tokenProjectDepositCurrencyIds = getCurrencyIds(tokenProjectsByCurrencyId?.get(vault.currencyId))
@@ -95,8 +99,13 @@ export const PortfolioEarnSection = memo(function PortfolioEarnSection({ account
     })
 
     return vaultBalanceMap
-  }, [portfolioBalanceData, tokenProjectsByCurrencyId, vaultsSortedByPosition])
+  }, [isReadOnly, portfolioBalanceData, tokenProjectsByCurrencyId, vaultsSortedByPosition])
   const { eligibleVaults, ineligibleVaults } = useMemo(() => {
+    // Read-only portfolios only list funded vaults — no deposit CTAs for someone else's wallet.
+    if (isReadOnly) {
+      return { eligibleVaults: vaultsWithActivePosition, ineligibleVaults: [] }
+    }
+
     const eligible: EarnVaultInfo[] = []
     const ineligible: EarnVaultInfo[] = []
 
@@ -108,24 +117,26 @@ export const PortfolioEarnSection = memo(function PortfolioEarnSection({ account
     })
 
     return { eligibleVaults: eligible, ineligibleVaults: ineligible }
-  }, [hasTokenBalanceByVaultId, positionsByVaultId, vaultsSortedByPosition])
-  const hasDisplayableEarnPosition = useMemo(
-    () => Array.from(positionsByVaultId.values()).some((position) => hasEarnPosition(position)),
-    [positionsByVaultId],
-  )
+  }, [hasTokenBalanceByVaultId, isReadOnly, positionsByVaultId, vaultsSortedByPosition, vaultsWithActivePosition])
+  const hasDisplayableEarnPosition = vaultsWithActivePosition.length > 0
 
   // Eligibility inputs only gate unfunded rows — funded rows render once vaults + positions resolve.
   const isEligibilityLookupPending =
-    !hasSettledPortfolioBalances || (isLoadingTokenProjects && tokenProjectsByCurrencyId === undefined)
+    !isReadOnly && (!hasSettledPortfolioBalances || (isLoadingTokenProjects && tokenProjectsByCurrencyId === undefined))
   const isVaultRowDataPending = isLoadingPositions || isEligibilityLookupPending
   const shouldShowLoadingRows = isLoadingVaults || (isVaultRowDataPending && !hasDisplayableEarnPosition)
   const shouldShowPendingPositionRows = isVaultRowDataPending && hasDisplayableEarnPosition
   const shouldShowVaultDivider = !shouldShowLoadingRows && eligibleVaults.length > 0 && ineligibleVaults.length > 0
   const hasNoVaultRows = !shouldShowLoadingRows && vaultsSortedByPosition.length === 0
   const shouldShowErrorState = isError && hasNoVaultRows
+  // Read-only portfolios stay hidden unless the viewed wallet has a funded catalog vault.
+  const isHiddenReadOnlySection = isReadOnly && eligibleVaults.length === 0
   useLogEarnSurfaceViewed({
     entryPoint: EarnEntryPoint.PortfolioEarnSection,
-    isVisible: hasVisibleVaultRows({ isLoading: shouldShowLoadingRows, vaultCount: vaultsSortedByPosition.length }),
+    isReadOnly,
+    isVisible:
+      !isHiddenReadOnlySection &&
+      hasVisibleVaultRows({ isLoading: shouldShowLoadingRows, vaultCount: vaultsSortedByPosition.length }),
     surface: EarnAnalyticsSurface.Web,
   })
   const handleVaultPress = useCallback(
@@ -145,6 +156,10 @@ export const PortfolioEarnSection = memo(function PortfolioEarnSection({ account
     [openDepositModal],
   )
 
+  if (isHiddenReadOnlySection) {
+    return null
+  }
+
   // Surface the error state only when the load failed with nothing to show; keep any stale data visible.
   if (shouldShowErrorState) {
     return <PortfolioEarnErrorState onRetry={refetch} />
@@ -155,11 +170,10 @@ export const PortfolioEarnSection = memo(function PortfolioEarnSection({ account
   }
 
   const totalDeposited = convertFiatAmountFormatted(totalDepositedUsd, NumberType.PortfolioBalance)
-  const lifetimeEarnings = convertFiatAmountFormatted(lifetimeEarningsUsd, NumberType.PortfolioBalance)
 
   return (
     <>
-      <Flex gap="$spacing16" px="$spacing8" data-testid={TestID.PortfolioOverviewEarnSection}>
+      <Flex gap="$spacing16" px="$spacing8" testID={TestID.PortfolioOverviewEarnSection}>
         <Flex gap="$spacing4">
           <Flex row alignItems="center" gap="$spacing4">
             <Text variant="subheading1" color="$neutral1">
@@ -184,20 +198,20 @@ export const PortfolioEarnSection = memo(function PortfolioEarnSection({ account
             {lifetimeEarningsError ? (
               <RewardsUnavailableIndicator />
             ) : (
-              <FormattedAmountWithMutedDecimals
-                amount={lifetimeEarnings}
-                variant="body3"
-                color="$statusSuccess"
-                decimalOpacity={LIFETIME_EARNINGS_DECIMAL_OPACITY}
-                justifyContent="flex-end"
-                loading={isLoadingPositions || isLoadingLifetimeEarnings}
-                testID={TestID.PortfolioOverviewEarnLifetimeEarnings}
+              <PortfolioEarnLifetimeEarnings
+                // Remount on wallet switch so the prior account's extrapolation never carries over.
+                key={account}
+                lifetimeEarningsUsd={lifetimeEarningsUsd}
+                isLoading={isLoadingPositions || isLoadingLifetimeEarnings}
+                vaultsWithActivePosition={vaultsWithActivePosition}
+                positionsByVaultId={positionsByVaultId}
               />
             )}
           </Flex>
         </Flex>
 
         <PortfolioEarnVaultRows
+          isReadOnly={isReadOnly}
           shouldShowLoadingRows={shouldShowLoadingRows}
           shouldShowPendingPositionRows={shouldShowPendingPositionRows}
           shouldShowVaultDivider={shouldShowVaultDivider}
@@ -210,19 +224,71 @@ export const PortfolioEarnSection = memo(function PortfolioEarnSection({ account
         />
       </Flex>
 
-      <EarnVaultModal
-        analyticsEntryPoint={selectedVaultState?.analyticsEntryPoint ?? EarnEntryPoint.PortfolioEarnSection}
-        vault={selectedVaultState?.vault ?? null}
-        prefetchedPosition={selectedVaultState?.vault ? positionsByVaultId.get(selectedVaultState.vault.id) : undefined}
-        initialView={selectedVaultState?.initialView}
-        isOpen={selectedVaultState !== null}
-        onClose={closeModal}
-      />
+      {!isReadOnly && (
+        <EarnVaultModal
+          analyticsEntryPoint={selectedVaultState?.analyticsEntryPoint ?? EarnEntryPoint.PortfolioEarnSection}
+          vault={selectedVaultState?.vault ?? null}
+          prefetchedPosition={
+            selectedVaultState?.vault ? positionsByVaultId.get(selectedVaultState.vault.id) : undefined
+          }
+          initialView={selectedVaultState?.initialView}
+          isOpen={selectedVaultState !== null}
+          onClose={closeModal}
+        />
+      )}
     </>
   )
 })
 
+function PortfolioEarnLifetimeEarnings({
+  lifetimeEarningsUsd,
+  isLoading,
+  vaultsWithActivePosition,
+  positionsByVaultId,
+}: {
+  lifetimeEarningsUsd: number
+  isLoading: boolean
+  vaultsWithActivePosition: EarnVaultInfo[]
+  positionsByVaultId: ReadonlyMap<string, EarnPositionInfo>
+}): JSX.Element {
+  const { convertFiatAmountFormatted } = useLocalizationContext()
+  const annualRewardsRateUsd = useMemo(
+    () =>
+      vaultsWithActivePosition.reduce((sum, vault) => {
+        const position = positionsByVaultId.get(vault.id)
+        return position
+          ? sum + getProjectedAnnualEarnings({ balance: position.depositedUsd, apyPercent: position.apyPercent })
+          : sum
+      }, 0),
+    [vaultsWithActivePosition, positionsByVaultId],
+  )
+  return (
+    <LiveEarnRewardsAmount
+      lifetimeEarningsUsd={isLoading ? undefined : lifetimeEarningsUsd}
+      annualRewardsRateUsd={annualRewardsRateUsd}
+      textVariant="$body3"
+      containerTestID={TestID.PortfolioOverviewEarnLifetimeEarnings}
+      // Idle wallets (nothing accruing) keep the plain two-decimal display.
+      fallback={
+        <FormattedAmountWithMutedDecimals
+          amount={convertFiatAmountFormatted(
+            getDisplayLifetimeEarningsUsd(lifetimeEarningsUsd),
+            NumberType.PortfolioBalance,
+          )}
+          variant="body3"
+          color="$statusSuccess"
+          decimalOpacity={LIFETIME_EARNINGS_DECIMAL_OPACITY}
+          justifyContent="flex-end"
+          loading={isLoading}
+          testID={TestID.PortfolioOverviewEarnLifetimeEarnings}
+        />
+      }
+    />
+  )
+}
+
 function PortfolioEarnVaultRows({
+  isReadOnly,
   shouldShowLoadingRows,
   shouldShowPendingPositionRows,
   shouldShowVaultDivider,
@@ -233,6 +299,7 @@ function PortfolioEarnVaultRows({
   onVaultPress,
   onGetTokenPress,
 }: {
+  isReadOnly: boolean
   shouldShowLoadingRows: boolean
   shouldShowPendingPositionRows: boolean
   shouldShowVaultDivider: boolean
@@ -267,7 +334,7 @@ function PortfolioEarnVaultRows({
               vault={vault}
               position={position}
               hasTokenBalance={hasTokenBalanceByVaultId.get(vault.id) ?? false}
-              onPress={() => onVaultPress(vault, position)}
+              onPress={isReadOnly ? undefined : () => onVaultPress(vault, position)}
             />
           )
         })}
@@ -288,7 +355,7 @@ function PortfolioEarnVaultRows({
             vault={vault}
             position={position}
             hasTokenBalance={hasTokenBalanceByVaultId.get(vault.id) ?? false}
-            onPress={() => onVaultPress(vault, position)}
+            onPress={isReadOnly ? undefined : () => onVaultPress(vault, position)}
           />
         )
       })}
@@ -304,7 +371,7 @@ function PortfolioEarnErrorState({ onRetry }: { onRetry: () => void }): JSX.Elem
   const { t } = useTranslation()
 
   return (
-    <Flex gap="$spacing4" px="$spacing8" data-testid={TestID.PortfolioOverviewEarnError}>
+    <Flex gap="$spacing4" px="$spacing8" testID={TestID.PortfolioOverviewEarnError}>
       <Flex row alignItems="center" gap="$spacing4">
         <Text variant="subheading1" color="$neutral1">
           {t('explore.earn.title')}
@@ -315,91 +382,35 @@ function PortfolioEarnErrorState({ onRetry }: { onRetry: () => void }): JSX.Elem
         {t('portfolio.overview.earn.errorLoadingBalance')}
       </Text>
       <TouchableArea variant="unstyled" onPress={onRetry} testID={TestID.PortfolioOverviewEarnRetry}>
-        <TouchableArea.Text variant="body3" color="$neutral1">
+        {/* hoverStyle replaces the legacy TouchableArea hover-color injection, which skips mycelium children */}
+        <Text variant="body3" color="$neutral1" hoverStyle={{ color: '$neutral1Hovered' }}>
           {t('common.button.tryAgain')}
-        </TouchableArea.Text>
+        </Text>
       </TouchableArea>
     </Flex>
   )
 }
 
-function getCurrencyIds(currencyInfos: ReadonlyArray<{ currencyId: string }> | undefined): string[] {
-  return currencyInfos?.map((currencyInfo) => currencyInfo.currencyId) ?? []
+function useEligibilityPortfolioBalances({ account, isReadOnly }: { account?: string; isReadOnly: boolean }): {
+  portfolioBalanceData: Record<string, PortfolioBalance> | undefined
+  hasSettledPortfolioBalances: boolean
+} {
+  const portfolioBalances = usePortfolioBalances({
+    evmAddress: account,
+    skip: !account || isReadOnly,
+  })
+  const hasCachedPortfolioBalanceData =
+    portfolioBalances.data !== undefined && portfolioBalances.dataUpdatedAt !== undefined
+  const hasFreshPortfolioBalanceData = portfolioBalances.data !== undefined && !portfolioBalances.loading
+  const hasUsablePortfolioBalanceData = hasCachedPortfolioBalanceData || hasFreshPortfolioBalanceData
+  const hasSettledPortfolioBalances = hasUsablePortfolioBalanceData || !portfolioBalances.loading
+  const portfolioBalanceData = hasUsablePortfolioBalanceData ? portfolioBalances.data : undefined
+
+  return { portfolioBalanceData, hasSettledPortfolioBalances }
 }
 
-function PortfolioEarnVaultRow({
-  vault,
-  position,
-  hasTokenBalance,
-  onPress,
-}: {
-  vault: EarnVaultInfo
-  position: EarnPositionInfo | undefined
-  hasTokenBalance: boolean
-  onPress: () => void
-}) {
-  const { t } = useTranslation()
-  const { convertFiatAmountFormatted, formatCurrencyAmount, formatPercent } = useLocalizationContext()
-  const currencyInfo = useCurrencyInfo(vault.displayCurrencyId)
-  const currency = currencyInfo?.currency
-  const hasPosition = hasEarnPosition(position)
-  const depositedCurrencyAmount = useMemo(
-    () => getDepositedCurrencyAmount({ currency, position }),
-    [currency, position],
-  )
-  const tokenAmount =
-    depositedCurrencyAmount && currency
-      ? `${formatCurrencyAmount({
-          value: depositedCurrencyAmount,
-          type: NumberType.TokenNonTx,
-        })} ${currency.symbol}`
-      : undefined
-
-  return (
-    <TouchableArea
-      row
-      alignItems="center"
-      gap="$spacing12"
-      width="100%"
-      minHeight={VAULT_ROW_MIN_HEIGHT}
-      py="$spacing4"
-      borderRadius="$rounded12"
-      cursor="pointer"
-      onPress={onPress}
-      testID={`${TestID.PortfolioOverviewEarnVaultRowPrefix}${vault.id}`}
-    >
-      <TokenLogo
-        url={currencyInfo?.logoUrl}
-        size={iconSizes.icon32}
-        chainId={currency?.chainId}
-        symbol={currency?.symbol}
-        name={currency?.name}
-        hideNetworkLogo
-      />
-      <Flex flex={1} minWidth={0}>
-        <Text variant="body3" color="$neutral1" numberOfLines={1}>
-          {currency?.symbol ?? '-'}
-        </Text>
-        <Text variant="body4" color="$accent1" numberOfLines={1}>
-          {t('explore.earn.apy', { apy: formatPercent(vault.apyPercent) })}
-        </Text>
-      </Flex>
-      {hasPosition && position ? (
-        <Flex alignItems="flex-end">
-          <Text variant="body3" color="$neutral1" textAlign="right" numberOfLines={1}>
-            {convertFiatAmountFormatted(position.depositedUsd, NumberType.PortfolioBalance)}
-          </Text>
-          <Text variant="body4" color="$neutral2" textAlign="right" numberOfLines={1}>
-            {tokenAmount ?? '-'}
-          </Text>
-        </Flex>
-      ) : hasTokenBalance ? (
-        <Button size="xsmall" emphasis="secondary" fill={false}>
-          {t('explore.earn.vault.deposit')}
-        </Button>
-      ) : null}
-    </TouchableArea>
-  )
+function getCurrencyIds(currencyInfos: ReadonlyArray<{ currencyId: string }> | undefined): string[] {
+  return currencyInfos?.map((currencyInfo) => currencyInfo.currencyId) ?? []
 }
 
 function PortfolioEarnVaultGetTokenRow({ vault, onPress }: { vault: EarnVaultInfo; onPress: () => void }) {
@@ -447,54 +458,4 @@ function PortfolioEarnVaultGetTokenRow({ vault, onPress }: { vault: EarnVaultInf
       </Flex>
     </TouchableArea>
   )
-}
-
-function PortfolioEarnVaultRowSkeleton() {
-  return (
-    <Flex
-      row
-      alignItems="center"
-      gap="$spacing12"
-      minHeight={VAULT_ROW_MIN_HEIGHT}
-      px="$spacing12"
-      py="$spacing4"
-      testID={TestID.PortfolioOverviewEarnVaultRowSkeleton}
-    >
-      <Flex
-        width={iconSizes.icon32}
-        height={iconSizes.icon32}
-        borderRadius="$roundedFull"
-        backgroundColor="$surface3"
-      />
-      <Flex flex={1} gap="$spacing4">
-        <Text variant="body2" loading>
-          -
-        </Text>
-        <Text variant="body4" loading>
-          -
-        </Text>
-      </Flex>
-      <Text variant="body2" loading>
-        -
-      </Text>
-    </Flex>
-  )
-}
-
-function getDepositedCurrencyAmount({
-  currency,
-  position,
-}: {
-  currency: Currency | undefined
-  position: EarnPositionInfo | undefined
-}): CurrencyAmount<Currency> | undefined {
-  if (!currency || !position?.depositedRaw) {
-    return undefined
-  }
-
-  try {
-    return CurrencyAmount.fromRawAmount(currency, position.depositedRaw)
-  } catch {
-    return undefined
-  }
 }

@@ -1,6 +1,6 @@
 import { usePoolsListRenderData } from 'src/screens/HomeScreen/portfolio/tabs/pools/hooks/usePoolsListRenderData'
 import { renderHook } from 'src/test/test-utils'
-import { useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
+import { SORT_BY_USD_VALUE_DESC, useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
 import type { MockedFunction } from 'vitest'
 import { usePendingLiquidityTransactionsChangeListener } from 'wallet/src/features/transactions/hooks/usePendingLiquidityTransactionsChangeListener'
 
@@ -8,7 +8,8 @@ vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({
   useEnabledChains: () => ({ chains: [1] }),
 }))
 
-vi.mock('uniswap/src/features/positions/hooks/useWalletPositions', () => ({
+vi.mock('uniswap/src/features/positions/hooks/useWalletPositions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('uniswap/src/features/positions/hooks/useWalletPositions')>()),
   useWalletPositions: vi.fn(),
 }))
 
@@ -66,7 +67,13 @@ describe('usePoolsListRenderData', () => {
     renderHook(() => usePoolsListRenderData({ owner: '0xabc', skip: true }))
 
     expect(mockUseWalletPositions).toHaveBeenCalledWith(
-      expect.objectContaining({ account: '0xabc', includeHidden: true, autoFetchAllPages: false, disabled: true }),
+      expect.objectContaining({
+        account: '0xabc',
+        includeHidden: true,
+        autoFetchAllPages: false,
+        disabled: true,
+        ...SORT_BY_USD_VALUE_DESC,
+      }),
     )
     // No explicit pageSize so the cache key matches usePoolsTabVisibility's default.
     expect(mockUseWalletPositions.mock.calls[0]?.[0]).not.toHaveProperty('pageSize')

@@ -1,5 +1,5 @@
+import type { UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts'
-import type { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
 import type { BidConcentrationResult } from '~/features/Toucan/Auction/BidDistributionChart/utils/bidConcentration'
 import type { BidTokenInfo, UserBid } from '~/features/Toucan/Auction/store/types'
 import type { ChartMode, ToucanChartData, ToucanChartSeriesOptions } from '~/features/Toucan/ToucanChart/renderer'
@@ -104,7 +104,7 @@ export interface ToucanBidDistributionChartControllerUpdateParams {
 
   // Domain data needed for click snapping + tooltip display
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals: number
   floorPriceQ96: string
   clearingPriceQ96: string

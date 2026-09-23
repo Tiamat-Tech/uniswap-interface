@@ -1,13 +1,14 @@
 import type { BottomSheetView } from '@gorhom/bottom-sheet'
 import { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { isExtensionApp, isMobileApp, isMobileWeb, isWebApp, isWebIOS, isWebPlatform } from '@universe/environment'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, ModalCloseIcon, spacing, Text, zIndexes } from '@universe/mycelium'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
+import { useMedia, useScrollbarStyles, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { ComponentProps, memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useWindowDimensions } from 'react-native'
-import { Flex, ModalCloseIcon, Text, useMedia, useScrollbarStyles, useSporeColors } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
-import { spacing, zIndexes } from 'ui/src/theme'
 import PasteButton from 'uniswap/src/components/buttons/PasteButton'
 import { SelectorBaseListSkeleton } from 'uniswap/src/components/lists/SelectorBaseList'
 import { useBottomSheetContext } from 'uniswap/src/components/modals/BottomSheetContext'
@@ -16,6 +17,7 @@ import { NetworkFilter } from 'uniswap/src/components/network/NetworkFilter'
 import { NetworkFilterV2 } from 'uniswap/src/components/network/NetworkFilterV2/NetworkFilterV2'
 import type { TieredNetworkOptions } from 'uniswap/src/components/network/NetworkFilterV2/types'
 import { useNetworkSelectorOptions } from 'uniswap/src/components/network/NetworkFilterV2/useNetworkSelectorOptions'
+import { TOKEN_SELECTOR_LOADING_ROWS } from 'uniswap/src/components/TokenSelector/constants'
 import { CrosschainSwapsPromoBanner } from 'uniswap/src/components/TokenSelector/CrosschainSwapsPromoBanner'
 import { useClipboardCheck } from 'uniswap/src/components/TokenSelector/hooks/useClipboardCheck'
 import { useTokenSelectionHandler } from 'uniswap/src/components/TokenSelector/hooks/useTokenSelectionHandler'
@@ -33,7 +35,6 @@ import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { TradeableAsset } from 'uniswap/src/entities/assets'
 import type { AddressGroup } from 'uniswap/src/features/accounts/store/types/AccountsState'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useFilterCallbacks } from 'uniswap/src/features/search/SearchModal/hooks/useFilterCallbacks'
 import { SearchTextInput } from 'uniswap/src/features/search/SearchTextInput'
 import { InterfaceEventName, ModalName, SectionName } from 'uniswap/src/features/telemetry/constants'
@@ -306,7 +307,7 @@ function LegacyTokenSelectorContent({
                 />
               </>
             ) : (
-              <SelectorBaseListSkeleton />
+              <SelectorBaseListSkeleton repeat={TOKEN_SELECTOR_LOADING_ROWS} />
             )}
           </Flex>
         </Flex>
@@ -352,6 +353,11 @@ function TokenSelectorModalInner(props: TokenSelectorProps): JSX.Element {
       // Open at half and allow expanding to full, matching SNAP_POINTS. Concrete px (not '%')
       // because Fabric doesn't reliably normalize percentage snap points in the nested portal.
       snapPoints={isMobileApp ? [windowHeight * HALF_SNAP_POINT_RATIO, windowHeight] : SNAP_POINTS}
+      // The mobile-web sheet must take its height from the snap point, not content-fit: the
+      // virtualized token list sizes itself to its container (AutoSizer) so it has no intrinsic
+      // height, and a fit-mode sheet opened with cached data freezes at chrome height with an
+      // empty list (SWAP-3250). Native ignores this prop.
+      snapPointsMode={isMobileApp ? undefined : 'percent'}
       height={isWebApp ? '100vh' : undefined}
       focusHook={focusHook}
       onClose={onClose}

@@ -1,7 +1,8 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Flex } from '@universe/mycelium'
+import { Presence } from '@universe/mycelium/presence'
 import { memo, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, Flex } from 'ui/src'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { EmptyTokensList } from 'uniswap/src/components/portfolio/EmptyTokensList'
 import { PortfolioEmptyState } from 'uniswap/src/components/portfolio/PortfolioEmptyState'
@@ -141,11 +142,11 @@ function TokenBalanceListInner({
         openReportTokenModal={openReportTokenModal}
         hiddenTokensRowRef={hiddenTokensRowRef}
       />
-      <AnimatePresence initial={false}>
+      <Presence initial={false}>
         {hiddenTokensExpanded && (
           <TokenBalanceItems animated rows={hidden} openReportTokenModal={openReportTokenModal} />
         )}
-      </AnimatePresence>
+      </Presence>
     </>
   )
 }

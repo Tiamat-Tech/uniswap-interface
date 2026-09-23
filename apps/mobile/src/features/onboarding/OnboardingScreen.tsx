@@ -1,5 +1,8 @@
 import { useFocusEffect } from '@react-navigation/core'
 import { isIOS } from '@universe/environment'
+import { Flex, fonts, SpaceTokens, Text } from '@universe/mycelium'
+import type { GeneratedIcon } from '@universe/mycelium/icons'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import React, { PropsWithChildren, useCallback } from 'react'
 import { BackHandler, StyleSheet } from 'react-native'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
@@ -9,10 +12,9 @@ import { useOnboardingStackNavigation } from 'src/app/navigation/types'
 import { Screen, SHORT_SCREEN_HEADER_HEIGHT_RATIO } from 'src/components/layout/Screen'
 import { useRegionalizedLineHeight } from 'src/components/text/useRegionalizedLineHeight'
 import { ONBOARDING_HEADER_BAR_HEIGHT, OnboardingHeader } from 'src/features/onboarding/OnboardingHeader'
-import { Flex, GeneratedIcon, SpaceTokens, Text, useMedia } from 'ui/src'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
-import { fonts } from 'ui/src/theme'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
+import { useBottomScreenGap } from 'uniswap/src/hooks/useBottomScreenGap'
 
 type OnboardingScreenProps = {
   subtitle?: string
@@ -47,6 +49,7 @@ export function OnboardingScreen({
 }: PropsWithChildren<OnboardingScreenProps>): JSX.Element {
   const navigation = useOnboardingStackNavigation()
   const insets = useAppInsets()
+  const { bottomScreenExtraGap } = useBottomScreenGap()
   const headerHeight = insets.top + ONBOARDING_HEADER_BAR_HEIGHT
   const media = useMedia()
   // TODO(WALL-5483): remove this once we improve seed recovery screen design on smaller devices
@@ -98,7 +101,7 @@ export function OnboardingScreen({
             entering={FadeIn}
             exiting={FadeOut}
             gap={gapSize}
-            pb="$spacing16"
+            pb={bottomScreenExtraGap}
             px={ignoreContainerPaddingX ? undefined : '$spacing16'}
           >
             {/* Text content */}

@@ -1,9 +1,8 @@
 import { isWebApp } from '@universe/environment'
-import { ColorTokens } from 'tamagui'
+import type { ColorTokens } from '@universe/mycelium'
+import { Flex } from '@universe/mycelium'
 import { CheckmarkCircle } from 'ui/src/components/icons/CheckmarkCircle'
 import { CopySheets } from 'ui/src/components/icons/CopySheets'
-import { Flex } from 'ui/src/components/layout'
-
 export interface CopyIconProps {
   isAnimated?: boolean
   isCopied: boolean

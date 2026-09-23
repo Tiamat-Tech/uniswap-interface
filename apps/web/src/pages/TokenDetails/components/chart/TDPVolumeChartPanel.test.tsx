@@ -8,10 +8,21 @@ import { TDPVolumeChartPanel } from '~/pages/TokenDetails/components/chart/TDPVo
 import { render, screen } from '~/test-utils/render'
 
 vi.mock('~/components/Charts/LoadingState', () => ({
-  ChartSkeleton: function MockChartSkeleton({ errorText }: { errorText?: ReactNode }) {
+  ChartSkeleton: function MockChartSkeleton({
+    errorTitle,
+    errorText,
+  }: {
+    errorTitle?: ReactNode
+    errorText?: ReactNode
+  }) {
     return (
       <div data-testid="mock-chart-skeleton">
-        {errorText ? <div data-cy="chart-error-view">{errorText}</div> : null}
+        {errorText ? (
+          <div data-cy="chart-error-view">
+            <div data-testid="chart-error-title">{errorTitle}</div>
+            <div data-testid="chart-error-text">{errorText}</div>
+          </div>
+        ) : null}
       </div>
     )
   },
@@ -36,19 +47,53 @@ const variables = {
 
 const mockedUseTDPVolumeChartData = vi.mocked(useTDPVolumeChartData)
 
+function mockInvalid({ isError, loading = false }: { isError: boolean; loading?: boolean }) {
+  mockedUseTDPVolumeChartData.mockReturnValue({
+    chartType: ChartType.VOLUME,
+    entries: [{ time: 1 as UTCTimestamp, value: 1 }],
+    loading,
+    dataQuality: DataQuality.INVALID,
+    isError,
+  })
+}
+
+function renderPanel() {
+  render(<TDPVolumeChartPanel variables={variables} tokenColor="#fff" timePeriod={TimePeriod.DAY} />)
+}
+
 describe('TDPVolumeChartPanel', () => {
   beforeEach(() => {
-    mockedUseTDPVolumeChartData.mockReturnValue({
-      chartType: ChartType.VOLUME,
-      entries: [{ time: 1 as UTCTimestamp, value: 1 }],
-      loading: false,
-      dataQuality: DataQuality.INVALID,
-    })
+    mockInvalid({ isError: false })
   })
 
-  it('shows chart error view when data is invalid and not loading', () => {
-    render(<TDPVolumeChartPanel variables={variables} tokenColor="#fff" timePeriod={TimePeriod.DAY} />)
+  it('shows the no-data copy when the query succeeded but there is not enough data', () => {
+    renderPanel()
+
     expect(document.querySelector('[data-cy="chart-error-view"]')).toBeInTheDocument()
+    expect(screen.getByTestId('chart-error-title')).toHaveTextContent('No volume data available')
+    expect(screen.getByTestId('chart-error-text')).toHaveTextContent(
+      'There isn’t enough historical data for this token to show a chart.',
+    )
+  })
+
+  it('keeps the error copy when the query failed', () => {
+    mockInvalid({ isError: true })
+
+    renderPanel()
+
+    expect(screen.getByTestId('chart-error-title')).toHaveTextContent('Missing chart data')
+    expect(screen.getByTestId('chart-error-text')).toHaveTextContent(
+      'Unable to display historical data for the current token.',
+    )
+  })
+
+  it('renders a bare skeleton while loading', () => {
+    mockInvalid({ isError: false, loading: true })
+
+    renderPanel()
+
+    expect(screen.getByTestId('mock-chart-skeleton')).toBeInTheDocument()
+    expect(document.querySelector('[data-cy="chart-error-view"]')).not.toBeInTheDocument()
   })
 
   it('renders VolumeChart when data is valid', () => {

@@ -1,5 +1,6 @@
 import { type Currency, type CurrencyAmount } from '@uniswap/sdk-core'
 import { type ChainedQuoteResponse, type DiscriminatedQuoteResponse, type GasFeeResult } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { isWebPlatform } from '@universe/environment'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +10,6 @@ import {
   WarningLabel,
   WarningSeverity,
 } from 'uniswap/src/components/modals/WarningModal/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useChainGasToken } from 'uniswap/src/features/gas/hooks/useChainGasToken'
 import { hasSufficientGasBalance } from 'uniswap/src/features/gas/utils'
 import { isChainedQuoteResponse } from 'uniswap/src/features/transactions/swap/utils/routing'

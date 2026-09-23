@@ -1,6 +1,6 @@
+import { UniverseChainId, EVMUniverseChainId } from '@universe/chains'
 import ms from 'ms'
 import { useMemo } from 'react'
-import { EVMUniverseChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useReadContracts } from 'wagmi'
 import { erc20Abi } from '~/chains'
 import { assume0xAddress } from '~/chains'

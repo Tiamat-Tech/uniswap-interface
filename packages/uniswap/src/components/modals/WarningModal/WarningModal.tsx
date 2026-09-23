@@ -1,8 +1,10 @@
 import { isMobileApp, isWebPlatform } from '@universe/environment'
+import { Flex, type FlexProps, Text, TouchableArea } from '@universe/mycelium'
+import { useShadowPropsShort } from '@universe/mycelium/theme-hooks-compat'
 import { type PropsWithChildren, type ReactNode, useContext, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColorValue } from 'react-native'
-import { Button, Flex, FlexProps, Text, TouchableArea, useShadowPropsShort, useSporeColors } from 'ui/src'
+import { Button, useSporeColors } from 'ui/src'
 import type { ButtonEmphasis, ButtonProps, ButtonVariant } from 'ui/src/components/buttons/Button/types'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { ShieldMagnifyingGlass } from 'ui/src/components/icons/ShieldMagnifyingGlass'
@@ -120,7 +122,7 @@ function ReportWarningModalContent({
 
   return (
     <Trace logPress section={SectionName.DisputeTokenWarning}>
-      <Flex {...wrapperProps} pb={keyboardHeight}>
+      <Flex {...wrapperProps}>
         <WarningModalIcon
           icon={<ShieldMagnifyingGlass color="$neutral1" size="$icon.24" />}
           backgroundIconColor={colors.surface3.val}
@@ -269,6 +271,8 @@ export function WarningModalContent({
       {sendReport && (
         <Modal
           isDismissible
+          enableBlurKeyboardOnGesture
+          keyboardBlurBehavior="restore"
           backgroundColor={colors.surface1.val}
           hideHandlebar={hideHandlebar}
           isModalOpen={shouldShowReportUI}

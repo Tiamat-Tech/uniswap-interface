@@ -1,9 +1,9 @@
 import { BackupMethodSummary, type EncryptedRecoveryState, IconBox } from '@universe/embedded-wallet'
+import { Button, Flex, ModalCloseIcon, Text } from '@universe/mycelium'
+import { Lock } from '@universe/mycelium/icons/Lock'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
+import { ShieldCheck } from '@universe/mycelium/icons/ShieldCheck'
 import type { TFunction } from 'i18next'
-import { Button, Flex, ModalCloseIcon, Text } from 'ui/src'
-import { Lock } from 'ui/src/components/icons/Lock'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { ShieldCheck } from 'ui/src/components/icons/ShieldCheck'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 export function ConfirmPasscodeExtra({
@@ -66,7 +66,7 @@ export function SuccessStep({
       <Flex width="100%" alignItems="flex-end">
         <ModalCloseIcon size="$icon.20" onClose={handleClose} />
       </Flex>
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         <IconBox background="$statusSuccess2">
           <ShieldCheck size="$icon.24" color="$statusSuccess" />
         </IconBox>

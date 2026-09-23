@@ -1,13 +1,30 @@
 import type { InAppNotification } from '@universe/api'
+import { Flex, useMedia } from '@universe/mycelium'
+import { curveToAnimationTiming } from '@universe/mycelium/compat'
+import { Portal } from '@universe/mycelium/portal'
+import { Presence, type PresenceExitProps } from '@universe/mycelium/presence'
 import { InlineBannerNotification, type NotificationClickTarget } from '@universe/notifications'
-import { memo, useEffect } from 'react'
-import { AnimatePresence, Flex, Portal, useMedia } from 'ui/src'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
+import { memo, useEffect, type CSSProperties } from 'react'
 import { zIndexes } from 'ui/src/theme'
 import { useEvent } from 'utilities/src/react/hooks'
 import { calculateStackingProps, MAX_STACKED_BANNERS } from '~/notification-service/notification-renderer/stackingUtils'
 
 const EXIT_DROP_PX = 24
 const EXIT_Z_INDEX = 1035 // Above the stack but below modalBackdrop (1040)
+
+// The exit target (drop by EXIT_DROP_PX below the banner's own stacked offset, keeping its
+// stacked scale) is dynamic per banner, so it rides the parameterized presence exit keyframe
+// through per-banner CSS custom properties instead of a pinned preset.
+const BANNER_EXIT_CLASSES = 'data-exiting:animate-spore-exit-presence'
+
+// Timing of the legacy '300ms' animation preset.
+const BANNER_EXIT_TIMING: CSSProperties = curveToAnimationTiming(SPORE_ANIMATION_CURVE_CSS['300ms'])
+
+// Legacy exitStyle raised every exiting banner above the stack for the drop-out.
+function getBannerExitProps(): PresenceExitProps {
+  return { style: { zIndex: EXIT_Z_INDEX } }
+}
 
 interface StackedLowerLeftBannersProps {
   notifications: InAppNotification[]
@@ -54,31 +71,31 @@ export const StackedLowerLeftBanners = memo(function StackedLowerLeftBanners({
 
   return (
     <Portal zIndex={zIndexes.fixed + 10}>
-      <AnimatePresence initial={false}>
+      <Presence initial={false} getExitProps={getBannerExitProps}>
         {stackedNotifications.map((notification, index) => {
           const { scale, offsetY, zIndex } = calculateStackingProps(index, stackedNotifications.length)
 
           return (
             <Flex
               key={notification.id}
-              animation="300ms"
-              animateOnly={['transform', 'opacity']}
+              transition={`transform ${SPORE_ANIMATION_CURVE_CSS['300ms']}, opacity ${SPORE_ANIMATION_CURVE_CSS['300ms']}`}
               scale={scale}
               y={offsetY}
               opacity={1}
               zIndex={zIndex}
-              exitStyle={{
-                y: offsetY + EXIT_DROP_PX,
-                opacity: 0,
-                zIndex: EXIT_Z_INDEX,
-              }}
-              style={{
-                position: 'fixed',
-                left: leftPosition,
-                bottom: 29,
-                transformOrigin: '50% 100%',
-                willChange: 'transform, opacity',
-              }}
+              className={BANNER_EXIT_CLASSES}
+              style={
+                {
+                  position: 'fixed',
+                  left: leftPosition,
+                  bottom: 29,
+                  transformOrigin: '50% 100%',
+                  willChange: 'transform, opacity',
+                  '--spore-presence-exit-y': `${offsetY + EXIT_DROP_PX}px`,
+                  '--spore-presence-exit-scale': `${scale}`,
+                  ...BANNER_EXIT_TIMING,
+                } as CSSProperties
+              }
             >
               <InlineBannerNotification
                 notification={notification}
@@ -88,7 +105,7 @@ export const StackedLowerLeftBanners = memo(function StackedLowerLeftBanners({
             </Flex>
           )
         })}
-      </AnimatePresence>
+      </Presence>
     </Portal>
   )
 })

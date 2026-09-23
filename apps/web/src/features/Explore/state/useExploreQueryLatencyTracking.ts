@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { useEffect, useRef } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 
@@ -7,7 +7,6 @@ type ExploreQueryType = 'tokens' | 'pools'
 
 interface UseExploreQueryLatencyTrackingOptions {
   queryType: ExploreQueryType
-  isBackendSortingEnabled: boolean
   isLoading: boolean
   resultCount: number | undefined
   chainId?: UniverseChainId
@@ -20,7 +19,6 @@ interface UseExploreQueryLatencyTrackingOptions {
  */
 export function useExploreQueryLatencyTracking({
   queryType,
-  isBackendSortingEnabled,
   isLoading,
   resultCount,
   chainId,
@@ -35,11 +33,11 @@ export function useExploreQueryLatencyTracking({
 
       sendAnalyticsEvent(InterfaceEventName.ExploreQueryLatency, {
         query_type: queryType,
-        is_backend_sorting_enabled: isBackendSortingEnabled,
+        is_backend_sorting_enabled: true,
         latency_ms: latencyMs,
         chain_id: chainId,
         result_count: resultCount,
       })
     }
-  }, [queryType, isBackendSortingEnabled, isLoading, resultCount, chainId])
+  }, [queryType, isLoading, resultCount, chainId])
 }

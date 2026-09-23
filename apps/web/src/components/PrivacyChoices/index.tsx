@@ -1,9 +1,10 @@
+import { Anchor, Button, Flex, ModalCloseIcon, Text } from '@universe/mycelium'
+import { CheckboxCompat as Checkbox } from '@universe/mycelium/checkbox-compat'
+import { Lock } from '@universe/mycelium/icons/Lock'
 import { useAtom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 import { useCallback, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Anchor, Button, Checkbox, Flex, ModalCloseIcon, Text } from 'ui/src'
-import { Lock } from 'ui/src/components/icons/Lock'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -61,7 +62,7 @@ export function PrivacyChoicesModal() {
             <Flex
               p="$padding16"
               borderRadius="$rounded16"
-              borderWidth="$border.width1"
+              borderWidth={1}
               borderColor="$surface3"
               borderStyle="solid"
               gap="$gap8"

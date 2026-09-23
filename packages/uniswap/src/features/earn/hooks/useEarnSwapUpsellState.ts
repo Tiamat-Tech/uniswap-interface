@@ -14,7 +14,6 @@ import { useTokenProjects } from 'uniswap/src/features/dataApi/tokenProjects/tok
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { EarnPositionStatus, useEarnPosition } from 'uniswap/src/features/earn/hooks/useEarnPosition'
 import { useEarnVaults } from 'uniswap/src/features/earn/hooks/useEarnVaults'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { getValidEarnSwapUpsellCurrencyId } from 'uniswap/src/features/earn/swapUpsell'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { hasConfirmedEarnPositionRawBalance, selectEarnVaultForToken } from 'uniswap/src/features/earn/utils'
@@ -47,14 +46,13 @@ export function useEarnSwapUpsellState({
   onDismiss,
 }: UseEarnSwapUpsellStateParams): UseEarnSwapUpsellStateResult {
   const dispatch = useDispatch()
-  const isEarnEnabled = useIsEarnEnabled()
   const tokenCurrencyId = getValidEarnSwapUpsellCurrencyId(outputCurrencyId)
   const tokenHistory = useSelector((state: UniswapState) =>
     tokenCurrencyId ? selectEarnSwapUpsellTokenHistory(state, tokenCurrencyId) : undefined,
   )
   const isPermanentlyDismissed = tokenHistory?.permanentlyDismissed === true
   // Permanently dismissed or unsupported tokens never need vault/position lookups.
-  const shouldResolve = isEarnEnabled && !!walletAddress && !isPermanentlyDismissed && tokenCurrencyId !== undefined
+  const shouldResolve = !!walletAddress && !isPermanentlyDismissed && tokenCurrencyId !== undefined
 
   const { isLoading, vault } = useEarnSwapUpsellVault({
     enabled: shouldResolve,

@@ -1,218 +1,348 @@
+import { SharedEventName } from '@uniswap/analytics-events'
+import type { UniverseChainId } from '@universe/chains'
 import type { HexString } from '@universe/encoding'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { useEffect, useMemo, useState } from 'react'
+import { Button, Flex, FlexLoader, Skeleton, Text, TouchableArea, type WebButtonPressEvent } from '@universe/mycelium'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, FlexLoader, Image, Skeleton, Text, useMedia } from 'ui/src'
-import { PortfolioBalancePart } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
-import { useGetPoolsRewards } from 'uniswap/src/data/apiClients/dataApiService/pools/getPoolsRewards'
-import { usePortfolioBalancePart } from 'uniswap/src/features/dataApi/balances/usePortfolioBalancePart'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { UniswapEventName } from 'uniswap/src/features/telemetry/constants'
+import { useWalletPositionsBalance } from 'uniswap/src/features/positions/hooks/useWalletPositionsBalance'
+import { ElementName, UniswapEventName } from 'uniswap/src/features/telemetry/constants'
+import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { Trace } from 'uniswap/src/features/telemetry/Trace'
-import { NumberType } from 'utilities/src/format/types'
+import { type TestIDType, TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { useEvent } from 'utilities/src/react/hooks'
-import tokenLogo from '~/assets/images/token-logo.png'
+import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
+import { MouseoverTooltip } from '~/components/Tooltip'
+import { YourFeesModal } from '~/features/Liquidity/fees/YourFeesModal'
 import { formatRewardsTotal } from '~/features/Liquidity/LPIncentives/buildLpIncentiveRewards'
-import { LP_INCENTIVES_CHAIN_IDS, LP_INCENTIVES_DUST_THRESHOLD } from '~/features/Liquidity/LPIncentives/constants'
-import { useEffectivelyClaimed } from '~/features/Liquidity/LPIncentives/hooks/useEffectivelyClaimed'
 import { useLpIncentiveRewards } from '~/features/Liquidity/LPIncentives/hooks/useLpIncentiveRewards'
-import { useLpIncentiveRewardsUsdValue } from '~/features/Liquidity/LPIncentives/hooks/useLpIncentiveRewardsUsdValue'
 import { LpIncentiveRewardLogos } from '~/features/Liquidity/LPIncentives/LpIncentiveRewardLogos'
+import {
+  LpIncentivesInfoTooltip,
+  type LpIncentivesInfoVariant,
+} from '~/features/Liquidity/LPIncentives/LpIncentivesInfoTooltip'
 import { LpIncentivesRewardsModal } from '~/features/Liquidity/LPIncentives/LpIncentivesRewardsModal'
+import { formatUsdTotal } from '~/features/Liquidity/utils/formatUsdTotal'
+import { rightEdgeFadeStyle, useWheelHorizontalScroll } from '~/pages/Explore/categories/useWheelHorizontalScroll'
+import { usePendingLPTransactionsChangeListener } from '~/state/transactions/hooks'
 
-interface PositionsSummaryChipsProps {
-  onCollectRewards: () => void
-  walletAddress?: HexString
-  chainIds?: number[]
-  setTokenRewards: (value: string) => void
-  initialHasCollectedRewards: boolean
+/** Right page gutters (px) the mWeb carousel cancels so it bleeds to the viewport edge. */
+interface SummaryChipsBleedGutters {
+  md: number
+  sm?: number
 }
 
-// Retiring multi_token_lp_incentives: every `isMultiTokenEnabled` branch below keeps its
-// multi-token side and drops the other. What goes with the UNI-only side is the `useGetPoolsRewards`
-// query and everything derived from it — `effectivelyClaimed`, `rawRewards`, `userHasRewards`,
-// `formattedRewardsUsdValue`, the `setTokenRewards` effect — along with the `onCollectRewards` and
-// `setTokenRewards` props, which only that path uses.
+function carouselBleedStyle(gutterPx: number | undefined): { mr?: number; pr?: number } {
+  return gutterPx === undefined ? {} : { mr: -gutterPx, pr: gutterPx }
+}
+
+interface PositionsSummaryChipsProps {
+  walletAddress?: HexString
+  balanceChainIds?: UniverseChainId[]
+  showActions?: boolean
+  rewardsTooltipVariant?: LpIncentivesInfoVariant
+  bleedGutters?: SummaryChipsBleedGutters
+}
+
 export function PositionsSummaryChips({
-  onCollectRewards,
   walletAddress,
-  chainIds = LP_INCENTIVES_CHAIN_IDS,
-  setTokenRewards,
-  initialHasCollectedRewards,
+  balanceChainIds,
+  showActions = true,
+  rewardsTooltipVariant = 'positions',
+  bleedGutters,
 }: PositionsSummaryChipsProps): JSX.Element {
   const { t } = useTranslation()
+  const { scrollerRef, showRightFade } = useWheelHorizontalScroll()
   const { convertFiatAmountFormatted } = useLocalizationContext()
-  const isMultiTokenEnabled = useFeatureFlag(FeatureFlags.MultiTokenLpIncentives)
-  // Only the active path fetches: the UNI query is disabled by flag, and the multi-token surface
-  // keys its query on having an address.
-  const multi = useLpIncentiveRewards(isMultiTokenEnabled ? walletAddress : undefined)
+  const trace = useTrace()
+  // Keys its query on having an address, so a disconnected wallet doesn't fetch.
+  const rewards = useLpIncentiveRewards(walletAddress)
   const [isRewardsModalOpen, setIsRewardsModalOpen] = useState(false)
   const openRewardsModal = useEvent(() => setIsRewardsModalOpen(true))
   const closeRewardsModal = useEvent(() => setIsRewardsModalOpen(false))
-
-  const { data: poolsBalance, loading: isLiquidityLoading } = usePortfolioBalancePart({
-    part: PortfolioBalancePart.Pools,
-    evmAddress: walletAddress,
+  const [isFeesModalOpen, setIsFeesModalOpen] = useState(false)
+  const openFeesModal = useEvent(() => {
+    sendAnalyticsEvent(SharedEventName.ELEMENT_CLICKED, { element: ElementName.TotalFeesChip, ...trace })
+    setIsFeesModalOpen(true)
   })
+  const closeFeesModal = useEvent(() => setIsFeesModalOpen(false))
 
   const {
-    data: rewardsData,
-    isLoading: isRewardsLoading,
-    error: rewardsError,
-  } = useGetPoolsRewards({ walletAddress, chainIds }, Boolean(walletAddress) && !isMultiTokenEnabled)
-
-  const effectivelyClaimed = useEffectivelyClaimed({
-    tokenRewards: rewardsData?.totalUnclaimedAmountUni,
-    hasCollectedRewards: initialHasCollectedRewards,
+    totalLiquidityUsd,
+    totalFeesUsd,
+    isLoading: isLiquidityLoading,
+    refetch: refetchPositionsBalance,
+  } = useWalletPositionsBalance({
+    account: walletAddress,
+    chainIds: balanceChainIds,
   })
 
-  const rawRewards = useMemo(
-    () => (effectivelyClaimed ? '0' : (rewardsData?.totalUnclaimedAmountUni ?? '0')),
-    [effectivelyClaimed, rewardsData?.totalUnclaimedAmountUni],
+  usePendingLPTransactionsChangeListener(refetchPositionsBalance)
+
+  const rewardsCollectable = rewards.hasRewards && !rewards.isError
+  const liquidityValue = useMemo(
+    () => formatUsdTotal(totalLiquidityUsd, convertFiatAmountFormatted),
+    [totalLiquidityUsd, convertFiatAmountFormatted],
+  )
+  const feesValue = useMemo(
+    () => formatUsdTotal(totalFeesUsd, convertFiatAmountFormatted),
+    [totalFeesUsd, convertFiatAmountFormatted],
   )
 
-  const userHasRewards = useMemo(() => {
-    try {
-      return BigInt(rawRewards) >= LP_INCENTIVES_DUST_THRESHOLD
-    } catch {
-      return false
-    }
-  }, [rawRewards])
-
-  const { formattedUsdValue: formattedRewardsUsdValue } = useLpIncentiveRewardsUsdValue(rawRewards)
-
-  useEffect(() => {
-    // The multi-token path renders no UNI amount and its modal doesn't read this page state.
-    if (isMultiTokenEnabled) {
-      return
-    }
-    setTokenRewards(rawRewards)
-  }, [rawRewards, setTokenRewards, isMultiTokenEnabled])
-
   return (
-    <Flex row gap="$gap12" $sm={{ overflow: 'scroll', scrollbarWidth: 'none' }}>
+    <Flex
+      ref={scrollerRef}
+      row
+      gap="$gap12"
+      alignSelf="stretch"
+      className="scrollbar-hidden"
+      $md={{ overflow: 'scroll', scrollbarWidth: 'none', ...carouselBleedStyle(bleedGutters?.md) }}
+      $sm={carouselBleedStyle(bleedGutters?.sm)}
+      $platform-web={rightEdgeFadeStyle(showRightFade)}
+    >
       <SummaryChip label={t('pool.positions.summary.totalLiquidity')}>
-        <ChipValue isLoading={isLiquidityLoading}>
-          {convertFiatAmountFormatted(poolsBalance?.balanceUSD ?? 0, NumberType.PortfolioBalance)}
+        {/* A dash means unknown, a de-emphasized zero means the server said zero — never `?? 0`,
+            which is what rendered a settled $0.00 under contradicting position rows. Gated on the
+            value's absence rather than on an error flag, so a failed background refetch leaves the
+            last good total on screen instead of blanking a number that is still correct. */}
+        <ChipValue
+          isLoading={isLiquidityLoading}
+          isZero={!totalLiquidityUsd}
+          fullValue={liquidityValue.full}
+          testID={TestID.PositionsSummaryTotalLiquidity}
+        >
+          {liquidityValue.display}
         </ChipValue>
       </SummaryChip>
 
       <SummaryChip
         label={t('pool.positions.summary.totalFees')}
-        action={
-          <Button emphasis="secondary" size="small" maxWidth="fit-content" disabled onPress={onCollectFeesNoop}>
-            {t('common.collect.button')}
-          </Button>
+        collect={
+          showActions
+            ? {
+                canCollect: (totalFeesUsd ?? 0) > 0,
+                onCollect: openFeesModal,
+                testID: TestID.PositionsSummaryCollectFees,
+              }
+            : undefined
         }
       >
-        {/* TODO(LP-954): wire up aggregate uncollected fees once GetWalletBalances exposes them */}
-        <ChipValue>-</ChipValue>
+        <ChipValue
+          isLoading={isLiquidityLoading}
+          isZero={!totalFeesUsd}
+          fullValue={feesValue.full}
+          testID={TestID.PositionsSummaryTotalFees}
+        >
+          {feesValue.display}
+        </ChipValue>
       </SummaryChip>
 
       <SummaryChip
         label={t('pool.positions.summary.totalRewards')}
-        action={
-          // The UNI-only path's Collect handler emits this event on the page, so the Trace wraps
-          // only the multi-token button — wrapping both would double-count the funnel.
-          isMultiTokenEnabled ? (
-            <Trace logPress eventOnTrigger={UniswapEventName.LpIncentiveCollectRewardsButtonClicked}>
-              <Button
-                emphasis="secondary"
-                size="small"
-                maxWidth="fit-content"
-                disabled={!multi.hasRewards}
-                onPress={openRewardsModal}
-              >
-                {t('common.collect.button')}
-              </Button>
-            </Trace>
-          ) : (
-            <Button
-              emphasis="secondary"
-              size="small"
-              maxWidth="fit-content"
-              disabled={!userHasRewards || Boolean(rewardsError)}
-              onPress={onCollectRewards}
-            >
-              {t('common.collect.button')}
-            </Button>
-          )
+        tooltip={
+          <RewardsChipTooltip
+            isLoading={rewards.isLoading}
+            hasError={rewards.isError}
+            hasRewards={rewards.hasRewards}
+            variant={rewardsTooltipVariant}
+          />
+        }
+        collect={
+          showActions
+            ? {
+                canCollect: rewardsCollectable,
+                onCollect: openRewardsModal,
+                logPress: true,
+                testID: TestID.PositionsSummaryCollectRewards,
+              }
+            : undefined
         }
       >
         <Flex row gap="$spacing8" alignItems="center">
-          {isMultiTokenEnabled ? (
-            multi.rewardTokens.length > 0 && <LpIncentiveRewardLogos tokens={multi.rewardTokens} />
-          ) : (
-            <Image src={tokenLogo} width={24} height={24} objectFit="cover" />
-          )}
-          <ChipValue isLoading={isMultiTokenEnabled ? multi.isLoading : isRewardsLoading}>
-            {isMultiTokenEnabled
-              ? formatRewardsTotal(multi, convertFiatAmountFormatted)
-              : rewardsError
-                ? '-'
-                : (formattedRewardsUsdValue ?? convertFiatAmountFormatted(0, NumberType.PortfolioBalance))}
+          {rewards.rewardTokens.length > 0 && <LpIncentiveRewardLogos tokens={rewards.rewardTokens} />}
+          <ChipValue isLoading={rewards.isLoading} isZero={!rewards.hasRewards && !rewards.isError}>
+            {formatRewardsTotal(rewards, convertFiatAmountFormatted)}
           </ChipValue>
         </Flex>
       </SummaryChip>
-      {isMultiTokenEnabled && (
+      {showActions && (
         <LpIncentivesRewardsModal
           isOpen={isRewardsModalOpen}
           onClose={closeRewardsModal}
           walletAddress={walletAddress}
         />
       )}
+      {showActions && (
+        <YourFeesModal
+          isOpen={isFeesModalOpen}
+          onClose={closeFeesModal}
+          walletAddress={walletAddress}
+          chainIds={balanceChainIds}
+        />
+      )}
     </Flex>
   )
 }
 
-function onCollectFeesNoop(): void {}
+interface SummaryChipCollect {
+  canCollect: boolean
+  onCollect: () => void
+  // Every chip's button carries the same "Collect" label, so a role+name locator matches all of
+  // them; the testID is what lets a test address one chip's action.
+  testID: TestIDType
+  logPress?: boolean
+}
+
+function CollectChipAction({ canCollect, onCollect, testID, logPress = false }: SummaryChipCollect): JSX.Element {
+  const { t } = useTranslation()
+
+  const button = (
+    <Button
+      emphasis="secondary"
+      size="xsmall"
+      maxWidth="fit-content"
+      backgroundColor="$surface3"
+      disabled={!canCollect}
+      testID={testID}
+      $md={{ display: 'none' }}
+      onPress={(e: WebButtonPressEvent) => {
+        e.stopPropagation()
+        onCollect()
+      }}
+    >
+      <Button.Text color={canCollect ? '$neutral1' : '$neutral3'}>{t('common.collect.button')}</Button.Text>
+    </Button>
+  )
+
+  if (!logPress) {
+    return button
+  }
+
+  return (
+    <Trace logPress eventOnTrigger={UniswapEventName.LpIncentiveCollectRewardsButtonClicked}>
+      {button}
+    </Trace>
+  )
+}
+
+function RewardsChipTooltip({
+  isLoading,
+  hasError,
+  hasRewards,
+  variant,
+}: {
+  isLoading: boolean
+  hasError: boolean
+  hasRewards: boolean
+  variant: LpIncentivesInfoVariant
+}): JSX.Element | null {
+  // Nothing to explain while the total is still loading, or when there is no total to explain.
+  if (isLoading || !(hasError || hasRewards)) {
+    return null
+  }
+
+  // The chip itself is pressable, so the trigger has to swallow the press.
+  return <LpIncentivesInfoTooltip hasError={hasError} variant={variant} stopPropagation />
+}
+
+const SUMMARY_CHIP_FRAME_PROPS = {
+  flexGrow: 1,
+  flexBasis: 0,
+  gap: '$spacing12',
+  p: '$spacing16',
+  backgroundColor: '$surface2',
+  borderRadius: '$rounded20',
+  $md: { flexShrink: 0, minWidth: 160 },
+} as const
 
 function SummaryChip({
   label,
-  action,
+  tooltip,
+  collect,
   children,
 }: {
   label: string
-  action?: JSX.Element
+  tooltip?: JSX.Element
+  collect?: SummaryChipCollect
   children: React.ReactNode
 }): JSX.Element {
-  return (
-    <Flex
-      grow
-      flexBasis={0}
-      gap="$spacing12"
-      p="$spacing16"
-      backgroundColor="$surface2"
-      borderWidth="$spacing1"
-      borderColor="$surface3"
-      borderRadius="$rounded20"
-      $sm={{ flexShrink: 0, minWidth: 210 }}
-    >
+  const content = (
+    <>
       <Flex row justifyContent="space-between" alignItems="center" gap="$spacing8" minHeight={32}>
-        <Text variant="body3" color="$neutral2">
-          {label}
-        </Text>
-        {action}
+        <Flex row gap="$gap4" alignItems="center">
+          <Text variant="body3" color="$neutral2">
+            {label}
+          </Text>
+          {tooltip}
+        </Flex>
+        {collect && <CollectChipAction {...collect} />}
       </Flex>
       {children}
-    </Flex>
+    </>
+  )
+
+  if (!collect?.canCollect) {
+    return <Flex {...SUMMARY_CHIP_FRAME_PROPS}>{content}</Flex>
+  }
+
+  const touchable = (
+    // Hover feedback is background-only; injection would also clone the Fragment child with a
+    // `color` prop, which React flags on every hover/press.
+    <TouchableArea
+      {...SUMMARY_CHIP_FRAME_PROPS}
+      hoverStyle={{ backgroundColor: '$surface2Hovered' }}
+      shouldAutomaticallyInjectColors={false}
+      onPress={collect.onCollect}
+    >
+      {content}
+    </TouchableArea>
+  )
+
+  if (!collect.logPress) {
+    return touchable
+  }
+
+  return (
+    <Trace logPress eventOnTrigger={UniswapEventName.LpIncentiveCollectRewardsButtonClicked}>
+      {touchable}
+    </Trace>
   )
 }
 
-function ChipValue({ children, isLoading }: { children: React.ReactNode; isLoading?: boolean }): JSX.Element {
-  const media = useMedia()
-
+function ChipValue({
+  children,
+  isLoading,
+  isZero,
+  fullValue,
+  testID,
+}: {
+  children: React.ReactNode
+  isLoading?: boolean
+  isZero?: boolean
+  fullValue?: string
+  testID?: TestIDType
+}): JSX.Element {
   if (isLoading) {
     return (
       <Skeleton>
-        <FlexLoader borderRadius="$rounded4" height={media.sm ? 28 : 36} width={100} opacity={0.4} />
+        <FlexLoader borderRadius="$rounded4" height={36} $md={{ height: 28 }} width={100} opacity={0.4} />
       </Skeleton>
     )
   }
 
-  return (
-    <Text variant={media.sm ? 'heading3' : 'heading2'} color="$neutral1">
+  const value = (
+    <Text variant="heading2" $md={{ variant: 'heading3' }} color={isZero ? '$neutral3' : '$neutral1'} testID={testID}>
       {children}
     </Text>
+  )
+
+  if (!fullValue) {
+    return value
+  }
+
+  return (
+    <MouseoverTooltip text={fullValue} placement="top" fitContent>
+      <Flex alignSelf="flex-start">{value}</Flex>
+    </MouseoverTooltip>
   )
 }

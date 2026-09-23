@@ -1,6 +1,5 @@
 import { type UseFragmentResult, useFragment } from '@apollo/client'
 import type {
-  TokenBasicInfoPartsFragment,
   TokenBasicProjectPartsFragment,
   TokenMarketPartsFragment,
   TokenProjectMarketsPartsFragment,
@@ -8,7 +7,6 @@ import type {
   TokenProjectUrlsPartsFragment,
 } from '@universe/api/src/clients/graphql/__generated__/operations'
 import {
-  TokenBasicInfoPartsFragmentDoc,
   TokenBasicProjectPartsFragmentDoc,
   TokenMarketPartsFragmentDoc,
   TokenProjectMarketsPartsFragmentDoc,
@@ -20,21 +18,6 @@ import type { Token } from '@universe/api/src/clients/graphql/__generated__/sche
 export interface UseTokenFragmentParams {
   address: string | null
   chain: string
-}
-
-export function useTokenBasicInfoPartsFragment({
-  address,
-  chain,
-}: UseTokenFragmentParams): UseFragmentResult<TokenBasicInfoPartsFragment> {
-  return useFragment<TokenBasicInfoPartsFragment>({
-    fragment: TokenBasicInfoPartsFragmentDoc,
-    fragmentName: 'TokenBasicInfoParts',
-    from: {
-      __typename: 'Token' satisfies Token['__typename'],
-      address,
-      chain,
-    },
-  })
 }
 
 export function useTokenMarketPartsFragment({

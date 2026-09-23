@@ -1,21 +1,14 @@
 // Ordering is intentional and must be preserved: sideEffects followed by functionality.
 import '~/sideEffects'
-import { getDeviceId } from '@amplitude/analytics-browser'
 import { ApolloProvider } from '@apollo/client'
 import { datadogRum } from '@datadog/browser-rum'
 import { PrivyProvider } from '@privy-io/react-auth'
 import { ApiInit, getEntryGatewayUrl, provideSessionService } from '@universe/api'
 import { ComplianceClientProvider } from '@universe/compliance'
-import { isDevEnv, isTestEnv, localDevDatadogEnabled } from '@universe/environment'
+import { isDevEnv, isE2eTestEnv, isTestEnv, localDevDatadogEnabled } from '@universe/environment'
 import type { StatsigUser } from '@universe/gating'
-import {
-  getIsHashcashSolverEnabled,
-  getIsSessionServiceEnabled,
-  getIsSessionsPerformanceTrackingEnabled,
-  getIsSessionUpgradeAutoEnabled,
-  getIsTurnstileSolverEnabled,
-  useIsSessionServiceEnabled,
-} from '@universe/gating'
+import { getIsHashcashSolverEnabled, getIsTurnstileSolverEnabled } from '@universe/gating'
+import { PortalProvider } from '@universe/mycelium/portal'
 import {
   type ChallengeSolver,
   ChallengeType,
@@ -42,7 +35,6 @@ import { I18nextProvider } from 'react-i18next'
 import { configureReanimatedLogger } from 'react-native-reanimated'
 import { Provider } from 'react-redux'
 import { BrowserRouter, HashRouter, useLocation } from 'react-router'
-import { PortalProvider } from 'ui/src'
 import { ReactRouterUrlProvider } from 'uniswap/src/contexts/UrlContext'
 import { initializePortfolioQueryOverrides } from 'uniswap/src/data/apiClients/dataApiService/balances/portfolioBalanceOverrides'
 import { StatsigProviderWrapper } from 'uniswap/src/features/gating/StatsigProviderWrapper'
@@ -50,6 +42,7 @@ import { LocalizationContextProvider } from 'uniswap/src/features/language/Local
 import i18n from 'uniswap/src/i18n'
 import { initializeDatadog } from 'uniswap/src/utils/datadog'
 import { getLogger } from 'utilities/src/logger/logger'
+import { useEvent } from 'utilities/src/react/hooks'
 // oxlint-disable-next-line no-restricted-imports -- custom useAccount hook requires statsig
 import { useAccount } from 'wagmi'
 import { App } from '~/App'
@@ -64,6 +57,7 @@ import { WebAccountsStoreProvider } from '~/features/accounts/store/provider'
 import { TransactionWatcherProvider } from '~/features/transactions/TransactionWatcherProvider'
 import { ConnectWalletMutationProvider } from '~/features/wallet/connection/hooks/useConnectWalletMutation'
 import { ExternalWalletProvider } from '~/features/wallet/providers/ExternalWalletProvider'
+import { useAmplitudeDeviceId } from '~/hooks/useAmplitudeDeviceId'
 import { useDeferredComponent } from '~/hooks/useDeferredComponent'
 import { isPrivyConfigured } from '~/hooks/useMaybePrivy'
 import { LanguageProvider } from '~/i18n/LanguageProvider'
@@ -72,8 +66,7 @@ import { WebNotificationServiceManager } from '~/notification-service/WebNotific
 import { onHashcashSolveCompleted, onTurnstileSolveCompleted, sessionInitAnalytics } from '~/sessions/analytics'
 import store from '~/state'
 import { LivePricesProvider } from '~/state/livePrices/LivePricesProvider'
-import { ThemedGlobalStyle, ThemeProvider } from '~/theme'
-import { TamaguiProvider } from '~/theme/tamaguiProvider'
+import { ColorSchemeProvider } from '~/theme/colorSchemeProvider'
 import { isBrowserRouterEnabled } from '~/utils/env'
 import { unregister as unregisterServiceWorker } from '~/utils/serviceWorker'
 import { getCanonicalUrl } from '~/utils/urlRoutes'
@@ -97,14 +90,12 @@ const loadFiatOnRampTransactionsUpdater = () => import('~/state/fiatOnRampTransa
 const loadWebAccountsStoreUpdater = () => import('~/features/accounts/store/updater')
 
 const provideSessionInitService = () => {
-  // Create performance tracker with feature flag control
   // Platform-specific: uses web's performance.now() API
   const performanceTracker = createPerformanceTracker({
-    getIsPerformanceTrackingEnabled: getIsSessionsPerformanceTrackingEnabled,
     getNow: () => performance.now(),
   })
 
-  // Build solvers map based on feature flags
+  // Turnstile runs on web only; hashcash runs on all platforms.
   const solvers = new Map<ChallengeType, ChallengeSolver>()
 
   if (getIsTurnstileSolverEnabled()) {
@@ -119,6 +110,7 @@ const provideSessionInitService = () => {
   } else {
     solvers.set(ChallengeType.TURNSTILE, createTurnstileMockSolver())
   }
+
   if (getIsHashcashSolverEnabled()) {
     solvers.set(
       ChallengeType.HASHCASH,
@@ -141,14 +133,13 @@ const provideSessionInitService = () => {
     getSessionService: () =>
       provideSessionService({
         getBaseUrl: getEntryGatewayUrl,
-        getIsSessionServiceEnabled,
+        getIsSessionServiceEnabled: () => !isE2eTestEnv(),
         getLogger,
       }),
     challengeSolverService: createChallengeSolverService({
       solvers,
       getLogger,
     }),
-    getIsSessionUpgradeAutoEnabled,
     getLogger,
     analytics: sessionInitAnalytics,
   })
@@ -156,7 +147,6 @@ const provideSessionInitService = () => {
 
 function Updaters() {
   const location = useLocation()
-  const isSessionServiceEnabled = useIsSessionServiceEnabled()
 
   const ListsUpdater = useDeferredComponent(loadListsUpdater)
   const ApplicationUpdater = useDeferredComponent(loadApplicationUpdater)
@@ -175,7 +165,7 @@ function Updaters() {
       {FiatOnRampTransactionsUpdater && <FiatOnRampTransactionsUpdater />}
       {WebAccountsStoreUpdater && <WebAccountsStoreUpdater />}
       <AccountsStoreDevTool />
-      <ApiInit getSessionInitService={provideSessionInitService} isSessionServiceEnabled={isSessionServiceEnabled} />
+      <ApiInit getSessionInitService={provideSessionInitService} />
     </>
   )
 }
@@ -189,16 +179,19 @@ function GraphqlProviders({ children }: { children: React.ReactNode }) {
 
 function StatsigProvider({ children }: PropsWithChildren) {
   const account = useAccount()
+  const { deviceId, isDeviceIdPending, didTimeOut } = useAmplitudeDeviceId()
 
+  // `useClientAsyncInit` captures the user once at client construction — later changes to
+  // deviceId/address never reach Statsig. The deps here only matter for pre-init renders.
   const statsigUser: StatsigUser = useMemo(
     () => ({
-      userID: getDeviceId(),
+      userID: deviceId,
       customIDs: { address: account.address ?? '' },
       custom: {
         appVersion: getConfig().appVersion || 'unknown',
       },
     }),
-    [account.address],
+    [deviceId, account.address],
   )
 
   useEffect(() => {
@@ -211,11 +204,34 @@ function StatsigProvider({ children }: PropsWithChildren) {
     })
   }, [account])
 
-  const onStatsigInit = () => {
+  // Stable identity: `StatsigProviderWrapper` lists `onInit` in its effect deps, so a fresh
+  // function every render re-runs the effect — and re-initializes Datadog — on every re-render.
+  const onStatsigInit = useEvent(() => {
     // oxlint-disable-next-line typescript/no-unnecessary-condition
     if (!isDevEnv() || localDevDatadogEnabled) {
-      initializeDatadog('web').catch(() => undefined)
+      initializeDatadog({ appName: 'web', buildType: getConfig().webBuildType })
+        .then(() => {
+          // `logger` drops warnings emitted before `initializeDatadog` enables Datadog, and
+          // this callback is the only place it runs — so the device-id timeout has to be
+          // reported here rather than where it happens. If Datadog init ever moves ahead of
+          // Statsig, this warning has to move with it: nothing breaks the build or a test
+          // when it stops being reached.
+          if (didTimeOut) {
+            getLogger().warn(
+              'index.tsx',
+              'StatsigProvider',
+              'Timed out waiting for Amplitude device id; Statsig initialized without a userID',
+            )
+          }
+        })
+        .catch(() => undefined)
     }
+  })
+
+  // Don't initialize Statsig until the device id is available (bounded) — the SDK keeps the
+  // first user it sees, so an undefined userID would persist for the whole session
+  if (isDeviceIdPending) {
+    return null
   }
 
   return (
@@ -271,20 +287,17 @@ const RootApp = (): JSX.Element => {
                                             <LocalizationContextProvider>
                                               <BlockNumberProvider>
                                                 <Updaters />
-                                                <ThemeProvider>
-                                                  <TamaguiProvider>
-                                                    <PortalProvider>
-                                                      <WebNotificationServiceManager />
-                                                      <ThemedGlobalStyle />
-                                                      <App />
-                                                      {AgentationLazy && isDevEnv() && (
-                                                        <Suspense fallback={null}>
-                                                          <AgentationLazy />
-                                                        </Suspense>
-                                                      )}
-                                                    </PortalProvider>
-                                                  </TamaguiProvider>
-                                                </ThemeProvider>
+                                                <ColorSchemeProvider>
+                                                  <PortalProvider>
+                                                    <WebNotificationServiceManager />
+                                                    <App />
+                                                    {AgentationLazy && isDevEnv() && (
+                                                      <Suspense fallback={null}>
+                                                        <AgentationLazy />
+                                                      </Suspense>
+                                                    )}
+                                                  </PortalProvider>
+                                                </ColorSchemeProvider>
                                               </BlockNumberProvider>
                                             </LocalizationContextProvider>
                                           </LivePricesProvider>

@@ -38,8 +38,10 @@ type UseEarnAmountEntryMobileResult = {
   localFiatComparisonAmount: number | undefined
   isMaxSelected: boolean
   exactMaxTokenAmount: string | undefined
-  setActiveAmount: (next: string) => void
-  handlePercentPress: (pct: number) => void
+  /** Returns false when the keystroke was rejected by the input-length cap. */
+  setActiveAmount: (next: string) => boolean
+  /** Returns the resolved primary input value (empty/zero when the balance is unresolved). */
+  handlePercentPress: (pct: number) => string
   handleToggleInputMode: () => void
   resetAmounts: () => void
 }
@@ -138,10 +140,10 @@ export function useEarnAmountEntryMobile({
   })
 
   const setActiveAmount = useCallback(
-    (next: string) => {
+    (next: string): boolean => {
       if (next.length > MAX_EARN_AMOUNT_INPUT_LENGTH) {
         onInputLengthExceeded?.()
-        return
+        return false
       }
 
       if (isFiatInput) {
@@ -151,12 +153,13 @@ export function useEarnAmountEntryMobile({
       }
       setIsMaxSelected(false)
       setExactMaxTokenAmount(undefined)
+      return true
     },
     [isFiatInput, onInputLengthExceeded, setFiatAmount, setExactAmountToken],
   )
 
   const handlePercentPress = useCallback(
-    (pct: number) => {
+    (pct: number): string => {
       const convertUsdToLocalFiat = (balanceUsd: number): number => convertFiatAmount(balanceUsd).amount
       setIsMaxSelected(pct === 1)
       setExactMaxTokenAmount(undefined)
@@ -170,7 +173,7 @@ export function useEarnAmountEntryMobile({
         })
         setFiatAmount(fiatAmount)
         setIsFiatInput(true)
-        return
+        return fiatAmount
       }
 
       const percentageInput = getEarnDepositPercentageInput({
@@ -186,6 +189,7 @@ export function useEarnAmountEntryMobile({
       setFiatAmount(percentageInput.exactAmountFiat)
       setIsFiatInput(percentageInput.inputInFiat)
       setExactMaxTokenAmount(pct === 1 ? percentageInput.exactAmountToken : undefined)
+      return percentageInput.inputInFiat ? percentageInput.exactAmountFiat : percentageInput.exactAmountToken
     },
     [
       convertFiatAmount,

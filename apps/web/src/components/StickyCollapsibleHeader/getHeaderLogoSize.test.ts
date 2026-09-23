@@ -1,9 +1,13 @@
-import { fonts } from 'ui/src/theme/fonts'
+import { fonts, iconSizes } from '@universe/mycelium'
+import { getStackedLogoWidth } from 'uniswap/src/components/CurrencyLogo/SplitLogo'
 import { HEADER_LOGO_SIZE } from '~/components/StickyCollapsibleHeader/constants'
 import {
+  getDetailHeaderLogoSize,
   getHeaderLogoSize,
   getHeaderTitleLineHeight,
   getHeaderTitleVariant,
+  getPoolHeaderLogoWidth,
+  POOL_HEADER_STACKED_LOGO_WIDTH,
 } from '~/components/StickyCollapsibleHeader/getHeaderLogoSize'
 
 describe('getHeaderLogoSize', () => {
@@ -36,6 +40,71 @@ describe('getHeaderLogoSize', () => {
 
   it('returns fixed small size when sm and md both match (sm is checked first)', () => {
     expect(getHeaderLogoSize({ isCompact: false, media: { sm: true, md: true } })).toBe(HEADER_LOGO_SIZE.small)
+  })
+})
+
+describe('getDetailHeaderLogoSize', () => {
+  it('pins both detail headers at 36px at and below the md breakpoint, ignoring isCompact', () => {
+    // Both detail headers switch to their mWeb treatment at md (640px), where the logo is a fixed 36px.
+    // Scroll state deliberately does not shrink it any further — this is why the collapse animation only
+    // applies above 640px. `restingSize` is ignored here, which is what keeps the two pages from drifting.
+    expect(getDetailHeaderLogoSize({ isCompact: false, media: { md: true } })).toBe(iconSizes.icon36)
+    expect(getDetailHeaderLogoSize({ isCompact: true, media: { md: true } })).toBe(iconSizes.icon36)
+    expect(getDetailHeaderLogoSize({ isCompact: false, media: { sm: true, md: true } })).toBe(iconSizes.icon36)
+    // The position header's resting size loses to the shared mWeb value — that is what pins the two pages
+    // to the same 36px. 44 is its real resting size, so this fails if the md guard is dropped.
+    expect(getDetailHeaderLogoSize({ media: { md: true }, restingSize: 44 })).toBe(iconSizes.icon36)
+  })
+
+  it('defers to the shared header sizing above md, where isCompact still animates the logo', () => {
+    // The pool header passes no restingSize.
+    expect(getDetailHeaderLogoSize({ isCompact: false, media: { sm: false, md: false } })).toBe(
+      HEADER_LOGO_SIZE.expanded,
+    )
+    expect(getDetailHeaderLogoSize({ isCompact: true, media: { sm: false, md: false } })).toBe(HEADER_LOGO_SIZE.compact)
+    // The two differ above md — that difference is the scroll animation.
+    expect(getDetailHeaderLogoSize({ isCompact: true, media: { md: false } })).not.toBe(
+      getDetailHeaderLogoSize({ isCompact: false, media: { md: false } }),
+    )
+    // ...and are identical at md, which is the documented limit of that animation.
+    expect(getDetailHeaderLogoSize({ isCompact: true, media: { md: true } })).toBe(
+      getDetailHeaderLogoSize({ isCompact: false, media: { md: true } }),
+    )
+  })
+
+  it('holds restingSize fixed above md, so the position header does not animate on scroll', () => {
+    // The position detail header passes its own fixed size and has no collapse animation above 640px.
+    // `isCompact` is not passable alongside `restingSize` — the union in the signature rules out the
+    // ignored-argument case this used to assert.
+    expect(getDetailHeaderLogoSize({ media: { sm: false, md: false }, restingSize: 44 })).toBe(44)
+    // A resting size that is not one of the shared header tokens, so this cannot pass by coincidence.
+    expect(getDetailHeaderLogoSize({ media: { sm: false, md: false }, restingSize: 52 })).toBe(52)
+  })
+})
+
+describe('getPoolHeaderLogoWidth', () => {
+  it('scales the stacked footprint with the logo size, per breakpoint', () => {
+    // Above md the logo rests at expanded size, so the width is the unscaled stacked footprint.
+    expect(getPoolHeaderLogoWidth({ isCompact: false, media: { sm: false, md: false } })).toBeCloseTo(
+      POOL_HEADER_STACKED_LOGO_WIDTH,
+      5,
+    )
+    // At md the logo is pinned to 36px, so the footprint scales by 36/expanded.
+    expect(getPoolHeaderLogoWidth({ isCompact: false, media: { md: true } })).toBeCloseTo(
+      POOL_HEADER_STACKED_LOGO_WIDTH * (iconSizes.icon36 / HEADER_LOGO_SIZE.expanded),
+      5,
+    )
+    // Scroll-collapsing above md narrows it too, by the compact/expanded ratio.
+    expect(getPoolHeaderLogoWidth({ isCompact: true, media: { md: false } })).toBeCloseTo(
+      POOL_HEADER_STACKED_LOGO_WIDTH * (HEADER_LOGO_SIZE.compact / HEADER_LOGO_SIZE.expanded),
+      5,
+    )
+  })
+
+  it('reserves two overlapping logos, not one, so the skeleton matches the loaded pair', () => {
+    // The whole point of the shared helper: a single-logo reservation would shift the title on load.
+    expect(POOL_HEADER_STACKED_LOGO_WIDTH).toBeGreaterThan(HEADER_LOGO_SIZE.expanded)
+    expect(POOL_HEADER_STACKED_LOGO_WIDTH).toBe(getStackedLogoWidth(HEADER_LOGO_SIZE.expanded))
   })
 })
 

@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { useMemo } from 'react'
-import { Flex } from 'ui/src'
 import { ChartType } from '~/components/Charts/utils'
 import { toHistoryDuration } from '~/data/util'
 import { ChartControls } from '~/pages/TokenDetails/components/chart/ChartControls'
@@ -14,6 +14,8 @@ import { TDPVolumeChartPanel } from '~/pages/TokenDetails/components/chart/TDPVo
 import { useTDPStore } from '~/pages/TokenDetails/context/useTDPStore'
 import { getTDPChartGraphqlTarget } from '~/pages/TokenDetails/hooks/getTDPChartGraphqlTarget'
 import { useTDPMultichainAggregate } from '~/pages/TokenDetails/hooks/useTDPMultichainAggregate'
+import { useTokenDetailsAuctionDisplay } from '~/pages/TokenDetails/hooks/useTokenDetailsAuctionDisplay'
+import { shouldShowAuctionOnlyLayout } from '~/pages/TokenDetails/utils/tokenDetailsAuctionDisplay'
 
 function ChartSectionBody(): JSX.Element {
   const { tokenColor, currency, multichainToken, pathGraphqlChain, pathTokenDbAddress, selectedMultichainChainId } =
@@ -27,6 +29,8 @@ function ChartSectionBody(): JSX.Element {
     }))
 
   const { isMultichainAggregateView } = useTDPMultichainAggregate()
+  const auctionDisplay = useTokenDetailsAuctionDisplay()
+  const isAuctionOnly = shouldShowAuctionOnlyLayout(auctionDisplay)
 
   const { chain: tokenChain, address: tokenDBAddress } = useMemo(
     () =>
@@ -65,6 +69,7 @@ function ChartSectionBody(): JSX.Element {
           tokenColor={tokenColor}
           timePeriod={timePeriod}
           currency={currency}
+          auctionOnlyPhase={isAuctionOnly ? auctionDisplay.phase : undefined}
         />
       )}
       {chartType === ChartType.VOLUME && (

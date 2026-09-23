@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { addTransaction, deleteTransaction } from 'uniswap/src/features/transactions/slice'
 import type { ActivePlanData } from 'uniswap/src/features/transactions/swap/review/stores/activePlan/activePlanStore'
 import { activePlanStore } from 'uniswap/src/features/transactions/swap/review/stores/activePlan/activePlanStore'

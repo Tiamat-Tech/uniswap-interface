@@ -1,6 +1,6 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { Calendar } from '@universe/mycelium/icons/Calendar'
 import { Fragment, useCallback, useMemo, useState } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { Calendar } from 'ui/src/components/icons/Calendar'
 import { useCurrentLanguageInfo } from 'uniswap/src/features/language/hooks'
 import {
   FORMAT_DATE_TIME_MEDIUM,

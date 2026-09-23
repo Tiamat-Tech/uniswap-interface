@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { PropsWithChildren } from 'react'
-import { Flex } from 'ui/src'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'

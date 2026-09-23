@@ -1,9 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
+import { CheckmarkCircle } from '@universe/mycelium/icons/CheckmarkCircle'
+import { GridView } from '@universe/mycelium/icons/GridView'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
-import { CheckmarkCircle } from 'ui/src/components/icons/CheckmarkCircle'
-import { GridView } from 'ui/src/components/icons/GridView'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import { NetworkFilter } from '~/components/NetworkFilter/NetworkFilter'
 import {
@@ -12,7 +12,7 @@ import {
   useExploreTablesFilterStore,
   useExploreTablesFilterStoreActions,
 } from '~/features/Explore/state/exploreTablesFilterStore'
-import { TOUCAN_AUCTION_SUPPORTED_CHAINS } from '~/features/Toucan/supportedChains'
+import { useToucanAuctionSupportedChains } from '~/features/Toucan/supportedChains'
 import { ExploreFilterChip } from '~/pages/Explore/categories/ExploreCategoryChips'
 import { ToucanTable } from '~/pages/Explore/tables/Auctions/TopAuctionsTable'
 import { useLaunchpads } from '~/pages/Launches/data/useLaunchpads'
@@ -58,6 +58,7 @@ function LiveAuctionsQuickSelects(): JSX.Element {
 /** Live-auctions controls + table (shares the Explore auctions store within this subtree). */
 function LiveAuctionsInner(): JSX.Element {
   const [chainId, setChainId] = useState<UniverseChainId | undefined>(undefined)
+  const auctionSupportedChains = useToucanAuctionSupportedChains()
 
   // Every live auction is a Uniswap CCA auction, so the table's Launchpad column shows one
   // launchpad — resolved through the same ListLaunchpads registry lookup the launch feed uses.
@@ -90,7 +91,7 @@ function LiveAuctionsInner(): JSX.Element {
           <NetworkFilter
             position="right"
             currentChainId={chainId}
-            networks={TOUCAN_AUCTION_SUPPORTED_CHAINS}
+            networks={auctionSupportedChains}
             tracePage={InterfacePageName.LaunchesPage}
             onPress={setChainId}
           />

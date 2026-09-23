@@ -1,5 +1,5 @@
+import { Platform } from '@universe/chains'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { isTokensRecipient } from '~/features/Toucan/Auction/utils/creatorActions'
 

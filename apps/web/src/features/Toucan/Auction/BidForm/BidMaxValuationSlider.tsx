@@ -15,6 +15,15 @@ interface BidMaxValuationSliderProps {
   disabled?: boolean
   onInteractionStart?: () => void
   inputType?: ValuationInputType
+  /** Whether the last entry was capped to the ceiling, which is what surfaces the hint. */
+  showCeilingHint?: boolean
+  /**
+   * The auction's ceiling, from the caller's single derivation. Passed as primitives rather
+   * than re-deriving here so the track and the hint cannot disagree, and so this stays
+   * memo-comparable.
+   */
+  maxBidPriceQ96?: bigint
+  maxBidPriceFdvFormatted?: string
 }
 
 function BidMaxValuationSliderComponent({
@@ -26,6 +35,9 @@ function BidMaxValuationSliderComponent({
   disabled,
   onInteractionStart,
   inputType,
+  showCeilingHint,
+  maxBidPriceQ96,
+  maxBidPriceFdvFormatted,
 }: BidMaxValuationSliderProps): JSX.Element | null {
   const { auctionDetails, checkpointData, tickGrouping, groupTicksEnabled } = useAuctionStore((state) => ({
     auctionDetails: state.auctionDetails,
@@ -67,6 +79,7 @@ function BidMaxValuationSliderComponent({
       clearingPriceQ96={clearingPriceQ96}
       floorPriceQ96={floorPriceQ96}
       tickSizeQ96={tickSizeQ96}
+      maxBidPriceQ96={maxBidPriceQ96}
       auctionTokenDecimals={getAuctionTokenDecimals(auctionDetails?.token)}
       tokenTotalSupply={auctionDetails?.tokenTotalSupply}
       bidTokenPriceFiat={bidTokenInfo?.priceFiat}
@@ -74,6 +87,8 @@ function BidMaxValuationSliderComponent({
       groupTicksEnabled={groupTicksEnabled}
       tokenColorLoading={tokenColorLoading}
       inputType={inputType}
+      showCeilingHint={showCeilingHint}
+      maxBidPriceFdvFormatted={maxBidPriceFdvFormatted}
     />
   )
 }

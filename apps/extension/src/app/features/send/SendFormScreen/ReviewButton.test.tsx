@@ -23,7 +23,7 @@ vi.mock('uniswap/src/features/telemetry/Trace', () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
-vi.mock('ui/src', () => ({
+vi.mock('@universe/mycelium', () => ({
   __esModule: true,
   Button: ({
     children,

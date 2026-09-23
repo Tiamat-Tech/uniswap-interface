@@ -38,6 +38,7 @@ describe('Real Backend Integration - Headless session client (file persistence)'
     const raw = JSON.parse(await readFile(filePath, 'utf8'))
     expect(raw.UNISWAP_SESSION_ID).toBe(headers['X-Session-ID'])
     expect(raw.UNISWAP_DEVICE_ID).toBe(headers['X-Device-ID'])
+    // oxlint-disable-next-line no-bitwise -- POSIX permission-bit mask
     expect((await stat(filePath)).mode & 0o777).toBe(0o600)
   }, 60000)
 

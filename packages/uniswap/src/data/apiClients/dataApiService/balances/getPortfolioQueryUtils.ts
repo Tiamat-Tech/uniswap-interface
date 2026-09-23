@@ -2,8 +2,7 @@ import { type PlainMessage } from '@bufbuild/protobuf'
 import { type Query } from '@tanstack/react-query'
 import { type GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { SharedQueryClient } from '@universe/api'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
+import { Platform, areAddressesEqual } from '@universe/chains'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
 /**

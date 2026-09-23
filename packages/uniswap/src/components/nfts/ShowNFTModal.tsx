@@ -1,7 +1,7 @@
 import { isMobileApp } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { ShieldCheck } from 'ui/src/components/icons/ShieldCheck'
 import { InformationBanner } from 'uniswap/src/components/banners/InformationBanner'
 import { InfoLinkModal } from 'uniswap/src/components/modals/InfoLinkModal'

@@ -8,11 +8,11 @@
  * For unit tests of individual migrations, see mobileMigrations.test.ts.
  */
 import { BigNumber } from '@ethersproject/bignumber'
+import { UniverseChainId } from '@universe/chains'
 import mockdate from 'mockdate'
 import { OLD_DEMO_ACCOUNT_ADDRESS } from 'src/app/mobileMigrations'
 import { ScannerModalState } from 'uniswap/src/components/ReceiveQRCode/constants'
 import { AccountType } from 'uniswap/src/features/accounts/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { Language } from 'uniswap/src/features/language/constants'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { TransactionStatus, TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'

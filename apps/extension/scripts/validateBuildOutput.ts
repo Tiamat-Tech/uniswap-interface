@@ -14,6 +14,12 @@
  *    presence means classic worker chunk loading slipped back in, which fails at runtime
  *    with a doubled `chunks/chunks/<hash>.js` NetworkError when the worker loads sub-chunks.
  *
+ * 3. **Dev-only entrypoints** (production layouts only) — asserts that no artifact of a
+ *    dev-only entrypoint (e.g. `tailwindDevTest`) exists in the output and that no manifest
+ *    `content_scripts` entry references one. The `entrypoints:found` hook in wxt.config.ts
+ *    strips these by name in non-development modes; this scan is the backstop that fails
+ *    the build if that stripping ever silently stops matching.
+ *
  * The script understands two layouts via flags:
  *   --prod   apps/extension/.output/chrome-mv3/     (WXT production output)
  *   --dev    apps/extension/.output/chrome-mv3-dev/ (WXT dev output)
@@ -74,7 +80,13 @@ const FORBIDDEN_PATTERNS_GLOBAL: ForbiddenPattern[] = [
   },
 ]
 
-function walkJsFiles(dir: string): string[] {
+// Entrypoints that must never ship in production output. Keep in sync with
+// devOnlyEntrypoints in wxt.config.ts (`entrypoints:found` hook) — WXT derives
+// entrypoint names from src/entrypoints/ directory names, so a rename over there
+// must be mirrored here.
+const DEV_ONLY_ENTRYPOINTS = ['tailwindDevTest']
+
+function walkFiles(dir: string): string[] {
   const out: string[] = []
   const stack: string[] = [dir]
   while (stack.length > 0) {
@@ -85,12 +97,16 @@ function walkJsFiles(dir: string): string[] {
       const full = path.join(current, entry.name)
       if (entry.isDirectory()) {
         stack.push(full)
-      } else if (entry.isFile() && entry.name.endsWith('.js')) {
+      } else if (entry.isFile()) {
         out.push(full)
       }
     }
   }
   return out
+}
+
+function walkJsFiles(dir: string): string[] {
+  return walkFiles(dir).filter((file) => file.endsWith('.js'))
 }
 
 function reportPattern({
@@ -111,6 +127,57 @@ function reportPattern({
     console.error(`  • ${path.relative(buildDir, file)}`)
   }
   console.error(`\n${message}\n`)
+}
+
+// Asserts a production layout contains no trace of dev-only entrypoints: no emitted
+// file whose path mentions one, and no manifest content_scripts entry referencing one.
+function validateNoDevOnlyEntrypoints(buildDir: string): boolean {
+  let hasErrors = false
+  const allFiles = walkFiles(buildDir)
+
+  for (const name of DEV_ONLY_ENTRYPOINTS) {
+    const lowerName = name.toLowerCase()
+
+    const artifactMatches = allFiles.filter((file) => path.relative(buildDir, file).toLowerCase().includes(lowerName))
+
+    const manifestMatches: string[] = []
+    const manifestPath = path.join(buildDir, 'manifest.json')
+    if (fs.existsSync(manifestPath)) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8')) as {
+        content_scripts?: { js?: string[]; css?: string[] }[]
+      }
+      for (const entry of manifest.content_scripts ?? []) {
+        for (const ref of [...(entry.js ?? []), ...(entry.css ?? [])]) {
+          if (ref.toLowerCase().includes(lowerName)) {
+            // Prefixed with buildDir so reportPattern's path.relative() renders it cleanly.
+            manifestMatches.push(path.join(buildDir, `manifest.json (content_scripts -> ${ref})`))
+          }
+        }
+      }
+    } else {
+      console.error(`Manifest not found at ${manifestPath}`)
+      hasErrors = true
+    }
+
+    const matches = [...artifactMatches, ...manifestMatches]
+    if (matches.length > 0) {
+      reportPattern({
+        buildDir,
+        matches,
+        pattern: name,
+        message: [
+          `Dev-only entrypoint "${name}" leaked into a production build.`,
+          '',
+          'The `entrypoints:found` hook in apps/extension/wxt.config.ts must strip it from',
+          'every non-development build. If the entrypoint directory was renamed, update',
+          'devOnlyEntrypoints there and DEV_ONLY_ENTRYPOINTS in this script to match.',
+        ].join('\n'),
+      })
+      hasErrors = true
+    }
+  }
+
+  return hasErrors
 }
 
 function validateBuild(): boolean {
@@ -144,6 +211,13 @@ function validateBuild(): boolean {
       reportPattern({ buildDir, matches: [backgroundPath], pattern, message })
       hasErrors = true
     }
+  }
+
+  // Dev-only entrypoint scan — production layouts only. Dev builds are expected to
+  // contain tailwindDevTest; anything that isn't the dev layout must not.
+  const isProdLayout = prodOnly || (!devOnly && path.basename(buildDir) === path.basename(WXT_PROD_DIR))
+  if (isProdLayout && validateNoDevOnlyEntrypoints(buildDir)) {
+    hasErrors = true
   }
 
   // Global scan across every emitted .js file.

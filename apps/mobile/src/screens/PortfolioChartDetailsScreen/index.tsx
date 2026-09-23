@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ChartPeriod, WalletBalanceCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { FeatureFlags, useFeatureFlag, useFeatureFlagWithExposureLoggingDisabled } from '@universe/gating'
+import { FeatureFlags, useFeatureFlagWithExposureLoggingDisabled } from '@universe/gating'
+import { Flex, iconSizes, ScrollView, Text } from '@universe/mycelium'
 import { useEffect, useMemo, useState } from 'react'
 import { PortfolioChart } from 'src/components/home/PortfolioChart/PortfolioChart'
 import { usePortfolioChartData } from 'src/components/home/PortfolioChart/usePortfolioChartData'
@@ -11,9 +12,7 @@ import { PortfolioBalanceBreakdownCard } from 'src/screens/PortfolioChartDetails
 import { PortfolioChartDetailsMenu } from 'src/screens/PortfolioChartDetailsScreen/PortfolioChartDetailsMenu'
 import { useChartScrub } from 'src/screens/PortfolioChartDetailsScreen/useChartScrub'
 import { usePortfolioChartDetailsHeartbeatCoordinator } from 'src/screens/PortfolioChartDetailsScreen/usePortfolioChartDetailsHeartbeatCoordinator'
-import { Flex, ScrollView, Text } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { iconSizes, spacing } from 'ui/src/theme'
 import { DisplayNameText } from 'uniswap/src/components/accounts/DisplayNameText'
 import { getPortfolioHistoricalValueChartQuery } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolioChart'
 import {
@@ -32,7 +31,7 @@ import { useUnavailableBalancesText } from 'uniswap/src/features/portfolio/Portf
 import { PortfolioBalance } from 'uniswap/src/features/portfolio/PortfolioBalance/PortfolioBalance'
 import { getPortfolioChartPercentChange } from 'uniswap/src/features/portfolio/portfolioChartPercentChange'
 import { usePortfolioChartBalanceMismatch } from 'uniswap/src/features/portfolio/usePortfolioChartBalanceMismatch'
-import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
+import { useBottomScreenGap } from 'uniswap/src/hooks/useBottomScreenGap'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { useActiveAccountWithThrow, useDisplayName } from 'wallet/src/features/wallet/hooks'
 
@@ -40,16 +39,12 @@ export function PortfolioChartDetailsScreen(): JSX.Element {
   const activeAccount = useActiveAccountWithThrow()
   const displayName = useDisplayName(activeAccount.address)
   const { chains } = useEnabledChains()
-  // The heartbeat coordinator only takes over balance refreshing when this flag is on —
-  // otherwise PortfolioBalance must keep its own poll running, or balances would never refresh.
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-  usePortfolioChartDetailsHeartbeatCoordinator({ enabled: isDataLivelinessEnabled })
-  const insets = useAppInsets()
+  usePortfolioChartDetailsHeartbeatCoordinator()
+  const { bottomScreenTotalGap } = useBottomScreenGap()
   const queryClient = useQueryClient()
   const [chartPeriod, setChartPeriod] = useState(ChartPeriod.DAY)
   // Read without duplicate logging; each category records its exposure where the feature itself is surfaced.
   const portfolioPoolsBalancesEnabled = useFeatureFlagWithExposureLoggingDisabled(FeatureFlags.PortfolioPoolsBalances)
-  const earnEnabled = useFeatureFlagWithExposureLoggingDisabled(FeatureFlags.Earn)
   const includeCategories = useWalletBalancesIncludeCategories()
   const portfolioValueModifier = useRestPortfolioValueModifier(activeAccount.address)
 
@@ -118,7 +113,6 @@ export function PortfolioChartDetailsScreen(): JSX.Element {
     () =>
       getBreakdownCardProps({
         poolsEnabled: portfolioPoolsBalancesEnabled,
-        earnEnabled,
         poolsUnavailable,
         breakdown,
         scrub: {
@@ -134,7 +128,6 @@ export function PortfolioChartDetailsScreen(): JSX.Element {
       }),
     [
       portfolioPoolsBalancesEnabled,
-      earnEnabled,
       poolsUnavailable,
       breakdown,
       chartScrubFiatValue,
@@ -229,13 +222,12 @@ export function PortfolioChartDetailsScreen(): JSX.Element {
           gap={breakdownCardProps ? '$spacing4' : '$spacing24'}
           px="$spacing24"
           pt="$spacing20"
-          pb={insets.bottom + spacing.spacing24}
+          pb={bottomScreenTotalGap}
         >
           <PortfolioBalance
             hideUnavailableIndicator
-            // Disabled because this screen's heartbeat coordinator polls balances at the same
-            // cadence as the rest of the page instead.
-            disablePolling={isDataLivelinessEnabled}
+            // This screen's heartbeat coordinator refreshes balances on its 60s full tick instead.
+            disablePolling
             evmOwner={activeAccount.address}
             chartPeriod={canShowChart ? chartPeriod : undefined}
             overrideBalanceUSD={chartScrubFiatValue}

@@ -1,8 +1,8 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import type { EmbeddedWalletCallsStatus } from '@universe/embedded-wallet/src/connection/eip5792Types'
 import { ensure0xHex, numberToHex } from '@universe/encoding'
 import { TradingApiClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toTradingApiSupportedChainId } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
 
 // Rank swap rows by how resolved they are. We query the batch id in both hash

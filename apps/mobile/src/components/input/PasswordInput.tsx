@@ -1,6 +1,6 @@
+import { Flex, TouchableArea } from '@universe/mycelium'
 import React, { forwardRef, useState } from 'react'
 import { TextInput as NativeTextInput } from 'react-native'
-import { Flex, TouchableArea } from 'ui/src'
 import { Eye, EyeOff } from 'ui/src/components/icons'
 import { TextInput, TextInputProps } from 'uniswap/src/components/input/TextInput'
 

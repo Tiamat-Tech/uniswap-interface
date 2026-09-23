@@ -1,6 +1,6 @@
 import { type Currency, CurrencyAmount, type Token } from '@uniswap/sdk-core'
+import { Platform } from '@universe/chains'
 import { useMemo } from 'react'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useReadContract } from 'wagmi'
 import { erc20Abi } from '~/chains'
 import { assume0xAddress } from '~/chains'

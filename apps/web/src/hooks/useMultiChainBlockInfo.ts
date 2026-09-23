@@ -1,7 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
+import { EVMUniverseChainId } from '@universe/chains'
 import { getPublicClient } from '@wagmi/core'
 import { useMemo } from 'react'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import type { Block } from '~/chains'
 import { wagmiConfig } from '~/connection/wagmiConfig'
@@ -20,7 +20,7 @@ export function useMultiChainBlockInfo(chainIds: Set<EVMUniverseChainId>): Map<n
 
   const results = useQueries({
     queries: chainIdsArray.map((chainId) => ({
-      queryKey: [ReactQueryCacheKey.BlockNumber, chainId] as const,
+      queryKey: [ReactQueryCacheKey.BlockInfo, chainId] as const,
       queryFn: async () => {
         const client = getPublicClient(wagmiConfig, { chainId })
         if (!client) {

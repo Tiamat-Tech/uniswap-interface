@@ -1,5 +1,5 @@
+import { Flex, ModalCloseIcon, TouchableArea } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Flex, ModalCloseIcon, TouchableArea } from 'ui/src'
 import { BackArrow } from 'ui/src/components/icons/BackArrow'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 

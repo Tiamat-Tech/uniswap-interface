@@ -1,10 +1,10 @@
 import { BaseProvider, JsonRpcProvider, Provider, TransactionReceipt } from '@ethersproject/providers'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { ensure0xHex } from '@universe/encoding'
 import { BigNumber, utils } from 'ethers'
 import { AssetType } from 'uniswap/src/entities/assets'
 import { AccountMeta, AccountType, SignerMnemonicAccountMeta } from 'uniswap/src/features/accounts/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import {
@@ -91,6 +91,7 @@ describe('TransactionService', () => {
     isPrivateRpcEnabled: vi.fn(),
     getPrivateRpcConfig: vi.fn(),
     getTransactionTimeoutMs: vi.fn(),
+    getPrivateRpcProviderType: vi.fn(),
   }
 
   // Create a properly mocked provider with proper mock functions
@@ -129,6 +130,8 @@ describe('TransactionService', () => {
     // Setup default mock for private RPC support check
     const mockIsPrivateRpcSupportedOnChain = isPrivateRpcSupportedOnChain as Mock
     mockIsPrivateRpcSupportedOnChain.mockReturnValue(false)
+
+    mockConfigService.getPrivateRpcProviderType.mockReturnValue('flashbots')
 
     // Setup keccak256 mock to return a predictable hash
     const mockKeccak256 = utils.keccak256 as Mock
@@ -438,6 +441,7 @@ describe('TransactionService', () => {
         token_out_amount: '1700.0',
         routing: 'classic' as const,
         transactionOriginType: 'internal',
+        is_permissioned: undefined,
       }
 
       const typeInfo: TransactionTypeInfo = {
@@ -606,6 +610,7 @@ describe('TransactionService', () => {
         transactionOriginType: 'internal',
         chain_id_in: UniverseChainId.Mainnet,
         chain_id_out: UniverseChainId.Polygon,
+        is_permissioned: undefined,
       }
 
       const typeInfo: TransactionTypeInfo = {
@@ -866,6 +871,7 @@ describe('TransactionService', () => {
         token_out_amount: '1700.0',
         routing: 'classic' as const,
         transactionOriginType: 'internal',
+        is_permissioned: undefined,
       }
 
       const swapTypeInfo: TransactionTypeInfo = {
@@ -1100,6 +1106,7 @@ describe('TransactionService', () => {
         transactionOriginType: 'internal',
         chain_id_in: UniverseChainId.Mainnet,
         chain_id_out: UniverseChainId.Polygon,
+        is_permissioned: undefined,
       }
 
       const typeInfo: TransactionTypeInfo = {
@@ -1480,6 +1487,7 @@ describe('TransactionService', () => {
         token_out_amount: '1700.0',
         routing: 'classic' as const,
         transactionOriginType: 'internal',
+        is_permissioned: undefined,
       }
 
       const executeParams: ExecuteTransactionParams = {
@@ -1774,6 +1782,56 @@ describe('TransactionService', () => {
       expect(result).toEqual({ nonce: 8, pendingPrivateTxCount: 3 }) // 5 + 3 = 8
     })
 
+    it('should trust the Flashbots pending count when submitting privately via Flashbots', async () => {
+      const service = createTestService()
+      const mockAccount: AccountMeta = {
+        address: '0x1234567890123456789012345678901234567890',
+        type: AccountType.SignerMnemonic,
+      }
+
+      mockGetTransactionCount.mockReturnValue(5)
+      mockConfigService.shouldUsePrivateRpc.mockReturnValue(true)
+      mockConfigService.getPrivateRpcProviderType.mockReturnValue('flashbots')
+      ;(isPrivateRpcSupportedOnChain as Mock).mockReturnValue(true)
+
+      const result = await service.getNextNonce({
+        account: mockAccount,
+        chainId: UniverseChainId.Mainnet,
+        submitViaPrivateRpc: true,
+      })
+
+      // Flashbots' signature-authenticated pending count already includes private pending txs
+      expect(mockTransactionRepository.getPendingPrivateTransactionCount).not.toHaveBeenCalled()
+      expect(result).toEqual({ nonce: 5 })
+    })
+
+    it('should add the local pending private count when submitting privately via UniRPC swap protection', async () => {
+      const service = createTestService()
+      const mockAccount: AccountMeta = {
+        address: '0x1234567890123456789012345678901234567890',
+        type: AccountType.SignerMnemonic,
+      }
+
+      mockGetTransactionCount.mockReturnValue(5)
+      mockConfigService.shouldUsePrivateRpc.mockReturnValue(true)
+      mockConfigService.getPrivateRpcProviderType.mockReturnValue('unirpc')
+      mockTransactionRepository.getPendingPrivateTransactionCount.mockResolvedValue(2)
+      ;(isPrivateRpcSupportedOnChain as Mock).mockReturnValue(true)
+
+      const result = await service.getNextNonce({
+        account: mockAccount,
+        chainId: UniverseChainId.Mainnet,
+        submitViaPrivateRpc: true,
+      })
+
+      // The gateway pending count can't see protected pending txs — the local count fills the gap
+      expect(mockTransactionRepository.getPendingPrivateTransactionCount).toHaveBeenCalledWith({
+        address: mockAccount.address,
+        chainId: UniverseChainId.Mainnet,
+      })
+      expect(result).toEqual({ nonce: 7, pendingPrivateTxCount: 2 })
+    })
+
     it('emits a NonceCalculated analytics event with inflating-tx detail when count > 0', async () => {
       const service = createTestService()
       const mockAccount: AccountMeta = {
@@ -1834,6 +1892,7 @@ describe('TransactionService', () => {
       token_out_amount: '1700.0',
       routing: 'classic' as const,
       transactionOriginType: 'internal',
+      is_permissioned: undefined,
     }
 
     it('should track analytics for swap transactions with analytics data', async () => {
@@ -1939,6 +1998,7 @@ describe('TransactionService', () => {
         transactionOriginType: 'internal',
         chain_id_in: UniverseChainId.Mainnet,
         chain_id_out: UniverseChainId.Polygon,
+        is_permissioned: undefined,
       }
 
       const params = createSubmitTransactionParams({
@@ -2279,7 +2339,7 @@ describe('TransactionService', () => {
     })
 
     beforeEach(() => {
-      mockSignUserOp.mockImplementation((userOp: RpcUserOperation<'0.8'>) =>
+      mockSignUserOp.mockImplementation(({ userOp }: { userOp: RpcUserOperation<'0.8'> }) =>
         Promise.resolve({ ...userOp, signature: '0xsigned' }),
       )
       mockSendUserOp.mockResolvedValue(userOpHash)
@@ -2327,7 +2387,7 @@ describe('TransactionService', () => {
       await service.executeUserOp(createExecuteUserOpParams({ userOp, requestUniswapGasSponsorship: false }))
 
       expect(mockSponsorUniswapUserOp).not.toHaveBeenCalled()
-      expect(mockSignUserOp).toHaveBeenCalledWith(userOp)
+      expect(mockSignUserOp).toHaveBeenCalledWith({ userOp, chainId: UniverseChainId.Mainnet })
       expect(mockSendUserOp).toHaveBeenCalledTimes(1)
     })
 
@@ -2348,8 +2408,8 @@ describe('TransactionService', () => {
       expect(sponsorOrder).toBeLessThan(signOrder)
 
       // Paymaster fields are merged into the signed userOp
-      const signedArg = mockSignUserOp.mock.calls[0]?.[0] as RpcUserOperation<'0.8'>
-      expect(signedArg.paymaster).toBe(paymasterFields.paymaster)
+      const signedArg = mockSignUserOp.mock.calls[0]?.[0] as { userOp: RpcUserOperation<'0.8'> }
+      expect(signedArg.userOp.paymaster).toBe(paymasterFields.paymaster)
     })
 
     it('should skip the paymaster when the userOp already has paymaster fields', async () => {
@@ -2361,7 +2421,7 @@ describe('TransactionService', () => {
       )
 
       expect(mockSponsorUniswapUserOp).not.toHaveBeenCalled()
-      expect(mockSignUserOp).toHaveBeenCalledWith(preFilledUserOp)
+      expect(mockSignUserOp).toHaveBeenCalledWith({ userOp: preFilledUserOp, chainId: UniverseChainId.Mainnet })
     })
 
     it('should finalize the transaction as failed and log when the bundler submission throws', async () => {
@@ -2405,6 +2465,7 @@ describe('TransactionService', () => {
         token_out_amount: '1700.0',
         routing: 'classic' as const,
         transactionOriginType: 'internal',
+        is_permissioned: undefined,
       }
 
       await service.executeUserOp(

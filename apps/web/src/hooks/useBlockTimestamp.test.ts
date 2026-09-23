@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { useBlockTimestamp } from '~/hooks/useBlockTimestamp'
 import { renderHook } from '~/test-utils/render'
 

@@ -1,14 +1,15 @@
-import { GraphQLApi } from '@universe/api'
-import { useMemo, useState } from 'react'
+import type { UniverseChainId } from '@universe/chains'
+import { Text, type TextCompatProps } from '@universe/mycelium'
+import { Flex, TouchableArea } from '@universe/mycelium'
+import { forwardRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, TouchableArea } from 'ui/src'
-import { fonts } from 'ui/src/theme'
-import { useGetPositionsQuery } from 'uniswap/src/data/apiClients/dataApiService/positions/getPositions'
-import { parseRestPosition } from 'uniswap/src/features/positions/parseRestPosition'
-import { PositionInfo } from 'uniswap/src/features/positions/types'
+import { fonts } from 'ui/src/theme/fonts'
+import type { ParsedToken } from 'uniswap/src/features/dataApi/utils/parsedToken'
+import { usePositionSort } from '~/features/Liquidity/hooks/usePositionSort'
+import { PoolPositionsTable } from '~/features/Liquidity/PositionsTable'
 import { useAccount } from '~/hooks/useAccount'
-import { PoolDetailsPositionsTable } from '~/pages/PoolDetails/components/PoolDetailsPositionsTable'
 import { PoolDetailsTransactionsTable } from '~/pages/PoolDetails/components/PoolDetailsTransactionsTable'
+import { usePoolPositions } from '~/pages/PoolDetails/hooks/usePoolPositions'
 
 enum PoolDetailsTableTabs {
   TRANSACTIONS = 'transactions',
@@ -18,40 +19,49 @@ enum PoolDetailsTableTabs {
 // Note: this intentionally scales via media-scoped fontSize/lineHeight rather than a `variant`
 // swap. Swapping to a subheading variant inside `$sm` leaks the subHeading font family (and its
 // family-relative size tokens) to all widths on web, shrinking the tabs on desktop too.
-const TableHeaderText = styled(Text, {
-  variant: 'heading3',
-  userSelect: 'none',
-  $sm: {
-    fontSize: fonts.subheading2.fontSize,
-    lineHeight: fonts.subheading2.lineHeight,
-  },
+const TableHeaderText = forwardRef<HTMLElement, TextCompatProps>(function TableHeaderText({ $sm: sm, ...props }, ref) {
+  return (
+    <Text
+      ref={ref}
+      variant="heading3"
+      userSelect="none"
+      // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+      $sm={{ fontSize: fonts.subheading2.fontSize, lineHeight: fonts.subheading2.lineHeight, ...sm }}
+      {...props}
+    />
+  )
 })
 
 export function PoolDetailsTableTab({
   poolAddress,
+  chainId,
   token0,
   token1,
-  protocolVersion,
+  isPoolDataLoading,
 }: {
   poolAddress: string
-  token0?: GraphQLApi.Token
-  token1?: GraphQLApi.Token
-  protocolVersion?: GraphQLApi.ProtocolVersion
+  chainId: UniverseChainId
+  token0?: ParsedToken
+  token1?: ParsedToken
+  isPoolDataLoading?: boolean
 }) {
   const { t } = useTranslation()
   const [activeTable, setActiveTable] = useState<PoolDetailsTableTabs>(PoolDetailsTableTabs.TRANSACTIONS)
   const account = useAccount()
-  const { data } = useGetPositionsQuery({ address: account.address, poolId: poolAddress })
-  const positions = useMemo(
-    () =>
-      data?.positions
-        .map((position) => parseRestPosition(position))
-        .filter((position): position is PositionInfo => position !== undefined),
-    [data?.positions],
-  )
+  const { sort, onSort } = usePositionSort()
+  const { positions, isPlaceholderData } = usePoolPositions({
+    account: account.address,
+    chainId,
+    poolIdOrAddress: poolAddress,
+    sort,
+  })
+  // The Positions tab is only offered while the wallet holds something here, so losing the last
+  // position (or the wallet) has to fall back to transactions rather than strand the empty tab.
+  const showPositions = activeTable === PoolDetailsTableTabs.POSITIONS && positions.length > 0
+
   return (
     <Flex gap="$gap24">
-      {positions?.length ? (
+      {positions.length ? (
         <Flex row flexWrap="wrap" gap="$gap16">
           <TouchableArea onPress={() => setActiveTable(PoolDetailsTableTabs.TRANSACTIONS)}>
             <TableHeaderText color={activeTable === PoolDetailsTableTabs.TRANSACTIONS ? '$neutral1' : '$neutral2'}>
@@ -68,15 +78,15 @@ export function PoolDetailsTableTab({
       ) : (
         <TableHeaderText color="$neutral1">{t('common.transactions')}</TableHeaderText>
       )}
-      {activeTable === PoolDetailsTableTabs.TRANSACTIONS ? (
+      {showPositions ? (
+        <PoolPositionsTable positions={positions} isPlaceholderData={isPlaceholderData} sort={sort} onSort={onSort} />
+      ) : (
         <PoolDetailsTransactionsTable
           poolAddress={poolAddress}
           token0={token0}
           token1={token1}
-          protocolVersion={protocolVersion}
+          isPoolDataLoading={isPoolDataLoading}
         />
-      ) : (
-        <PoolDetailsPositionsTable positions={positions} />
       )}
     </Flex>
   )

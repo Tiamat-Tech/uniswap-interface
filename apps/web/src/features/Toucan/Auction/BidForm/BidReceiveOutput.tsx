@@ -1,9 +1,12 @@
+import { Flex, type FlexCompatProps, Text } from '@universe/mycelium'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import { useMemo, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, styled, Text } from 'ui/src'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
+import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
+import { formatNumberWithSubscript } from 'utilities/src/format/subscriptNotation'
 import { useAuctionValueFormatters } from '~/features/Toucan/Auction/hooks/useAuctionValueFormatters'
 import { useBidTokenInfo } from '~/features/Toucan/Auction/hooks/useBidTokenInfo'
+import { useIsQuickLaunchAuction } from '~/features/Toucan/Auction/hooks/useIsQuickLaunchAuction'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getAuctionTokenDecimals } from '~/features/Toucan/Auction/utils/tokenMetadata'
 
@@ -18,47 +21,46 @@ interface BidReceiveOutputProps {
   bidTokenSymbol?: string
 }
 
-const Container = styled(Flex, {
-  alignItems: 'flex-start',
-  gap: '$spacing2',
-  paddingVertical: '$spacing12',
-  paddingHorizontal: '$spacing16',
-  borderWidth: 1,
-  borderColor: '$surface3',
-  width: '100%',
-  variants: {
-    isEmpty: {
-      true: {
-        borderColor: '$surface3',
-      },
-    },
-  },
-})
+const Container = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    alignItems="flex-start"
+    gap="$spacing2"
+    paddingVertical="$spacing12"
+    paddingHorizontal="$spacing16"
+    borderWidth={1}
+    borderColor="$surface3"
+    width="100%"
+    {...props}
+  />
+)
 
-function formatAmount(amount: number): string {
+/**
+ * Below this, fixed-decimal formatting collapses small values to "0.00" — a per-token price of
+ * 6.3e-9 ETH is not zero, and rendering it as one misstates the bid. Values under the threshold
+ * go through the shared Unicode-subscript formatter instead (e.g. "0.0₈63").
+ */
+const SUBSCRIPT_AMOUNT_THRESHOLD = 0.01
+
+function formatAmount({ amount, locale }: { amount: number; locale: string }): string {
   if (amount === 0) {
     return '0'
   }
 
-  if (amount < 0.01) {
-    // Show up to 6 decimals for small amounts
-    return amount.toLocaleString('en-US', {
-      maximumFractionDigits: 6,
-      minimumFractionDigits: 2,
-    })
+  // Every amount reaching here is non-negative (budgets, clamped fill amounts, and the price per
+  // token derived from them), so the subscript formatter's magnitude-only output is faithful.
+  if (amount < SUBSCRIPT_AMOUNT_THRESHOLD) {
+    return formatNumberWithSubscript({ value: amount, locale })
   }
 
-  return amount.toLocaleString('en-US', {
+  return amount.toLocaleString(locale, {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   })
 }
 
-const Divider = styled(Flex, {
-  height: 1,
-  width: '100%',
-  backgroundColor: '$surface3',
-})
+const Divider = (props: FlexCompatProps): JSX.Element => (
+  <Flex height={1} width="100%" backgroundColor="$surface3" {...props} />
+)
 
 export function BidReceiveOutput({
   expectedAmount,
@@ -71,7 +73,13 @@ export function BidReceiveOutput({
   bidTokenSymbol,
 }: BidReceiveOutputProps): JSX.Element {
   const { t } = useTranslation()
+  const locale = useCurrentLocale()
   const [isExpanded, setIsExpanded] = useState(false)
+
+  // QuickLaunch: no max-FDV input — the bid's ceiling is the synthetic 25,000 ETH FDV cap (no
+  // longer a 50x-of-reference cap), not a user choice, so the min-receive range and the
+  // partial-fill explainer don't apply, and the placeholder only mentions a budget.
+  const isQuickLaunch = useIsQuickLaunchAuction()
 
   const chainId = useAuctionStore((state) => state.auctionDetails?.chainId)
   const currency = useAuctionStore((state) => state.auctionDetails?.currency)
@@ -99,23 +107,23 @@ export function BidReceiveOutput({
 
     const cappedMaxAvailable = maxAvailableAmount !== undefined ? Math.max(0, maxAvailableAmount) : undefined
     const cappedMax = cappedMaxAvailable !== undefined ? Math.min(expectedAmount, cappedMaxAvailable) : expectedAmount
-    const cappedMinRaw = minExpectedAmount
+    const cappedMinRaw = isQuickLaunch ? undefined : minExpectedAmount
     const cappedMin =
       cappedMaxAvailable !== undefined && cappedMinRaw !== undefined
         ? Math.min(cappedMinRaw, cappedMaxAvailable)
         : cappedMinRaw
     const safeMin = cappedMin !== undefined ? Math.min(cappedMin, cappedMax) : undefined
 
-    const maxFormatted = formatAmount(cappedMax)
+    const maxFormatted = formatAmount({ amount: cappedMax, locale })
 
     // Show range if minExpectedAmount is different from expectedAmount
     if (safeMin !== undefined && safeMin !== cappedMax) {
-      const minFormatted = formatAmount(safeMin)
+      const minFormatted = formatAmount({ amount: safeMin, locale })
       return `${minFormatted} - ${maxFormatted}`
     }
 
     return maxFormatted
-  }, [expectedAmount, maxAvailableAmount, minExpectedAmount])
+  }, [expectedAmount, maxAvailableAmount, minExpectedAmount, isQuickLaunch, locale])
 
   const isEmpty = expectedAmount === undefined
 
@@ -123,13 +131,13 @@ export function BidReceiveOutput({
     if (budgetAmount === undefined || expectedAmount === undefined || expectedAmount === 0) {
       return undefined
     }
-    return formatAmount(budgetAmount / expectedAmount)
-  }, [budgetAmount, expectedAmount])
+    return formatAmount({ amount: budgetAmount / expectedAmount, locale })
+  }, [budgetAmount, expectedAmount, locale])
 
-  const showExpandable = !isEmpty && maxFdvFormatted && pricePerToken
+  const showExpandable = !isQuickLaunch && !isEmpty && maxFdvFormatted && pricePerToken
 
   return (
-    <Container isEmpty={isEmpty} justifyContent="space-between" flexDirection="column" borderRadius="$rounded12">
+    <Container justifyContent="space-between" flexDirection="column" borderRadius="$rounded12">
       <Flex
         flexDirection="row"
         justifyContent="space-between"
@@ -147,7 +155,7 @@ export function BidReceiveOutput({
           <Flex flexDirection="row" alignItems="center" justifyContent="flex-start" width="auto" overflow="hidden">
             {isEmpty ? (
               <Text variant="body4" color="$neutral3" width="100%">
-                {t('toucan.bidForm.enterBudgetMaxFdv')}
+                {isQuickLaunch ? t('toucan.bidForm.enterBudget') : t('toucan.bidForm.enterBudgetMaxFdv')}
               </Text>
             ) : (
               <Flex flexDirection="row" gap="$spacing4" width="100%">

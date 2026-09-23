@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NoResultsFound } from 'uniswap/src/components/lists/NoResultsFound'
@@ -7,7 +8,6 @@ import { TokenSelectorList } from 'uniswap/src/components/TokenSelector/TokenSel
 import { OnSelectCurrency } from 'uniswap/src/components/TokenSelector/types'
 import { TradeableAsset } from 'uniswap/src/entities/assets'
 import type { AddressGroup } from 'uniswap/src/features/accounts/store/types/AccountsState'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 function TokenSelectorSearchResultsListInner({
   onSelectCurrency: parentOnSelectCurrency,

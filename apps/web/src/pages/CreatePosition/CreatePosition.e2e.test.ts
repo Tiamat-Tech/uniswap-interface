@@ -12,6 +12,8 @@ import { createTestUrlBuilder } from '~/playwright/fixtures/urls'
 const test = getTest()
 
 const buildUrl = createTestUrlBuilder({
+  // The retired path, entered on purpose: it redirects to `/positions/add/new`, which is what a
+  // bookmarked link does, so these specs cover that hop as well as the form behind it.
   basePath: '/positions/create',
 })
 
@@ -116,7 +118,8 @@ test.describe(
         // Confirm reset
         await page.getByRole('button', { name: 'Reset' }).last().click()
         const url = new URL(page.url())
-        await expect(url.pathname).toContain(`/positions/create/v2`)
+        await expect(url.pathname).toContain('/positions/add/new')
+        await expect(url.searchParams.get('protocolVersion')).toBe('v2')
         await expect(page.getByRole('button', { name: 'New v2 position' })).not.toBeVisible()
       })
 
@@ -319,9 +322,12 @@ test.describe(
         await page.getByTestId(TestID.HookRowAddButton).first().click()
         await expectHookSearchModalClosed(page)
 
-        // Verify the selected hook appears in the form
-        await expect(page.getByText('Dynamic Fee Hook')).toBeVisible()
-        await expect(page.getByText('0x1234...7890')).toBeVisible()
+        // Verify the selected hook appears in the form. Wait for the modal to fully close (its search
+        // input disappears) so its list copy of the hook can't trip strict mode, then match the
+        // address exactly to avoid the card's row button also matching.
+        await expect(page.getByPlaceholder('Search by name or address')).not.toBeVisible()
+        await expect(page.getByTestId(TestID.HookClearButton)).toBeVisible()
+        await expect(page.getByText('0x1234...7890', { exact: true })).toBeVisible()
       })
 
       test('shows empty state when no hooks match search', async ({ page }) => {
@@ -378,14 +384,19 @@ test.describe(
         // Search an address that isn't in the registry: a selectable entry is shown instead of the empty state
         const unregisteredAddress = '0x0000000000000000000000000000000000004444'
         await page.getByPlaceholder('Search by name or address').fill(unregisteredAddress)
-        await expect(page.getByText('0x0000...4444')).toBeVisible()
+        // exact match avoids the row button (accessible name "0x0000...4444 Ethereum") also matching.
+        await expect(page.getByText('0x0000...4444', { exact: true })).toBeVisible()
         await expect(page.getByText('No hooks found')).not.toBeVisible()
 
         await page.getByTestId(TestID.HookRowAddButton).click()
         await expectHookSearchModalClosed(page)
 
-        // Verify the raw address is set as the selected hook
-        await expect(page.getByText('0x0000...4444')).toBeVisible()
+        // Verify the raw address is set as the selected hook. Wait for the modal to fully close (its
+        // search input disappears) so the selected-hook card in the form is the only match (avoids the
+        // closing modal's copy tripping strict mode).
+        await expect(page.getByPlaceholder('Search by name or address')).not.toBeVisible()
+        await expect(page.getByTestId(TestID.HookClearButton)).toBeVisible()
+        await expect(page.getByText('0x0000...4444', { exact: true })).toBeVisible()
         await expect(page.getByTestId(TestID.HookAddButton)).not.toBeVisible()
       })
 
@@ -416,8 +427,9 @@ test.describe(
         await page.getByTestId(TestID.HookRowAddButton).first().click()
         await expectHookSearchModalClosed(page)
 
-        // Verify hook is selected
-        await expect(page.getByText('Dynamic Fee Hook')).toBeVisible()
+        // Verify hook is selected. Assert via the form's clear button (only present once a hook is
+        // selected) so the closing modal's list copy of the name can't trip strict mode.
+        await expect(page.getByTestId(TestID.HookClearButton)).toBeVisible()
 
         // Clear the hook
         await page.getByTestId(TestID.HookClearButton).click()
@@ -555,7 +567,6 @@ test.describe(
         )
 
         await graphql.waitForResponse('PoolPriceHistory')
-        await graphql.waitForResponse('AllV4Ticks')
         await expectInputToBeFilled({ page })
         await incrementDecrementPrice({ page })
       })

@@ -1,5 +1,6 @@
 import { GraphQLApi } from '@universe/api'
-import { GqlChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { GqlChainId } from 'uniswap/src/features/chains/types'
 import { fromGraphQLChain, isBackendSupportedChain } from 'uniswap/src/features/chains/utils'
 
 export function supportedChainIdFromGQLChain(chain: GqlChainId): UniverseChainId

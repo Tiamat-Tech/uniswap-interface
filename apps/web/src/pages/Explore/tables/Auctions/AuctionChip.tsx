@@ -1,9 +1,9 @@
+import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { CheckmarkCircle } from '@universe/mycelium/icons/CheckmarkCircle'
+import { opacifyRaw, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
-import { Flex, Text, TouchableArea, useSporeColors } from 'ui/src'
-import { CheckmarkCircle } from 'ui/src/components/icons/CheckmarkCircle'
-import { iconSizes, opacifyRaw } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
@@ -13,9 +13,10 @@ import { formatCompactFromRaw } from '~/features/Toucan/Auction/utils/fixedPoint
 import { isAuctionFailed } from '~/features/Toucan/Auction/utils/isAuctionFailed'
 import type { EnrichedAuction } from '~/features/Toucan/hooks/useTopAuctions/useTopAuctions'
 import { computeProjectedFdvTableValue } from '~/features/Toucan/utils/computeProjectedFdv'
+import { getQuickLaunchExternalBidUrl } from '~/features/Toucan/utils/quickLaunchLinks'
 import { useSrcColor } from '~/hooks/useColor'
+import { useNavigateToAuctionDetails } from '~/hooks/useNavigateToAuctionDetails'
 import { createDottedBackgroundStyles } from '~/utils/createDottedBackgroundStyles'
-import { getChainUrlParam } from '~/utils/params/chainParams'
 
 const DOT_OPACITY = 10
 const TOKEN_BACKGROUND_OPACITY = 8
@@ -27,21 +28,23 @@ export function AuctionChip({
   auction: EnrichedAuction
   auctionTokenUsdPrice?: number
 }) {
-  const navigate = useNavigate()
+  const navigateToAuctionDetails = useNavigateToAuctionDetails()
   const colors = useSporeColors()
   const { t } = useTranslation()
   const { convertFiatAmountFormatted } = useLocalizationContext()
 
-  const chainId = auction.auction?.chainId
-  const tokenAddress = auction.auction?.tokenAddress
-  const tokenSymbol = auction.auction?.tokenSymbol
-  const tokenName = auction.auction?.tokenName ?? tokenSymbol ?? tokenAddress
+  // QuickLaunch: flag gates only the cosmetic quick-launch treatment (chip link-out to pools.trade).
+  const isQuickLaunchFlagEnabled = useFeatureFlag(FeatureFlags.QuickLaunch)
+
+  const auctionData = auction.auction
+  const tokenAddress = auctionData?.tokenAddress
+  const tokenSymbol = auctionData?.tokenSymbol
+  const tokenName = auctionData?.tokenName ?? tokenSymbol ?? tokenAddress
 
   const projectedFdv = computeProjectedFdvTableValue({ auction, auctionTokenUsdPrice })
   const committedVolumeUsd =
-    auction.auction?.totalBidVolumeUsd !== undefined ? Number(auction.auction.totalBidVolumeUsd) : undefined
+    auctionData?.totalBidVolumeUsd !== undefined ? Number(auctionData.totalBidVolumeUsd) : undefined
 
-  const address = auction.auction?.address
   // logoUrl already resolves API image -> config override -> indexed logo (see useTopAuctions)
   const logoUrl = auction.logoUrl
 
@@ -86,18 +89,22 @@ export function AuctionChip({
     [effectiveTokenColor],
   )
 
-  const handleClick = () => {
-    if (!chainId) {
-      return
-    }
-    const chainUrlParam = getChainUrlParam(chainId)
-    if (chainUrlParam) {
-      navigate(`/explore/auctions/${chainUrlParam}/${address}`)
-    }
+  if (!auctionData) {
+    return null
   }
 
-  if (!auction.auction) {
-    return null
+  const handleClick = () => {
+    // QuickLaunch: quick launches link out to the pools.trade bid page when one can be
+    // constructed; otherwise fall back to the web-app auction page.
+    const poolsTradeUrl = getQuickLaunchExternalBidUrl({ enrichedAuction: auction, isQuickLaunchFlagEnabled })
+    if (poolsTradeUrl) {
+      window.open(poolsTradeUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+    navigateToAuctionDetails({
+      chainId: auctionData.chainId,
+      auctionAddress: auctionData.address,
+    })
   }
 
   return (
@@ -133,7 +140,13 @@ export function AuctionChip({
       />
 
       <Flex flexDirection="row" gap="$spacing8" alignItems="center">
-        <TokenLogo url={logoUrl} size={iconSizes.icon32} chainId={chainId} symbol={tokenSymbol} name={tokenName} />
+        <TokenLogo
+          url={logoUrl}
+          size={iconSizes.icon32}
+          chainId={auctionData.chainId}
+          symbol={tokenSymbol}
+          name={tokenName}
+        />
         <Flex flex={1} minWidth={0}>
           <Flex row alignItems="center" gap="$gap4">
             <Text variant="body2" color="$neutral1" numberOfLines={1}>
@@ -175,10 +188,10 @@ export function AuctionChip({
             value={
               committedVolumeUsd !== undefined
                 ? convertFiatAmountFormatted(committedVolumeUsd, NumberType.FiatTokenStats)
-                : auction.auction.totalBidVolume && auction.auction.currencyTokenDecimals
+                : auctionData.totalBidVolume && auctionData.currencyTokenDecimals
                   ? formatCompactFromRaw({
-                      raw: BigInt(auction.auction.totalBidVolume),
-                      decimals: auction.auction.currencyTokenDecimals,
+                      raw: BigInt(auctionData.totalBidVolume),
+                      decimals: auctionData.currencyTokenDecimals,
                     })
                   : '-'
             }
@@ -191,8 +204,8 @@ export function AuctionChip({
         <Text variant="body4" color="$neutral2">
           {isAuctionFailed({
             phase,
-            totalBidVolume: auction.auction.totalBidVolume,
-            requiredCurrencyRaised: auction.auction.requiredCurrencyRaised,
+            totalBidVolume: auctionData.totalBidVolume,
+            requiredCurrencyRaised: auctionData.requiredCurrencyRaised,
           })
             ? t('toucan.auction.status.failed')
             : t('toucan.auction.timeRemaining.completed')}

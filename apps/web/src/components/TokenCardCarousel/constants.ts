@@ -1,4 +1,4 @@
-import { spacing } from 'ui/src/theme'
+import { spacing } from '@universe/mycelium'
 
 /** Horizontal gap between carousel cards. */
 export const CAROUSEL_CARD_GAP = spacing.spacing12

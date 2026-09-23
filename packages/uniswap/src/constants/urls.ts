@@ -127,7 +127,7 @@ export const UniswapHelpUrls = {
     routingSettings: createHelpArticleUrl('27362707722637'),
     uniswapVersionsInfo: createHelpArticleUrl('7425482965517-Uniswap-v2-v3-and-v4'),
     v4HooksInfo: createHelpArticleUrl('30998263256717'),
-    subgraphDowntime: createHelpArticleUrl('23952001935373-Subgraph-downtime'),
+    uniswapBuiltHooks: createHelpArticleUrl('48747190274317'),
     walletSecurityMeasures: createHelpArticleUrl('28278904584077-Uniswap-Wallet-Security-Measures'),
     whatIsPrivateKey: createHelpArticleUrl('11306371824653-What-is-a-private-key'),
     wethExplainer: createHelpArticleUrl('16015852009997-Why-do-ETH-swaps-involve-converting-to-WETH'),

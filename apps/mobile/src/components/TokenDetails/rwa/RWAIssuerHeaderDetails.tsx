@@ -1,5 +1,4 @@
-import { Flex, Text, UniversalImage } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { Flex, iconSizes, Text, UniversalImage } from '@universe/mycelium'
 import { getRWAIssuerDisplayName } from 'uniswap/src/features/rwa/issuers'
 import type { RWAMatch } from 'uniswap/src/features/rwa/rwaMatch'
 import { useRWAIssuerLogoUrl } from 'uniswap/src/features/rwa/useRWAIssuerLogoUrl'

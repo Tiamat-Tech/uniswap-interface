@@ -101,6 +101,9 @@ const VARIANT_DEFINITIONS: Record<TouchableAreaVariant, VariantDefinition> = {
   },
 }
 
+/** Every TouchableArea variant name — the closed-set fixed-class provider iterates these. */
+export const TOUCHABLE_AREA_VARIANTS = Object.keys(VARIANT_DEFINITIONS) as TouchableAreaVariant[]
+
 /** The styled-options focus-visible defaults (scale ring + outline geometry). */
 const OPTIONS_FOCUS_VISIBLE: Style = {
   scaleX: FOCUS_SCALE,
@@ -118,11 +121,20 @@ const UNFOCUSABLE_FOCUS_VISIBLE: Style = {
   borderColor: '$transparent',
 }
 
-/** The disabled variant's base styles (web: pointer-events none via $platform-web). */
+/**
+ * The disabled variant's base styles. `box-none`, not `none`: the legacy
+ * frame's disabled variant sets `pointerEvents: 'box-none'`, whose web
+ * polyfill keeps DIRECT CHILDREN clickable (`>* { pointer-events: auto }`)
+ * even though its `$platform-web: { pointerEvents: 'none' }` override wins on
+ * the element itself — the child rule from `box-none` still applies. The
+ * compat compiler emits the same pair for `box-none` since INFRA-3490; a
+ * plain `none` here flattened it and made disabled areas swallow child
+ * clicks the legacy component allowed.
+ */
 const DISABLED_BASE: Style = {
   userSelect: 'none',
   opacity: 0.6,
-  pointerEvents: 'none',
+  pointerEvents: 'box-none',
   cursor: 'default',
 }
 

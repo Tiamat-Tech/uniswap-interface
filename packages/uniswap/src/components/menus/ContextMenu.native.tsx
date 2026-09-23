@@ -1,18 +1,34 @@
 import { isIOS } from '@universe/environment'
+import { Flex, Separator, spacing, TouchableArea, zIndexes } from '@universe/mycelium'
+import { useIsDarkMode } from '@universe/mycelium/theme-hooks-compat'
+import { withSporeCurve } from '@universe/tailwind/animations/reanimated'
 import isEqual from 'lodash/isEqual'
-import { ForwardedRef, forwardRef, Fragment, PropsWithChildren, useEffect, useMemo, useRef, useState } from 'react'
-import { NativeSyntheticEvent, View } from 'react-native'
+import {
+  ForwardedRef,
+  forwardRef,
+  Fragment,
+  PropsWithChildren,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { Modal, NativeSyntheticEvent, useWindowDimensions, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { FullWindowOverlay } from 'react-native-screens'
-import { Flex, Portal, Separator, TouchableArea, flexStyles, useIsDarkMode, useWindowDimensions } from 'ui/src'
+import { flexStyles } from 'ui/src'
 import { DropdownMenuSheetItem } from 'ui/src/components/dropdownMenuSheet/DropdownMenuSheetItem'
-import { spacing, zIndexes } from 'ui/src/theme'
+import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
+import { Portal } from 'ui/src/components/portal/Portal'
 import { ContextMenuHandle, ContextMenuProps } from 'uniswap/src/components/menus/ContextMenu'
 import { useContextMenuTracking } from 'uniswap/src/components/menus/hooks/useContextMenuTracking'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
 import { useHapticFeedback } from 'uniswap/src/features/settings/useHapticFeedback/useHapticFeedback'
 import { UniswapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
+import { useOnMobileAppState } from 'utilities/src/device/appState'
 import { logger } from 'utilities/src/logger/logger'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
@@ -25,9 +41,84 @@ const MIN_MENU_PADDING = spacing.spacing16
 // used for enter animation
 const ANIMATION_START_POINT = 10
 
-// Hoists the menu into its own native window so it paints above the bottom sheet (iOS). No-op elsewhere.
-function MenuWindowOverlay({ children }: PropsWithChildren): JSX.Element {
-  return isIOS ? <FullWindowOverlay>{children}</FullWindowOverlay> : <>{children}</>
+// Hoists the menu into its own native window so it paints above bottom sheets. On Android the JS
+// portal host is a sibling *below* the gorhom sheet host and zIndex can't reorder across hosts,
+// so a transparent RN Modal (a real dialog window) is the only layer guaranteed on top.
+function MenuWindowOverlay({
+  children,
+  visible,
+  onRequestClose,
+}: PropsWithChildren<{ visible: boolean; onRequestClose: () => void }>): JSX.Element {
+  if (isIOS) {
+    return <FullWindowOverlay>{children}</FullWindowOverlay>
+  }
+  return (
+    // visible must gate the dialog: an Android dialog window consumes all touches regardless of the
+    // child's pointerEvents, so leaving it up while closed would freeze input app-wide.
+    <Modal
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      animationType="none"
+      visible={visible}
+      onRequestClose={onRequestClose}
+    >
+      {children}
+    </Modal>
+  )
+}
+
+// Raw useSharedValue + mount-effect + useAnimatedStyle here, not AnimatedFlex's preferred
+// entering/exiting worklets, to stay consistent with AnimatedMenuContent below - its directional
+// slide can't use mycelium's fade-only native presets anyway, so this file settles on one shape.
+function DimBackgroundOverlay({ isDarkMode }: { isDarkMode: boolean }): JSX.Element {
+  const targetOpacity = isDarkMode ? 0.4 : 0.2
+  const opacity = useSharedValue(0)
+  useEffect(() => {
+    opacity.value = withSporeCurve('200ms', targetOpacity)
+  }, [targetOpacity, opacity])
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }), [opacity])
+
+  return <AnimatedFlex position="absolute" inset={0} backgroundColor="$black" style={animatedStyle} />
+}
+
+function AnimatedMenuContent({
+  top,
+  left,
+  isAboveTrigger,
+  children,
+}: {
+  top: number | undefined
+  left: number | undefined
+  isAboveTrigger: boolean
+  children: ReactNode
+}): JSX.Element {
+  const opacity = useSharedValue(0)
+  // isAboveTrigger only informs the initial slide direction, read once at mount (this component
+  // remounts on every open, so a stale value can't linger across opens).
+  const translateY = useSharedValue(isAboveTrigger ? ANIMATION_START_POINT : -ANIMATION_START_POINT)
+  useEffect(() => {
+    opacity.value = withSporeCurve('200ms', 1)
+    translateY.value = withSporeCurve('200ms', 0)
+  }, [opacity, translateY])
+  const animatedStyle = useAnimatedStyle(
+    () => ({ opacity: opacity.value, transform: [{ translateY: translateY.value }] }),
+    [opacity, translateY],
+  )
+
+  return (
+    <AnimatedFlex
+      justifyContent="flex-start"
+      alignItems="flex-start"
+      backgroundColor="$transparent"
+      top={top}
+      left={left}
+      position="absolute"
+      style={animatedStyle}
+    >
+      {children}
+    </AnimatedFlex>
+  )
 }
 
 /**
@@ -89,6 +180,14 @@ function ContextMenuNativeInner(
     setIsMenuVisible(false)
     setMeasuredMenuDimensions(null) // Reset dimensions for next open
   })
+
+  const dismissOnBackground = useEvent(() => {
+    if (isOpen) {
+      handleMenuClose()
+    }
+  })
+
+  useOnMobileAppState('background', dismissOnBackground)
 
   const [position, setPosition] = useState<{
     left: number | undefined
@@ -271,7 +370,7 @@ function ContextMenuNativeInner(
       {(isOpen || isMenuVisible) && (
         <Portal>
           {/* Portal escapes the app's GestureHandlerRootView, so re-root gestures here or the menu's TouchableAreas don't register. */}
-          <MenuWindowOverlay>
+          <MenuWindowOverlay visible={isOpen} onRequestClose={handleMenuClose}>
             <GestureHandlerRootView style={flexStyles.fill}>
               <Flex
                 pointerEvents={!isOpen ? 'none' : 'auto'}
@@ -283,47 +382,23 @@ function ContextMenuNativeInner(
                 zIndex={zIndexes.overlay}
                 onPress={handleMenuClose}
               >
-                {dimBackground && isOpen && (
-                  <Flex
-                    position="absolute"
-                    inset={0}
-                    backgroundColor="$black"
-                    opacity={isDarkMode ? 0.4 : 0.2}
-                    animation="200ms"
-                    enterStyle={{ opacity: 0 }}
-                  />
-                )}
-                {/* Hidden pre-render for measurement */}
+                {dimBackground && isOpen && <DimBackgroundOverlay isDarkMode={isDarkMode} />}
+                {/* Hidden pre-render for measurement. Plain RN View: handleMenuLayout takes the real
+                    RN NativeSyntheticEvent, and FlexCompatProps types onLayout as the web synthesized shape. */}
                 {!measuredMenuDimensions && (
-                  <Flex
-                    position="absolute"
-                    top={-9999} // Render off-screen
-                    left={-9999}
-                    opacity={0}
+                  <View
+                    style={{ position: 'absolute', top: -9999, left: -9999, opacity: 0 }} // Render off-screen
                     onLayout={handleMenuLayout}
                   >
                     <MenuContent />
-                  </Flex>
+                  </View>
                 )}
 
                 {/* Visible menu */}
                 {isMenuVisible && measuredMenuDimensions && (
-                  <Flex
-                    justifyContent="flex-start"
-                    alignItems="flex-start"
-                    backgroundColor="$transparent"
-                    top={position.top}
-                    left={position.left}
-                    position="absolute"
-                    animation="200ms"
-                    // We only animate on enter. No animation needed on exit because we immediately unmount the Portal.
-                    enterStyle={{
-                      opacity: 0,
-                      y: isAboveTrigger ? ANIMATION_START_POINT : -ANIMATION_START_POINT,
-                    }}
-                  >
+                  <AnimatedMenuContent top={position.top} left={position.left} isAboveTrigger={isAboveTrigger}>
                     <MenuContent />
-                  </Flex>
+                  </AnimatedMenuContent>
                 )}
               </Flex>
             </GestureHandlerRootView>
@@ -338,15 +413,16 @@ function ContextMenuNativeInner(
             onPress={isLongPress ? undefined : onPress}
             onLongPress={isLongPress ? onPress : undefined}
           >
-            <Flex ref={triggerRef} onLayout={recalculateMenuPosition}>
+            {/* Plain RN View: recalculateMenuPosition calls the RN-only `.measure()`, and FlexCompatProps types `ref` as web-only. */}
+            <View ref={triggerRef} onLayout={recalculateMenuPosition}>
               {children}
-            </Flex>
+            </View>
           </TouchableArea>
         ) : (
           // if openMenu is undefined, {children} controls menu open/close state. Don't want to interfere with nested TouchableAreas
-          <Flex ref={triggerRef} onLayout={recalculateMenuPosition}>
+          <View ref={triggerRef} onLayout={recalculateMenuPosition}>
             {children}
-          </Flex>
+          </View>
         )}
       </Flex>
     </>

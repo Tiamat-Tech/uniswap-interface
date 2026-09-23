@@ -1,6 +1,6 @@
 import { isAndroid } from '@universe/environment'
-import { Flex, useSporeColors } from 'ui/src'
-import { spacing } from 'ui/src/theme'
+import { Flex, spacing } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { HandleBarProps } from 'uniswap/src/components/modals/HandleBar'
 
 const HANDLEBAR_HEIGHT = spacing.spacing4

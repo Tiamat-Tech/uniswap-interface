@@ -1,6 +1,6 @@
+import { Flex } from '@universe/mycelium'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { ShieldCheck } from 'ui/src/components/icons/ShieldCheck'
 import { InfoLinkModal } from 'uniswap/src/components/modals/InfoLinkModal'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'

@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { memo } from 'react'
 import { type PortfolioBalancesResult } from 'uniswap/src/components/TokenSelector/hooks/usePortfolioBalancesForAddressById'
 import { OnSelectCurrency, OnSelectRwaToken, TokenSelectorVariation } from 'uniswap/src/components/TokenSelector/types'
@@ -7,7 +8,6 @@ import { SendListV2 } from 'uniswap/src/components/TokenSelectorV2/lists/SendLis
 import { SwapListV2 } from 'uniswap/src/components/TokenSelectorV2/lists/SwapListV2'
 import { TradeableAsset } from 'uniswap/src/entities/assets'
 import type { AddressGroup } from 'uniswap/src/features/accounts/store/types/AccountsState'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 interface TokenSelectorV2ListSwitchProps {
   searchInFocus: boolean

@@ -1,7 +1,7 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import type { UniverseChainId } from '@universe/chains'
+import { GatedFeature, useGatedFeatures } from '@universe/compliance'
 import { useEffect } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { RWAMatch } from 'uniswap/src/features/rwa/rwaMatch'
 import { UniswapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -9,10 +9,9 @@ import { useEvent } from 'utilities/src/react/hooks'
 
 /**
  * Fires `RWA Token Details Viewed` once per RWA TDP view, after the match resolves.
- * No-op when `rwaMatch` is undefined (non-RWA token, or RWATdp flag off).
+ * No-op when `rwaMatch` is undefined (non-RWA token).
  *
- * `geogated` reads the synchronous RwaGeoblocked gate rather than a second listRwas query: an async
- * geoblock lookup could resolve after the fire and log a stale `geogated: false`.
+ * The send waits for the compliance region lookup so `geogated` never logs a stale pending `false`.
  */
 export function useLogRWATokenDetailsViewed({
   rwaMatch,
@@ -26,7 +25,8 @@ export function useLogRWATokenDetailsViewed({
   chainId?: UniverseChainId
 }): void {
   const matchedAddress = rwaMatch?.token.address
-  const isGeoblockEnabled = useFeatureFlag(FeatureFlags.RwaGeoblocked)
+  const { features: gatedFeatures, isPending: isRegionPending } = useGatedFeatures()
+  const isRwaRegionBlocked = gatedFeatures.includes(GatedFeature.ISSUER_SPECIFIC_RWA)
 
   // Stable callback so the effect keys on viewed-token identity, not on every input change.
   const logViewed = useEvent((): void => {
@@ -39,14 +39,14 @@ export function useLogRWATokenDetailsViewed({
       chainId,
       stocks: rwaMatch.asset.category === RwaCategory.STOCKS,
       issuer: rwaMatch.token.issuer,
-      geogated: isGeoblockEnabled,
+      geogated: isRwaRegionBlocked,
     })
   })
 
   useEffect(() => {
-    if (!matchedAddress) {
+    if (!matchedAddress || isRegionPending) {
       return
     }
     logViewed()
-  }, [matchedAddress, chainId, tokenAddress, logViewed])
+  }, [matchedAddress, chainId, tokenAddress, isRegionPending, logViewed])
 }

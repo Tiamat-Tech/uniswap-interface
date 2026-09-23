@@ -1,6 +1,15 @@
+import {
+  type ColorTokens,
+  Flex,
+  type FlexCompatProps as FlexProps,
+  Skeleton,
+  Text,
+  type TextCompatProps as TextProps,
+} from '@universe/mycelium'
+import { ArrowChange } from '@universe/mycelium/icons/ArrowChange'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { useTranslation } from 'react-i18next'
-import { ColorTokens, Flex, FlexProps, Skeleton, styled, Text, TextProps, Tooltip, useMedia } from 'ui/src'
-import { ArrowChange } from 'ui/src/components/icons/ArrowChange'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
@@ -8,14 +17,9 @@ import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
 import { CommittedVolumeTooltipContent } from '~/features/Toucan/Auction/Banners/AuctionStatsBanner/CommittedVolumeTooltipContent'
 import { useStatsBannerData } from '~/features/Toucan/Auction/hooks/useStatsBannerData'
 
-const Divider = styled(Flex, {
-  width: 1,
-  alignSelf: 'stretch',
-  backgroundColor: '$surface3',
-  $lg: {
-    display: 'none',
-  },
-})
+function Divider(): JSX.Element {
+  return <Flex width={1} alignSelf="stretch" backgroundColor="$surface3" $lg={{ display: 'none' }} />
+}
 
 interface StatCellProps {
   label: string

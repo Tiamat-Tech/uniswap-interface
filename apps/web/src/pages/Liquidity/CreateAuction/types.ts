@@ -1,7 +1,12 @@
-import { MIN_LP_ALLOCATION_PERCENT, NEW_TOKEN_DECIMALS } from '@uniswap/liquidity-launcher-sdk'
+import {
+  MIN_LP_ALLOCATION_PERCENT,
+  NEW_TOKEN_DECIMALS,
+  PERMANENT_TIMELOCK_REQUEST_SECONDS,
+  resolveNewPoolTickSpacing,
+} from '@uniswap/liquidity-launcher-sdk'
 import { type Currency, CurrencyAmount, Percent, Token } from '@uniswap/sdk-core'
-import { FeeAmount, TICK_SPACINGS } from '@uniswap/v3-sdk'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { FeeAmount } from '@uniswap/v3-sdk'
+import { UniverseChainId } from '@universe/chains'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import type { FeeData } from 'uniswap/src/features/positions/types'
 import type { TokenAccentHex } from '~/pages/Liquidity/CreateAuction/tokenAccentHex'
@@ -157,13 +162,43 @@ export type AuctionTokenAmounts = {
 }
 
 export type ConfigureAuctionFormState = {
+  /**
+   * When token emission begins — the Duration section's "Start date". With a pre-bid
+   * window this is NOT when the auction opens: bidding opens at {@link preBidStartTime}
+   * and this is where the release schedule starts. Without one the two coincide.
+   */
   startTime: Date | undefined
   endTime: Date | undefined
+  /**
+   * Optional pre-bid window: when bidding opens, ahead of {@link startTime}. Blocks in
+   * between accept bids but release no tokens, so bids accumulate against a fixed supply.
+   *
+   * Presence IS the enabled state — there is no separate boolean, so the two can never
+   * disagree. Adding the module seeds a default; removing it clears this back to
+   * undefined. The module's "Pre-bid end date" is `startTime` rendered a second time, so
+   * editing either side moves the same boundary.
+   */
+  preBidStartTime: Date | undefined
   committed: AuctionTokenAmounts | undefined
   postAuctionLiquidityAllocation: PostAuctionLiquidityAllocation
+  /**
+   * The user's selection, unresolved: the picker is hidden on chains whose two raise options are
+   * the same asset, so a selection made on another chain can survive into one. Read it from the
+   * store through `useEffectiveRaiseCurrency` — reading the store's copy directly is what makes a
+   * display or request disagree with the rest of the flow. The steps resolve it once and pass a
+   * copy of this state carrying the resolved value, so consumers handed this state as a prop
+   * already have it resolved.
+   */
   raiseCurrency: RaiseCurrency
   floorPrice: string
   floorPriceInput: FloorPriceInputState | undefined
+  /**
+   * Quick-launch only: graduation price as a raise-per-token decimal, sent as the request's
+   * `graduation_price_raise_per_token` (threshold = graduation price x sold supply). Unset in the
+   * manual wizard — the backend then derives the threshold from the floor. Cleared on a manual
+   * floor edit so a stale preset value can never violate the backend's graduation >= floor check.
+   */
+  graduationPrice: string | undefined
   kycValidationHookAddress: string | undefined
 }
 
@@ -220,12 +255,24 @@ export enum TimeLockPreset {
   Custom = 'custom',
 }
 
+/**
+ * The horizon the create flow requests for the Permanent preset, in whole days — derived from the
+ * SDK's `PERMANENT_TIMELOCK_REQUEST_SECONDS` (~100k years) rather than re-stated as a literal here
+ * (LP-1362). The wizard carries durations in days and `toLiquidityLock` multiplies back up to
+ * `unlock_time_unix`, so this is the one place the SDK's seconds cross into the wizard's unit.
+ *
+ * "Permanent" is not a wizard opinion: the server-side classifier calls a lock permanent past
+ * `PERMANENT_TIMELOCK_MIN_HORIZON_SECONDS` (1000 years), and the request horizon sits ~100x above
+ * that deliberately. Both live in the SDK so neither can move without the other.
+ */
+const PERMANENT_TIMELOCK_REQUEST_DAYS = Number(PERMANENT_TIMELOCK_REQUEST_SECONDS / 86_400n)
+
 export const TIMELOCK_PRESET_DURATION_DAYS: Record<Exclude<TimeLockPreset, TimeLockPreset.Custom>, number> = {
   [TimeLockPreset.ThirtyDays]: 30,
   [TimeLockPreset.SixMonths]: 183,
   [TimeLockPreset.OneYear]: 365,
   /** Effectively non-expiring for product purposes; encoded as a long fixed duration. */
-  [TimeLockPreset.Permanent]: 365 * 100000,
+  [TimeLockPreset.Permanent]: PERMANENT_TIMELOCK_REQUEST_DAYS,
 }
 
 export type CustomizePoolState = {
@@ -241,9 +288,11 @@ export type CustomizePoolState = {
   buybackAndBurnEnabled: boolean
 }
 
+// The launcher opens the new pool at its own fee-derived spacing, not the v3 TICK_SPACINGS table's —
+// availability checks key pool ids off this value, so it must name the pool the backend will create.
 const DEFAULT_FEE_DATA: FeeData = {
   feeAmount: FeeAmount.MEDIUM,
-  tickSpacing: TICK_SPACINGS[FeeAmount.MEDIUM],
+  tickSpacing: resolveNewPoolTickSpacing(FeeAmount.MEDIUM),
   isDynamic: false,
 }
 
@@ -306,6 +355,7 @@ export const DEFAULT_CREATE_AUCTION_STATE: CreateAuctionState = {
   configureAuction: {
     startTime: undefined,
     endTime: undefined,
+    preBidStartTime: undefined,
     committed: undefined,
     postAuctionLiquidityAllocation: {
       type: PostAuctionLiquidityAllocationType.SINGLE,
@@ -314,6 +364,7 @@ export const DEFAULT_CREATE_AUCTION_STATE: CreateAuctionState = {
     raiseCurrency: RaiseCurrency.NATIVE,
     floorPrice: '',
     floorPriceInput: undefined,
+    graduationPrice: undefined,
     kycValidationHookAddress: undefined,
   },
 }
@@ -342,8 +393,12 @@ interface CreateAuctionStoreActions {
   setNewTokenTotalSupply: (totalSupply: CurrencyAmount<Currency>) => void
   setStartTime: (startTime: Date | undefined) => void
   setEndTime: (endTime: Date | undefined) => void
+  /** Opens/moves the pre-bid window; `undefined` removes it. See `preBidStartTime`. */
+  setPreBidStartTime: (preBidStartTime: Date | undefined) => void
   setRaiseCurrency: (currency: RaiseCurrency) => void
   setFloorPrice: (price: string, input?: Omit<FloorPriceInputState, 'floorPrice'>) => void
+  /** Quick-launch handoff only: pins the preset graduation price the create request sends. */
+  setGraduationPrice: (price: string | undefined) => void
   setKycValidationHookAddress: (address: string | undefined) => void
   setFee: (fee: FeeData) => void
   setPriceRangeStrategy: (strategy: PriceRangeStrategy) => void

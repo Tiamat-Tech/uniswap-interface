@@ -1,11 +1,11 @@
 import { TradingApi } from '@universe/api'
 import { isWebPlatform } from '@universe/environment'
+import { Text, TouchableArea, zIndexes } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { TFunction } from 'i18next'
 import { PropsWithChildren } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Text, TouchableArea, useSporeColors } from 'ui/src'
 import { ChartBar } from 'ui/src/components/icons/ChartBar'
-import { zIndexes } from 'ui/src/theme'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { WarningInfo } from 'uniswap/src/components/modals/WarningModal/WarningInfo'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
@@ -42,7 +42,12 @@ export function MarketPriceDifferenceWarningModal({
     <WarningInfo
       infoButton={
         <TouchableArea onPress={async () => await openUri({ uri: link })}>
-          <Text color="$neutral1" variant={isWebPlatform ? 'body4' : 'buttonLabel2'}>
+          <Text
+            // Legacy web hover color under the TouchableArea group anchor; no-op on native (hover state never fires).
+            className="group-hover:[color:var(--stext-neutral1Hovered)]"
+            color="$neutral1"
+            variant={isWebPlatform ? 'body4' : 'buttonLabel2'}
+          >
             {t('common.button.learn')}
           </Text>
         </TouchableArea>

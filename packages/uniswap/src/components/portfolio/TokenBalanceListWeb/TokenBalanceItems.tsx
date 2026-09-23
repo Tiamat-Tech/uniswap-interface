@@ -1,9 +1,12 @@
 import { SharedEventName } from '@uniswap/analytics-events'
 import { Currency } from '@uniswap/sdk-core'
 import { isExtensionApp } from '@universe/environment'
-import { type MouseEvent, memo, useCallback, useMemo, useState } from 'react'
+import { cn, Flex, Loader, TouchableArea } from '@universe/mycelium'
+import { curveToAnimationTiming, ENTER_EXIT_PRESET_CLASSES } from '@universe/mycelium/compat'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
+import { type ComponentRef, type MouseEvent, forwardRef, memo, useCallback, useMemo, useState } from 'react'
 import { useDispatch } from 'react-redux'
-import { Flex, HeightAnimator, Loader, TouchableArea } from 'ui/src'
+import { HeightAnimator } from 'ui/src'
 import { HiddenTokensRow } from 'uniswap/src/components/portfolio/HiddenTokensRow'
 import { TokenBalanceItem } from 'uniswap/src/components/portfolio/TokenBalanceItem/TokenBalanceItem'
 import { TokenBalanceItemContextMenu } from 'uniswap/src/components/portfolio/TokenBalanceItem/TokenBalanceItemContextMenu'
@@ -37,24 +40,38 @@ function multichainToPortfolioBalanceForMenu(
   }
 }
 
-export const TokenBalanceItems = ({
-  animated,
-  rows,
-  openReportTokenModal,
-  hiddenTokensRowRef,
-}: {
-  animated?: boolean
-  rows: string[]
-  openReportTokenModal: (currency: Currency, isMarkedSpam: Maybe<boolean>) => void
-  hiddenTokensRowRef?: React.RefObject<HTMLDivElement | null>
-}): JSX.Element => {
+// Timing of the legacy `quicker` animation preset that drove the enter/exit pair below.
+const ANIMATION_TIMING = curveToAnimationTiming(SPORE_ANIMATION_CURVE_CSS.quicker)
+
+// Enter and exit both run as CSS keyframes so the `Presence` wrapper in TokenBalanceListWeb owns
+// the whole lifecycle. `initial={false}` suppresses the enter for rows already expanded on first
+// render (`hiddenTokensExpanded` can start true). Measured: the suppression arrives via the
+// `data-presence-skip-enter` attribute Presence sets directly on the DOM node, not via its
+// className strip — the strip only sees a class the PARENT passed, and this preset is composed
+// here inside the child. The compat.css guard resolves that attribute to `animation: none`.
+export const TokenBalanceItems = forwardRef<
+  ComponentRef<typeof Flex>,
+  {
+    animated?: boolean
+    rows: string[]
+    openReportTokenModal: (currency: Currency, isMarkedSpam: Maybe<boolean>) => void
+    hiddenTokensRowRef?: React.RefObject<HTMLDivElement | null>
+    /**
+     * Merged onto the animated node rather than dropped: `Presence` clones its child with an
+     * overlay `className` (its `getExitProps` channel, and the `initial={false}` enter strip), so
+     * a child that ignores this prop silently loses whatever the wrapper injected.
+     */
+    className?: string
+  }
+>(function TokenBalanceItems(
+  { animated, rows, openReportTokenModal, hiddenTokensRowRef, className },
+  ref,
+): JSX.Element {
   return (
     <Flex
-      {...(animated && {
-        animation: 'quicker',
-        enterStyle: { opacity: 0, y: -10 },
-        exitStyle: { opacity: 0, y: -10 },
-      })}
+      ref={ref}
+      className={animated ? cn(ENTER_EXIT_PRESET_CLASSES.fadeInDownOutUp, className) : className}
+      {...(animated && { style: ANIMATION_TIMING })}
     >
       {rows.map((balance: TokenBalanceListRow) => {
         return (
@@ -68,7 +85,7 @@ export const TokenBalanceItems = ({
       })}
     </Flex>
   )
-}
+})
 
 const TokenBalanceItemRow = memo(function TokenBalanceItemRow({
   item,

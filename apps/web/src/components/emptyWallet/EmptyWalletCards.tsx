@@ -1,8 +1,11 @@
 import { isExtensionApp } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
+import { ENTER_PRESET_CLASSES } from '@universe/mycelium/compat'
+import { useShadowPropsShort } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, useIsDarkMode, useShadowPropsShort, useSporeColors } from 'ui/src'
+import { useIsDarkMode, useSporeColors } from 'ui/src'
 import { ArrowDownCircle } from 'ui/src/components/icons/ArrowDownCircle'
 import { Buy } from 'ui/src/components/icons/Buy'
 import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
@@ -173,7 +176,7 @@ export const EmptyWalletCards = (
     : undefined
 
   return (
-    <Flex position="relative" width="100%" animation="fast" animateEnterExit="fadeInDownOutDown">
+    <Flex position="relative" width="100%" className={ENTER_PRESET_CLASSES.fadeInDown}>
       <Flex
         row
         left={needsLeftOffset ? -APP_PADDING : undefined}

@@ -1,8 +1,8 @@
+import { spacing } from '@universe/mycelium/tokens'
 import { useMemo } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { ESTIMATED_BOTTOM_TABS_HEIGHT } from 'src/app/navigation/tabs/CustomTabBar/constants'
 import { TAB_STYLES } from 'src/components/layout/TabHelpers'
-import { spacing } from 'ui/src/theme'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
 
 /** Feed scroll FlatList `contentContainerStyle` (bottom tab clearance + list padding). */

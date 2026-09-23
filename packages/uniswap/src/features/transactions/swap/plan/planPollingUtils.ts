@@ -1,7 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
 import { put, type SagaGenerator, select } from 'typed-redux-saga'
 import { TradingApiSessionClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiSessionClient'
 import extractPlanResponseDetails from 'uniswap/src/features/activity/extract/extractPlanResponseDetails'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { selectPlanTransaction } from 'uniswap/src/features/transactions/selectors'
 import { transactionActions } from 'uniswap/src/features/transactions/slice'
 import { activePlanStore } from 'uniswap/src/features/transactions/swap/review/stores/activePlan/activePlanStore'

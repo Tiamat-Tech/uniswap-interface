@@ -27,6 +27,7 @@ import {
   NEW_TOKEN_DECIMALS,
   PostAuctionLiquidityAllocationType,
   PriceRangeStrategy,
+  type ConfigureAuctionFormState,
   TimeLockPreset,
   TIMELOCK_PRESET_DURATION_DAYS,
   type TokenFormState,
@@ -46,6 +47,13 @@ import {
 
 export type CreateAuctionStore = UseBoundStore<StoreApi<CreateAuctionStoreState>>
 
+/** Merges a patch into `configureAuction`, leaving the rest of the store untouched. */
+function patchConfigureAuction(
+  patch: Partial<ConfigureAuctionFormState>,
+): (state: CreateAuctionStoreState) => Partial<CreateAuctionStoreState> {
+  return (state) => ({ configureAuction: { ...state.configureAuction, ...patch } })
+}
+
 export const createCreateAuctionStore = (): CreateAuctionStore =>
   create<CreateAuctionStoreState>()(
     devtools(
@@ -53,10 +61,16 @@ export const createCreateAuctionStore = (): CreateAuctionStore =>
         ...DEFAULT_CREATE_AUCTION_STATE,
 
         actions: {
-          setStep: (step) => {
-            set({ step })
-          },
-          setQuickLaunch: (quickLaunch) => set({ quickLaunch }),
+          setStep: (step) => set({ step }),
+          // Clears any stale graduation pin (see buildCreateAuctionRequest — field 8 must not leak to a manual auction).
+          // Clears both mode-specific fields: the graduation pin (quick-launch only, must not leak
+          // onto a manual auction) and the pre-bid window (manual only, must not leak into a quick
+          // launch that never showed one). See buildCreateAuctionRequest.
+          setQuickLaunch: (quickLaunch) =>
+            set(({ configureAuction: c }) => ({
+              quickLaunch,
+              configureAuction: { ...c, graduationPrice: undefined, preBidStartTime: undefined },
+            })),
           goToNextStep: () => {
             set((state) => {
               const nextStep = Math.min(state.step + 1, CreateAuctionStep.REVIEW_LAUNCH) as CreateAuctionStep
@@ -88,10 +102,9 @@ export const createCreateAuctionStore = (): CreateAuctionStore =>
           setTokenMode: (mode) => {
             set((state) => {
               revokeCreateNewTokenBlobPreviewIfNeeded(state.tokenForm)
-              if (mode === TokenMode.CREATE_NEW) {
-                return { tokenForm: DEFAULT_CREATE_AUCTION_STATE.tokenForm }
-              }
-              return { tokenForm: DEFAULT_EXISTING_TOKEN_FORM }
+              const tokenForm =
+                mode === TokenMode.CREATE_NEW ? DEFAULT_CREATE_AUCTION_STATE.tokenForm : DEFAULT_EXISTING_TOKEN_FORM
+              return { tokenForm, configureAuction: { ...state.configureAuction, graduationPrice: undefined } }
             })
           },
           updateCreateNewTokenField: (key, value) => {
@@ -110,12 +123,8 @@ export const createCreateAuctionStore = (): CreateAuctionStore =>
               return { tokenForm: { ...state.tokenForm, [key]: value } }
             })
           },
-          setTokenForm: (tokenForm: TokenFormState) => {
-            set({ tokenForm })
-          },
-          setXVerification: (value) => {
-            set({ xVerification: value })
-          },
+          setTokenForm: (tokenForm: TokenFormState) => set({ tokenForm }),
+          setXVerification: (value) => set({ xVerification: value }),
           setPostAuctionLiquidityAllocationType: (type) => {
             set((state) => {
               const { committed, postAuctionLiquidityAllocation } = state.configureAuction
@@ -256,16 +265,12 @@ export const createCreateAuctionStore = (): CreateAuctionStore =>
             })
           },
           setNewTokenTotalSupply: (totalSupply) => set(applyNewTokenTotalSupply(totalSupply)),
-          setStartTime: (startTime) => {
-            set((state) => ({
-              configureAuction: { ...state.configureAuction, startTime },
-            }))
-          },
-          setEndTime: (endTime) => {
-            set((state) => ({
-              configureAuction: { ...state.configureAuction, endTime },
-            }))
-          },
+          // The three duration inputs are plain field writes. The ordering rules between them
+          // (pre-bid start < start < end) are wizard validation, not store invariants — the
+          // pickers can legitimately hold a half-edited range mid-interaction.
+          setStartTime: (startTime) => set(patchConfigureAuction({ startTime })),
+          setEndTime: (endTime) => set(patchConfigureAuction({ endTime })),
+          setPreBidStartTime: (preBidStartTime) => set(patchConfigureAuction({ preBidStartTime })),
           setRaiseCurrency: (raiseCurrency) => {
             set((state) => {
               const { committed, postAuctionLiquidityAllocation } = state.configureAuction
@@ -278,6 +283,7 @@ export const createCreateAuctionStore = (): CreateAuctionStore =>
                   raiseCurrency,
                   floorPrice: '',
                   floorPriceInput: undefined,
+                  graduationPrice: undefined,
                   committed: updateCommittedPostAuctionLiquidity(committed, postAuctionLiquidityAllocation),
                 },
               }
@@ -301,14 +307,16 @@ export const createCreateAuctionStore = (): CreateAuctionStore =>
                   ...state.configureAuction,
                   floorPrice,
                   floorPriceInput,
+                  // Clears the quick-launch graduation pin (handoff re-sets it right after via setGraduationPrice).
+                  graduationPrice: undefined,
                   committed: updateCommittedPostAuctionLiquidity(committed, postAuctionLiquidityAllocation),
                 },
               }
             })
           },
-          setKycValidationHookAddress: (kycValidationHookAddress) => {
-            set((state) => ({ configureAuction: { ...state.configureAuction, kycValidationHookAddress } }))
-          },
+          setGraduationPrice: (graduationPrice) => set(patchConfigureAuction({ graduationPrice })),
+          setKycValidationHookAddress: (kycValidationHookAddress) =>
+            set(patchConfigureAuction({ kycValidationHookAddress })),
           setFee: (fee: FeeData) => {
             set((state) => ({
               customizePool: { ...state.customizePool, fee },
@@ -478,9 +486,7 @@ export const createCreateAuctionStore = (): CreateAuctionStore =>
               }
             })
           },
-          setTokenColor: (tokenColor) => {
-            set({ tokenColor })
-          },
+          setTokenColor: (tokenColor) => set({ tokenColor }),
           reset: () => {
             set((state) => {
               revokeCreateNewTokenBlobPreviewIfNeeded(state.tokenForm)

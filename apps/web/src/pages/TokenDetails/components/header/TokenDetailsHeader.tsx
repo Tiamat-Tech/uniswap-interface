@@ -1,16 +1,15 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, iconSizes } from '@universe/mycelium'
+import { Lock } from '@universe/mycelium/icons/Lock'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useAtom } from 'jotai'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useMedia } from 'ui/src'
-import { Lock } from 'ui/src/components/icons/Lock'
-import { iconSizes } from 'ui/src/theme'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
-import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { ReportTokenDataModal } from 'uniswap/src/components/reporting/ReportTokenDataModal'
 import { ReportTokenIssueModalPropsAtom } from 'uniswap/src/components/reporting/ReportTokenIssueModal'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useTokenMetadata } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
 import { PermissionedTokenTooltip } from 'uniswap/src/features/permissionedTokens/PermissionedTokenTooltip'
 import { getRWAHeaderIdentity } from 'uniswap/src/features/rwa/getRWAHeaderIdentity'
@@ -23,26 +22,25 @@ import { useEvent } from 'utilities/src/react/hooks'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 import { POPUP_MEDIUM_DISMISS_MS } from '~/components/Popups/constants'
-import { HEADER_TRANSITION } from '~/components/StickyCollapsibleHeader/constants'
-import { getHeaderLogoSize, getHeaderTitleVariant } from '~/components/StickyCollapsibleHeader/getHeaderLogoSize'
+import { DetailsHeaderSubtitleMobile } from '~/components/StickyCollapsibleHeader/DetailsHeaderSubtitleMobile'
+import { DetailsHeaderTitle, useMetadataRowHidden } from '~/components/StickyCollapsibleHeader/DetailsHeaderTitle'
 import { DesktopHeaderActions } from '~/components/StickyCollapsibleHeader/HeaderActions/DesktopHeaderActions'
 import { MobileHeaderActions } from '~/components/StickyCollapsibleHeader/HeaderActions/MobileHeaderActions'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { useModalState } from '~/hooks/useModalState'
 import { RWAIssuerHeaderDetails } from '~/pages/TokenDetails/components/header/RWAIssuerHeaderDetails'
 import { TokenDetailsHeaderAddressCopyMobile } from '~/pages/TokenDetails/components/header/TokenDetailsHeaderAddressCopyMobile'
-import { TokenDetailsHeaderSubtitleMobile } from '~/pages/TokenDetails/components/header/TokenDetailsHeaderSubtitleMobile'
+import { TokenDetailsHeaderCategoryChips } from '~/pages/TokenDetails/components/header/TokenDetailsHeaderCategoryChips'
 import { TokenDetailsNetworkFilter } from '~/pages/TokenDetails/components/header/TokenDetailsNetworkFilter'
 import { useTokenDetailsHeaderActions } from '~/pages/TokenDetails/components/header/useTokenDetailsHeaderActions'
 import { useTDPSelectedMultichainChain } from '~/pages/TokenDetails/context/useTDPSelectedMultichainChain'
 import { useTDPStore } from '~/pages/TokenDetails/context/useTDPStore'
 import { useMultichainTokenEntries } from '~/pages/TokenDetails/hooks/useMultichainTokenEntries'
-import { useRWATokenDetailsMatch } from '~/pages/TokenDetails/hooks/useRWATokenDetailsMatch'
 import { useTDPEffectiveCurrency } from '~/pages/TokenDetails/hooks/useTDPEffectiveCurrency'
 import { useTDPPermissionedState } from '~/pages/TokenDetails/hooks/useTDPPermissionedState'
+import { useTDPRWAMatch } from '~/pages/TokenDetails/hooks/useTDPRWAMatch'
 import { popupRegistry } from '~/state/popups/registry'
 import { PopupType } from '~/state/popups/types'
-import { EllipsisTamaguiStyle } from '~/theme/components/styles'
 
 interface TokenDetailsHeaderProps {
   isCompact: boolean
@@ -68,10 +66,12 @@ export function TokenDetailsHeader({ isCompact }: TokenDetailsHeaderProps) {
   const media = useMedia()
   const trace = useTrace()
   const isMobileScreen = media.md
+  // Complement of DetailsHeaderTitle's own metadata-row gate, so the row and the compact filter
+  // below can never both mount or both vanish.
+  const metadataRowHidden = useMetadataRowHidden()
 
-  const { currency, tokenProjectQuery, multiChainMap, chainDataLoading } = useTDPStore((s) => ({
+  const { currency, multiChainMap, chainDataLoading } = useTDPStore((s) => ({
     currency: s.currency!,
-    tokenProjectQuery: s.tokenProjectQuery,
     multiChainMap: s.multiChainMap,
     chainDataLoading: s.chainDataLoading,
   }))
@@ -83,13 +83,12 @@ export function TokenDetailsHeader({ isCompact }: TokenDetailsHeaderProps) {
     useTDPSelectedMultichainChain()
 
   const effectiveCurrency = useTDPEffectiveCurrency()
-  const rwaMatch = useRWATokenDetailsMatch()
+  const rwaMatch = useTDPRWAMatch()
 
-  const metadata = useTokenMetadata(currencyId(effectiveCurrency), { legacyToken: tokenProjectQuery.data?.token })
+  const metadata = useTokenMetadata(currencyId(effectiveCurrency))
 
   const displayAddress = effectiveCurrency.isNative ? NATIVE_CHAIN_ID : effectiveCurrency.address
   const isNative = effectiveCurrency.isNative
-  const tokenLogoSize = getHeaderLogoSize({ isCompact, media, scaleMobileOnScroll: true })
 
   const { openModal } = useModalState(ModalName.ReportTokenIssue)
   const [, setModalProps] = useAtom(ReportTokenIssueModalPropsAtom)
@@ -145,44 +144,18 @@ export function TokenDetailsHeader({ isCompact }: TokenDetailsHeaderProps) {
   })
 
   return (
-    <Flex
-      row
-      alignItems="center"
-      justifyContent="space-between"
-      width="100%"
-      data-testid={TestID.TokenDetailsInfoContainer}
-    >
-      <Flex row flex={1} alignItems="center" gap="$gap12">
-        <TokenLogo
-          url={tokenLogoUrl}
-          symbol={effectiveCurrency.symbol ?? undefined}
-          name={effectiveCurrency.name ?? undefined}
-          chainId={!isMultiChainAsset ? effectiveCurrency.chainId : null}
-          size={tokenLogoSize}
-          transition={HEADER_TRANSITION}
-        />
-        <Flex gap={isCompact ? '$gap4' : '$gap8'} $md={{ gap: '$none' }} transition={HEADER_TRANSITION}>
-          <Flex row flex={1} alignItems="flex-end" gap="$gap8" $sm={{ width: '100%' }}>
-            <Text
-              tag="h1"
-              variant={getHeaderTitleVariant({ isCompact, media })}
-              transition={HEADER_TRANSITION}
-              {...EllipsisTamaguiStyle}
-            >
-              {tokenName}
-            </Text>
-            {!isCompact && !media.md && (
-              <Text
-                tag="h2"
-                variant="subheading1"
-                textTransform="uppercase"
-                color="$neutral2"
-                $sm={{ display: 'none' }}
-                transition={HEADER_TRANSITION}
-              >
-                {tokenSymbol}
-              </Text>
-            )}
+    <Flex width="100%" gap="$gap16" $sm={{ gap: '$gap12' }}>
+      <DetailsHeaderTitle
+        name={tokenName}
+        symbol={tokenSymbol}
+        isCompact={isCompact}
+        logoUrl={tokenLogoUrl}
+        logoSymbol={effectiveCurrency.symbol ?? undefined}
+        logoName={effectiveCurrency.name ?? undefined}
+        chainId={!isMultiChainAsset ? effectiveCurrency.chainId : null}
+        dataTestId={TestID.TokenDetailsInfoContainer}
+        titleAdornments={
+          <>
             <TokenDetailsHeaderAddressCopyMobile
               displayAddress={displayAddress}
               isNative={isNative}
@@ -192,64 +165,67 @@ export function TokenDetailsHeader({ isCompact }: TokenDetailsHeaderProps) {
               multichainEntries={multichainEntries}
             />
             <PermissionedHeaderLock isCompact={isCompact} mediaMd={media.md} currency={effectiveCurrency} />
+          </>
+        }
+        mobileSubtitle={<DetailsHeaderSubtitleMobile rwaMatch={rwaMatch} symbol={tokenSymbol} isCompact={isCompact} />}
+        metadataRow={
+          <Flex row alignItems="center" gap="$spacing6">
+            <RWAIssuerHeaderDetails rwaMatch={rwaMatch} />
+            <TokenDetailsNetworkFilter
+              chainIds={multichainChainIds}
+              selectedChainId={selectedChainId}
+              setSelectedChainId={onSelectedChainChange}
+              showAddressCopy={showAddressCopy}
+              isChainDataLoading={chainDataLoading}
+            />
+            {showAddressCopy && (
+              <Flex alignSelf="center">
+                <CopyHelper
+                  toCopy={displayAddress}
+                  iconPosition="right"
+                  iconSize={iconSizes.icon16}
+                  iconColor="$neutral2"
+                  color="$neutral2"
+                  dataTestId={TestID.BreadcrumbHoverCopy}
+                  onCopy={onBreadcrumbAddressCopied}
+                >
+                  <Text color="$neutral2">{shortenAddress({ address: displayAddress })}</Text>
+                </CopyHelper>
+              </Flex>
+            )}
           </Flex>
-          <TokenDetailsHeaderSubtitleMobile rwaMatch={rwaMatch} symbol={tokenSymbol} isCompact={isCompact} />
-          {!media.sm && (
-            <Flex row alignItems="center" gap="$spacing6">
-              <RWAIssuerHeaderDetails rwaMatch={rwaMatch} />
+        }
+        actions={
+          <>
+            {isMobileScreen ? (
+              <MobileHeaderActions actionSections={mobileHeaderActionSections} />
+            ) : (
+              <DesktopHeaderActions actions={desktopHeaderActions} />
+            )}
+            {metadataRowHidden && (
               <TokenDetailsNetworkFilter
                 chainIds={multichainChainIds}
                 selectedChainId={selectedChainId}
                 setSelectedChainId={onSelectedChainChange}
-                showAddressCopy={showAddressCopy}
+                showAddressCopy={false}
+                showNetworkName={false}
+                position="right"
                 isChainDataLoading={chainDataLoading}
               />
-              {showAddressCopy && (
-                <Flex alignSelf="center">
-                  <CopyHelper
-                    toCopy={displayAddress}
-                    iconPosition="right"
-                    iconSize={iconSizes.icon16}
-                    iconColor="$neutral2"
-                    color="$neutral2"
-                    dataTestId={TestID.BreadcrumbHoverCopy}
-                    onCopy={onBreadcrumbAddressCopied}
-                  >
-                    <Text color="$neutral2">{shortenAddress({ address: displayAddress })}</Text>
-                  </CopyHelper>
-                </Flex>
-              )}
-            </Flex>
-          )}
-        </Flex>
-      </Flex>
-      <Flex row gap="$gap8" alignItems="center" justifyContent="center">
-        {isMobileScreen ? (
-          <MobileHeaderActions actionSections={mobileHeaderActionSections} />
-        ) : (
-          <DesktopHeaderActions actions={desktopHeaderActions} />
-        )}
-        {media.sm && (
-          <TokenDetailsNetworkFilter
-            chainIds={multichainChainIds}
-            selectedChainId={selectedChainId}
-            setSelectedChainId={onSelectedChainChange}
-            showAddressCopy={false}
-            showNetworkName={false}
-            position="right"
-            isChainDataLoading={chainDataLoading}
-          />
-        )}
-      </Flex>
-
-      <ReportTokenDataModal
-        currency={currency}
-        isMarkedSpam={metadata.isSpam}
-        shouldReportMultichainAsset={isMultiChainAsset && selectedChainId === undefined}
-        onReportSuccess={onReportSuccess}
-        isOpen={isReportDataIssueModalOpen}
-        onClose={closeReportDataIssueModal}
-      />
+            )}
+          </>
+        }
+      >
+        <ReportTokenDataModal
+          currency={currency}
+          isMarkedSpam={metadata.isSpam}
+          shouldReportMultichainAsset={isMultiChainAsset && selectedChainId === undefined}
+          onReportSuccess={onReportSuccess}
+          isOpen={isReportDataIssueModalOpen}
+          onClose={closeReportDataIssueModal}
+        />
+      </DetailsHeaderTitle>
+      {!isCompact && <TokenDetailsHeaderCategoryChips />}
     </Flex>
   )
 }

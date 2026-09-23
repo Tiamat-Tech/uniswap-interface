@@ -11,7 +11,9 @@ const domain: TypedDataDomain = {
   chainId: '1',
   verifyingContract: '0xcccccccccccccccccccccccccccccccccccccccc',
 }
-const types: Record<string, TypedDataField[]> = {
+// `satisfies` rather than an annotation: the keys stay literal so `types.Person`
+// is a known, non-optional field list.
+const types = {
   Person: [
     { name: 'name', type: 'string' },
     { name: 'wallet', type: 'address' },
@@ -21,7 +23,7 @@ const types: Record<string, TypedDataField[]> = {
     { name: 'to', type: 'Person' },
     { name: 'contents', type: 'string' },
   ],
-}
+} satisfies Record<string, TypedDataField[]>
 const value = {
   from: { name: 'Cow', wallet },
   to: { name: 'Bob', wallet: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },

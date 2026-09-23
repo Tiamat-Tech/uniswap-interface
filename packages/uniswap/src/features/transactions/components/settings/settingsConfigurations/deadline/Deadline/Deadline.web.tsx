@@ -1,5 +1,5 @@
+import { Platform } from '@universe/chains'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { DeadlineControl } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/DeadlineControl'
 import { DeadlineWarning } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/DeadlineWarning'
 import {

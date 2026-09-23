@@ -1,14 +1,14 @@
+import { Platform } from '@universe/chains'
 import { FeatureFlags, useFeatureFlagWithExposureLoggingDisabled } from '@universe/gating'
+import { Flex, Loader, ScrollView } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { memo, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Loader, ScrollView } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { ExpandoRow } from 'uniswap/src/components/ExpandoRow/ExpandoRow'
 import { PositionItem } from 'uniswap/src/components/portfolio/PositionItem/PositionItem'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { PoolsDataIssueBanner } from 'uniswap/src/features/portfolio/pools/PoolsDataIssueBanner'
 import { usePoolsOutageBanner } from 'uniswap/src/features/portfolio/pools/usePoolsOutageBanner'
 import { PositionsEmptyFilterView } from 'uniswap/src/features/positions/components/PositionsEmptyFilterView'
@@ -18,7 +18,7 @@ import {
   PositionStatusFilterValue,
 } from 'uniswap/src/features/positions/components/PositionStatusFilter'
 import { usePoolsPositionsReport } from 'uniswap/src/features/positions/hooks/usePoolsPositionsReport'
-import { useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
+import { SORT_BY_USD_VALUE_DESC, useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
 import { filterAndSortPositions, getPositionKey } from 'uniswap/src/features/positions/utils'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
@@ -67,6 +67,7 @@ export const PoolsTab = memo(function PoolsTabInner({
     statuses: POSITION_STATUS_FILTER_TO_STATUSES[PositionStatusFilterValue.All],
     includeHidden: true,
     autoFetchAllPages: false,
+    ...SORT_BY_USD_VALUE_DESC,
     pageSize: PAGE_SIZE,
     disabled: skip,
     pollInterval: PollingInterval.Normal,
@@ -86,15 +87,16 @@ export const PoolsTab = memo(function PoolsTabInner({
   const isLoadingFirstPage = isFetchingFirstPage && !hasData
   const hasErrorWithoutData = !!error && !hasData && !isFetchingFirstPage
 
+  const visiblePositions = useMemo(() => filterAndSortPositions(positions, filterStatuses), [positions, filterStatuses])
+
   usePoolsPositionsReport({
-    positions,
+    positions: visiblePositions,
+    lifecycleFilter: statusFilter,
     pagesLoaded,
     hasMore: hasNextPage,
     isLoading: isLoadingFirstPage,
     enabled: !skip,
   })
-
-  const visiblePositions = useMemo(() => filterAndSortPositions(positions, filterStatuses), [positions, filterStatuses])
   const filteredHiddenPositions = useMemo(
     () => filterAndSortPositions(hiddenPositions, filterStatuses),
     [hiddenPositions, filterStatuses],

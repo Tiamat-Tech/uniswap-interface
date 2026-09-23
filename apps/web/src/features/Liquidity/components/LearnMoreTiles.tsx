@@ -1,5 +1,5 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Anchor, Flex, Text } from 'ui/src'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import PROVIDE_LIQUIDITY from '~/assets/images/provideLiquidity.png'
 import V4_HOOK from '~/assets/images/v4Hooks.png'
@@ -17,7 +17,8 @@ export function LearnMoreTile({
   width?: number | string
 }) {
   return (
-    <Anchor
+    <Text
+      tag="a"
       href={link}
       textDecorationLine="none"
       target="_blank"
@@ -39,7 +40,7 @@ export function LearnMoreTile({
         <img src={img} style={{ objectFit: 'cover', width: '72px', height: '72px' }} />
         <Text variant="subheading2">{text}</Text>
       </Flex>
-    </Anchor>
+    </Text>
   )
 }
 

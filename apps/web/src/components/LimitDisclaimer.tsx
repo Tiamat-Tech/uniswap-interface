@@ -1,11 +1,10 @@
+import { Flex, type FlexProps, Text, type TextCompatProps } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, FlexProps, styled, Text } from 'ui/src'
 import { ExternalLink } from '~/theme/components/Links'
 
-const DisclaimerText = styled(Text, {
-  variant: 'body4',
-  color: '$neutral2',
-})
+function DisclaimerText(props: TextCompatProps): JSX.Element {
+  return <Text variant="body4" color="$neutral2" {...props} />
+}
 
 export function LimitDisclaimer(props: FlexProps) {
   const { t } = useTranslation()

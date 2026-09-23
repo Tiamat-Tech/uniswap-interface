@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { type ChainedQuoteResponse, FeeType, TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { useEarnNetworkCostLabel } from 'uniswap/src/features/earn/hooks/useEarnNetworkCostLabel'
 import { NumberType } from 'utilities/src/format/types'
 

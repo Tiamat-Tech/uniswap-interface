@@ -1,9 +1,10 @@
 import { WalletBalanceCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { isWebPlatform } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
+import type { IconSizeTokens } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, Tooltip } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import type { IconSizeTokens } from 'ui/src/theme'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
 // Fixed display order for the concatenated label (earn before pools), matching the designs.

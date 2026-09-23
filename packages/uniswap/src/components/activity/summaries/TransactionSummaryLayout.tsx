@@ -1,9 +1,17 @@
 import { TradingApi } from '@universe/api'
 import { isWebPlatform } from '@universe/environment'
+import {
+  Flex,
+  type FlexCompatProps as FlexProps,
+  SpinningLoader,
+  Text,
+  type TextCompatProps as TextProps,
+  TouchableArea,
+  useRecyclingBooleanState,
+} from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { FlexProps, TextProps } from 'ui/src'
-import { AnimatePresence, Flex, SpinningLoader, Text, TouchableArea, useSporeColors } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { SlashCircle } from 'ui/src/components/icons/SlashCircle'
 import { UniswapX } from 'ui/src/components/icons/UniswapX'
@@ -16,13 +24,11 @@ import { TXN_HISTORY_ICON_SIZE, TXN_STATUS_ICON_SIZE } from 'uniswap/src/compone
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { useTransactionActions } from 'uniswap/src/features/activity/hooks/useTransactionActions'
 import { getTransactionSummaryTitle } from 'uniswap/src/features/activity/utils/getTransactionSummaryTitle'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useIsQueuedTransaction } from 'uniswap/src/features/transactions/hooks/useIsQueuedTransaction'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { isPlanTransactionDetails } from 'uniswap/src/features/transactions/types/utils'
-import { useRecyclingBooleanState } from 'uniswap/src/hooks/useRecyclingBooleanState/useRecyclingBooleanState'
 
 const LOADING_SPINNER_SIZE = 20
 
@@ -87,7 +93,6 @@ const TransactionSummaryLayoutContent = memo(function TransactionSummaryLayoutCo
   } = useRecyclingBooleanState(false)
 
   const { status } = transaction
-  const isEarnActivityDisplayEnabled = useIsEarnEnabled()
 
   const { useWalletDisplayName } = useUniswapContext()
   const walletDisplayName = useWalletDisplayName(transaction.ownerAddress)
@@ -97,7 +102,6 @@ const TransactionSummaryLayoutContent = memo(function TransactionSummaryLayoutCo
     getTransactionSummaryTitle({
       tx: transaction,
       t,
-      isEarnActivityDisplayEnabled,
     }) ??
     ''
 
@@ -183,17 +187,14 @@ const TransactionSummaryLayoutContent = memo(function TransactionSummaryLayoutCo
           </Flex>
         </TouchableArea>
       </Trace>
-      <AnimatePresence>
-        {showDetailsModal && (
-          <TransactionSummaryModals
-            authTrigger={authTrigger}
-            isExternalProfile={isExternalProfile}
-            transaction={transaction}
-            isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-            onClose={handleHideDetailsModal}
-          />
-        )}
-      </AnimatePresence>
+      {showDetailsModal && (
+        <TransactionSummaryModals
+          authTrigger={authTrigger}
+          isExternalProfile={isExternalProfile}
+          transaction={transaction}
+          onClose={handleHideDetailsModal}
+        />
+      )}
     </>
   )
 })
@@ -202,10 +203,8 @@ const TransactionSummaryModals = memo(function TransactionSummaryModalsInner({
   authTrigger,
   transaction,
   isExternalProfile,
-  isEarnActivityDisplayEnabled,
   onClose,
 }: Pick<TransactionSummaryLayoutProps, 'authTrigger' | 'transaction' | 'isExternalProfile'> & {
-  isEarnActivityDisplayEnabled: boolean
   onClose: () => void
 }): JSX.Element {
   const { renderModals } = useTransactionActions({
@@ -218,7 +217,6 @@ const TransactionSummaryModals = memo(function TransactionSummaryModalsInner({
       <TransactionDetailsModal
         authTrigger={authTrigger}
         isExternalProfile={isExternalProfile}
-        isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
         transactionDetails={transaction}
         onClose={onClose}
       />

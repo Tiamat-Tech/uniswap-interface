@@ -1,8 +1,8 @@
 import type { GetWalletBalancesResponse, WalletBalance } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { SharedQueryClient } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { getWalletBalancesQuery } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { usePoolPositionCacheUpdater } from 'uniswap/src/features/dataApi/balances/poolPositionCacheUpdater'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { renderHookWithProviders } from 'uniswap/src/test/render'
@@ -91,6 +91,19 @@ describe(usePoolPositionCacheUpdater, () => {
     expect(after?.balance?.pools?.valueUsd).toBe(650)
     expect(after?.balance?.pools?.count).toBe(4)
     expect(after?.balance?.total?.valueUsd).toBe(1250)
+  })
+
+  it('includes uncollected fees in the USD delta — the BE pools balance tracks principal + fees', () => {
+    const queryKey = primeWalletBalancesCache(
+      makeWalletBalanceResponse({ totalUsd: 1000, poolsUsd: 400, poolsCount: 3 }),
+    )
+
+    const { result } = renderHookWithProviders(() => usePoolPositionCacheUpdater(EVM_ADDRESS))
+    result.current(true, positionInfo({ totalValueUsd: 250, uncollectedFeesUsd: 50 }))
+
+    const after = SharedQueryClient.getQueryData<GetWalletBalancesResponse>(queryKey)
+    expect(after?.balance?.pools?.valueUsd).toBe(100)
+    expect(after?.balance?.total?.valueUsd).toBe(700)
   })
 
   it('leaves the tokens part untouched on a pool toggle', () => {

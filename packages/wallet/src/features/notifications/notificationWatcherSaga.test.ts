@@ -1,10 +1,10 @@
 import { TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { expectSaga } from 'redux-saga-test-plan'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import { USDC_MAINNET } from 'uniswap/src/constants/tokens'
 import { AssetType } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { NotificationState, pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { finalizeTransaction } from 'uniswap/src/features/transactions/slice'
@@ -26,11 +26,10 @@ import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { pushTransactionNotification } from 'wallet/src/features/notifications/notificationWatcherSaga'
 import { signerMnemonicAccount } from 'wallet/src/test/fixtures'
 
-// `vi.hoisted` runs before the hoisted `vi.mock` factories below, so these are
-// always initialized by the time the factories (and their getters) execute.
-const { mockIsMobileApp, mockIsEarnEnabled } = vi.hoisted(() => ({
+// `vi.hoisted` runs before the hoisted `vi.mock` factory below, so this is
+// always initialized by the time the factory (and its getter) executes.
+const { mockIsMobileApp } = vi.hoisted(() => ({
   mockIsMobileApp: { value: true },
-  mockIsEarnEnabled: vi.fn(() => true),
 }))
 
 vi.mock('@universe/environment', async () => {
@@ -42,10 +41,6 @@ vi.mock('@universe/environment', async () => {
   })
   return mocked
 })
-
-vi.mock('uniswap/src/features/earn/hooks/useIsEarnEnabled', () => ({
-  getIsEarnEnabled: () => mockIsEarnEnabled(),
-}))
 
 const finalizedTxAction = finalizedTransactionAction()
 const account = signerMnemonicAccount()
@@ -72,7 +67,6 @@ describe(pushTransactionNotification, () => {
 
   beforeEach(() => {
     mockIsMobileApp.value = true
-    mockIsEarnEnabled.mockReturnValue(true)
   })
 
   it('never toasts for UniswapXCancel finalization (the order row is the signal)', () => {
@@ -341,55 +335,6 @@ describe(pushTransactionNotification, () => {
           address: from,
           outputCurrencyId,
           swapAmountUsd: 123,
-          transactionId: id,
-        }),
-      )
-      .silentRun()
-  })
-
-  it('does not add an Earn upsell notification when Earn is disabled', () => {
-    mockIsEarnEnabled.mockReturnValue(false)
-
-    const outputCurrencyId = buildCurrencyId(UniverseChainId.Mainnet, USDC_MAINNET.address)
-    const swapTypeInfo: ExactOutputSwapTransactionInfo = {
-      type: TransactionType.Swap,
-      tradeType: TradeType.EXACT_OUTPUT,
-      inputCurrencyId: `1-${getNativeAddress(UniverseChainId.Mainnet)}`,
-      outputCurrencyId,
-      outputCurrencyAmountRaw: '230000000000000000',
-      expectedInputCurrencyAmountRaw: '12000000000000000',
-      maximumInputCurrencyAmountRaw: '12000000000000000',
-    }
-    const finalizedSwapAction = createFinalizedTxAction(swapTypeInfo)
-    const { chainId, from, id } = finalizedSwapAction.payload
-
-    return expectSaga(pushTransactionNotification, finalizedSwapAction)
-      .withState({
-        notifications: initialNotificationsState,
-        wallet: {
-          activeAccountAddress: account.address,
-        },
-      })
-      .put(
-        pushNotification({
-          txStatus: TransactionStatus.Success,
-          address: from,
-          chainId,
-          type: AppNotificationType.Transaction,
-          txType: TransactionType.Swap,
-          inputCurrencyId: swapTypeInfo.inputCurrencyId,
-          outputCurrencyId,
-          inputCurrencyAmountRaw: swapTypeInfo.expectedInputCurrencyAmountRaw,
-          outputCurrencyAmountRaw: swapTypeInfo.outputCurrencyAmountRaw,
-          tradeType: swapTypeInfo.tradeType,
-          txId,
-        }),
-      )
-      .not.put(
-        pushNotification({
-          type: AppNotificationType.EarnSwapUpsell,
-          address: from,
-          outputCurrencyId,
           transactionId: id,
         }),
       )

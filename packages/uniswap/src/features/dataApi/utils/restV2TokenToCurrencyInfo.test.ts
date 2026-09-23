@@ -1,12 +1,13 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import type { Token } from '@uniswap/client-data-api/dist/data/v2/types_pb'
-import { GraphQLApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { TokenList } from 'uniswap/src/features/dataApi/types'
+import { UniverseChainId } from '@universe/chains'
+import { ProtectionResult } from 'uniswap/src/features/dataApi/safety'
+import { AttackType, TokenList } from 'uniswap/src/features/dataApi/types'
 import { buildCurrency } from 'uniswap/src/features/dataApi/utils/buildCurrency'
 import { restV2TokenToCurrencyInfo } from 'uniswap/src/features/dataApi/utils/restV2TokenToCurrencyInfo'
 
 const baseToken: PlainMessage<Token> = {
+  categoryIds: [],
   chainId: UniverseChainId.Mainnet,
   address: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
   symbol: 'UNI',
@@ -58,7 +59,7 @@ describe(restV2TokenToCurrencyInfo, () => {
       safetyInfo: {
         tokenList: TokenList.Default,
         attackType: undefined,
-        protectionResult: GraphQLApi.ProtectionResult.Unknown,
+        protectionResult: ProtectionResult.Unknown,
         blockaidFees: undefined,
       },
     })
@@ -102,6 +103,30 @@ describe(restV2TokenToCurrencyInfo, () => {
       buyFeePercent: 5,
       sellFeePercent: 10,
     })
+  })
+
+  it('maps the EXIT_SCAM_RISK feature to the ExitScamRisk attack type', () => {
+    const result = restV2TokenToCurrencyInfo({
+      ...baseToken,
+      safety: { ...baseToken.safety!, isVerified: false, verdict: 'Warning', features: ['EXIT_SCAM_RISK'] },
+    })
+
+    expect(result?.safetyInfo?.attackType).toBe(AttackType.ExitScamRisk)
+    expect(result?.safetyInfo?.protectionResult).toBe(ProtectionResult.Warning)
+  })
+
+  it('lets HONEYPOT outrank EXIT_SCAM_RISK when a token carries both', () => {
+    const result = restV2TokenToCurrencyInfo({
+      ...baseToken,
+      safety: {
+        ...baseToken.safety!,
+        isVerified: false,
+        verdict: 'Warning',
+        features: ['EXIT_SCAM_RISK', 'HONEYPOT'],
+      },
+    })
+
+    expect(result?.safetyInfo?.attackType).toBe(AttackType.Honeypot)
   })
 
   it('leaves blockaidFees undefined when fees is missing', () => {

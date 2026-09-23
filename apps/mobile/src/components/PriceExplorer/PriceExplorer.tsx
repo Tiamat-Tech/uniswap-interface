@@ -1,34 +1,34 @@
 import { GraphQLApi } from '@universe/api'
 import { isAndroid } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
+import { SegmentedControl } from '@universe/mycelium/segmented-control-compat'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { spacing } from '@universe/mycelium/tokens'
+import { withSporeCurve } from '@universe/tailwind/animations/reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
-import React, { memo, PropsWithChildren, ReactElement, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { memo, PropsWithChildren, ReactElement, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { I18nManager, StyleSheet } from 'react-native'
-import { SharedValue, useAnimatedReaction, useDerivedValue } from 'react-native-reanimated'
+import { EntryExitAnimationFunction, SharedValue, useAnimatedReaction, useDerivedValue } from 'react-native-reanimated'
 import { scheduleOnRN } from 'react-native-worklets'
 import { DotGrid } from 'src/components/charts/DotGrid'
 import { PriceChartProvider, usePriceChart } from 'src/components/charts/PriceChartContext'
 import { SparklineChart } from 'src/components/charts/SparklineChart'
 import { Loader } from 'src/components/loading/loaders'
 import { historyDurationToLabel, TIME_RANGES } from 'src/components/PriceExplorer/constants'
-import PriceExplorerAnimatedNumber from 'src/components/PriceExplorer/PriceExplorerAnimatedNumber'
 import { PriceExplorerError } from 'src/components/PriceExplorer/PriceExplorerError'
 import { DatetimeText, RelativeChangeText } from 'src/components/PriceExplorer/Text'
 import { useChartDimensions } from 'src/components/PriceExplorer/useChartDimensions'
 import { useLineChartPrice } from 'src/components/PriceExplorer/usePrice'
-import { PriceNumberOfDigits, TokenSpotData, useTokenPriceHistory } from 'src/components/PriceExplorer/usePriceHistory'
+import { TokenSpotData, useTokenPriceHistory } from 'src/components/PriceExplorer/usePriceHistory'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
-import { useFeatureFlaggedProjectTokens } from 'src/components/TokenDetails/useFeatureFlaggedProjectTokens'
-import { useTokenDetailsPreferProjectMarketData } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
 import { useIsScreenNavigationReady } from 'src/utils/useIsScreenNavigationReady'
-import { Flex, SegmentedControl, Text, useSporeColors } from 'ui/src'
 import { useLayoutAnimationOnChange } from 'ui/src/animations'
 import GraphCurve from 'ui/src/assets/backgrounds/graph-curve.svg'
-import { opacify, spacing } from 'ui/src/theme'
+import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
+import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { isLowVarianceRange } from 'uniswap/src/components/charts/utils'
-import { useTokenBasicProjectPartsFragment } from 'uniswap/src/data/graphql/fragments'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { isMultichainProjectTokens } from 'uniswap/src/features/dataApi/tokenProjects/utils/isMultichainProjectTokens'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { useHapticFeedback } from 'uniswap/src/features/settings/useHapticFeedback/useHapticFeedback'
@@ -40,10 +40,23 @@ import { logger } from 'utilities/src/logger/logger'
 const DEFAULT_Y_PADDING = 20
 const LOW_VARIANCE_Y_PADDING = 100
 
+// Android mounts the chart section transparent and fades it in on the Spore `quick` curve
+// (the legacy Tamagui preset this site animated with); iOS mounts already opaque.
+const chartSectionEntering: EntryExitAnimationFunction = () => {
+  'worklet'
+  return {
+    initialValues: { opacity: isAndroid ? 0 : 1 },
+    animations: { opacity: withSporeCurve('quick', 1) },
+  }
+}
+
+// Fade decimals only when there are more than 3 integer digits (e.g. $1,234 and above).
+const DEEMPHASIZED_DECIMALS_THRESHOLD = 3
+
 type PriceTextProps = {
   loading: boolean
   relativeChange?: SharedValue<number | undefined>
-  numberOfDigits: PriceNumberOfDigits
+  relativeChangeIdle?: number
   spotPrice?: SharedValue<number>
   startingPrice?: number
   shouldTreatAsStablecoin?: boolean
@@ -51,8 +64,8 @@ type PriceTextProps = {
 
 const PriceTextSection = memo(function PriceTextSection({
   loading,
-  numberOfDigits,
   relativeChange,
+  relativeChangeIdle,
   spotPrice,
   startingPrice,
   shouldTreatAsStablecoin,
@@ -60,17 +73,41 @@ const PriceTextSection = memo(function PriceTextSection({
   const price = useLineChartPrice(spotPrice)
   const currency = useAppFiatCurrencyInfo()
 
-  const [isAnimatedNumberReady, setIsAnimatedNumberReady] = useState(false)
-  const onAnimatedNumberReady = useCallback(() => setIsAnimatedNumberReady(true), [])
+  const [formattedValue, setFormattedValue] = useState('')
+  const [isScrubbing, setIsScrubbing] = useState(false)
+
+  useAnimatedReaction(
+    () => price.formatted.value,
+    (value) => {
+      if (value) {
+        scheduleOnRN(setFormattedValue, value)
+      }
+    },
+  )
+
+  // shouldAnimate is false while the user scrubs the chart; disable slot animations during scrubbing
+  // so the price updates instantly without queuing transitions at 60fps.
+  useAnimatedReaction(
+    () => price.shouldAnimate.value,
+    (shouldAnimate) => {
+      scheduleOnRN(setIsScrubbing, !shouldAnimate)
+    },
+  )
+
+  const isReady = formattedValue !== ''
+  const digitsBeforeDecimal = formattedValue.split(currency.decimalSeparator)[0]?.replace(/\D/g, '').length ?? 0
+  const shouldFadeDecimals = digitsBeforeDecimal > DEEMPHASIZED_DECIMALS_THRESHOLD
 
   return (
     // The `minHeight` is needed to avoid a layout shift on Android when hiding the skeleton.
     <Flex mx={spacing.spacing12} minHeight={80}>
-      <PriceExplorerAnimatedNumber
-        currency={currency}
-        numberOfDigits={numberOfDigits}
-        price={price}
-        onAnimatedNumberReady={onAnimatedNumberReady}
+      <AnimatedNumber
+        containerTestID={TestID.PriceExplorerAnimatedNumber}
+        disableAnimations={isScrubbing}
+        loading={isReady ? false : 'no-shimmer'}
+        shouldFadeDecimals={shouldFadeDecimals}
+        textVariant="$heading2"
+        value={formattedValue}
       />
       <Flex row gap="$spacing4">
         {/*
@@ -78,13 +115,14 @@ const PriceTextSection = memo(function PriceTextSection({
         When multiple skeletons hide in different order, it gives the feeling of things being slower than they actually are.
         */}
         <RelativeChangeText
-          loading={loading || !isAnimatedNumberReady}
+          loading={loading || !isReady}
           spotRelativeChange={relativeChange}
+          spotRelativeChangeIdle={relativeChangeIdle}
           startingPrice={startingPrice}
           shouldTreatAsStablecoin={shouldTreatAsStablecoin}
         />
       </Flex>
-      <DatetimeText loading={loading || !isAnimatedNumberReady} />
+      <DatetimeText loading={loading || !isReady} />
     </Flex>
   )
 })
@@ -113,21 +151,14 @@ export const PriceExplorer = memo(function PriceExplorerInner(): JSX.Element {
 
 const PriceExplorerContent = memo(function PriceExplorerContentInner(): JSX.Element {
   const { t } = useTranslation()
-  const { currencyId, tokenColor, navigation, initialIsMultichainAsset } = useTokenDetailsContext()
+  const { currencyId, tokenColor, navigation, initialIsMultichainAsset, hasMultichainAddresses } =
+    useTokenDetailsContext()
   const isScreenNavigationReady = useIsScreenNavigationReady({ navigation })
-  const preferProjectMarketData = useTokenDetailsPreferProjectMarketData()
+  const shouldQueryMultichainAggregate = initialIsMultichainAsset || hasMultichainAddresses
 
-  // Default to the aggregate endpoints until project.tokens loads — better than assuming single-chain.
-  const project = useTokenBasicProjectPartsFragment({ currencyId }).data.project
-  const featureFlaggedProjectTokens = useFeatureFlaggedProjectTokens(project?.tokens)
-  const projectTokensLoaded = project?.tokens !== undefined
-  const shouldQueryMultichainAggregate =
-    initialIsMultichainAsset || !projectTokensLoaded || isMultichainProjectTokens(featureFlaggedProjectTokens)
-
-  const { data, loading, error, refetch, setDuration, selectedDuration, numberOfDigits } = useTokenPriceHistory({
+  const { data, loading, setDuration, selectedDuration } = useTokenPriceHistory({
     currencyId,
     initialDuration: GraphQLApi.HistoryDuration.Day,
-    preferProjectMarketData,
     isMultichainAggregateView: shouldQueryMultichainAggregate,
     skip: !isScreenNavigationReady,
   })
@@ -219,7 +250,7 @@ const PriceExplorerContent = memo(function PriceExplorerContentInner(): JSX.Elem
   }, [t])
 
   if (!loading && !convertedSpot && selectedDuration === GraphQLApi.HistoryDuration.Day) {
-    return <PriceExplorerError showRetry={error} onRetry={refetch} />
+    return <PriceExplorerError />
   }
 
   // Get the starting price for fiat delta calculation
@@ -230,14 +261,14 @@ const PriceExplorerContent = memo(function PriceExplorerContentInner(): JSX.Elem
       <Flex gap="$spacing8" overflow="hidden">
         <PriceTextSection
           loading={loading}
-          numberOfDigits={numberOfDigits}
           relativeChange={convertedSpot?.relativeChange}
+          relativeChangeIdle={convertedSpot?.relativeChangeIdle}
           spotPrice={convertedSpot?.value}
           startingPrice={startingPrice}
           shouldTreatAsStablecoin={shouldZoomOut}
         />
 
-        <Flex animation="quick" enterStyle={{ opacity: isAndroid ? 0 : 1 }}>
+        <AnimatedFlex entering={chartSectionEntering}>
           {convertedPriceHistory.length ? (
             <PriceExplorerChart
               shouldShowAnimatedDot={shouldShowAnimatedDot}
@@ -260,7 +291,7 @@ const PriceExplorerContent = memo(function PriceExplorerContentInner(): JSX.Elem
               onSelectOption={setDuration}
             />
           </Flex>
-        </Flex>
+        </AnimatedFlex>
       </Flex>
     </PriceChartProvider>
   )
@@ -318,6 +349,9 @@ const PriceExplorerChart = memo(function PriceExplorerChart({
           dotStrokeColor={colors.surface1.val}
           scrubIndex={currentIndex}
           scrubActive={isActive}
+          // Slightly thicker than the shared default so the main TDP chart reads clearly at full width;
+          // Portfolio/Explore mini-charts keep the default via SparklineChart's own STROKE_WIDTH.
+          strokeWidth={2}
         />
       </Flex>
       <LinearGradient

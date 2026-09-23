@@ -1,6 +1,6 @@
+import { Flex, Text, type FlexCompatProps } from '@universe/mycelium'
+import { Check } from '@universe/mycelium/icons/Check'
 import { Fragment, ReactElement, useEffect, useState } from 'react'
-import { Flex, styled, Text } from 'ui/src'
-import { Check } from 'ui/src/components/icons/Check'
 import { StepStatus } from 'uniswap/src/components/ConfirmSwapModal/types'
 import { LogoLoadingSpinner } from '~/components/LogoLoadingSpinner'
 import { ExternalLink } from '~/theme/components/Links'
@@ -28,26 +28,29 @@ export interface StepDetails {
   learnMoreLinkHref?: string
 }
 
-const Ring = styled(Flex, {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  width: ICON_SIZE,
-  height: ICON_SIZE,
-  borderWidth: 1,
-  borderStyle: 'solid',
-  borderRadius: '$roundedFull',
-  pointerEvents: 'none',
-  zIndex: 0,
-
-  '$platform-web': {
-    transformOrigin: 'center',
-    animationName: 'limitConfirmStepRingPulse',
-    animationDuration: '1.5s',
-    animationTimingFunction: 'linear',
-    animationIterationCount: 'infinite',
-  },
-})
+const Ring = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    position="absolute"
+    top={0}
+    left={0}
+    width={ICON_SIZE}
+    height={ICON_SIZE}
+    borderWidth={1}
+    borderStyle="solid"
+    borderRadius="$roundedFull"
+    pointerEvents="none"
+    zIndex={0}
+    // Keyframes are declared by ProgressIndicator's scoped <style> block.
+    $platform-web={{
+      transformOrigin: 'center',
+      animationName: 'limitConfirmStepRingPulse',
+      animationDuration: '1.5s',
+      animationTimingFunction: 'linear',
+      animationIterationCount: 'infinite',
+    }}
+    {...props}
+  />
+)
 
 function Icon({ stepStatus, icon, rippleColor }: { stepStatus: StepStatus; icon: ReactElement; rippleColor?: string }) {
   const isActive = stepStatus === StepStatus.Active
@@ -58,14 +61,14 @@ function Icon({ stepStatus, icon, rippleColor }: { stepStatus: StepStatus; icon:
   }
   return (
     <Flex centered position="relative" width={ICON_SIZE} height={ICON_SIZE}>
-      {isActive && rippleColor && <Ring data-testid="icon-ripple-animation" style={{ borderColor: rippleColor }} />}
+      {isActive && rippleColor && <Ring testID="icon-ripple-animation" style={{ borderColor: rippleColor }} />}
       <Flex
         centered
         zIndex={1}
         height={ICON_SIZE}
         width={ICON_SIZE}
         filter={isActive ? 'grayscale(0)' : 'grayscale(1)'}
-        data-testid="step-icon"
+        testID="step-icon"
       >
         {icon}
       </Flex>
@@ -117,7 +120,7 @@ function Timer({ secondsRemaining }: { secondsRemaining: number }) {
       variant="body3"
       color="$neutral2"
       paddingRight="$spacing8"
-      data-testid="step-timer"
+      testID="step-timer"
       style={{ fontVariantNumeric: 'tabular-nums' }}
     >
       {timerText}

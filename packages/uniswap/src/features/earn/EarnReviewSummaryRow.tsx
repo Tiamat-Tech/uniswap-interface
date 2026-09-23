@@ -1,5 +1,5 @@
+import { Flex, Text } from '@universe/mycelium'
 import type React from 'react'
-import { Flex, Text } from 'ui/src'
 
 export function EarnReviewSummaryRow({
   label,

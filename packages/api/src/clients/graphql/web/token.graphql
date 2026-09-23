@@ -2,7 +2,6 @@ query TokenWeb(
   $chain: Chain!
   $address: String = null
   $multichain: Boolean = false
-  $preferProjectMarketData: Boolean = false
 ) {
   token(chain: $chain, address: $address) {
     id
@@ -97,11 +96,6 @@ query TokenWeb(
         pricePercentChange24h {
           id
           value
-        }
-        volume24H: volume(duration: DAY) @include(if: $preferProjectMarketData) {
-          id
-          value
-          currency
         }
       }
     }

@@ -1,6 +1,8 @@
 import { GraphQLApi } from '@universe/api'
+import { opacify } from '@universe/mycelium/theme-hooks-compat'
 import {
   AreaData,
+  AreaSeries,
   AreaSeriesPartialOptions,
   BarPrice,
   CandlestickData,
@@ -12,7 +14,6 @@ import {
   PriceLineOptions,
   UTCTimestamp,
 } from 'lightweight-charts'
-import { opacify } from 'ui/src/theme'
 import { getLowVarianceAxisDecimals, isLowVarianceRange } from 'uniswap/src/components/charts/utils'
 import {
   ChartHoverData,
@@ -43,6 +44,28 @@ interface PriceChartModelParams extends ChartModelParams<PriceChartData> {
 
 const LOW_PRICE_RANGE_THRESHOLD = 0.2
 const LOW_PRICE_RANGE_SCALE_FACTOR = 1000000000
+
+/**
+ * Largest magnitude lightweight-charts accepts in a series point. Past it, `setData` fails an
+ * internal assertion that throws from the chart's mount effect — there is no boundary between there
+ * and the app shell, so one bad series blanks the whole page.
+ */
+export const MAX_PLOTTABLE_VALUE = Number.MAX_SAFE_INTEGER / 100
+
+/**
+ * The factor to multiply a series by before plotting. Lightweight-charts shows few price-axis points
+ * for low-value/low-volatility tokens, so those are scaled up to earn more of them.
+ *
+ * A narrow range alone doesn't mean the values are small, though: a flat series of large numbers (a
+ * steady FDV, a pegged price) passes the same test, and scaling those overflows what the chart can
+ * plot. Such a series is left unscaled — it already gets plenty of axis points, which is all the
+ * scaling was for.
+ */
+export function getLowPriceRangeScaleFactor({ min, max }: { min: number; max: number }): number {
+  const largestMagnitude = Math.max(Math.abs(min), Math.abs(max))
+  const fitsAfterScaling = largestMagnitude * LOW_PRICE_RANGE_SCALE_FACTOR <= MAX_PLOTTABLE_VALUE
+  return max - min < LOW_PRICE_RANGE_THRESHOLD && fitsAfterScaling ? LOW_PRICE_RANGE_SCALE_FACTOR : 1
+}
 
 export class PriceChartModel extends ChartModel<PriceChartData> {
   protected series: ISeriesApi<'Area'> | ISeriesApi<'Custom'>
@@ -132,7 +155,9 @@ export class PriceChartModel extends ChartModel<PriceChartData> {
     this.type = params.type
     this.timePeriod = params.timePeriod
     this.series =
-      this.type === PriceChartType.LINE ? this.api.addAreaSeries() : this.api.addCustomSeries(new RoundedCandleSeries())
+      this.type === PriceChartType.LINE
+        ? this.api.addSeries(AreaSeries)
+        : this.api.addCustomSeries(new RoundedCandleSeries())
     this.series.setData(this.data)
     this.updateOptions(params)
     this.fitContent()
@@ -157,10 +182,8 @@ export class PriceChartModel extends ChartModel<PriceChartData> {
     // Derived from the original bounds — the axis formatter receives unscaled prices.
     const priceAxisDecimals = getLowVarianceAxisDecimals(min, max)
 
-    // Lightweight-charts shows few price-axis points for low-value/volatility tokens,
-    // so we workaround by "scaling" the prices, causing more price-axis points to be shown
-    if (max - min < LOW_PRICE_RANGE_THRESHOLD) {
-      lowPriceRangeScaleFactor = LOW_PRICE_RANGE_SCALE_FACTOR
+    lowPriceRangeScaleFactor = getLowPriceRangeScaleFactor({ min, max })
+    if (lowPriceRangeScaleFactor !== 1) {
       adjustedData = data.map((point) => this.applyPriceScaleFactor(point, lowPriceRangeScaleFactor))
       min = min * lowPriceRangeScaleFactor
       max = max * lowPriceRangeScaleFactor
@@ -248,7 +271,7 @@ export class PriceChartModel extends ChartModel<PriceChartData> {
       if (this.type === PriceChartType.CANDLESTICK) {
         this.series = this.api.addCustomSeries(new RoundedCandleSeries())
       } else {
-        this.series = this.api.addAreaSeries()
+        this.series = this.api.addSeries(AreaSeries)
       }
       this.series.setData(this.data)
     }

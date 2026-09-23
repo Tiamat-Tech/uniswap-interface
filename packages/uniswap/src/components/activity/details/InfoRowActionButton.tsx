@@ -1,5 +1,5 @@
+import { Button, Text } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Button, Text } from 'ui/src'
 
 export function InfoRowActionButton({
   children,

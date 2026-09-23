@@ -6,7 +6,6 @@ import process from 'process'
 import { fileURLToPath } from 'url'
 import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
-import { tamaguiPlugin } from '@tamagui/vite-plugin'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type ViteDevServer } from 'vite'
 import bundlesize from 'vite-plugin-bundlesize'
@@ -14,14 +13,16 @@ import commonjs from 'vite-plugin-commonjs'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import svgr from 'vite-plugin-svgr'
 import tsconfigPaths from 'vite-tsconfig-paths'
+import { enableDebugRoutes } from './scripts/debug-routes'
 import { createEntryGatewayProxies } from './vite/entry-gateway-proxy'
 import { generateAssetsIgnorePlugin } from './vite/generateAssetsIgnorePlugin.js'
+import { generateVersionFilePlugin } from './vite/generateVersionFilePlugin.js'
 import { resolveEnvConfigs } from './vite/resolveEnvConfigs'
 import { cspMetaTagPlugin } from './vite/vite.plugins.js'
 
 // process.env.APP_ID is injected into the browser bundle via envDefines below and set
-// here for the Node-side Tamagui static extractor — resolveEnvConfigs() returns an env
-// object and only mutates process.env for the keys it resolves, not APP_ID.
+// here on the Node side too — resolveEnvConfigs() returns an env object and only
+// mutates process.env for the keys it resolves, not APP_ID.
 process.env.APP_ID = 'web'
 
 // Get current file directory (ESM equivalent of __dirname)
@@ -33,6 +34,8 @@ const ReactCompilerConfig = {
   target: '18', // '17' | '18' | '19'
 }
 const DEPLOY_TARGET = process.env.DEPLOY_TARGET
+// Read before resolveEnvConfigs() can overwrite process.env from the pulled .env layer.
+const IS_GITHUB_ACTIONS = Boolean(process.env.GITHUB_ACTIONS)
 const DISABLE_SOURCEMAP = (process.env.DISABLE_SOURCEMAP ?? process.env.VITE_DISABLE_SOURCEMAP) === 'true'
 const DEBUG_PROXY = (process.env.DEBUG_PROXY ?? process.env.VITE_DEBUG_PROXY) === 'true'
 const ENABLE_PROXY = (process.env.ENABLE_ENTRY_GATEWAY_PROXY ?? process.env.VITE_ENABLE_ENTRY_GATEWAY_PROXY) === 'true'
@@ -134,7 +137,8 @@ function resolveCommitHash(): string {
 }
 const commitHash = resolveCommitHash()
 
-// Compute next dev version from latest non-RC web/* git tag
+// Compute next dev version from latest non-RC web/* git tag. Local dev only — it returns
+// X.(Y+1).0 of the newest tag, which matches no release and therefore no sourcemap upload.
 function getNextDevVersion(): string {
   try {
     const latestTag = execSync("git tag --list 'web/*' --sort=-version:refname | grep -v '\\-rc\\.' | head -1")
@@ -173,7 +177,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
   console.log(`ENV_LOADED: mode=${mode} AWS_API_ENDPOINT=${env.AWS_API_ENDPOINT ?? env.REACT_APP_AWS_API_ENDPOINT}`)
 
   const isProduction = mode === 'production'
-  const isStaging = mode === 'staging'
   const isVercelDeploy = DEPLOY_TARGET === 'vercel'
   const isCloudflareDeploy = DEPLOY_TARGET === 'cloudflare'
   const isEcsDeploy = DEPLOY_TARGET === 'ecs'
@@ -185,6 +188,13 @@ export default defineConfig(({ mode, command, isPreview }) => {
   }
   const isOptimizedBuild = isProduction || isEcsDeploy
   const isMinifiedBuild = isOptimizedBuild && !isVercelDeploy
+  // A CI build whose sourcemaps the deploy uploads to Datadog — i.e. the production deploy, the
+  // only build that leaves DISABLE_SOURCEMAP unset (web_production_deploy.yml:172-176). Every
+  // other cloudflare build sets it: e2e (project.json:54), staging deploy
+  // (web_staging_deploy.yml:148), quality checks (web_quality_checks.yml:50 and :88). Gating on
+  // GITHUB_ACTIONS (the same CI signal project.json:48 uses) keeps local `build:production` on
+  // the dev path.
+  const isSourcemapUploadBuild = isCloudflareDeploy && isMinifiedBuild && !DISABLE_SOURCEMAP && IS_GITHUB_ACTIONS
   // CF plugin runs for cloudflare deploys and local dev. Skipped during `vite preview` —
   // preview only serves static assets, doesn't need worker bindings, and the plugin's
   // getWorkerConfigs enumerates every env in wrangler-vite-worker.jsonc and chokes when
@@ -222,9 +232,28 @@ export default defineConfig(({ mode, command, isPreview }) => {
     Object.entries(env).map(([key, value]) => [`process.env.${key}`, JSON.stringify(value)]),
   )
 
+  // Datadog joins uploaded sourcemaps on service + version + filename, so on an upload build the
+  // version baked into the bundle must be the CI-provided release version — never one derived or
+  // read from the pulled .env layer. INFRA-3219
+  const releaseVersion = env.VERSION
+  if (isSourcemapUploadBuild && !releaseVersion) {
+    throw new Error(
+      'VERSION is unset for a deployed web build. Refusing to derive one from git tags: the bundle ' +
+        'would report a version matching no release, and Datadog could not symbolicate any stack ' +
+        '(INFRA-3219). Set VERSION on the build step in .github/workflows/web_production_deploy.yml ' +
+        'to the same value passed to `datadog-ci sourcemaps upload --release-version`.',
+    )
+  }
+  // Single source of truth for the version the bundle reports (config.appVersion → RUM `version`).
+  // The fallbacks only ever apply to non-upload builds (local dev, e2e, CI checks).
+  const bundleVersion = releaseVersion || env.REACT_APP_VERSION_TAG || getNextDevVersion() || commitHash
+
   const defines = {
     __DEV__: !isProduction,
-    'process.env.NODE_ENV': JSON.stringify(mode),
+    // NODE_ENV must be a valid NodeEnv (development|production|test). `mode` is 'staging'
+    // for ecs/staging builds — a deployed build's Node runtime is 'production'; backend env
+    // (dev/staging/prod) is carried separately via ENVIRONMENT.
+    'process.env.NODE_ENV': JSON.stringify(mode === 'development' || mode === 'test' ? mode : 'production'),
     'process.env.ENVIRONMENT': JSON.stringify(mode),
     'process.env.EXPO_OS': JSON.stringify('web'),
     'process.env.GIT_COMMIT_HASH': JSON.stringify(commitHash),
@@ -233,12 +262,16 @@ export default defineConfig(({ mode, command, isPreview }) => {
     // So getConfig().isVercelEnvironment is true in the client on Vercel; enables direct staging WS URL to match EGW
     ...(isVercelDeploy ? { 'process.env.VERCEL': JSON.stringify(process.env.VERCEL ?? '0') } : {}),
     ...envDefines,
-    // Fallback: compute next version from git tags when not set by CI
-    ...(!env.VERSION && !env.REACT_APP_VERSION_TAG
-      ? {
-          'process.env.VERSION': JSON.stringify(process.env.VERSION || getNextDevVersion() || commitHash),
-        }
-      : {}),
+    // Must come after envDefines: also emitted to build/client/version.json so the deploy can
+    // assert it against the release tag before uploading sourcemaps.
+    'process.env.VERSION': JSON.stringify(bundleVersion),
+    // Worker + local dev; build-{ecs,vercel}.ts define this for their own bundles.
+    'process.env.ENABLE_DEBUG_ROUTES': JSON.stringify(enableDebugRoutes(mode)),
+    // Serving stack this artifact is built for; tags DD RUM + Amplitude events so the ECS
+    // rollout is observable per cohort. Local dev serves via the CF plugin → 'workers'.
+    'process.env.WEB_BUILD_TYPE': JSON.stringify(
+      isEcsDeploy ? 'ecs' : isVercelDeploy ? 'vercel' : isIpfsDeploy ? 'ipfs' : 'workers',
+    ),
   }
 
   const cacheDir = path.resolve(__dirname, 'node_modules/.vite')
@@ -260,9 +293,13 @@ export default defineConfig(({ mode, command, isPreview }) => {
         '.web-app.js',
         '.web.tsx',
         '.web.ts',
+        // .mjs before .js (matching Vite's defaults): packages like @rn-primitives publish
+        // paired .web.mjs/.web.js legs, and resolving the CJS leg breaks named ESM imports in dev
+        '.web.mjs',
         '.web.js',
         '.tsx',
         '.ts',
+        '.mjs',
         '.js',
       ],
       modules: [path.resolve(root, 'node_modules')],
@@ -316,9 +353,10 @@ export default defineConfig(({ mode, command, isPreview }) => {
           const needsJsxTransform = [
             'node_modules/react-native-reanimated',
             'node_modules/expo-blur', // In case it's not fully mocked
+            'node_modules/@rn-primitives', // tsup dist ships raw JSX in .js/.mjs
           ].some((path) => id.includes(path))
 
-          if (!needsJsxTransform || !id.endsWith('.js')) {
+          if (!needsJsxTransform || !/\.(js|mjs)$/.test(id)) {
             return null
           }
 
@@ -335,7 +373,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
       portWarningPlugin(isProduction),
       reactPlugin(),
       // Tailwind v4 — compiles @import "tailwindcss" + @universe/tailwind tokens.
-      // Placed before the Tamagui extractor so CSS is resolved before extraction.
       // Client environment only: CSS is generated exclusively for the browser bundle, and
       // Tailwind's scan/generate transforms must stay out of the Cloudflare Worker
       // environments (app*), where their module-graph work can invalidate worker modules
@@ -344,14 +381,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
         ...plugin,
         applyToEnvironment: (environment: { name: string }) => environment.name === 'client',
       })),
-      isProduction || isStaging
-        ? tamaguiPlugin({
-            config: '../../packages/ui/src/tamagui.config.ts',
-            components: ['ui', 'uniswap', 'utilities'],
-            optimize: true,
-            importsWhitelist: ['constants.js'],
-          })
-        : undefined,
       tsconfigPaths({
         // No `projects` restriction — functions/tsconfig.json must be auto-discovered
         // for the functions/* alias to resolve.
@@ -446,6 +475,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
             ],
           }),
       generateAssetsIgnorePlugin(isMinifiedBuild && !DISABLE_SOURCEMAP, __dirname),
+      generateVersionFilePlugin(isCloudflareDeploy, bundleVersion, __dirname),
       {
         name: 'copy-twist-config',
         writeBundle() {
@@ -507,8 +537,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
         'invariant',
         'react-native-web',
         'react-native-gesture-handler',
-        'tamagui',
-        '@tamagui/web',
         'ui',
         '@uniswap/sdk-core',
         '@uniswap/v2-sdk',
@@ -536,15 +564,18 @@ export default defineConfig(({ mode, command, isPreview }) => {
           '.web-app.js',
           '.web-app.ts',
           '.web-app.tsx',
+          '.web.mjs',
           '.web.js',
           '.web.ts',
           '.web.tsx',
+          '.mjs',
           '.js',
           '.ts',
           '.tsx',
         ],
         loader: {
           '.js': 'jsx',
+          '.mjs': 'jsx',
           '.ts': 'ts',
           '.tsx': 'tsx',
         },

@@ -5,6 +5,7 @@
  */
 export { AdaptiveWebPopoverContentCompat } from './AdaptiveWebPopoverContentCompat'
 export { adaptiveWebPopoverContentCompatClassName } from './compile'
+export { mapHoverableToDelays, type PopoverCompatHoverableProps, type PopoverCompatHoverDelays } from './hover'
 export { PopoverCompat, PopoverCompatPositionContext, type PopoverCompatPositionContextValue } from './PopoverCompat'
 export {
   type AnchorPosition,
@@ -27,4 +28,5 @@ export type {
   PopoverContentStyledVariantProps,
   WebBottomSheetCompatProps,
 } from './props'
+export { OVERLAY_PORTAL_CONTAINER_ATTRIBUTE } from './portal-container'
 export { EffectiveOverlayZIndexContext, OVERLAY_Z_INDEXES, stackingLayerAbove, useStackingLayerAbove } from './z-index'

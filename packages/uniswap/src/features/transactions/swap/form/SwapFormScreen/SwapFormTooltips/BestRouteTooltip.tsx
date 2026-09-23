@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { OrderRouting } from 'ui/src/components/icons/OrderRouting'
 import { ShieldCheck } from 'ui/src/components/icons/ShieldCheck'
 import { UniswapX } from 'ui/src/components/icons/UniswapX'

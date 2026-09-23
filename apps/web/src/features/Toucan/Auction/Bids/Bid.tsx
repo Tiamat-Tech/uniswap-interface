@@ -1,5 +1,5 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { useEvent } from 'utilities/src/react/hooks'
 import { BidProgressIndicator } from '~/features/Toucan/Auction/Bids/BidProgressIndicator'
 import { BidListItem } from '~/features/Toucan/Auction/hooks/useBidsListData'

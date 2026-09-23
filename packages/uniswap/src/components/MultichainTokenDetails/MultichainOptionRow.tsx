@@ -1,9 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, Text, TouchableArea, type SpaceTokens } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { ReactNode } from 'react'
-import { Flex, Text, TouchableArea, useMedia, type SpaceTokens } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 interface MultichainOptionRowProps {
   chainId: UniverseChainId
@@ -64,7 +64,7 @@ export function MultichainOptionRow({
   if (onPress || href) {
     return (
       <TouchableArea
-        $platform-web={{ textDecorationLine: 'none' }}
+        $platform-web={{ textDecoration: 'none' }}
         href={href}
         tag={tag}
         target={target}

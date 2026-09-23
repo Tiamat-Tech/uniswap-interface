@@ -1,7 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, getFeatureFlag, useFeatureFlag } from '@universe/gating'
 import { useMemo } from 'react'
 import { CHAIN_ROLLOUT_FLAGS } from 'uniswap/src/features/chains/chainFeatureFlags'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { filterChainIdsByFeatureFlag } from 'uniswap/src/features/chains/utils'
 
 function buildChainRolloutFlagMap(getFlagStatus: (flag: FeatureFlags) => boolean): {

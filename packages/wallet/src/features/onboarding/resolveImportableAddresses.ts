@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { AddressStringFormat, normalizeAddress, UniverseChainId } from '@universe/chains'
 import { fetchBalancesAndUnitags } from 'wallet/src/features/onboarding/fetchBalancesAndUnitags'
 
 // Non-hook variant of the significance filter used by `useImportableAccounts`. Lets the
@@ -34,8 +34,8 @@ export async function resolveImportableAddresses({
   const base = significant.length > 0 ? significant : addresses[0] ? [addresses[0]] : []
 
   if (requiredAddress) {
-    const requiredLower = requiredAddress.toLowerCase()
-    if (!base.some((a) => a.toLowerCase() === requiredLower)) {
+    const requiredLower = normalizeAddress(requiredAddress, AddressStringFormat.Lowercase)
+    if (!base.some((a) => normalizeAddress(a, AddressStringFormat.Lowercase) === requiredLower)) {
       return [requiredAddress, ...base]
     }
   }

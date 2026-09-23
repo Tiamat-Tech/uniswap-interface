@@ -1,5 +1,5 @@
 import { TradingApi } from '@universe/api'
-import type { Address } from '@universe/chains'
+import { type Address, UniverseChainId } from '@universe/chains'
 import { assume0xAddress } from '@universe/chains'
 import { safeJSONStringify } from '@universe/embedded-wallet/src/connection/providerUtils'
 import { checkEmbeddedWalletDelegation } from '@universe/embedded-wallet/src/features/passkey/embeddedWalletDelegation'
@@ -8,7 +8,6 @@ import {
   signTypedDataWithPasskey,
 } from '@universe/embedded-wallet/src/features/passkey/signing'
 import { isValidHexString, numberToHex, parseHex } from '@universe/encoding'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { buildPackedUserOpTypedData } from 'uniswap/src/features/smartWallet/userOp/buildUserOpTypedData'
 import { encodeCaliburUserOpSignature } from 'uniswap/src/features/smartWallet/userOp/caliburSignature'
 import {

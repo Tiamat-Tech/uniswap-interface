@@ -1,6 +1,7 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, Tooltip } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 

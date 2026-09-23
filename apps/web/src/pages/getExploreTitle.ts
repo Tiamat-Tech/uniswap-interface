@@ -36,6 +36,17 @@ export const getExploreTitle = (path?: string) => {
   }
 }
 
+export const getCategoryDetailsTitle = (path?: string) => {
+  const slug = path
+    ?.split('/')
+    .filter((part) => part !== '')
+    .at(-1)
+  if (!slug || slug.startsWith(':')) {
+    return i18n.t('categoryDetails.pageTitle')
+  }
+  return i18n.t('categoryDetails.pageTitle.withCategory', { category: capitalize(slug.replace(/-/g, ' ')) })
+}
+
 export const getExploreDescription = (path?: string) => {
   const parts = path?.split('/').filter((part) => part !== '')
   const network: string = parts?.find(isChainUrlParam) ?? 'ethereum'

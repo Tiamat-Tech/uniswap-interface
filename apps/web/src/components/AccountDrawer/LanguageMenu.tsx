@@ -5,6 +5,7 @@ import { useCurrentLanguage, useLanguageInfo } from 'uniswap/src/features/langua
 import { setCurrentLanguage } from 'uniswap/src/features/settings/slice'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { MenuColumn, MenuItem } from '~/components/AccountDrawer/shared'
 import { SlideOutMenu } from '~/components/AccountDrawer/SlideOutMenu'
 import { useLocationLinkProps } from '~/hooks/useLocationLinkProps'
@@ -28,7 +29,7 @@ function LanguageMenuItem({ language }: { language: Language }) {
       }}
       isActive={language === currentLanguage}
       to={to}
-      testId="wallet-language-item"
+      testId={TestID.WalletLanguageItem}
     />
   )
 }

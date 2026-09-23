@@ -1,6 +1,6 @@
+import { AddressStringFormat, EVMUniverseChainId, isEVMChain, normalizeAddress } from '@universe/chains'
 import { PropsWithChildren, useState } from 'react'
 import { useParams } from 'react-router'
-import { isEVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { useAuctionBlockPolling } from '~/features/Toucan/Auction/hooks/useAuctionBlockPolling'
 import { useComputeConcentrationBand } from '~/features/Toucan/Auction/hooks/useComputeConcentrationBand'
 import { useLoadAuctionDetails } from '~/features/Toucan/Auction/hooks/useLoadAuctionDetails'
@@ -70,6 +70,20 @@ function AuctionStoreProviderInner({ children }: PropsWithChildren) {
   return children
 }
 
+function AuctionStoreInstanceProvider({
+  auctionAddress,
+  chainId,
+  children,
+}: PropsWithChildren<{ auctionAddress?: string; chainId?: EVMUniverseChainId }>) {
+  const [store] = useState(() => createAuctionStore(auctionAddress, chainId))
+
+  return (
+    <AuctionStoreContext.Provider value={store}>
+      <AuctionStoreProviderInner>{children}</AuctionStoreProviderInner>
+    </AuctionStoreContext.Provider>
+  )
+}
+
 export function AuctionStoreProvider({ children }: PropsWithChildren) {
   const { chainName, auctionAddress } = useParams<{
     chainName: string
@@ -79,11 +93,19 @@ export function AuctionStoreProvider({ children }: PropsWithChildren) {
   const rawChainId = getChainIdFromChainUrlParam(chainName)
   const chainId = rawChainId && isEVMChain(rawChainId) ? rawChainId : undefined
 
-  const [store] = useState(() => createAuctionStore(auctionAddress, chainId))
-
   return (
-    <AuctionStoreContext.Provider value={store}>
-      <AuctionStoreProviderInner>{children}</AuctionStoreProviderInner>
-    </AuctionStoreContext.Provider>
+    // React Router reuses the route element when only params change, so an
+    // auction A -> auction B navigation would otherwise keep A's store alive
+    // (including its canonicalized auctionAddress). Keying on the URL params
+    // remounts the subtree and recreates the store per auction. The key uses
+    // the raw param — canonicalization inside the store never changes the URL,
+    // so resolving a token address to the auction contract doesn't remount.
+    <AuctionStoreInstanceProvider
+      key={`${chainId ?? 'unknown'}:${auctionAddress ? normalizeAddress(auctionAddress, AddressStringFormat.Lowercase) : 'unknown'}`}
+      auctionAddress={auctionAddress}
+      chainId={chainId}
+    >
+      {children}
+    </AuctionStoreInstanceProvider>
   )
 }

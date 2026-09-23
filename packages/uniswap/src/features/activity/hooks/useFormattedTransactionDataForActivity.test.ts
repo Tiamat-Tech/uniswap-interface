@@ -2,7 +2,6 @@ import { QueryStatus } from '@tanstack/react-query'
 import { TradingApi } from '@universe/api'
 import dayjs from 'dayjs'
 import { useFormattedTransactionDataForActivity } from 'uniswap/src/features/activity/hooks/useFormattedTransactionDataForActivity'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { transactionDetails, uniswapXOrderDetails } from 'uniswap/src/test/fixtures/wallet/transactions'
 import { renderHook } from 'uniswap/src/test/test-utils'
@@ -22,6 +21,7 @@ vi.mock('react-redux', async (importOriginal) => {
   }
 })
 
+import { UniverseChainId } from '@universe/chains'
 import { useSelector } from 'react-redux'
 import { formatTransactionsByDate } from 'uniswap/src/features/activity/formatTransactionsByDate'
 import { useMergeLocalAndRemoteTransactions } from 'uniswap/src/features/activity/hooks/useMergeLocalAndRemoteTransactions'
@@ -68,6 +68,7 @@ describe('useFormattedTransactionDataForActivity', () => {
       fetchNextPage: mockFetchNextPage,
       hasNextPage: false,
       isFetchingNextPage: false,
+      isFetchNextPageError: false,
     })
   })
 
@@ -91,6 +92,7 @@ describe('useFormattedTransactionDataForActivity', () => {
       fetchNextPage: mockFetchNextPage,
       hasNextPage: false,
       isFetchingNextPage: false,
+      isFetchNextPageError: false,
       ...overrides,
     })
   }
@@ -141,11 +143,12 @@ describe('useFormattedTransactionDataForActivity', () => {
   describe('error states', () => {
     it('should handle error from useListTransactions', () => {
       const mockError = new Error('API error')
-      mockListTransactions({ data: undefined, error: mockError, isError: true })
+      mockListTransactions({ data: undefined, error: mockError, isError: true, isFetchNextPageError: true })
 
       const { result } = renderFormattedHook()
 
       expect(result.current.error).toBe(mockError)
+      expect(result.current.isFetchNextPageError).toBe(true)
       expect(result.current.hasData).toBe(false)
     })
 

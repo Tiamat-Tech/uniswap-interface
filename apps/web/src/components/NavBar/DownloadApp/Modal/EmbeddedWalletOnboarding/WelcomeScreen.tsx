@@ -1,6 +1,6 @@
+import { Button, Flex, Text } from '@universe/mycelium'
+import { UniswapLogo } from '@universe/mycelium/icons/UniswapLogo'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
-import { UniswapLogo } from 'ui/src/components/icons/UniswapLogo'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'

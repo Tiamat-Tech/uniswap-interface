@@ -1,13 +1,12 @@
 import { JsonRpcProvider } from '@ethersproject/providers'
+import { UniverseChainId, Platform } from '@universe/chains'
 import { Signer } from 'ethers/lib/ethers'
 import { createContext, PropsWithChildren, useContext, useMemo, useState } from 'react'
 import { AccountsStore } from 'uniswap/src/features/accounts/store/types/AccountsState'
 import { DisplayName } from 'uniswap/src/features/accounts/types'
 import { WalletDisplayNameOptions } from 'uniswap/src/features/accounts/useOnchainDisplayName'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { FiatOnRampCurrency } from 'uniswap/src/features/fiatOnRamp/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { SignDelegationAuthorizationFn, SwapDelegationInfo } from 'uniswap/src/features/smartWallet/delegation/types'
 import type { EarnAnalyticsEntryPoint } from 'uniswap/src/features/telemetry/types'
 import { CurrencyField } from 'uniswap/src/types/currency'
@@ -34,6 +33,11 @@ export type NavigateToEarnVaultArgs = {
   position?: EarnPositionInfo
 }
 
+export type NavigateToCategoryDetailsArgs = {
+  /** Backend category id (also the web route slug). */
+  categoryId: string
+}
+
 /** Stores objects/utils that exist on all platforms, abstracting away app-level specifics for each, in order to allow usage in cross-platform code. */
 interface UniswapContextValue {
   navigateToBuyOrReceiveWithEmptyWallet?: () => void
@@ -49,6 +53,7 @@ interface UniswapContextValue {
   // modal on mobile/extension). Optional: not all platforms/environments wire earn navigation.
   navigateToEarnVault?: (args: NavigateToEarnVaultArgs) => void
   navigateToAuction?: (args: { auctionAddress: string; chainId: UniverseChainId }) => void
+  navigateToCategoryDetails?: (args: NavigateToCategoryDetailsArgs) => void
   handleShareToken: (args: { currencyId: string }) => void
   navigateToAdvancedSettings: () => void
   onSwapChainsChanged: (args: {
@@ -86,6 +91,7 @@ interface UniswapContextValue {
   getTokenDetailsUrl?: (currencyId: string, chainSelection?: TdpChainSelection) => string
   getPoolDetailsUrl?: (args: { poolId: Address; chainId: UniverseChainId }) => string
   getExternalProfileUrl?: (args: { address: Address }) => string
+  getCategoryDetailsUrl?: (args: NavigateToCategoryDetailsArgs) => string
 }
 
 export const UniswapContext = createContext<UniswapContextValue | null>(null)
@@ -103,6 +109,7 @@ export function UniswapProvider({
   navigateToPoolDetails,
   navigateToEarnVault,
   navigateToAuction,
+  navigateToCategoryDetails,
   handleShareToken,
   navigateToAdvancedSettings,
   onSwapChainsChanged,
@@ -122,6 +129,7 @@ export function UniswapProvider({
   getTokenDetailsUrl,
   getPoolDetailsUrl,
   getExternalProfileUrl,
+  getCategoryDetailsUrl,
 }: PropsWithChildren<
   Omit<UniswapContextValue, 'isSwapTokenSelectorOpen' | 'setIsSwapTokenSelectorOpen' | 'setSwapOutputChainId'>
 >): JSX.Element {
@@ -142,6 +150,7 @@ export function UniswapProvider({
       navigateToPoolDetails,
       navigateToEarnVault,
       navigateToAuction,
+      navigateToCategoryDetails,
       handleShareToken,
       navigateToAdvancedSettings,
       onSwapChainsChanged: ({
@@ -178,6 +187,7 @@ export function UniswapProvider({
       getTokenDetailsUrl,
       getPoolDetailsUrl,
       getExternalProfileUrl,
+      getCategoryDetailsUrl,
     }),
     [
       navigateToBuyOrReceiveWithEmptyWallet,
@@ -191,6 +201,7 @@ export function UniswapProvider({
       navigateToPoolDetails,
       navigateToEarnVault,
       navigateToAuction,
+      navigateToCategoryDetails,
       handleShareToken,
       navigateToAdvancedSettings,
       signer,
@@ -213,6 +224,7 @@ export function UniswapProvider({
       getTokenDetailsUrl,
       getPoolDetailsUrl,
       getExternalProfileUrl,
+      getCategoryDetailsUrl,
     ],
   )
 

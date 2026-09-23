@@ -10,7 +10,11 @@ import { BidTokenInfo } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { formatCompactFromRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
 import { getAuctionTokenDecimals, mergeAuctionTokenMetadata } from '~/features/Toucan/Auction/utils/tokenMetadata'
-import { AuctionMetadataOverride, getAuctionMetadata } from '~/features/Toucan/Config/config'
+import {
+  AuctionMetadataOverride,
+  getAuctionLpPercentOverride,
+  getAuctionMetadata,
+} from '~/features/Toucan/Config/config'
 import { useBlockTimestamp } from '~/hooks/useBlockTimestamp'
 
 interface AuctionStatsData {
@@ -107,6 +111,7 @@ export function useAuctionStatsData(): AuctionStatsData {
     queryFn: async () =>
       AuctionQueryClient.tokenCountAllocatedToLpForAuction(
         new TokenCountAllocatedToLpForAuctionRequest({
+          // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- EVM-only contract address; normalizeTokenAddressForCache pulls @universe/api into this module graph, breaking tests that fully mock @tanstack/react-query.
           auctionContractAddress: auctionDetails!.address.toLowerCase(),
           chainId: Number(auctionDetails!.chainId),
         }),
@@ -115,6 +120,18 @@ export function useAuctionStatsData(): AuctionStatsData {
   })
 
   const percentCommittedToLpFormatted = useMemo(() => {
+    // A curated override wins over the computed value when the indexed on-chain
+    // allocation doesn't reflect the intended split for a specific auction.
+    if (auctionDetails) {
+      const lpPercentOverride = getAuctionLpPercentOverride({
+        chainId: auctionDetails.chainId,
+        auctionAddress: auctionDetails.address,
+      })
+      if (lpPercentOverride !== undefined) {
+        return formatPercent(lpPercentOverride, 1)
+      }
+    }
+
     // Denominator is the FULL token supply (tokenTotalSupply), not the auctioned slice
     // (totalSupply) — the LP allocation is drawn from the full supply, so dividing by the
     // slice overflows past 100%. tokenTotalSupply is optional (null on an RPC error).
@@ -137,7 +154,7 @@ export function useAuctionStatsData(): AuctionStatsData {
     } catch {
       return null
     }
-  }, [auctionDetails?.tokenTotalSupply, formatPercent, lpAllocationResponse?.tokenCountAllocatedToLp])
+  }, [auctionDetails, formatPercent, lpAllocationResponse?.tokenCountAllocatedToLp])
 
   // Get auction start block timestamp
   const auctionStartBlockNumber = auctionDetails?.startBlock ? Number(auctionDetails.startBlock) : undefined

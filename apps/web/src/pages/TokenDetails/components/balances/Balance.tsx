@@ -1,7 +1,6 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Flex, Text, iconSizes } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { PortfolioBalance } from 'uniswap/src/features/dataApi/types'

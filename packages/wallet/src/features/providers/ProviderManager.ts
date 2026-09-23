@@ -1,6 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
 import { providers as ethersProviders, Signer } from 'ethers'
 import { Task } from 'redux-saga'
-import { RPCType, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { RPCType } from 'uniswap/src/features/chains/types'
 import type { CreateEthersProvider } from 'uniswap/src/features/providers/createEthersProvider'
 import type { RpcConfigResolver } from 'uniswap/src/features/providers/resolveRpcConfig'
 import { logger } from 'utilities/src/logger/logger'

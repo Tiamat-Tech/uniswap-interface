@@ -1,11 +1,12 @@
+import { AnimatedFlex, Flex, UniversalImage, UniversalImageResizeMode } from '@universe/mycelium'
+import { ENTER_PRESET_CLASSES } from '@universe/mycelium/compat'
+import { fadeInQuick } from '@universe/tailwind/animations/reanimated'
 import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, type StyleProp, type ViewStyle } from 'react-native'
-import { Flex, UniversalImage } from 'ui/src'
 import { ArrowDownCircle } from 'ui/src/components/icons/ArrowDownCircle'
 import { Buy as BuyIcon } from 'ui/src/components/icons/Buy'
 import { PaperStack } from 'ui/src/components/icons/PaperStack'
-import { UniversalImageResizeMode } from 'ui/src/components/UniversalImage/types'
 import { borderRadii } from 'ui/src/theme'
 import { ActionCard, type ActionCardItem } from 'uniswap/src/components/misc/ActionCard'
 import { AccountType } from 'uniswap/src/features/accounts/types'
@@ -162,19 +163,19 @@ const LogoRendererComponent = ({
   style: StyleProp<ViewStyle>
 }): JSX.Element => {
   return (
-    <Flex
+    // Enter fade only: the legacy exitStyle never ran here — FlatList cells unmount with no
+    // presence wrapper to arm an exit.
+    <AnimatedFlex
       centered
-      animation="quick"
-      animateOnly={['opacity']}
-      enterStyle={{ opacity: 0 }}
-      exitStyle={{ opacity: 0 }}
+      className={ENTER_PRESET_CLASSES.fadeIn}
+      entering={fadeInQuick}
       marginEnd={-ICON_SHIFT}
       zIndex={-index}
       style={[style, { overflow: 'visible' }]}
       {...props}
     >
       {children}
-    </Flex>
+    </AnimatedFlex>
   )
 }
 

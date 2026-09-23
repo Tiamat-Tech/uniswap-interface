@@ -1,8 +1,8 @@
+import { Check } from '@universe/mycelium/icons/Check'
+import { LinkHorizontalAlt } from '@universe/mycelium/icons/LinkHorizontalAlt'
+import { ShareArrow } from '@universe/mycelium/icons/ShareArrow'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check } from 'ui/src/components/icons/Check'
-import { LinkHorizontalAlt } from 'ui/src/components/icons/LinkHorizontalAlt'
-import { ShareArrow } from 'ui/src/components/icons/ShareArrow'
 import { useCopyClipboard } from 'utilities/src/react/useCopyClipboard'
 import type { HeaderActionWithDropdown } from '~/components/StickyCollapsibleHeader/HeaderActions/types'
 import { openTwitterShareWindow } from '~/utils/sharing'
@@ -36,7 +36,7 @@ export function useShareAction({ name, utmSource, isMobileScreen }: UseShareActi
         {
           title: isCopied ? t('common.copied') : t('common.copyLink.button'),
           icon: isCopied ? (
-            <Check size="$icon.18" padding="$padding1" color="$statusSuccess" />
+            <Check size="$icon.18" padding="$spacing1" color="$statusSuccess" />
           ) : (
             <LinkHorizontalAlt size="$icon.18" color="$neutral1" />
           ),

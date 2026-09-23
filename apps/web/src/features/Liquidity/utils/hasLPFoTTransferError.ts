@@ -1,5 +1,6 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 
 export function hasLPFoTTransferError(
   currencyInfo: Maybe<CurrencyInfo>,
@@ -12,9 +13,9 @@ export function hasLPFoTTransferError(
     return undefined
   }
 
-  return currency.wrapped.buyFeeBps?.gt(0) ||
+  return getWrappedTokenIfExists(currency).buyFeeBps?.gt(0) ||
     (currencyInfo.safetyInfo?.blockaidFees?.buyFeePercent ?? 0) > 0 ||
-    currency.wrapped.sellFeeBps?.gt(0) ||
+    getWrappedTokenIfExists(currency).sellFeeBps?.gt(0) ||
     (currencyInfo.safetyInfo?.blockaidFees?.sellFeePercent ?? 0) > 0
     ? currencyInfo
     : undefined

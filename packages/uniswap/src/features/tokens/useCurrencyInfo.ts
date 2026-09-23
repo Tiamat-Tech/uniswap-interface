@@ -1,19 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { GqlResult, GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { GqlResult } from '@universe/api'
+import { normalizeTokenAddressForCache, UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { getCommonBase } from 'uniswap/src/constants/routing'
 import {
   getGetTokenQueryOptions,
   getGetTokensQueryOptions,
 } from 'uniswap/src/data/apiClients/dataApiService/tokens/queries'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
-import {
-  currencyIdToContractInput,
-  currencyIdToRestContractInput,
-} from 'uniswap/src/features/dataApi/utils/currencyIdToContractInput'
-import { gqlTokenToCurrencyInfo } from 'uniswap/src/features/dataApi/utils/gqlTokenToCurrencyInfo'
+import { currencyIdToRestContractInput } from 'uniswap/src/features/dataApi/utils/currencyIdToContractInput'
 import { restV2TokenToCurrencyInfo } from 'uniswap/src/features/dataApi/utils/restV2TokenToCurrencyInfo'
 import {
   buildNativeCurrencyId,
@@ -26,8 +21,6 @@ function useCurrencyInfoQuery(
   _currencyId?: string,
   options?: { refetch?: boolean; skip?: boolean },
 ): { currencyInfo: Maybe<CurrencyInfo>; loading: boolean; error?: Error } {
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
-
   const restParams = useMemo(
     () => (_currencyId ? currencyIdToRestContractInput(_currencyId) : undefined),
     [_currencyId],
@@ -35,15 +28,9 @@ function useCurrencyInfoQuery(
   const restQueryResult = useQuery(
     getGetTokenQueryOptions({
       params: restParams,
-      enabled: isV2TokensEnabled && !!restParams && !options?.skip,
+      enabled: !!restParams && !options?.skip,
     }),
   )
-
-  const gqlQueryResult = GraphQLApi.useTokenQuery({
-    variables: currencyIdToContractInput(_currencyId ?? ''),
-    skip: !_currencyId || options?.skip || isV2TokensEnabled,
-    fetchPolicy: options?.refetch ? 'cache-and-network' : 'cache-first',
-  })
 
   const currencyInfo = useMemo(() => {
     if (!_currencyId) {
@@ -59,9 +46,7 @@ function useCurrencyInfoQuery(
     }
 
     const restToken = restQueryResult.data?.token
-    const gqlToken = gqlQueryResult.data?.token
-    const logoUrlOverride = isV2TokensEnabled ? restToken?.project?.logoUrl : gqlToken?.project?.logoUrl
-    const projectIdOverride = isV2TokensEnabled ? undefined : gqlToken?.project?.id
+    const logoUrlOverride = restToken?.project?.logoUrl
 
     if (chainId && address) {
       const commonBase = getCommonBase(chainId, address)
@@ -78,31 +63,24 @@ function useCurrencyInfoQuery(
         }
         copyCommonBase.currencyId = _currencyId
 
-        // Local common base object will not have remote project id, so we add it here.
-        copyCommonBase.projectId = projectIdOverride
-
         return copyCommonBase
       }
     }
 
-    if (isV2TokensEnabled) {
-      return restToken && restV2TokenToCurrencyInfo(restToken)
-    } else {
-      return gqlToken && gqlTokenToCurrencyInfo(gqlToken)
-    }
-  }, [_currencyId, isV2TokensEnabled, restQueryResult.data?.token, gqlQueryResult.data?.token])
+    return restToken && restV2TokenToCurrencyInfo(restToken)
+  }, [_currencyId, restQueryResult.data?.token])
 
   return {
     currencyInfo,
-    loading: isV2TokensEnabled ? restQueryResult.isLoading : gqlQueryResult.loading,
-    error: (isV2TokensEnabled ? restQueryResult.error : gqlQueryResult.error) ?? undefined,
+    loading: restQueryResult.isLoading,
+    error: restQueryResult.error ?? undefined,
   }
 }
 
 // GetTokensResponse is best-effort: the response may omit unfound tokens or return them out
 // of order, so results must be matched back to the request by chainId+address.
 function restTokenKey(chainId: number, address: string): string {
-  return `${chainId}-${address.toLowerCase()}`
+  return `${chainId}-${normalizeTokenAddressForCache(address)}`
 }
 
 function useRestCurrencyInfos(
@@ -159,70 +137,23 @@ export function useCurrencyInfos(
   _currencyIds: string[],
   options?: { refetch?: boolean; skip?: boolean },
 ): Maybe<CurrencyInfo>[] {
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
-
-  const restResult = useRestCurrencyInfos(_currencyIds, { skip: !isV2TokensEnabled || options?.skip })
-
-  const { data: graphQLResult } = GraphQLApi.useTokensQuery({
-    variables: {
-      contracts: _currencyIds.map(currencyIdToContractInput),
-    },
-    skip: !_currencyIds.length || options?.skip || isV2TokensEnabled,
-    fetchPolicy: options?.refetch ? 'cache-and-network' : 'cache-first',
-  })
-
-  return useMemo(() => {
-    if (isV2TokensEnabled) {
-      return restResult.data
-    }
-    return graphQLResult?.tokens?.map((token) => token && gqlTokenToCurrencyInfo(token)) ?? []
-  }, [isV2TokensEnabled, restResult.data, graphQLResult])
+  const { data } = useRestCurrencyInfos(_currencyIds, { skip: options?.skip })
+  return data
 }
 
 export function useCurrencyInfosWithLoading(
   _currencyIds: string[],
   options?: { refetch?: boolean; skip?: boolean },
 ): GqlResult<CurrencyInfo[]> {
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
-
-  const restResult = useRestCurrencyInfos(_currencyIds, { skip: !isV2TokensEnabled || options?.skip })
-
-  const graphQLResult = GraphQLApi.useTokensQuery({
-    variables: {
-      contracts: _currencyIds.map(currencyIdToContractInput),
-    },
-    skip: !_currencyIds.length || options?.skip || isV2TokensEnabled,
-    fetchPolicy: options?.refetch ? 'cache-and-network' : 'cache-first',
-  })
+  const restResult = useRestCurrencyInfos(_currencyIds, { skip: options?.skip })
 
   return useMemo(() => {
-    if (isV2TokensEnabled) {
-      return {
-        data: restResult.data.filter((currencyInfo): currencyInfo is CurrencyInfo => !!currencyInfo),
-        loading: restResult.loading,
-        error: restResult.error,
-        refetch: graphQLResult.refetch,
-      }
-    }
     return {
-      data:
-        graphQLResult.data?.tokens
-          ?.map((token) => token && gqlTokenToCurrencyInfo(token))
-          .filter((currencyInfo) => !!currencyInfo) ?? [],
-      loading: graphQLResult.loading,
-      error: graphQLResult.error,
-      refetch: graphQLResult.refetch,
+      data: restResult.data.filter((currencyInfo): currencyInfo is CurrencyInfo => !!currencyInfo),
+      loading: restResult.loading,
+      error: restResult.error,
     }
-  }, [
-    isV2TokensEnabled,
-    restResult.data,
-    restResult.loading,
-    restResult.error,
-    graphQLResult.data?.tokens,
-    graphQLResult.loading,
-    graphQLResult.error,
-    graphQLResult.refetch,
-  ])
+  }, [restResult.data, restResult.loading, restResult.error])
 }
 
 export function useNativeCurrencyInfo(chainId: UniverseChainId): Maybe<CurrencyInfo> {

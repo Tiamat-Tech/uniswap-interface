@@ -1,14 +1,14 @@
+import { Flex, type FlexCompatProps, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, type FlexProps, Text } from 'ui/src'
 import { PrivyLogo } from 'ui/src/components/logos/PrivyLogo'
 import { ExternalLink } from '~/theme/components/Links'
 
-export function PrivyWatermark(props: FlexProps) {
+export function PrivyWatermark(props: FlexCompatProps) {
   const { t } = useTranslation()
   return (
     <Flex row alignItems="center" justifyContent="center" gap="$spacing8" {...props}>
       {/* Inter Regular 13: scoped @font-face in apps/web/index.html */}
-      <Text color="$neutral3" style={{ fontFamily: 'Inter', fontSize: 13, fontWeight: '400', lineHeight: 16 }}>
+      <Text color="$neutral3" style={{ fontFamily: 'Inter', fontSize: 13, fontWeight: '400', lineHeight: '16px' }}>
         {t('onboarding.keyManagement.securedBy')}
       </Text>
       <ExternalLink href="https://www.privy.io/user-help-center" style={{ stroke: 'none' }}>

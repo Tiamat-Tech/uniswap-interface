@@ -6,7 +6,7 @@ import type {
   UnwrapQuoteResponse,
   WrapQuoteResponse,
 } from '@universe/api'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import type {
   SignDelegationAuthorizationFn,
   SwapDelegationInfo,

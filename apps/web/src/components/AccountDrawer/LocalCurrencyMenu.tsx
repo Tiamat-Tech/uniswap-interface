@@ -1,9 +1,9 @@
+import { Flex, iconSizes } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { FiatCurrency, ORDERED_CURRENCIES } from 'uniswap/src/features/fiatCurrency/constants'
 import { useAppFiatCurrency } from 'uniswap/src/features/fiatCurrency/hooks'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { MenuColumn, MenuItem } from '~/components/AccountDrawer/shared'
 import { SlideOutMenu } from '~/components/AccountDrawer/SlideOutMenu'
 import { getLocalCurrencyIcon } from '~/constants/localCurrencies'
@@ -31,7 +31,7 @@ function LocalCurrencyMenuItem({ localCurrency, isActive }: { localCurrency: Fia
       isActive={isActive}
       to={to}
       onClick={onClick}
-      testId="wallet-local-currency-item"
+      testId={TestID.WalletLocalCurrencyItem}
     />
   )
 }

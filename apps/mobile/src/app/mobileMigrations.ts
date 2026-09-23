@@ -1,9 +1,9 @@
 /* oxlint-disable max-lines */
 // Type information currently gets lost after a migration
 
+import { UniverseChainId } from '@universe/chains'
 import dayjs from 'dayjs'
 import { AccountType } from 'uniswap/src/features/accounts/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
 import { FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
 import { Language } from 'uniswap/src/features/language/constants'

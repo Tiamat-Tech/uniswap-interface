@@ -1,24 +1,21 @@
 import type { GetWalletBalancesResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import type { DataApiServiceClient } from '@universe/api/src/clients/dataApi/createDataApiServiceClient'
+import { createMockDataApiServiceClient } from '@universe/api/src/clients/dataApi/createMockDataApiServiceClient'
 import { getGetWalletBalancesQueryOptions } from '@universe/api/src/clients/dataApi/getGetWalletBalancesQueryOptions'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { hashKey } from 'utilities/src/reactQuery/hashKey'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('getGetWalletBalancesQueryOptions', () => {
   let mockClient: DataApiServiceClient
+  let getWalletBalances: Mock<DataApiServiceClient['getWalletBalances']>
 
   const createMockResponse = (): GetWalletBalancesResponse =>
     ({ balance: undefined }) as unknown as GetWalletBalancesResponse
 
   beforeEach(() => {
-    mockClient = {
-      getPortfolio: vi.fn(),
-      getWalletBalances: vi.fn().mockResolvedValue(createMockResponse()),
-      getWalletsBalances: vi.fn(),
-      listTokens: vi.fn(),
-      listTopPools: vi.fn(),
-    }
+    getWalletBalances = vi.fn<DataApiServiceClient['getWalletBalances']>().mockResolvedValue(createMockResponse())
+    mockClient = createMockDataApiServiceClient({ getWalletBalances })
   })
 
   describe('queryKey', () => {
@@ -99,7 +96,7 @@ describe('getGetWalletBalancesQueryOptions', () => {
         NonNullable<typeof options.queryFn>
       >[0])
       expect(result).toBeUndefined()
-      expect(mockClient.getWalletBalances).not.toHaveBeenCalled()
+      expect(getWalletBalances).not.toHaveBeenCalled()
     })
 
     it('calls client.getWalletBalances with transformed input (walletAccount) and returns response', async () => {
@@ -109,12 +106,10 @@ describe('getGetWalletBalancesQueryOptions', () => {
       const result = await options.queryFn?.({ queryKey: options.queryKey } as unknown as Parameters<
         NonNullable<typeof options.queryFn>
       >[0])
-      expect(mockClient.getWalletBalances).toHaveBeenCalledTimes(1)
-      const callArg = (mockClient.getWalletBalances as ReturnType<typeof vi.fn>).mock.calls[0][0]
-      expect(callArg).toHaveProperty('walletAccount')
-      expect(callArg.walletAccount).toHaveProperty('platformAddresses')
-      expect(callArg.walletAccount.platformAddresses).toHaveLength(1)
-      expect(callArg.walletAccount.platformAddresses[0]).toMatchObject({ address: '0x123' })
+      expect(getWalletBalances).toHaveBeenCalledTimes(1)
+      const callArg = getWalletBalances.mock.calls[0]?.[0]
+      expect(callArg?.walletAccount?.platformAddresses).toHaveLength(1)
+      expect(callArg?.walletAccount?.platformAddresses?.[0]).toMatchObject({ address: '0x123' })
       expect(callArg).toMatchObject({ chainIds: [1] })
       expect(result).toEqual(createMockResponse())
     })
@@ -126,10 +121,8 @@ describe('getGetWalletBalancesQueryOptions', () => {
       await options.queryFn?.({ queryKey: options.queryKey } as unknown as Parameters<
         NonNullable<typeof options.queryFn>
       >[0])
-      const callArg = (mockClient.getWalletBalances as ReturnType<typeof vi.fn>).mock.calls[0][0]
-      const svmEntry = callArg.walletAccount.platformAddresses.find(
-        (p: { address: string }) => p.address === 'svm-addr',
-      )
+      const callArg = getWalletBalances.mock.calls[0]?.[0]
+      const svmEntry = callArg?.walletAccount?.platformAddresses?.find((p) => p.address === 'svm-addr')
       expect(svmEntry).toBeDefined()
     })
 
@@ -141,8 +134,8 @@ describe('getGetWalletBalancesQueryOptions', () => {
       await options.queryFn?.({ queryKey: options.queryKey } as unknown as Parameters<
         NonNullable<typeof options.queryFn>
       >[0])
-      const callArg = (mockClient.getWalletBalances as ReturnType<typeof vi.fn>).mock.calls[0][0]
-      expect(callArg.modifier).toEqual(modifier)
+      const callArg = getWalletBalances.mock.calls[0]?.[0]
+      expect(callArg?.modifier).toEqual(modifier)
     })
 
     it('passes include_categories through to client.getWalletBalances', async () => {
@@ -152,8 +145,8 @@ describe('getGetWalletBalancesQueryOptions', () => {
       await options.queryFn?.({ queryKey: options.queryKey } as unknown as Parameters<
         NonNullable<typeof options.queryFn>
       >[0])
-      const callArg = (mockClient.getWalletBalances as ReturnType<typeof vi.fn>).mock.calls[0][0]
-      expect(callArg.includeCategories).toEqual([1])
+      const callArg = getWalletBalances.mock.calls[0]?.[0]
+      expect(callArg?.includeCategories).toEqual([1])
     })
   })
 

@@ -1,12 +1,11 @@
 import { ProtocolVersion as RestProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
-import { opacify } from 'ui/src/theme'
 import { BIPS_BASE } from 'uniswap/src/constants/misc'
-import { useGetPool } from 'uniswap/src/data/apiClients/dataApiService/pools/getPools'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
@@ -17,6 +16,7 @@ import {
   priceFromTick,
   toDisplayPrice,
 } from '~/pages/PoolDetails/components/ChartSection/DepthChart.utils'
+import { usePdpPool } from '~/pages/PoolDetails/components/ChartSection/usePdpPool'
 
 type BookSide = 'ask' | 'bid'
 
@@ -195,7 +195,7 @@ export function OrderBook({
   const askColor = colors.statusCritical.val
   const bidColor = colors.statusSuccess.val
 
-  const { data: poolData } = useGetPool({ chainId, poolId, protocolVersion: version }, Boolean(poolId))
+  const { pool } = usePdpPool({ poolId, chainId })
 
   const sdkCurrencies = useMemo(() => ({ TOKEN0: tokenA, TOKEN1: tokenB }), [tokenA, tokenB])
 
@@ -207,7 +207,7 @@ export function OrderBook({
     version,
     hooks,
     poolId,
-    tickSpacing: poolData?.pool?.tickSpacing,
+    tickSpacing: pool?.tickSpacing,
   })
 
   const { asks, bids } = useMemo(() => {
@@ -265,7 +265,7 @@ export function OrderBook({
       overflow={height !== undefined ? 'hidden' : undefined}
     >
       {/* Column headers */}
-      <Flex row px="$padding8" pt="$padding16" pb="$padding4">
+      <Flex row px="$padding8" pt="$padding16" pb="$spacing4">
         <Flex width="34%">
           <Text variant="body4" color="$neutral2" numberOfLines={1}>
             {t('common.price')} ({quoteSymbol})

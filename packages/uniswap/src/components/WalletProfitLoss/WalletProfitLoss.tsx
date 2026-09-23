@@ -1,5 +1,5 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { PnlInfoTrigger } from 'uniswap/src/components/ProfitLoss/PnlInfoTrigger'
 import { ProfitLossRow } from 'uniswap/src/components/ProfitLoss/ProfitLossRow'
 import { useHasEarnLifetimeRewards } from 'uniswap/src/features/earn/hooks/useHasEarnLifetimeRewards'

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { fonts, iconSizes, radii, spacing, typography, zIndexes } from './tokens'
+import { fonts, heights, iconSizes, imageSizes, radii, spacing, typography, zIndexes } from './tokens'
 
 /**
  * Derivation honesty guard (INFRA-2951): the TS value mirror in ./tokens.ts
@@ -29,8 +29,8 @@ function parsePxFamily(css: string, prefix: string): Record<string, number> {
   const out: Record<string, number> = {}
   const pattern = new RegExp(`--${prefix}-(?<name>[a-z0-9-]+):\\s*(?<value>[^;]+);`, 'g')
   for (const match of css.matchAll(pattern)) {
-    const name = match.groups?.name
-    const rawValue = match.groups?.value
+    const name = match.groups?.['name']
+    const rawValue = match.groups?.['value']
     if (name === undefined || rawValue === undefined) {
       continue
     }
@@ -47,8 +47,8 @@ function parsePxFamily(css: string, prefix: string): Record<string, number> {
 function parseCssZIndexes(css: string): Record<string, number> {
   const out: Record<string, number> = {}
   for (const match of css.matchAll(/--z-index-(?<name>[a-z0-9-]+):\s*(?<value>-?\d+)\s*;/g)) {
-    const name = match.groups?.name
-    const value = match.groups?.value
+    const name = match.groups?.['name']
+    const value = match.groups?.['value']
     if (name !== undefined && value !== undefined) {
       out[name] = Number(value)
     }
@@ -67,8 +67,8 @@ interface CssFontToken {
 function parseCssFonts(css: string): Record<string, CssFontToken> {
   const out: Record<string, CssFontToken> = {}
   for (const match of css.matchAll(/--typography-(?<key>[a-z0-9-]+):\s*(?<value>[^;]+);/g)) {
-    const key = match.groups?.key
-    const rawValue = match.groups?.value
+    const key = match.groups?.['key']
+    const rawValue = match.groups?.['value']
     if (key === undefined || key === '' || rawValue === undefined) {
       continue
     }
@@ -115,8 +115,8 @@ function parseCssLengthPx(value: string, context: string): number {
 function parseCssTypography(css: string): Record<string, CssTypographyToken> {
   const out: Record<string, CssTypographyToken> = {}
   for (const match of css.matchAll(/--text-(?<key>[a-z0-9-]+):\s*(?<value>[^;]+);/g)) {
-    const key = match.groups?.key
-    const rawValue = match.groups?.value
+    const key = match.groups?.['key']
+    const rawValue = match.groups?.['value']
     if (key === undefined || key === '' || rawValue === undefined) {
       continue
     }
@@ -156,8 +156,16 @@ describe('TS token mirror ↔ css/theme.css (derivation honesty guard)', () => {
     expect({ ...iconSizes }).toEqual(parsePxFamily(themeCss, 'icon-size'))
   })
 
+  it('imageSizes match the --image-size-* custom properties', () => {
+    expect({ ...imageSizes }).toEqual(parsePxFamily(themeCss, 'image-size'))
+  })
+
   it('spacing matches the --ui-spacing-* custom properties', () => {
     expect({ ...spacing }).toEqual(parsePxFamily(themeCss, 'ui-spacing'))
+  })
+
+  it('heights match the --height-* custom properties', () => {
+    expect({ ...heights }).toEqual(parsePxFamily(themeCss, 'height'))
   })
 
   it('zIndexes match the --z-index-* custom properties', () => {

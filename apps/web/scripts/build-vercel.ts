@@ -13,6 +13,7 @@
 import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { copyOgAssets, inlineAssetPlugin, tsconfigPathsPlugin } from './bun-server-build'
+import { enableDebugRoutes } from './debug-routes'
 
 const ROOT = resolve(import.meta.dirname, '..')
 const OUTPUT_DIR = resolve(ROOT, '.vercel/output')
@@ -47,6 +48,10 @@ const bundleResult = await Bun.build({
   naming: 'index.mjs',
   target: 'node',
   format: 'esm',
+  // Vite's define never reaches this bundle (functions/app.ts).
+  define: {
+    'process.env.ENABLE_DEBUG_ROUTES': JSON.stringify(enableDebugRoutes(process.env.VERCEL_ENV)),
+  },
   plugins: [tsconfigPathsPlugin, inlineAssetPlugin],
 })
 

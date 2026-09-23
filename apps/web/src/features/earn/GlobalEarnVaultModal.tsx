@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { useGlobalEarnVaultModalStore } from '~/features/earn/globalEarnVaultModalStore'
 
 const EarnVaultModal = lazy(() =>
@@ -8,9 +7,8 @@ const EarnVaultModal = lazy(() =>
 )
 
 export function GlobalEarnVaultModal(): JSX.Element | null {
-  const isEarnEnabled = useIsEarnEnabled()
   const { isTestnetModeEnabled } = useEnabledChains()
-  const isEarnAvailable = isEarnEnabled && !isTestnetModeEnabled
+  const isEarnAvailable = !isTestnetModeEnabled
   const closeModal = useGlobalEarnVaultModalStore((s) => s.closeModal)
   const selectedVaultState = useGlobalEarnVaultModalStore((s) => s.selectedVaultState)
 

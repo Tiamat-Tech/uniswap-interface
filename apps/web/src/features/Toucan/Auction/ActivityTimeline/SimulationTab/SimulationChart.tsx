@@ -1,12 +1,12 @@
 /* oxlint-disable max-lines */
 import type { AuctionStep } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
+import type { EVMUniverseChainId } from '@universe/chains'
+import { Flex, Text, zIndexes } from '@universe/mycelium'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { AreaSeries, LineSeries } from 'lightweight-charts'
 import type { ISeriesApi, MouseEventParams, Time, UTCTimestamp } from 'lightweight-charts'
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
-import { opacify } from 'ui/src/theme'
-import { zIndexes } from 'ui/src/theme/zIndexes'
-import type { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import { computeSimulationResult } from '~/features/Toucan/Auction/ActivityTimeline/SimulationTab/utils/computeSimulationResult'
 import { fromQ96ToDecimalWithTokenDecimals } from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
 import { AUCTION_CHART_HEIGHT, useAuctionChart } from '~/features/Toucan/Auction/hooks/useAuctionChart'
@@ -390,7 +390,7 @@ export function SimulationChart({ maxTokenPrice, expectedFinalPrice, budget, tok
     const handler = (param: MouseEventParams<Time>) => handleCrosshairMoveRef.current(param)
     chart.subscribeCrosshairMove(handler)
 
-    baselineSeriesRef.current = chart.addLineSeries({
+    baselineSeriesRef.current = chart.addSeries(LineSeries, {
       priceScaleId: 'baseline',
       visible: false,
       priceLineVisible: false,
@@ -398,7 +398,7 @@ export function SimulationChart({ maxTokenPrice, expectedFinalPrice, budget, tok
       crosshairMarkerVisible: false,
     })
 
-    activeSeriesRef.current = chart.addAreaSeries({
+    activeSeriesRef.current = chart.addSeries(AreaSeries, {
       priceScaleId: 'overlay-price',
       lineWidth: 2,
       lineColor: colors.statusSuccess.val,
@@ -411,7 +411,7 @@ export function SimulationChart({ maxTokenPrice, expectedFinalPrice, budget, tok
       crosshairMarkerBorderColor: colors.statusSuccess.val,
     })
 
-    outbidSeriesRef.current = chart.addAreaSeries({
+    outbidSeriesRef.current = chart.addSeries(AreaSeries, {
       priceScaleId: 'overlay-price',
       lineWidth: 2,
       lineColor: colors.statusCritical.val,
@@ -424,7 +424,7 @@ export function SimulationChart({ maxTokenPrice, expectedFinalPrice, budget, tok
       crosshairMarkerBorderColor: colors.statusCritical.val,
     })
 
-    thresholdSeriesRef.current = chart.addLineSeries({
+    thresholdSeriesRef.current = chart.addSeries(LineSeries, {
       priceScaleId: 'overlay-price',
       lineWidth: 1,
       lineStyle: 2, // dashed

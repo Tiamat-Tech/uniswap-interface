@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { useCallback, useEffect, useState } from 'react'
-import { Flex } from 'ui/src/components/layout'
 import { SWIPEABLE_CARD_Y_OFFSET } from 'ui/src/components/swipeablecards/BaseCard'
 import { PickedCardProps, SwipeableCardStackProps } from 'ui/src/components/swipeablecards/props'
 import { SwipeableCard } from 'ui/src/components/swipeablecards/SwipeableCard'

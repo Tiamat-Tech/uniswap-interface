@@ -1,5 +1,5 @@
 import { DappVerificationStatus } from '@universe/api'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import { z } from 'zod'
 
 export const CapabilitySchema = z.record(z.string(), z.unknown())
@@ -96,6 +96,19 @@ export interface DappConnectionInfo {
 }
 
 /**
+ * Local errors that can replace or supplement a Blockaid transaction preview.
+ */
+export enum TransactionErrorType {
+  DecodeMessage = 'decode_message',
+  DecodeTransaction = 'decode_transaction',
+  ContractInteraction = 'contract_interaction',
+  UnverifiedRecipient = 'unverified_recipient',
+  ScanFailed = 'scan_failed',
+  /** The scan cannot succeed for this request, so retrying it will not help. */
+  ScanUnavailable = 'scan_unavailable',
+}
+
+/**
  * Risk level derived from Blockaid validation classification
  */
 export enum TransactionRiskLevel {
@@ -105,6 +118,27 @@ export enum TransactionRiskLevel {
   Warning = 'warning',
   /** Critical/Malicious - high risk transaction */
   Critical = 'critical',
+}
+
+export enum TransactionApprovalScope {
+  SingleToken = 'single-token',
+  Collection = 'collection',
+}
+
+export enum TransactionApprovalAction {
+  Grant = 'grant',
+  Revoke = 'revoke',
+  Change = 'change',
+}
+
+/**
+ * Minimal view of a normalized request call — `EthTransaction` and the sendCalls `Call` both
+ * satisfy it.
+ */
+export interface DappRequestCall {
+  to?: string
+  data?: string
+  value?: string
 }
 
 /**
@@ -129,6 +163,12 @@ export interface TransactionAsset {
   logoUrl?: string
   /** Spender address (for approvals) */
   spenderAddress?: string
+  /** NFT token identifier (for a token-specific approval) */
+  tokenId?: string
+  /** Scope of an NFT approval change */
+  approvalScope?: TransactionApprovalScope
+  /** Whether the approval is granted, revoked, or changed with an ambiguous direction */
+  approvalAction?: TransactionApprovalAction
 }
 
 /**

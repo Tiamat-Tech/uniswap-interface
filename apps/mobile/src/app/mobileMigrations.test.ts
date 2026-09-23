@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 /**
  * Isolated tests for individual migration functions.
  *
@@ -79,7 +80,6 @@ import {
   updateLanguageSettings,
 } from 'src/app/mobileMigrations'
 import { AccountType } from 'uniswap/src/features/accounts/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
 import { Language } from 'uniswap/src/features/language/constants'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'

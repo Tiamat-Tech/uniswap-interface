@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { CSSProperties, ReactNode } from 'react'
-import { Flex } from 'ui/src'
 
 interface TokenLaunchedBannerWrapperProps {
   bannerGradient: CSSProperties

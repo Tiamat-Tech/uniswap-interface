@@ -1,3 +1,4 @@
+import { areEvmAddressesEqual } from '@universe/chains'
 import { REALTIME_RATE_TOKEN_ADDRESS } from '@universe/prices/src/sources/websocket/realtimeJoiner'
 import type { TokenSubscriptionParams } from '@universe/prices/src/types'
 import type { WebSocketClient } from '@universe/websocket'
@@ -19,7 +20,11 @@ export function withRealtimeRateSubscription<TMessage>(
       const unsubscribe = client.subscribe(options)
       const { chainId, tokenAddress, poolRoute } = options.params
       // Pool-routed tokens don't ride the realtime channel, so they hold no rate room.
-      if (poolRoute || !realtimeChainIds.has(chainId) || tokenAddress.toLowerCase() === REALTIME_RATE_TOKEN_ADDRESS) {
+      if (
+        poolRoute ||
+        !realtimeChainIds.has(chainId) ||
+        areEvmAddressesEqual(tokenAddress, REALTIME_RATE_TOKEN_ADDRESS)
+      ) {
         return unsubscribe
       }
       const unsubscribeRate = client.subscribe({

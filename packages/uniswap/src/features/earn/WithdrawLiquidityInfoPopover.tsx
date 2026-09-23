@@ -1,5 +1,5 @@
+import { iconSizes } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { EarnInfoPopover } from 'uniswap/src/features/earn/EarnInfoPopover'

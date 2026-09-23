@@ -5,7 +5,14 @@
  * flexbox layered over the universal `CompatStyleProps` — plus the
  * Text-specific pass-through (title, loading shimmer, RN Text inert props).
  */
-import type { CompatProps, CompatPseudoProps, CompatStyleProps, SizeValue, SpaceValue } from '../compat/props'
+import type {
+  CompatProps,
+  CompatPseudoProps,
+  CompatStyleProps,
+  SizeValue,
+  SpaceValue,
+  TamaguiVariable,
+} from '../compat/props'
 import type { LongTailStyleProp } from './style-props'
 import type { SporeColorToken, TextVariant } from './tokens'
 
@@ -20,8 +27,8 @@ export type {
   TransformEntry,
 } from '../compat/props'
 
-/** Spore theme color token ($neutral1 / neutral1) or any raw CSS color. */
-export type ColorValue = SporeColorToken | (string & {})
+/** Spore theme color token ($neutral1 / neutral1), any raw CSS color, or a runtime Variable. */
+export type ColorValue = SporeColorToken | (string & {}) | TamaguiVariable
 
 export type FlexDirection = 'row' | 'column' | 'row-reverse' | 'column-reverse' | 'unset'
 export type AlignItems = 'stretch' | 'flex-start' | 'flex-end' | 'center' | 'baseline' | 'unset'
@@ -44,22 +51,35 @@ export type DisplayValue =
   | 'flex'
   | 'inline-flex'
   | 'inline-block'
+  | 'grid'
+  | 'inline-grid'
   | 'unset'
 
 export type TextAlign = 'auto' | 'left' | 'right' | 'center' | 'justify' | 'start' | 'end' | 'unset'
 export type TextTransform = 'none' | 'capitalize' | 'uppercase' | 'lowercase' | 'unset'
 export type TextDecorationLine = 'none' | 'underline' | 'line-through' | 'underline line-through' | 'unset'
 export type FontStyle = 'normal' | 'italic' | 'unset'
-export type WhiteSpace = 'normal' | 'nowrap' | 'pre' | 'pre-line' | 'pre-wrap' | 'break-spaces' | 'unset'
+export type WhiteSpace =
+  | 'normal'
+  | 'nowrap'
+  | 'pre'
+  | 'pre-line'
+  | 'pre-wrap'
+  | 'break-spaces'
+  | 'wrap'
+  | 'initial'
+  | 'unset'
 export type WordWrap = 'normal' | 'break-word' | 'anywhere' | 'unset'
+/** CSS `word-break`, not `word-wrap`/`overflow-wrap` — both accept `'break-word'` but affect different properties. */
+export type WordBreak = 'normal' | 'break-all' | 'keep-all' | 'break-word' | 'unset'
 export type UserSelect = 'auto' | 'text' | 'none' | 'contain' | 'all' | 'unset'
 
 /** Tamagui font tokens; fontSize/lineHeight tokens resolve against the active font. */
 export type FontFamilyToken = '$heading' | '$subHeading' | '$body' | '$button' | '$monospace'
-/** Font-relative size/lineHeight token, Text-variant-named token, raw number (px), or CSS string. */
-export type FontSizeValue = `$${string}` | number | string
-export type FontWeightValue = '$book' | '$medium' | '$true' | number | (string & {})
-export type LineHeightValue = `$${string}` | number | 'unset' | (string & {})
+/** Font-relative size/lineHeight token, Text-variant-named token, raw number (px), CSS string, or runtime Variable. */
+export type FontSizeValue = `$${string}` | number | string | TamaguiVariable
+export type FontWeightValue = '$book' | '$medium' | '$true' | number | (string & {}) | TamaguiVariable
+export type LineHeightValue = `$${string}` | number | 'unset' | (string & {}) | TamaguiVariable
 
 /** The Text-specific curated surface: typography, truncation, and flexbox. */
 export interface TextStyleProps {
@@ -67,7 +87,7 @@ export interface TextStyleProps {
   /** Typography variant — valid inside media/pseudo pools too, like Tamagui. */
   variant?: TextVariant
   color?: ColorValue
-  fontFamily?: FontFamilyToken | (string & {})
+  fontFamily?: FontFamilyToken | (string & {}) | TamaguiVariable
   fontSize?: FontSizeValue
   fontWeight?: FontWeightValue
   fontStyle?: FontStyle
@@ -80,6 +100,7 @@ export interface TextStyleProps {
   textDecorationColor?: ColorValue
   whiteSpace?: WhiteSpace
   wordWrap?: WordWrap
+  wordBreak?: WordBreak
   textOverflow?: 'clip' | 'ellipsis' | 'unset'
   userSelect?: UserSelect
   cursor?: string
@@ -112,9 +133,9 @@ export interface TextStyleProps {
   columnGap?: SpaceValue
 }
 
-/** Generic long-tail props — compiled to arbitrary-property utilities. */
+/** Generic long-tail props — compiled to arbitrary-property utilities. Variables unwrap like every other lane. */
 export type LongTailStyleProps = {
-  [K in LongTailStyleProp]?: string | number
+  [K in LongTailStyleProp]?: string | number | TamaguiVariable
 }
 
 /**

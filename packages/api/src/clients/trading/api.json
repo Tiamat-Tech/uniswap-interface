@@ -28,6 +28,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/permit2DisabledHeader"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "requestBody": {
@@ -80,6 +83,11 @@
         "summary": "Check token KYC permissions",
         "description": "For each token in the request, reports whether the token requires a permissioned adapter and whether the supplied `walletAddress` is allowlisted to trade it. If the token is permissioned but the wallet is not allowlisted, the response includes a `kycUrl` the wallet holder must complete to gain access. The request supports a maximum of 2 tokens.",
         "operationId": "permissions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -148,6 +156,9 @@
           },
           {
             "$ref": "#/components/parameters/swapStepsEnabledHeader"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "requestBody": {
@@ -221,6 +232,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/erc20EthEnabledHeader"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "requestBody": {
@@ -300,6 +314,9 @@
           },
           {
             "$ref": "#/components/parameters/cursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "responses": {
@@ -346,6 +363,9 @@
           },
           {
             "$ref": "#/components/parameters/permit2DisabledHeader"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "requestBody": {
@@ -540,6 +560,9 @@
           {
             "$ref": "#/components/parameters/swapperParam",
             "x-internal": true
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "responses": {
@@ -583,6 +606,9 @@
           },
           {
             "$ref": "#/components/parameters/bridgeTokenInChainIdParam"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "responses": {
@@ -623,10 +649,63 @@
             "apiKey": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/components/responses/GetSupportedChainsSuccess200"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized401"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimitedErr429"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalErr500"
+          },
+          "504": {
+            "$ref": "#/components/responses/Timeout504"
+          }
+        }
+      }
+    },
+    "/tokens": {
+      "get": {
+        "tags": [
+          "utilities"
+        ],
+        "summary": "Get tokens",
+        "description": "Returns a list of tokens and their associated metadata, formatted in the style of a token list. `sort=tvl` and `sort=volume_24h` return the top `limit` tokens ranked across the requested chains, expanded to one entry per chain instance. `sort=default` (the default) returns the full Uniswap default token list; `limit` and `chainId` are ignored. `sort=bridgeable` returns all tokens with at least one bridgeable chain executable via the Uniswap API. This endpoint never returns `404`: an empty result (e.g. a ranked sort with no data for the requested chain) is a `200` with an empty `tokens` array, and internal data-source failures surface as `500`, or `504` on timeout.",
+        "operationId": "get_tokens",
+        "security": [
+          {
+            "apiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tokenListSortParam"
+          },
+          {
+            "$ref": "#/components/parameters/tokenListLimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/tokenListChainIdParam"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/GetTokensSuccess200"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest400"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized401"
@@ -651,6 +730,11 @@
         "summary": "Get a limit order quote",
         "description": "Get a quote for a limit order according to the provided configuration.",
         "operationId": "get_limit_order_quote",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -700,6 +784,11 @@
         "summary": "Check LP token approvals",
         "description": "Checks whether the wallet has the required token approvals to perform an LP action (create, increase, decrease, or migrate). Returns any needed approval transactions. If `simulateTransaction` is set to `true`, the response will include gas fees for the approval transactions.\n\nThe `action` field specifies which LP operation the approval is for. Different actions may require different approvals (e.g., V2 decrease requires approval of the LP token, V3 migrate requires approval of the V3 NFT).",
         "operationId": "check_lp_approval",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -769,6 +858,11 @@
         "summary": "Create a V3 or V4 LP position",
         "description": "Creates a new LP position in a V3 or V4 pool (including full-range positions). You can create a position in an existing pool by providing `existingPool` parameters, or create a new pool by providing `newPool` parameters (fee, tick spacing, initial price, and optionally hooks for V4). The position's price range is specified via either `priceBounds` or `tickBounds`. The server computes the dependent token amount. If `simulateTransaction` is set to `true`, the response will include the gas fee.",
         "operationId": "create_position",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -846,6 +940,11 @@
         "summary": "Increase an LP position",
         "description": "Increases liquidity in an existing position. Specify the independent token and amount; the server derives the dependent token amount from the current pool state. Supports V2 (by token pair), V3, and V4 (by NFT token ID). If `simulateTransaction` is set to `true`, the response will include the gas fee.",
         "operationId": "increase_position",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -912,6 +1011,11 @@
         "summary": "Decrease an LP position",
         "description": "Decreases liquidity in an existing position by a specified percentage. The server derives all position state (liquidity, fees, ticks) from on-chain data. Supports V2 (by token pair), V3, and V4 (by NFT token ID). If `simulateTransaction` is set to `true`, the response will include the gas fee.",
         "operationId": "decrease_position",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -975,6 +1079,11 @@
         "summary": "Claim LP position fees",
         "description": "Claims accumulated trading fees from a V3 or V4 LP position. If `simulateTransaction` is set to `true`, the response will include the gas fee for the claim transaction.\n\nNote: V2 positions do not have claimable fees. V2 trading fees are automatically added to your LP token balance.",
         "operationId": "claim_fees",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -1035,6 +1144,11 @@
         "summary": "Create a classic (V2) LP position",
         "description": "Creates a full-range liquidity position in a Uniswap V2 pool. Specify the independent token and amount; the server computes the dependent token amount based on the current pool ratio. If `simulateTransaction` is set to `true`, the response will include the gas fee for the creation transaction.",
         "operationId": "create_classic_position",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -1105,6 +1219,11 @@
         "summary": "Get pool state",
         "description": "Fetches detailed information about one or more liquidity pools across Uniswap v2, v3, and v4. Returns pool state including token addresses, reserves, liquidity, current tick, sqrtRatioX96, fee tier, tick spacing, and hook addresses (V4).\n\nProvide one of `poolParameters` or `poolReferences` (not both):\n- `poolParameters`: Look up pools by token pair. Provide token addresses and optional fee/tickSpacing/hooks to find matching pools.\n- `poolReferences`: Look up specific known pools by their reference identifier (pool address for v3, pool ID for v4, pair address for v2). Limited to 20 references per request; larger batches are rejected with an HTTP 400 error.\n\nPool reserves (`token0Reserves`/`token1Reserves`) are returned for v2 pools and, best-effort, for v4 pools. v4 reserves are the fee-excluded core principal computed from on-chain pool state: uncollected LP fees, donations, and hook-held assets are excluded, and for pools whose hooks perform custom accounting the value approximates swappable reserves.",
         "operationId": "pool_info",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -1162,6 +1281,11 @@
         "summary": "Encode wallet transactions",
         "description": "Encodes a list of transactions into a single transaction for an EIP-7702 delegated smart contract wallet. All transactions must have the same chainId.",
         "operationId": "wallet_encode_7702",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -1209,6 +1333,11 @@
         "summary": "Get wallet delegations",
         "description": "Gets the current delegation status and message for a smart contract wallet across different chains. Returns delegation information for each chain ID in the request.",
         "operationId": "wallet_check_delegation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -1398,6 +1527,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/universalRouterVersionHeader"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "responses": {
@@ -1569,6 +1701,9 @@
           },
           {
             "$ref": "#/components/parameters/erc20EthEnabledHeader"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "responses": {
@@ -1621,6 +1756,9 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/universalRouterVersionHeader"
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "responses": {
@@ -1664,6 +1802,11 @@
         "summary": "Create approval ERC-4337 UserOperation",
         "description": "Builds and returns an ERC-4337 v0.8 UserOperation that performs the ERC-20 approval (and any required allowance reset) needed before a swap. Paymaster fields and `signature` are left for the client to populate. When `sponsorshipInfo.sponsored` is `true`, the approval is tagged for sponsorship and a `paymasterServiceContext` envelope is returned for the client to forward to the paymaster.",
         "operationId": "check_approval_4337",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -1719,6 +1862,11 @@
         "summary": "Create an execution plan",
         "description": "Creates a multi-step execution plan for chained transactions. The plan breaks down complex multi-chain or multi-transaction flows into sequential steps that can be executed by the client. Each step includes the method (transaction, message signature, or batch calls), payload, and current status. The response includes the current step index to track progress through the plan.",
         "operationId": "create_plan",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -1790,6 +1938,9 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "responses": {
@@ -1838,6 +1989,9 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
           }
         ],
         "requestBody": {
@@ -1888,6 +2042,11 @@
         "summary": "Encode ERC-4337 UserOperation",
         "description": "Builds and returns a fully-populated ERC-4337 v0.8 UserOperation for the given batch of calls. When a `paymasterUrl` is provided the endpoint attempts gas sponsorship via the paymaster; the response indicates whether sponsorship was granted and includes sponsor metadata when available.",
         "operationId": "encode_4337",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/agentInfoHeader"
+          }
+        ],
         "security": [
           {
             "apiKey": []
@@ -2886,6 +3045,45 @@
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/Err422"
+            }
+          }
+        }
+      },
+      "GetTokensSuccess200": {
+        "description": "Get tokens successful. An empty `tokens` array is a valid result when no tokens match the requested sort and chains.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/GetTokensResponse"
+            },
+            "example": {
+              "requestId": "cL_1ih66iYcEJ2g=",
+              "tokens": [
+                {
+                  "name": "USD Coin",
+                  "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                  "chainId": 1,
+                  "symbol": "USDC",
+                  "decimals": 6,
+                  "logoURI": "https://coin-images.coingecko.com/coins/images/6319/large/USDC.png?1769615602",
+                  "extensions": {
+                    "bridgeInfo": {
+                      "8453": {
+                        "tokenAddress": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                      },
+                      "42161": {
+                        "tokenAddress": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+                      }
+                    },
+                    "safetyInfo": {
+                      "safetyLevel": "info",
+                      "safetyDescription": "This token is not on a Uniswap-hosted token list.",
+                      "buyFee": 0,
+                      "sellFee": 0
+                    }
+                  }
+                }
+              ]
             }
           }
         }
@@ -7635,11 +7833,11 @@
           },
           "fee": {
             "type": "number",
-            "description": "The fee of the pool, if the pool has a fee value. Must be provided for V3 or V4 pools."
+            "description": "The fee tier of the pool. Must be provided for v3 and v4 pools."
           },
           "tickSpacing": {
             "type": "number",
-            "description": "The width of ticks in this pool (e.g. the price range between two ticks) specified in basis points. Must be provided for V3 or V4 pools."
+            "description": "The width of ticks in this pool (e.g. the price range between two ticks) specified in basis points. Must be provided for v4 pools."
           },
           "hookAddress": {
             "type": "string",
@@ -7667,7 +7865,7 @@
         },
         "required": [
           "protocol",
-          "poolAddress",
+          "referenceIdentifier",
           "chainId"
         ]
       },
@@ -8606,6 +8804,123 @@
           "chainId",
           "underlyingAsset"
         ]
+      },
+      "TokenListSort": {
+        "type": "string",
+        "description": "How tokens are selected and ordered. `tvl`: largest TVL first. `volume_24h`: highest 24h volume first. `default`: the Uniswap default token list (tokens.uniswap.org). `bridgeable`: tokens bridgeable via Uniswap.",
+        "enum": [
+          "default",
+          "tvl",
+          "volume_24h",
+          "bridgeable"
+        ],
+        "default": "default"
+      },
+      "TokenListAddress": {
+        "type": "string",
+        "description": "A token address in its chain's native format. This is not limited to EVM 0x addresses and may contain values such as Solana base58 addresses."
+      },
+      "TokenListBridgeInfo": {
+        "type": "object",
+        "description": "Map of chainId to the token's counterpart address on that chain.",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "tokenAddress": {
+              "$ref": "#/components/schemas/TokenListAddress"
+            }
+          }
+        }
+      },
+      "TokenListSafetyInfo": {
+        "type": "object",
+        "properties": {
+          "safetyLevel": {
+            "type": "string",
+            "description": "Derived from Uniswap-hosted token list membership: `verified` if the token is on the [default token list](https://tokens.uniswap.org), `blocked` if it is on the [unsupported token list](https://unsupportedtokens.uniswap.org), `info` if it is on neither.",
+            "enum": [
+              "verified",
+              "info",
+              "blocked"
+            ]
+          },
+          "safetyDescription": {
+            "type": "string",
+            "nullable": true,
+            "description": "Populated only when safetyLevel is `info`; null otherwise."
+          },
+          "buyFee": {
+            "type": "number",
+            "description": "Token buy fee as a percent. 0 when no fee or unknown."
+          },
+          "sellFee": {
+            "type": "number",
+            "description": "Token sell fee as a percent. 0 when no fee or unknown."
+          }
+        }
+      },
+      "TokenListEntry": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of the token."
+          },
+          "address": {
+            "$ref": "#/components/schemas/TokenListAddress"
+          },
+          "chainId": {
+            "type": "number",
+            "description": "The unique ID of the blockchain the entry lives on. Not limited to chains supported for trading: `sort=default` mirrors the hosted token list, which includes non-EVM chains (e.g. Solana)."
+          },
+          "symbol": {
+            "$ref": "#/components/schemas/tokenSymbol"
+          },
+          "decimals": {
+            "type": "number",
+            "description": "The number of decimals supported by the token."
+          },
+          "logoURI": {
+            "type": "string",
+            "nullable": true,
+            "description": "URI of the token logo. Null when no logo is available."
+          },
+          "extensions": {
+            "type": "object",
+            "properties": {
+              "bridgeInfo": {
+                "$ref": "#/components/schemas/TokenListBridgeInfo"
+              },
+              "safetyInfo": {
+                "$ref": "#/components/schemas/TokenListSafetyInfo"
+              }
+            }
+          }
+        },
+        "required": [
+          "name",
+          "address",
+          "chainId",
+          "symbol"
+        ]
+      },
+      "GetTokensResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "$ref": "#/components/schemas/RequestId"
+          },
+          "tokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TokenListEntry"
+            }
+          }
+        },
+        "required": [
+          "requestId",
+          "tokens"
+        ]
       }
     },
     "parameters": {
@@ -8647,6 +8962,17 @@
         "schema": {
           "type": "boolean",
           "default": false
+        }
+      },
+      "agentInfoHeader": {
+        "name": "x-agent-info",
+        "in": "header",
+        "description": "Optional attribution hint for AI-agent traffic; send it if an AI agent built or operates your integration. The value is a JSON object with up to three fields: `decision_origin` (required, exactly `autonomous` or `human_mediated`, case-sensitive), `integration_name` (optional string naming your integration, e.g. `my-trading-bot`), and `version` (optional string identifying your integration's version). Any other key is dropped, never rejected. The raw value must be at most 1024 bytes of printable US-ASCII (`0x20`-`0x7E`), so send non-ASCII text as JSON `\\u` escapes; `integration_name` and `version` are each limited to 256 UTF-16 code units and may not contain control characters, U+2028, U+2029, or U+FFFD. Send the header once: repeated header lines are joined with `, ` and the joined string is what gets parsed, so two complete objects fail as invalid JSON while a single object split across two lines still parses. The header is analytics-only and never affects the request: omitting it, sending it, or sending a value that fails these rules never changes the response status, body, or swap behavior. A value that fails to parse is dropped and reported by the `x-agent-info-status` response header. Never put a user ID, wallet address, email, session token, or API key in these fields.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "maxLength": 1024,
+          "example": "{\"decision_origin\":\"autonomous\",\"integration_name\":\"my-trading-bot\",\"version\":\"1.4.0\"}"
         }
       },
       "cursorParam": {
@@ -8796,6 +9122,63 @@
         "example": [
           "0xd47b609961a02483c9516d1f326244357e7e0b1d91569ebb4d119dff17e47330"
         ]
+      },
+      "tokenListSortParam": {
+        "name": "sort",
+        "in": "query",
+        "schema": {
+          "$ref": "#/components/schemas/TokenListSort"
+        },
+        "required": false
+      },
+      "tokenListLimitParam": {
+        "name": "limit",
+        "in": "query",
+        "description": "Number of ranked tokens to return. Applies only when sort is `tvl` or `volume_24h`. Defaults to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        },
+        "required": false
+      },
+      "tokenListChainIdParam": {
+        "name": "chainId",
+        "in": "query",
+        "description": "Filter ranked token results to a specific chain. When omitted, ranked results include all supported chains. Ignored when sort is `default`.",
+        "schema": {
+          "type": "number",
+          "enum": [
+            1,
+            10,
+            56,
+            130,
+            137,
+            143,
+            196,
+            324,
+            480,
+            1868,
+            4217,
+            4326,
+            4663,
+            5042,
+            8453,
+            10143,
+            42161,
+            42220,
+            43114,
+            57073,
+            59144,
+            81457,
+            7777777,
+            1301,
+            84532,
+            11155111
+          ]
+        },
+        "required": false
       }
     },
     "securitySchemes": {

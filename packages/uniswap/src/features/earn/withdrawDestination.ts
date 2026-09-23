@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getEarnWithdrawDestinationChainIds } from 'uniswap/src/features/earn/constants'
 import { EARN_LAUNCH_STABLECOIN_SYMBOLS } from 'uniswap/src/features/earn/launchAssets'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'

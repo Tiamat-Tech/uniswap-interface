@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react'
+import { UniverseChainId } from '@universe/chains'
 import { useFeatureFlag } from '@universe/gating'
 import { useSelector } from 'react-redux'
 import { USDC_MAINNET } from 'uniswap/src/constants/tokens'
@@ -7,7 +8,6 @@ import {
   recordEarnSwapUpsellQualifyingSwap,
   type UniswapBehaviorHistoryState,
 } from 'uniswap/src/features/behaviorHistory/slice'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useTokenProjects } from 'uniswap/src/features/dataApi/tokenProjects/tokenProjects'
 import { EarnPositionStatus, useEarnPosition } from 'uniswap/src/features/earn/hooks/useEarnPosition'
 import { useEarnSwapUpsellState } from 'uniswap/src/features/earn/hooks/useEarnSwapUpsellState'

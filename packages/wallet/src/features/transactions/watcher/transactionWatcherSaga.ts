@@ -21,6 +21,8 @@ import { attemptCancelRemoteUniswapXOrder } from 'wallet/src/features/transactio
 import { buildBacklogProperties } from 'wallet/src/features/transactions/telemetry/nonceTelemetry'
 import { isFORTransaction } from 'wallet/src/features/transactions/utils'
 import { OrderWatcher } from 'wallet/src/features/transactions/watcher/orderWatcherSaga'
+import { getClearableStaleTransactions } from 'wallet/src/features/transactions/watcher/staleTransactionCleanup'
+import { deleteTransaction } from 'wallet/src/features/transactions/watcher/transactionSagaUtils'
 import { watchFiatOnRampTransaction } from 'wallet/src/features/transactions/watcher/watchFiatOnRampSaga'
 import { watchTransaction } from 'wallet/src/features/transactions/watcher/watchOnChainTransactionSaga'
 
@@ -62,7 +64,24 @@ export function* transactionWatcher({
   logger.info('transactionWatcherSaga', 'transactionWatcher', 'Incomplete tx backlog on startup', backlogProperties)
   yield* call(sendAnalyticsEvent, WalletEventName.PendingTransactionBacklogOnStartup, backlogProperties)
 
-  for (const transaction of incompleteTransactions) {
+  // Clear stale local Pending txs (never broadcast or long since dropped) instead of
+  // re-watching them, so they stop showing as pending and stop inflating locally-derived nonces.
+  // Private-RPC queues clear all-or-nothing per address+chain — see getClearableStaleTransactions.
+  const staleTransactions = getClearableStaleTransactions(incompleteTransactions)
+  if (staleTransactions.length > 0) {
+    logger.info('transactionWatcherSaga', 'transactionWatcher', 'Clearing stale local pending transactions', {
+      count: staleTransactions.length,
+      ids: staleTransactions.map((tx) => tx.id),
+      chainIds: staleTransactions.map((tx) => tx.chainId),
+    })
+    for (const transaction of staleTransactions) {
+      yield* call(deleteTransaction, transaction)
+    }
+  }
+
+  const watchableTransactions = incompleteTransactions.filter((transaction) => !staleTransactions.includes(transaction))
+
+  for (const transaction of watchableTransactions) {
     if (isFORTransaction(transaction)) {
       yield* fork(watchFiatOnRampTransaction, transaction as FORTransactionDetails)
     } else {

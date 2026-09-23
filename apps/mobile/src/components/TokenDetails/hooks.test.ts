@@ -199,6 +199,19 @@ describe(useTokenDetailsNavigation, () => {
       preload: expect.any(Function),
       navigate: expect.any(Function),
       navigateWithPop: expect.any(Function),
+      push: expect.any(Function),
+    })
+  })
+
+  it('pushes token details onto the stack without popping when push is called', async () => {
+    const { result } = renderHook(() => useTokenDetailsNavigation())
+
+    await act(() => result.current.push(SAMPLE_CURRENCY_ID_1))
+
+    expect(mockedNavigation.pop).not.toHaveBeenCalled()
+    expect(mockedNavigation.push).toHaveBeenNthCalledWith(1, MobileScreens.TokenDetails, {
+      currencyId: SAMPLE_CURRENCY_ID_1,
+      isMultichainAsset: undefined,
     })
   })
 

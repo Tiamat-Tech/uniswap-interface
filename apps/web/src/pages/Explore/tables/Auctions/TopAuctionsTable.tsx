@@ -1,18 +1,17 @@
 /* oxlint-disable typescript/no-unnecessary-condition, max-lines */
 import { createColumnHelper } from '@tanstack/react-table'
+import { normalizeTokenAddressForCache, UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, useMedia } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import { useAtom } from 'jotai'
 import { atomWithReset } from 'jotai/utils'
 import { memo, ReactElement, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, useMedia } from 'ui/src'
 import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
-import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
 import { useEvent } from 'utilities/src/react/hooks'
 import { ONE_DAY_MS, ONE_HOUR_MS, ONE_SECOND_MS } from 'utilities/src/time/time'
@@ -22,7 +21,6 @@ import { Cell } from '~/components/Table/Cell'
 import { TableText } from '~/components/Table/shared/TableText'
 import { HeaderCell } from '~/components/Table/styled'
 import { MouseoverTooltip } from '~/components/Tooltip'
-import { MAX_WIDTH_MEDIA_BREAKPOINT } from '~/constants/breakpoints'
 import { OrderDirection } from '~/data/util'
 import { TABLE_PAGE_SIZE } from '~/features/Explore/state'
 import { AuctionQuickFilter, useExploreTablesFilterStore } from '~/features/Explore/state/exploreTablesFilterStore'
@@ -30,12 +28,12 @@ import { CommittedVolumeTooltipContent } from '~/features/Toucan/Auction/Banners
 import { approximateNumberFromRaw, formatCompactFromRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
 import { buildTokenMarketPriceKey } from '~/features/Toucan/hooks/useTokenMarketPrices'
 import { useAuctionTokenPrices } from '~/features/Toucan/hooks/useTopAuctions/useAuctionTokenPrices'
+import type { EnrichedAuction } from '~/features/Toucan/hooks/useTopAuctions/useTopAuctions'
 import {
   auctionCommittedVolumeComparator,
   compareDescendingMissingLast,
   useTopAuctions,
 } from '~/features/Toucan/hooks/useTopAuctions/useTopAuctions'
-import type { EnrichedAuction } from '~/features/Toucan/hooks/useTopAuctions/useTopAuctions'
 import {
   getAuctionCancelThresholdDisplay,
   getAuctionCommittedVolumeDisplay,
@@ -47,6 +45,7 @@ import {
 } from '~/features/Toucan/utils/auctionFdvWarning'
 import { computeProjectedFdvTableValue, ProjectedFdvTableValue } from '~/features/Toucan/utils/computeProjectedFdv'
 import { isQuickLaunchAuction } from '~/features/Toucan/utils/quickLaunchClassification'
+import { getQuickLaunchExternalBidUrl } from '~/features/Toucan/utils/quickLaunchLinks'
 import { useSimplePagination } from '~/pages/Explore/hooks/useSimplePagination'
 import { TimeRemainingCell } from '~/pages/Explore/tables/Auctions/TimeRemainingCell'
 import {
@@ -55,6 +54,7 @@ import {
   TokenNameCell,
 } from '~/pages/Explore/tables/Auctions/TopAuctionsTableCells'
 import { LAUNCHPAD_COLUMN_META, LAUNCHPAD_COLUMN_WIDTH, LaunchpadCellContent } from '~/pages/Launches/LaunchpadCell'
+import { getAuctionDetailsURL } from '~/utils/auctionDetailsUrl'
 
 /**
  * Comparator functions for client-side auction sorting.
@@ -225,9 +225,10 @@ export function sortAuctionsByDefault<TAuction extends SortableTopAuctionTableVa
 const auctionSortMethodAtom = atomWithReset<AuctionSortField | undefined>(undefined)
 const auctionSortAscendingAtom = atomWithReset<boolean>(false)
 
+// Legacy `m: '0 auto'` expanded to per-side `margin-top: 0 auto` etc. — invalid CSS the browser
+// drops — so no margin ever rendered; only the max-width (MAX_WIDTH_MEDIA_BREAKPOINT) carries over.
 const TableWrapper = styled(Flex, {
-  m: '0 auto',
-  maxWidth: MAX_WIDTH_MEDIA_BREAKPOINT,
+  base: 'max-w-[1200px]',
 })
 
 /**
@@ -246,9 +247,11 @@ function filterAuctionsBySearchString(auctions: readonly EnrichedAuction[], filt
       return false
     }
 
+    // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- token symbol, not an address
     const symbolMatch = auction.tokenSymbol.toLowerCase().includes(lowercaseFilter)
     const addressMatch = normalizeTokenAddressForCache(auction.tokenAddress).toLowerCase().includes(lowercaseFilter)
     const auctionIdMatch = auction.auctionId.toLowerCase().includes(lowercaseFilter)
+    // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- token display name, not an address
     const nameMatch = enrichedAuction.auction?.tokenName?.toLowerCase().includes(lowercaseFilter)
 
     return symbolMatch || addressMatch || auctionIdMatch || nameMatch
@@ -301,6 +304,8 @@ interface TopAuctionsTableValue extends SortableTopAuctionTableValue {
   index: number
   tokenName: ReactElement
   link: string
+  /** Set for external links (quick launches route out to pools.trade) — opens in a new tab. */
+  linkTarget?: '_blank'
 }
 
 /** Launchpad identity rendered in the optional Launchpad column (see `ToucanTable.launchpad`). */
@@ -352,7 +357,7 @@ export const ToucanTable = memo(function ToucanTable({
   const { page, loadMore } = useSimplePagination({ totalCount: filteredAuctions.length, pageSize: TABLE_PAGE_SIZE })
 
   return (
-    <TableWrapper data-testid="toucan-explore-table">
+    <TableWrapper testID="toucan-explore-table">
       <ToucanTableComponent
         auctions={filteredAuctions}
         visibleAuctionLimit={page * TABLE_PAGE_SIZE}
@@ -381,7 +386,6 @@ function ToucanTableComponent({
   launchpad?: AuctionLaunchpadDisplay
 }) {
   const { t } = useTranslation()
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
   const { priceMap: auctionTokenPriceMap } = useAuctionTokenPrices(auctions ?? [])
   const quickFilter = useExploreTablesFilterStore((s) => s.quickFilter)
   // Launch threshold isn't meaningful once every visible auction has already resolved.
@@ -389,6 +393,10 @@ function ToucanTableComponent({
 
   const { convertFiatAmountFormatted, formatPercent } = useLocalizationContext()
   const fdvWarningThresholds = useAuctionFdvWarningThresholds()
+
+  // QuickLaunch: flag gates only the cosmetic quick-launch treatment (row link-out, badge /
+  // progress cell).
+  const isQuickLaunchFlagEnabled = useFeatureFlag(FeatureFlags.QuickLaunch)
 
   // Sorting state
   const [sortMethod, setSortMethod] = useAtom(auctionSortMethodAtom)
@@ -412,12 +420,14 @@ function ToucanTableComponent({
             return undefined
           }
 
-          const chainInfo = getChainInfo(enrichedAuction.auction.chainId)
-          if (!chainInfo.urlParam) {
+          const auction = enrichedAuction.auction
+          const auctionDetailsUrl = getAuctionDetailsURL({
+            chainId: auction.chainId,
+            auctionAddress: auction.address,
+          })
+          if (!auctionDetailsUrl) {
             return undefined
           }
-
-          const auction = enrichedAuction.auction
 
           // Get auction token's market price for completed auctions
           const auctionTokenUsdPrice = auction.tokenAddress
@@ -432,12 +442,18 @@ function ToucanTableComponent({
             auctionTokenUsdPrice,
           })
 
+          // QuickLaunch: quick launches link out to the pools.trade bid page when one can be
+          // constructed; every other auction (and any quick launch without a pools.trade URL)
+          // keeps the web-app auction page.
+          const poolsTradeUrl = getQuickLaunchExternalBidUrl({ enrichedAuction, isQuickLaunchFlagEnabled })
+
           return {
             index: 0, // Will be assigned after sorting by default order
             tokenName: <TokenNameCell auction={enrichedAuction} />,
             projectedFdv,
             auction: enrichedAuction,
-            link: `/explore/auctions/${chainInfo.urlParam}/${auction.address}`,
+            link: poolsTradeUrl ?? auctionDetailsUrl,
+            linkTarget: poolsTradeUrl ? ('_blank' as const) : undefined,
             analytics: {
               elementName: ElementName.AuctionsTableRow,
               properties: {
@@ -462,7 +478,7 @@ function ToucanTableComponent({
     })
 
     return sortedByDefault
-  }, [auctions, auctionTokenPriceMap])
+  }, [auctions, auctionTokenPriceMap, isQuickLaunchFlagEnabled])
 
   // Apply sorting
   const sortedAuctionTableValues = useMemo(
@@ -476,9 +492,6 @@ function ToucanTableComponent({
           }),
     [topAuctionsTableValues, sortMethod, sortAscending],
   )
-
-  // QuickLaunch: flag gates only the cosmetic quick-launch treatment (badge / progress cell) below.
-  const isQuickLaunchFlagEnabled = useFeatureFlag(FeatureFlags.QuickLaunch)
 
   // Split sorted auctions into visible and hidden
   const { sortedVisibleAuctionTableValues, sortedHiddenAuctionTableValues } = useMemo(() => {
@@ -765,6 +778,7 @@ function ToucanTableComponent({
   return (
     <Flex gap="$spacing12">
       <Table
+        virtualized
         columns={columns}
         data={sortedVisibleAuctionTableValues.slice(0, visibleAuctionLimit)}
         loading={loading}
@@ -775,10 +789,9 @@ function ToucanTableComponent({
         hiddenRows={sortedHiddenAuctionTableValues}
         showHiddenRowsLabel={t('toucan.auction.showHiddenAuctions')}
         hideHiddenRowsLabel={t('toucan.auction.hideHiddenAuctions')}
-        virtualized={isV2TokensEnabled}
       />
       <Flex justifyContent="center" alignItems="center">
-        <Text lineHeight="$spacing12" flex={1} width="75%" color="$neutral3" textAlign="center" variant="body4">
+        <Text lineHeight={12} flex={1} width="75%" color="$neutral3" textAlign="center" variant="body4">
           {t('toucan.auction.disclaimer')}
         </Text>
       </Flex>

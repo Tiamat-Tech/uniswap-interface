@@ -1,6 +1,6 @@
 import { type TransactionRequest } from '@ethersproject/providers'
 import type { GasFeeResult } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { useGasOverridesWarningState } from 'uniswap/src/features/gas/components/NetworkCostEditor/useGasOverridesWarningState'
 import { NetworkCostRow } from 'uniswap/src/features/gas/components/NetworkCostRow'
 import { useGasFeeFormattedDisplayAmounts } from 'uniswap/src/features/gas/hooks'

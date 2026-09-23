@@ -1,10 +1,7 @@
+import { UniverseChainId, Platform, getValidAddress } from '@universe/chains'
 // Copied from https://github.com/Uniswap/interface/blob/main/src/hooks/useENS.ts
-
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useAddressFromEns, useENSName } from 'uniswap/src/features/ens/api'
 import { ENS_SUFFIX } from 'uniswap/src/features/ens/constants'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { useDebounceWithStatus } from 'utilities/src/time/timing'
 
 type UseENSParams = {

@@ -90,7 +90,10 @@ export const swapFeApiMonitors: MonitorDefinition[] = [
       'More than 9.75% of quote requests are returning `Unknown gas simulation error` for tokens with no safety warnings.',
     team: TEAM,
     priority: 3,
-    thresholds: { critical: 9.75 },
+    thresholds: {
+      critical: 9.75,
+      criticalRecovery: 8.5,
+    },
     logQuery: 'service:mobile',
     runbookUrl: SWAP_POD_RUNBOOK,
     readmeUrl: `${UNIVERSE_REPO_URL}/tree/main/apps/mobile`,

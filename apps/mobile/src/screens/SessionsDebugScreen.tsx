@@ -1,4 +1,5 @@
 import { getEntryGatewayUrl, getStorageDriver, provideSessionService } from '@universe/api'
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
 import { ChallengeType, createHashcashSolver, type SessionService } from '@universe/sessions'
 import React, { useCallback, useEffect, useRef } from 'react'
 import { ScrollView } from 'react-native'
@@ -9,8 +10,7 @@ import { CurrentOperationSection } from 'src/screens/components/sessions/Current
 import { HashcashProgressSection } from 'src/screens/components/sessions/HashcashProgressSection'
 import { LogSection } from 'src/screens/components/sessions/LogSection'
 import { useSessionsDebugStore } from 'src/screens/stores/sessionsDebugStore'
-import { Button, Flex, Text, TouchableArea } from 'ui/src'
-import { CopyAlt } from 'ui/src/components/icons'
+import { CopyAlt } from 'ui/src/components/icons/CopyAlt'
 import { setClipboard } from 'utilities/src/clipboard/clipboard'
 import { logger } from 'utilities/src/logger/logger'
 import { useShallow } from 'zustand/shallow'
@@ -66,7 +66,6 @@ export function SessionsDebugScreen(): JSX.Element {
     if (!sessionServiceRef.current) {
       sessionServiceRef.current = provideSessionService({
         getBaseUrl: getEntryGatewayUrl,
-        getIsSessionServiceEnabled: () => true, // Always enabled for debug
         getLogger: () => logger,
       })
     }

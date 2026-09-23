@@ -1,12 +1,11 @@
+import { Flex, iconSizes, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { useMemo } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { ScreenHeader } from 'src/app/components/layout/ScreenHeader'
 import { SettingsRecoveryPhrase } from 'src/app/features/settings/SettingsRecoveryPhraseScreen/SettingsRecoveryPhrase'
 import { AppRoutes, RemoveRecoveryPhraseRoutes, SettingsRoutes } from 'src/app/navigation/constants'
 import { useExtensionNavigation } from 'src/app/navigation/utils'
-import { Flex, ScrollView, Text } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons'
-import { iconSizes } from 'ui/src/theme'
 import { AddressDisplay } from 'uniswap/src/components/accounts/AddressDisplay'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
@@ -66,48 +65,27 @@ function AssociatedAccountsList({ accounts }: { accounts: Account[] }): JSX.Elem
 
   return (
     <Flex borderColor="$surface3" borderRadius="$rounded20" borderWidth="$spacing1" px="$spacing12" width="100%">
-      <ScrollView bounces={false}>
-        {sortedAddressesByBalance.map(({ address, balance }, index) => (
-          <AssociatedAccountRow
-            key={address}
-            address={address}
-            balance={balance}
-            index={index}
-            loading={loading}
-            totalCount={accounts.length}
-          />
-        ))}
-      </ScrollView>
+      {sortedAddressesByBalance.map(({ address, balance }) => (
+        <AssociatedAccountRow key={address} address={address} balance={balance} loading={loading} />
+      ))}
     </Flex>
   )
 }
 
 function AssociatedAccountRow({
-  index,
   address,
   balance,
-  totalCount,
   loading,
 }: {
-  index: number
   address: string
   balance: number | undefined
-  totalCount: number
   loading: boolean
 }): JSX.Element {
   const { convertFiatAmountFormatted } = useLocalizationContext()
   const balanceFormatted = convertFiatAmountFormatted(balance, NumberType.PortfolioBalance)
 
   return (
-    <Flex
-      key={address}
-      row
-      alignItems="center"
-      justifyContent="space-between"
-      pb={index !== totalCount - 1 ? '$spacing16' : undefined}
-      px="$spacing4"
-      py="$spacing12"
-    >
+    <Flex key={address} row alignItems="center" justifyContent="space-between" px="$spacing4" py="$spacing12">
       <Flex shrink>
         <AddressDisplay address={address} captionVariant="body3" size={iconSizes.icon36} variant="body2" />
       </Flex>

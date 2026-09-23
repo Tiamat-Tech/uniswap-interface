@@ -1,6 +1,6 @@
+import { TouchableAreaCompat as TouchableArea } from '@universe/mycelium/touchable-area'
 import type { IconProps } from 'ui/src/components/factories/createIcon'
 import { X } from 'ui/src/components/icons/X'
-import { TouchableArea } from 'ui/src/components/touchable'
 import { IconSizeTokens } from 'ui/src/theme'
 
 export type CloseIconProps = {
@@ -22,7 +22,7 @@ export function CloseIconWithHover({
   role = 'button',
 }: CloseIconProps): JSX.Element {
   return (
-    <TouchableArea role={role} data-testid={testId} onPress={onClose}>
+    <TouchableArea role={role} testID={testId} onPress={onClose}>
       <X size={size} color={color} hoverColor={hoverColor} />
     </TouchableArea>
   )

@@ -1,8 +1,8 @@
+import { fonts, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { Minus } from '@universe/mycelium/icons/Minus'
+import { Plus } from '@universe/mycelium/icons/Plus'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, useSporeColors } from 'ui/src'
-import { Minus } from 'ui/src/components/icons/Minus'
-import { Plus } from 'ui/src/components/icons/Plus'
-import { fonts } from 'ui/src/theme'
 import { AmountInput } from 'uniswap/src/components/AmountInput/AmountInput'
 import { numericInputRegex } from 'uniswap/src/components/AmountInput/utils/numericInputEnforcer'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -73,15 +73,7 @@ export function D3RangeAmountInput({
       flexBasis={0}
       position="relative"
       backgroundColor="$surface2"
-      borderTopLeftRadius="$none"
-      borderTopRightRadius="$none"
-      borderBottomRightRadius={input === RangeSelectionInput.MIN ? '$none' : '$rounded20'}
-      borderBottomLeftRadius={input === RangeSelectionInput.MIN ? '$rounded20' : '$none'}
-      $lg={{
-        borderBottomRightRadius: input === RangeSelectionInput.MAX ? '$rounded20' : '$none',
-        borderBottomLeftRadius: input === RangeSelectionInput.MAX ? '$rounded20' : '$none',
-        flexBasis: 'auto',
-      }}
+      $lg={{ flexBasis: 'auto' }}
       p="$spacing16"
       justifyContent="space-between"
       overflow="hidden"

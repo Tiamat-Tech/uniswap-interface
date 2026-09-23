@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import type {
   OnChainTransactionDetails,

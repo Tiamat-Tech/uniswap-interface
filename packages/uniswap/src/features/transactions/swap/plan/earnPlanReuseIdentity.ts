@@ -1,8 +1,8 @@
 import { TradingApi } from '@universe/api'
+import { areAddressesEqual } from '@universe/chains'
 import { ValidatedTradeInput } from 'uniswap/src/features/transactions/swap/services/tradeService/transformations/buildQuoteRequest'
 import { type ChainedActionEarnIntent, type Trade } from 'uniswap/src/features/transactions/swap/types/trade'
 import { isChained } from 'uniswap/src/features/transactions/swap/utils/routing'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 
 /**
  * Semantic identity used only for active/prefetched Earn plan reuse.

@@ -5,9 +5,9 @@ import {
 } from '@uniswap/client-data-api/dist/data/v2/earn_pb'
 import { CurrencyAmount, Token as SdkToken } from '@uniswap/sdk-core'
 import { GraphQLApi, TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { PortfolioBalance } from 'uniswap/src/features/dataApi/types'
 import {
   getEarnAmountValidation,

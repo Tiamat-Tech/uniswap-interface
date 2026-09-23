@@ -1,4 +1,4 @@
-import { spacing } from 'ui/src/theme/spacing'
+import { spacing } from '@universe/mycelium'
 import {
   EXPANDABLE_ASSET_INNER_PADDING_Y_PX,
   EXPANDABLE_ASSET_ISSUER_GAP_PX,
@@ -56,7 +56,7 @@ describe('getExpandableSearchRowHeightPx', () => {
   })
 
   it('expanded estimate = budgeted header + shell chrome + parent↔panel gap + search panel, as absolute px', () => {
-    // The native FlashList cell estimate. Spelled out from the design values, independent of the helper's own
+    // The native Legend List cell estimate. Spelled out from the design values, independent of the helper's own
     // expressions, so any shell/gap/panel change fails here:
     //   header 64 + shell (p8 ×2 = 16 + border 1 ×2 = 2) + gap 8 + panel(3) [border 2 + 3×56 + 2×2 = 174] = 264.
     expect(getExpandableSearchRowHeightPx({ issuerCount: 3, expanded: true })).toBe(264)

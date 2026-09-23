@@ -26,8 +26,10 @@ import { cn } from '../cn'
 
 export const DROPDOWN_MENU_RECIPE_CLASS_NAMES = {
   positioner: 'isolate z-50 outline-none',
+  // No scale-* here yet — `scale` stays in the transition to match sibling
+  // popover.tsx, so future scale styles animate instead of snapping.
   content:
-    'z-50 max-h-(--available-height) min-w-[128px] origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-[16px] border border-surface3 bg-surface1 p-[8px] text-neutral1 shadow-md outline-none transition-[transform,opacity] duration-150 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0',
+    'z-50 max-h-(--available-height) min-w-[128px] origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-[16px] border border-surface3 bg-surface1 p-[8px] text-neutral1 shadow-md outline-none transition-[scale,opacity] duration-150 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0',
   label: 'px-[8px] py-[6px] text-[12px] leading-[16px] font-medium text-neutral2 data-inset:pl-[32px]',
   item: 'relative flex cursor-pointer items-center gap-[8px] rounded-[8px] px-[8px] py-[8px] text-[16px] leading-[24px] text-neutral1 outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-60 data-highlighted:bg-surface2 data-inset:pl-[32px] [&_svg]:pointer-events-none [&_svg]:shrink-0',
   itemDestructive: 'text-critical data-highlighted:bg-critical-secondary data-highlighted:text-critical',
@@ -35,7 +37,7 @@ export const DROPDOWN_MENU_RECIPE_CLASS_NAMES = {
   indicator: 'pointer-events-none absolute left-[8px] flex size-[16px] items-center justify-center',
   subTrigger:
     'flex cursor-pointer items-center gap-[8px] rounded-[8px] px-[8px] py-[8px] text-[16px] leading-[24px] text-neutral1 outline-hidden select-none data-highlighted:bg-surface2 data-inset:pl-[32px] data-popup-open:bg-surface2 [&_svg]:pointer-events-none [&_svg]:shrink-0',
-  separator: 'my-[6px] -mx-[8px] h-px bg-surface3',
+  separator: 'my-[6px] mx-0 h-px w-full bg-surface3',
   shortcut: 'ml-auto text-[12px] leading-[16px] tracking-widest text-neutral3',
 } as const
 

@@ -1,10 +1,10 @@
 import { TradeType } from '@uniswap/sdk-core'
 import type { Percent } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { isEVMChain } from '@universe/chains'
 import { useCallback } from 'react'
 import { useDispatch } from 'react-redux'
 import { useSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
-import { isEVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { addTransaction } from 'uniswap/src/features/transactions/slice'
 import {
   InterfaceTransactionDetails,

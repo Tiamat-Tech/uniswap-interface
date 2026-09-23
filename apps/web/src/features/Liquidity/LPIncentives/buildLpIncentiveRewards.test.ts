@@ -1,5 +1,5 @@
 import { RewardBalance, Token } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { getPrimaryStablecoin } from 'uniswap/src/features/chains/utils'
 import { buildLpIncentiveRewards } from '~/features/Liquidity/LPIncentives/buildLpIncentiveRewards'
 
@@ -62,9 +62,9 @@ describe('buildLpIncentiveRewards', () => {
     // Base subtotals highest ($81.48 vs Mainnet's $62.34), and within Mainnet the larger reward
     // leads — see the ordering test below.
     expect(build(balances).rewardTokens).toEqual([
-      { chainId: UniverseChainId.Base, address: USDC_BASE },
-      { chainId: UniverseChainId.Mainnet, address: USDC_MAINNET },
-      { chainId: UniverseChainId.Mainnet, address: UNI_MAINNET },
+      { chainId: UniverseChainId.Base, address: USDC_BASE, isNative: false },
+      { chainId: UniverseChainId.Mainnet, address: USDC_MAINNET, isNative: false },
+      { chainId: UniverseChainId.Mainnet, address: UNI_MAINNET, isNative: false },
     ])
   })
 
@@ -118,7 +118,7 @@ describe('buildLpIncentiveRewards', () => {
     expect(result.hasRewards).toBe(true)
     expect(result.groups).toHaveLength(1)
     expect(result.groups[0]?.rows).toEqual([expect.objectContaining({ usdValue: undefined })])
-    expect(result.rewardTokens).toEqual([{ chainId: UniverseChainId.Mainnet, address: UNI_MAINNET }])
+    expect(result.rewardTokens).toEqual([{ chainId: UniverseChainId.Mainnet, address: UNI_MAINNET, isNative: false }])
   })
 
   it('leaves unpriced rewards out of the subtotals and total', () => {

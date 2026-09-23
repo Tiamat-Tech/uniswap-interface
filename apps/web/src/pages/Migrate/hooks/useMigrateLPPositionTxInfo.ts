@@ -3,6 +3,7 @@ import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes
 import type { MigrateV3ToV4LPPositionRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/api_pb'
 import type { MigrateV2ToV3LPPositionRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/api_pb'
 import { type Currency, CurrencyAmount, NONFUNGIBLE_POSITION_MANAGER_ADDRESSES } from '@uniswap/sdk-core'
+import { UniverseChainId, Platform } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
@@ -10,8 +11,6 @@ import { useUniswapContextSelector } from 'uniswap/src/contexts/UniswapContext'
 import { liquidityQueries } from 'uniswap/src/data/apiClients/liquidityService/liquidityQueries'
 import { useCheckLPApprovalQuery } from 'uniswap/src/data/apiClients/liquidityService/useCheckLPApprovalQuery'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import type { V2PairInfo, V3PositionInfo } from 'uniswap/src/features/positions/types'
 import type { DelegatedState } from 'uniswap/src/features/smartWallet/delegation/types'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
@@ -254,18 +253,21 @@ export function useMigrateLPPositionTxInfo({
       return undefined
     }
 
-    const outputAmount0 = CurrencyAmount.fromRawAmount(
-      isV3ToV4Migration
-        ? getCurrencyForProtocol(positionInfo.currency0Amount.currency, ProtocolVersion.V4)
-        : getCurrencyForProtocol(positionInfo.currency0Amount.currency, ProtocolVersion.V3),
-      positionInfo.currency0Amount.quotient,
-    )
-    const outputAmount1 = CurrencyAmount.fromRawAmount(
-      isV3ToV4Migration
-        ? getCurrencyForProtocol(positionInfo.currency1Amount.currency, ProtocolVersion.V4)
-        : getCurrencyForProtocol(positionInfo.currency1Amount.currency, ProtocolVersion.V3),
-      positionInfo.currency1Amount.quotient,
-    )
+    // Native has no v3 form on chains without a wrapped native (Arc, Tempo), so the output can't be
+    // denominated there. Unreachable today — those chains have no native v2/v3 position to migrate
+    // from — but bail like the guards above rather than build an amount on an undefined currency.
+    const outputCurrency0 = isV3ToV4Migration
+      ? getCurrencyForProtocol(positionInfo.currency0Amount.currency, ProtocolVersion.V4)
+      : getCurrencyForProtocol(positionInfo.currency0Amount.currency, ProtocolVersion.V3)
+    const outputCurrency1 = isV3ToV4Migration
+      ? getCurrencyForProtocol(positionInfo.currency1Amount.currency, ProtocolVersion.V4)
+      : getCurrencyForProtocol(positionInfo.currency1Amount.currency, ProtocolVersion.V3)
+    if (!outputCurrency0 || !outputCurrency1) {
+      return undefined
+    }
+
+    const outputAmount0 = CurrencyAmount.fromRawAmount(outputCurrency0, positionInfo.currency0Amount.quotient)
+    const outputAmount1 = CurrencyAmount.fromRawAmount(outputCurrency1, positionInfo.currency1Amount.quotient)
 
     return {
       type: LiquidityTransactionType.Migrate,

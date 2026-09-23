@@ -37,4 +37,8 @@ describe(getSpecialCaseTokenColor, () => {
   it('ignores prototype-chain keys for exact URL matching', () => {
     expect(getSpecialCaseTokenColor('constructor', false)).toBeNull()
   })
+
+  it('ignores React Native bundled image sources', () => {
+    expect(getSpecialCaseTokenColor(1 as unknown as string, false)).toBeNull()
+  })
 })

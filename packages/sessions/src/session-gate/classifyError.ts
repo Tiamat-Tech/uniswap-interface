@@ -1,4 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect'
+import { SessionReadyTimeoutError, SessionRecoveryFailedError } from '@universe/sessions/src/session-gate/errors'
+import { SessionError } from '@universe/sessions/src/session-initialization/sessionErrors'
 
 /**
  * HTTP statuses the entry-gateway returns when a request needs a (re)established
@@ -26,8 +28,32 @@ export function isConnectUnauthorized(err: unknown): boolean {
  * message for transports that only encode status in the error string.
  */
 export function isFetchUnauthorized(err: unknown): boolean {
-  if (!(err instanceof Error)) return false
+  if (!(err instanceof Error)) {
+    return false
+  }
   const status = (err as Error & { status?: unknown }).status
-  if (typeof status === 'number') return isSessionAuthFailureStatus(status)
+  if (typeof status === 'number') {
+    return isSessionAuthFailureStatus(status)
+  }
   return /\b(401|403)\b/.test(err.message)
+}
+
+function getSessionGateError(error: unknown): SessionReadyTimeoutError | SessionRecoveryFailedError | undefined {
+  if (error instanceof SessionReadyTimeoutError || error instanceof SessionRecoveryFailedError) {
+    return error
+  }
+  const cause = error instanceof Error ? error.cause : undefined
+  if (cause instanceof SessionReadyTimeoutError || cause instanceof SessionRecoveryFailedError) {
+    return cause
+  }
+  return undefined
+}
+
+export function isRetryableSessionGateError(error: unknown): boolean {
+  const sessionGateError = getSessionGateError(error)
+  return (
+    sessionGateError instanceof SessionReadyTimeoutError ||
+    (sessionGateError instanceof SessionRecoveryFailedError &&
+      !(sessionGateError.recoveryError instanceof SessionError))
+  )
 }

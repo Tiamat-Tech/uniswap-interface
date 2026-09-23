@@ -1,5 +1,5 @@
+import type { ColorTokens } from '@universe/mycelium'
 import { useMemo } from 'react'
-import type { ColorTokens } from 'tamagui'
 import { opacify, validColor } from 'ui/src/theme'
 
 export const useColorsFromTokenColor = (

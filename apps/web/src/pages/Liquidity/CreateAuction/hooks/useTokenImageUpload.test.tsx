@@ -1,7 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { VerifyTokenFactoryImageResponse_Status } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { VerifyTokenFactoryImageResponse_Status } from '@uniswap/client-launches/dist/launches/v1/token_factory_pb'
 import { type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {

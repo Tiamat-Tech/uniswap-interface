@@ -1,14 +1,14 @@
 import { SharedEventName } from '@uniswap/analytics-events'
-import { FeatureFlags } from '@universe/gating'
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useTokenDetailsNavigation } from 'src/components/TokenDetails/hooks'
-import { useGatedTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
-import { Flex, Text, TouchableArea } from 'ui/src'
+import { useTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { ExpandoRow } from 'uniswap/src/components/ExpandoRow/ExpandoRow'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { useExpandRWASiblingHandler } from 'uniswap/src/features/rwa/hooks/useExpandRWASiblingHandler'
 import { getRWAIssuerDisplayName } from 'uniswap/src/features/rwa/issuers'
 import type { RWAToken } from 'uniswap/src/features/rwa/types'
 import { type RWAIssuerMarketData, useRWAIssuerMarketData } from 'uniswap/src/features/rwa/useRWAIssuerMarketData'
@@ -23,12 +23,18 @@ const COLLAPSED_VISIBLE_COUNT = 2
 export function MoreRwaTokens(): JSX.Element | null {
   const { t } = useTranslation()
   const [isExpanded, setIsExpanded] = useState(false)
-  const rwaMatch = useGatedTokenDetailsRWAMatch(FeatureFlags.RWATdpSiblings)
+  const rwaMatch = useTokenDetailsRWAMatch()
   const otherIssuerTokens = useMemo(
     () => rwaMatch?.asset.tokens.filter((token) => token.issuer !== rwaMatch.token.issuer) ?? [],
     [rwaMatch],
   )
   const getMarketData = useRWAIssuerMarketData(otherIssuerTokens)
+  const onToggleExpanded = useExpandRWASiblingHandler({
+    rwaMatch,
+    variantCount: otherIssuerTokens.length,
+    isExpanded,
+    setIsExpanded,
+  })
 
   if (!rwaMatch || otherIssuerTokens.length === 0) {
     return null
@@ -61,7 +67,7 @@ export function MoreRwaTokens(): JSX.Element | null {
           isExpanded={isExpanded}
           label={isExpanded ? t('common.button.showLess') : t('tdp.rwa.moreTokensCount', { count: hiddenCount })}
           mx="$spacing8"
-          onPress={() => setIsExpanded((prev) => !prev)}
+          onPress={onToggleExpanded}
         />
       ) : null}
     </Flex>
@@ -108,18 +114,20 @@ function IssuerTokenCard({
       testID={TestID.TokenDetailsRWAIssuerCard}
       onPress={onPress}
     >
-      <Flex row alignItems="center" justifyContent="space-between" gap="$spacing8" pr="$spacing4">
+      {/* Issuer gets its own line (name / issuer / ticker) so no text has to yield space, and the
+          price top-aligns with the name instead of centering against the 3-line stack. */}
+      <Flex row alignItems="flex-start" justifyContent="space-between" gap="$spacing8" pr="$spacing4">
         <Flex row shrink alignItems="center" gap="$spacing8" flex={1}>
           <TokenLogo hideNetworkLogo url={token.logoUrl} symbol={token.symbol} name={token.name} size={40} />
-          <Flex shrink flex={1}>
-            <Flex row shrink alignItems="baseline" gap="$spacing6">
-              <Text color="$neutral1" numberOfLines={1} variant="body2">
-                {assetName}
-              </Text>
-              <Text color="$neutral3" numberOfLines={1} variant="body3">
-                {displayName}
-              </Text>
-            </Flex>
+          {/* flex={1} sizes this column from leftover space, so one very long line still
+              ellipsizes instead of bleeding into the price */}
+          <Flex shrink flex={1} gap="$spacing2">
+            <Text color="$neutral1" numberOfLines={1} variant="body2">
+              {assetName}
+            </Text>
+            <Text color="$neutral3" numberOfLines={1} variant="body3">
+              {displayName}
+            </Text>
             <Text color="$neutral2" numberOfLines={1} variant="body3">
               {token.symbol.toUpperCase()}
             </Text>

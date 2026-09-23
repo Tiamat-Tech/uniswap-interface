@@ -1,9 +1,8 @@
-import { isWebPlatform } from '@universe/environment'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { isMobileApp, isWebPlatform } from '@universe/environment'
+import { Flex, iconSizes, Text, TouchableArea, type FontVariantToken } from '@universe/mycelium'
+import { useIsDarkMode } from '@universe/mycelium/theme-hooks-compat'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, useIsDarkMode } from 'ui/src'
-import { iconSizes, type FontVariantToken } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { SplitLogo } from 'uniswap/src/components/CurrencyLogo/SplitLogo'
 import { PositionItemContextMenu } from 'uniswap/src/components/portfolio/PositionItem/PositionItemContextMenu'
@@ -42,7 +41,6 @@ export const PositionItem = memo(function PositionItemInner({
 }: PositionItemProps): JSX.Element {
   const { t } = useTranslation()
   const { convertFiatAmountFormatted } = useLocalizationContext()
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   // Ensure items rerender when theme is switched — memoized row otherwise misses Tamagui token re-resolution.
   useIsDarkMode()
 
@@ -118,18 +116,13 @@ export const PositionItem = memo(function PositionItemInner({
 
       <Flex alignItems="flex-end" justifyContent="center">
         {balanceFormatted !== undefined ? (
-          isDataLivelinessEnabled ? (
-            <AnimatedNumber
-              color="$neutral1"
-              numericValue={totalValueUsd}
-              textVariant={`$${TITLE_VARIANT}` as FontVariantToken}
-              value={balanceFormatted}
-            />
-          ) : (
-            <Text color="$neutral1" numberOfLines={1} variant={TITLE_VARIANT}>
-              {balanceFormatted}
-            </Text>
-          )
+          <AnimatedNumber
+            color="$neutral1"
+            disableAnimations={isMobileApp}
+            numericValue={totalValueUsd}
+            textVariant={`$${TITLE_VARIANT}` as FontVariantToken}
+            value={balanceFormatted}
+          />
         ) : null}
         <LiquidityPositionStatusIndicator status={status} />
       </Flex>

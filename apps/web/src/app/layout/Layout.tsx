@@ -1,37 +1,28 @@
-import { breakpoints } from 'ui/src/theme'
+import { styled } from '@universe/mycelium/styled'
 import { Body } from '~/app/layout/Body'
+import { APP_BODY_MOBILE_GUTTER_PX } from '~/app/layout/constants'
 import { GRID_AREAS } from '~/app/layout/gridAreas'
 import { Header } from '~/app/layout/Header'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 import type { EmbedView } from '~/pages/Swap/embedContext'
+import { MAX_CONTENT_WIDTH_PX } from '~/theme'
 
-const AppContainer = deprecatedStyled.div`
-  min-height: 100vh;
-  max-width: 100vw;
+const AppContainer = styled('div', {
+  platform: 'web',
+  base: 'min-h-[100vh] max-w-[100vw] grid grid-cols-[1fr] grid-rows-[auto_auto_1fr]',
+  inlineStyle: () => ({
+    gridTemplateAreas: `'${GRID_AREAS.HEADER}' '${GRID_AREAS.MAIN}' '${GRID_AREAS.MOBILE_BOTTOM_BAR}'`,
+  }),
+})
 
-  // grid container settings
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: auto auto 1fr;
-  grid-template-areas: '${GRID_AREAS.HEADER}' '${GRID_AREAS.MAIN}' '${GRID_AREAS.MOBILE_BOTTOM_BAR}';
-`
-const AppBody = deprecatedStyled.div`
-  grid-area: ${GRID_AREAS.MAIN};
-  width: 100vw;
-  min-height: 100%;
-  max-width: ${({ theme }) => `${theme.maxWidth}px`};
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  align-items: center;
-  flex: 1;
-  margin: auto;
-
-  @media screen and (max-width: ${breakpoints.md}px) {
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-`
+const AppBody = styled('div', {
+  platform: 'web',
+  base: 'w-[100vw] min-h-[100%] flex flex-col relative items-center flex-1 m-auto media-md:px-[var(--app-body-gutter)]',
+  inlineStyle: () => ({
+    gridArea: GRID_AREAS.MAIN,
+    maxWidth: `${MAX_CONTENT_WIDTH_PX}px`,
+    '--app-body-gutter': `${APP_BODY_MOBILE_GUTTER_PX}px`,
+  }),
+})
 
 export function AppLayout({
   embedded = false,

@@ -1,5 +1,6 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { markHoverable, styled } from '@universe/mycelium/styled'
 import { useState } from 'react'
-import { Flex, styled, Text, TouchableArea } from 'ui/src'
 import { Dropdown } from '~/components/Dropdowns/Dropdown'
 import { ActionButtonStyle } from '~/components/StickyCollapsibleHeader/HeaderActions/ActionButtonStyle'
 import { HeaderActionRowContent } from '~/components/StickyCollapsibleHeader/HeaderActions/HeaderActionRowContent'
@@ -11,17 +12,13 @@ import {
 import { MouseoverTooltip, TooltipSize } from '~/components/Tooltip'
 import { openExternalLink } from '~/utils/openExternalLink'
 
-const DropdownAction = styled(TouchableArea, {
-  display: 'flex',
-  flexDirection: 'row',
-  alignItems: 'center',
-  padding: '$spacing8',
-  borderRadius: '$rounded8',
-  gap: '$gap12',
-  height: 40,
-  hoverStyle: {
-    backgroundColor: '$surface2Hovered',
-  },
+// The empty variants table pins the factory's variant generic: a hover-only
+// config has no other inference site, so V falls back to its open constraint
+// and the index signature collapses the base component's prop surface.
+const DropdownAction = styled(markHoverable(TouchableArea), {
+  variants: {},
+  base: 'flex flex-row items-center p-2 rounded-8 gap-3 h-10',
+  hover: [{ class: 'bg-surface2-hovered' }],
 })
 
 interface DesktopHeaderActionsProps {
@@ -87,7 +84,7 @@ export function DesktopHeaderActions({ actions }: DesktopHeaderActionsProps): JS
                   : { onPress: action.onPress })}
                 {...ActionButtonStyle}
               >
-                <Text color={action.textColor ?? 'neutral1'} lineHeight={0}>
+                <Text color={action.textColor ?? '$neutral1'} lineHeight={0}>
                   {action.icon}
                 </Text>
               </TouchableArea>

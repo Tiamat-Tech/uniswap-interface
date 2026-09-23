@@ -4,9 +4,9 @@ import {
   GetAuctionActivityRequest,
   GetAuctionActivityResponse,
 } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
+import { EVMUniverseChainId, AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useCallback, useEffect, useMemo } from 'react'
 import { AuctionServiceClient } from 'uniswap/src/data/apiClients/dataApiService/auctions/AuctionServiceClient'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
 import { AuctionProgressState } from '~/features/Toucan/Auction/store/types'
@@ -34,7 +34,7 @@ export function useLoadBidActivities({ auctionAddress, chainId }: UseLoadBidActi
     queryFn: ({ pageParam }: { pageParam?: string }) =>
       AuctionServiceClient.getAuctionActivity(
         new GetAuctionActivityRequest({
-          address: auctionAddress?.toLowerCase(),
+          address: auctionAddress ? normalizeAddress(auctionAddress, AddressStringFormat.Lowercase) : undefined,
           chainId,
           pageToken: pageParam,
         }),
@@ -53,7 +53,7 @@ export function useLoadBidActivities({ auctionAddress, chainId }: UseLoadBidActi
       try {
         const firstPage = await AuctionServiceClient.getAuctionActivity(
           new GetAuctionActivityRequest({
-            address: auctionAddress?.toLowerCase(),
+            address: auctionAddress ? normalizeAddress(auctionAddress, AddressStringFormat.Lowercase) : undefined,
             chainId,
           }),
         )

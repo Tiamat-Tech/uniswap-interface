@@ -72,6 +72,10 @@ export interface ApproveProposedParamReply {
   remainingSignatureRequired?: number
 }
 
+export interface RejectProposedParamReply {
+  success?: boolean
+}
+
 export interface ProposedParamSummary {
   key?: string
   operation?: string // "SET" or "DELETE"
@@ -121,7 +125,11 @@ export function createConfigServerClient(config: ConfigServerClientConfig) {
     try {
       return await rpcPost<T>(baseUrl, `/${SERVICE_PATH}/${method}`, authHeaders, body)
     } catch (error) {
-      throw new Error(`${method} failed: ${error instanceof Error ? error.message : 'unknown error'}`)
+      // `cause` keeps the status readable via `rpcHttpStatus` — naming the method
+      // in the message is worth a re-wrap, losing what the status said is not.
+      throw new Error(`${method} failed: ${error instanceof Error ? error.message : 'unknown error'}`, {
+        cause: error,
+      })
     }
   }
 
@@ -194,6 +202,10 @@ export function createConfigServerClient(config: ConfigServerClientConfig) {
 
     async approveProposedParam(key: string): Promise<ApproveProposedParamReply> {
       return rpcCall<ApproveProposedParamReply>('ApproveProposedParam', { key })
+    },
+
+    async rejectProposedParam(key: string): Promise<RejectProposedParamReply> {
+      return rpcCall<RejectProposedParamReply>('RejectProposedParam', { key })
     },
 
     async getProposedParamsInScope(scope: string): Promise<GetProposedParamsInScopeResponse> {

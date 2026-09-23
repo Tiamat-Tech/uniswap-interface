@@ -1,5 +1,5 @@
+import { Flex, SpinningLoader, Text } from '@universe/mycelium'
 import type { TFunction } from 'i18next'
-import { Flex, SpinningLoader, Text } from 'ui/src'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 

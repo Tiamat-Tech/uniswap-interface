@@ -1,9 +1,9 @@
+import { Flex, Text, UniversalImage, iconSizes } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, UniversalImage } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { getRWAIssuerDisplayName } from 'uniswap/src/features/rwa/issuers'
 import type { RWAMatch } from 'uniswap/src/features/rwa/rwaMatch'
 import { useRWAIssuerLogoUrl } from 'uniswap/src/features/rwa/useRWAIssuerLogoUrl'
+import { HeaderDivider } from '~/components/StickyCollapsibleHeader/HeaderDivider'
 
 interface RWAIssuerHeaderDetailsProps {
   rwaMatch?: RWAMatch
@@ -35,7 +35,7 @@ export function RWAIssuerHeaderDetails({ rwaMatch }: RWAIssuerHeaderDetailsProps
           {t('tdp.rwa.issuedBy', { issuer: displayName })}
         </Text>
       </Flex>
-      <Flex width={1} backgroundColor="$surface3" mx="$spacing12" alignSelf="stretch" />
+      <HeaderDivider alignSelf="stretch" />
     </>
   )
 }

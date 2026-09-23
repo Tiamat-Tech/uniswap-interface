@@ -1,20 +1,34 @@
 import { renderHook } from '@testing-library/react'
-import { useFeatureFlag } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { zeroAddress } from '~/chains'
 import { useBidFormWarningState } from '~/features/Toucan/Auction/BidForm/useBidFormWarningState'
 import { AuctionProgressState } from '~/features/Toucan/Auction/store/types'
-import { TOUCAN_AUCTION_SUPPORTED_CHAINS } from '~/features/Toucan/supportedChains'
+import { useToucanAuctionSupportedChains } from '~/features/Toucan/supportedChains'
 import { getPrimaryStablecoin } from '~/pages/Liquidity/CreateAuction/raiseCurrency'
 
-vi.mock('@universe/gating', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@universe/gating')>()),
-  useFeatureFlag: vi.fn(),
-}))
-
 const ARBITRARY_TOKEN = '0x1234567890123456789012345678901234567890'
+
+function renderWarningState(overrides: {
+  chainId?: UniverseChainId
+  currency?: string
+  auctionProgressState?: AuctionProgressState
+  isMaxBidPriceReached?: boolean
+  isUnmodeledValidationHook?: boolean
+}) {
+  const { result } = renderHook(() =>
+    useBidFormWarningState({
+      chainId: overrides.chainId ?? UniverseChainId.Mainnet,
+      currency: overrides.currency ?? zeroAddress,
+      auctionProgressState: overrides.auctionProgressState ?? AuctionProgressState.IN_PROGRESS,
+      userBids: [],
+      isMaxBidPriceReached: overrides.isMaxBidPriceReached,
+      isUnmodeledValidationHook: overrides.isUnmodeledValidationHook,
+    }),
+  )
+  return result.current
+}
 
 function getWarningState(chainId: UniverseChainId, currency: string): boolean {
   const { result } = renderHook(() =>
@@ -29,10 +43,6 @@ function getWarningState(chainId: UniverseChainId, currency: string): boolean {
 }
 
 describe('useBidFormWarningState', () => {
-  beforeEach(() => {
-    vi.mocked(useFeatureFlag).mockReturnValue(false)
-  })
-
   it('accepts the native currency (zero address)', () => {
     expect(getWarningState(UniverseChainId.Mainnet, zeroAddress)).toBe(false)
   })
@@ -43,7 +53,7 @@ describe('useBidFormWarningState', () => {
 
   it('accepts the primary stablecoin on a non-USDC-keyed chain (Robinhood/USDG)', () => {
     // Regression guard: Robinhood registers USDG, not a `tokens.USDC` key.
-    expect(TOUCAN_AUCTION_SUPPORTED_CHAINS).toContain(UniverseChainId.Robinhood)
+    expect(renderHook(() => useToucanAuctionSupportedChains()).result.current).toContain(UniverseChainId.Robinhood)
     expect(getChainInfo(UniverseChainId.Robinhood).tokens.USDC).toBeUndefined()
     expect(getWarningState(UniverseChainId.Robinhood, getPrimaryStablecoin(UniverseChainId.Robinhood).address)).toBe(
       false,
@@ -56,5 +66,52 @@ describe('useBidFormWarningState', () => {
 
   it('rejects an arbitrary token on a non-USDC-keyed chain (Robinhood)', () => {
     expect(getWarningState(UniverseChainId.Robinhood, ARBITRARY_TOKEN)).toBe(true)
+  })
+
+  describe('max bid price ceiling', () => {
+    it('leaves the form enabled when no ceiling has been reached', () => {
+      const state = renderWarningState({ isMaxBidPriceReached: false })
+      expect(state.showMaxBidPriceReachedState).toBe(false)
+      expect(state.shouldDisableBidForm).toBe(false)
+    })
+
+    it('disables the form once the ceiling is reached mid-auction', () => {
+      const state = renderWarningState({ isMaxBidPriceReached: true })
+      expect(state.showMaxBidPriceReachedState).toBe(true)
+      expect(state.shouldDisableBidForm).toBe(true)
+    })
+
+    it('does not raise a warning banner — the ceiling is not an unsupported auction', () => {
+      // The warning banner means "we cannot support bidding here". A reached ceiling is
+      // normal auction progress and gets its own alert instead.
+      expect(renderWarningState({ isMaxBidPriceReached: true }).shouldShowWarningBanner).toBe(false)
+    })
+
+    it('yields to the concluded-auction state once the auction has ended', () => {
+      const state = renderWarningState({
+        auctionProgressState: AuctionProgressState.ENDED,
+        isMaxBidPriceReached: true,
+      })
+      expect(state.showDisabledState).toBe(true)
+      expect(state.showMaxBidPriceReachedState).toBe(false)
+    })
+  })
+
+  describe('unmodeled validation hook', () => {
+    it('marks the auction unsupported and disables bidding', () => {
+      // Bid acceptance is governed by a hook nobody has inspected, so the user must not
+      // be able to commit budget and gas to it.
+      const state = renderWarningState({ isUnmodeledValidationHook: true })
+      expect(state.shouldShowWarningBanner).toBe(true)
+      expect(state.shouldDisableBidForm).toBe(true)
+    })
+
+    it('leaves an auction bidable when the hook IS recognized', () => {
+      // A modeled hook — KYC, ERC-1155 gate, or a max bid price ceiling — resolves to
+      // false here, which is what keeps the Umia ceiling auction biddable.
+      const state = renderWarningState({ isUnmodeledValidationHook: false })
+      expect(state.shouldShowWarningBanner).toBe(false)
+      expect(state.shouldDisableBidForm).toBe(false)
+    })
   })
 })

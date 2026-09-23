@@ -1,22 +1,33 @@
+import { Flex, type FlexCompatProps, Text } from '@universe/mycelium'
+import { forwardRef, type ForwardRefExoticComponent, type RefAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text } from 'ui/src'
 import { ArrowDown } from 'ui/src/components/icons/ArrowDown'
 import { ArrowContainer, ArrowWrapper } from '~/features/Swap/styled'
 
-const ModuleBlob = styled(Flex, {
-  backgroundColor: '$surface3',
-  borderRadius: '$rounded4',
-  height: 36,
-  width: '100%',
+// Explicit return type: forwardRef's inferred type isn't nameable under declaration emit (TS2883).
+const ModuleBlob: ForwardRefExoticComponent<FlexCompatProps & RefAttributes<HTMLDivElement>> = forwardRef<
+  HTMLDivElement,
+  FlexCompatProps
+>(function ModuleBlob(props, ref) {
+  return <Flex ref={ref} backgroundColor="$surface3" borderRadius="$rounded4" height={36} width="100%" {...props} />
 })
 
-const InputColumn = styled(Flex, {
-  flexDirection: 'column',
-  backgroundColor: '$surface2',
-  borderRadius: '$rounded16',
-  gap: 30,
-  paddingVertical: 48,
-  paddingHorizontal: '$spacing12',
+const InputColumn: ForwardRefExoticComponent<FlexCompatProps & RefAttributes<HTMLDivElement>> = forwardRef<
+  HTMLDivElement,
+  FlexCompatProps
+>(function InputColumn(props, ref) {
+  return (
+    <Flex
+      ref={ref}
+      flexDirection="column"
+      backgroundColor="$surface2"
+      borderRadius="$rounded16"
+      gap={30}
+      paddingVertical={48}
+      paddingHorizontal="$spacing12"
+      {...props}
+    />
+  )
 })
 
 function Title() {

@@ -1,6 +1,5 @@
 import { renderHook } from '@testing-library/react'
-import type { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
-import { opacifyRaw } from 'ui/src/theme/color/utils'
+import { opacifyRaw, type UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 import { useResolvedAnimatedNumberColors } from 'uniswap/src/components/AnimatedNumber/hooks/useResolvedAnimatedNumberColors'
 import { CUSTOM_COLOR_FADED_DECIMAL_OPACITY } from 'uniswap/src/components/AnimatedNumber/utils/getCharDisplayColor'
 

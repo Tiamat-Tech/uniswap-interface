@@ -7,6 +7,35 @@ import { vi } from 'vitest'
 
 // ─── Ports of apps/mobile/__mocks__ (jest auto-mocks for node modules) ───
 
+// uniwind: its web ESM build boots a CSS listener at import time (CSSRuleList over
+// document.styleSheets) that jsdom doesn't provide. Unit tests only consume the theme surface the
+// ui/src theme hooks read — 'light', matching the Tamagui default these mounts used
+// before. uniwind's real pipeline stays covered by the resolved-styles tests, which load its Metro
+// transformer directly ('uniwind/metro' path, not this module).
+//
+// Also reached through @universe/mycelium's *.native.* files (Shimmer.native,
+// ButtonCompat.native, theme-hooks-compat), which mobile's native-first extension
+// resolution picks up. Loading it for real breaks twice over: externalized, its dist
+// ESM imports bare "react-native" (Flow "typeof" source outside the react-native-web
+// alias); inlined, its web entry's import-time CSSOM listener needs CSSRuleList,
+// which jsdom 20 doesn't implement. Mock the hook surface mycelium uses too.
+//
+// A single vi.mock factory covers both call sites — two separate registrations for the
+// same module race on hoisting/resolution order, and whichever wins can shadow exports
+// the other one adds.
+vi.mock('uniwind', () => ({
+  useUniwind: (): { theme: 'light' | 'dark'; hasAdaptiveThemes: boolean } => ({
+    theme: 'light',
+    hasAdaptiveThemes: false,
+  }),
+  Uniwind: {
+    currentTheme: 'light' as const,
+    setTheme: vi.fn(),
+  },
+  useCSSVariable: (): string | undefined => undefined,
+  useResolveClassNames: (): Record<string, unknown> => ({}),
+}))
+
 // react-navigation: return a stable mocked navigation object so tests can assert navigate calls
 // (port of __mocks__/@react-navigation/native.js)
 vi.mock('@react-navigation/native', async (importOriginal) => {
@@ -305,6 +334,13 @@ vi.mock('react-native', async (importOriginal) => ({
     share: vi.fn(),
     sharedAction: 'sharedAction',
     dismissedAction: 'dismissedAction',
+  },
+  // react-native-web's addEventListener returns undefined, but the real RN API returns an
+  // EmitterSubscription. ReanimatedNumber calls subscription.remove() on unmount, and it now
+  // mounts in every suite that renders a balance.
+  AccessibilityInfo: {
+    isReduceMotionEnabled: vi.fn().mockResolvedValue(false),
+    addEventListener: vi.fn().mockReturnValue({ remove: vi.fn() }),
   },
 }))
 

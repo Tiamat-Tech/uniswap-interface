@@ -1,11 +1,12 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { X } from '@universe/mycelium/icons/X'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { X } from 'ui/src/components/icons/X'
-import { useSporeColors } from 'ui/src/hooks/useSporeColors'
 import {
   AddRangeRow,
   CustomPriceRangeRow,
+  FullRangeRemainderRow,
   HeaderColumnLabel,
   PriceBoundColumnHeader,
   PriceRangeRowShell,
@@ -21,7 +22,13 @@ import {
   MAX_CUSTOM_PRICE_RANGE_ENTRIES,
   PriceRangeStrategy,
 } from '~/pages/Liquidity/CreateAuction/types'
-import { getCustomPriceRangeLiquidityTotal } from '~/pages/Liquidity/CreateAuction/utils'
+import {
+  FULL_RANGE_REMAINDER_ENTRY_ID,
+  getCustomPriceRangeFullRangeRemainderPercent,
+  getCustomPriceRangeTotalProblem,
+  shouldShowFullRangeRemainder,
+  withFullRangeRemainderEntry,
+} from '~/pages/Liquidity/CreateAuction/utils'
 
 export function CustomPriceRangeEditor({
   entries,
@@ -46,23 +53,29 @@ export function CustomPriceRangeEditor({
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
   const canAddEntry = entries.length < MAX_CUSTOM_PRICE_RANGE_ENTRIES
 
+  const remainderPercent = getCustomPriceRangeFullRangeRemainderPercent(entries)
+  const showRemainderRow = shouldShowFullRangeRemainder(entries)
+
+  // The remainder is a real position, so the histogram draws it alongside the rows.
+  const histogramEntries = useMemo(() => withFullRangeRemainderEntry(entries), [entries])
+
   const rowHistogramColorByEntryId = useMemo(() => {
     const layers = getCustomPriceHistogramLayers({
-      entries,
+      entries: histogramEntries,
       barColor: histogramBarColor,
       neutral1Color: sporeColors.neutral1.val,
     })
     return new Map(layers.map((layer) => [layer.entryId, layer.color]))
-  }, [entries, histogramBarColor, sporeColors.neutral1.val])
+  }, [histogramEntries, histogramBarColor, sporeColors.neutral1.val])
 
-  const liquidityTotal = useMemo(() => getCustomPriceRangeLiquidityTotal(entries), [entries])
-  const isLiquidityTotalValid = liquidityTotal === 100
+  // Same predicate the step gate reads, so the copy below can't disagree with whether Continue works.
+  const totalProblem = useMemo(() => getCustomPriceRangeTotalProblem(entries), [entries])
 
   return (
     <Flex gap="$spacing16">
       <PriceHistogram
         strategy={PriceRangeStrategy.CUSTOM_RANGE}
-        customPriceRanges={entries}
+        customPriceRanges={histogramEntries}
         barColor={histogramBarColor}
         activeEntryId={activeEntryId}
         onHoverEntry={setActiveEntryId}
@@ -112,9 +125,17 @@ export function CustomPriceRangeEditor({
             onRemove={() => onRemoveEntry(entry.id)}
           />
         ))}
+        {showRemainderRow && (
+          <FullRangeRemainderRow
+            remainderPercent={remainderPercent}
+            rowHistogramColor={rowHistogramColorByEntryId.get(FULL_RANGE_REMAINDER_ENTRY_ID) ?? histogramBarColor}
+            isActive={activeEntryId === FULL_RANGE_REMAINDER_ENTRY_ID}
+            onHoverEntry={setActiveEntryId}
+          />
+        )}
         <AddRangeRow canAddEntry={canAddEntry} onAddPreset={onAddPreset} />
       </Flex>
-      {(!canAddEntry || !isLiquidityTotalValid) && (
+      {(!canAddEntry || totalProblem !== undefined) && (
         <Flex gap="$spacing4">
           {!canAddEntry && (
             <Text variant="body3" color="$neutral2" textAlign="center">
@@ -123,9 +144,14 @@ export function CustomPriceRangeEditor({
               })}
             </Text>
           )}
-          {!isLiquidityTotalValid && (
+          {totalProblem === 'overAllocated' && (
             <Text variant="body3" color="$statusCritical" textAlign="center">
-              {t('toucan.createAuction.step.customizePool.priceRange.custom.totalMustEqual100')}
+              {t('toucan.createAuction.step.customizePool.priceRange.custom.totalCannotExceed100')}
+            </Text>
+          )}
+          {totalProblem === 'unallocated' && (
+            <Text variant="body3" color="$statusCritical" textAlign="center">
+              {t('toucan.createAuction.step.customizePool.priceRange.custom.totalMustBeAboveZero')}
             </Text>
           )}
         </Flex>

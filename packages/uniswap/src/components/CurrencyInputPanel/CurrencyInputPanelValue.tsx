@@ -1,8 +1,8 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { Flex, Text, type TextCompatProps, TouchableArea } from '@universe/mycelium'
 import { memo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Flex, Text, TextProps, TouchableArea } from 'ui/src'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
@@ -23,7 +23,7 @@ interface CurrencyInputPanelValueProps {
   currencyInfo: Maybe<CurrencyInfo>
   currencyAmount: Maybe<CurrencyAmount<Currency>>
   isFiatMode: boolean
-  fiatValueVariant?: TextProps['variant']
+  fiatValueVariant?: TextCompatProps['variant']
 }
 
 export const CurrencyInputPanelValue = memo(function CurrencyInputPanelValueInner({

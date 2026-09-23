@@ -294,4 +294,6 @@ export const v32Schema = {
 
 export const v33Schema = { ...v32Schema }
 
-export const getSchema = (): typeof v33Schema => v33Schema
+export const v34Schema = { ...v33Schema }
+
+export const getSchema = (): typeof v34Schema => v34Schema

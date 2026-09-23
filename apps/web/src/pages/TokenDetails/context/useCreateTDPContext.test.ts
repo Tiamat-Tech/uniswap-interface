@@ -1,42 +1,44 @@
-import { NetworkStatus } from '@apollo/client'
-import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import type { PlainMessage } from '@bufbuild/protobuf'
+import { Code, ConnectError } from '@connectrpc/connect'
+import { keepPreviousData } from '@tanstack/react-query'
+import type { Auction } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
 import { GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { normalizeTokenAddressForCache, UniverseChainId } from '@universe/chains'
+import { useFeatureFlag } from '@universe/gating'
 import { useLocation, useParams } from 'react-router'
 import { USDC_MAINNET } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { usePortfolioBalances } from 'uniswap/src/features/portfolio/balances/hooks'
-import type { RWAWhitelist } from 'uniswap/src/features/rwa/types'
-import { useRWAWhitelist } from 'uniswap/src/features/rwa/useRWAWhitelist'
+import { buildNativeCurrencyId } from 'uniswap/src/utils/currencyId'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
+import { TokenDetailsSourceState } from '~/pages/TokenDetails/context/tokenDetailsSourceState'
 import { useCreateTDPContext } from '~/pages/TokenDetails/context/useCreateTDPContext'
+import { useTokenDetailsAuction } from '~/pages/TokenDetails/hooks/useTokenDetailsAuction'
 import { mocked } from '~/test-utils/mocked'
 import { renderHook as renderHookWithProviders, waitFor } from '~/test-utils/render'
 import { createMockTDPChartState } from '~/test-utils/tokenDetails/fixtures'
-import { validTokenProjectResponse } from '~/test-utils/tokens/fixtures'
 import { useChainIdFromUrlParam } from '~/utils/params/chainParams'
 
 const restMocks = vi.hoisted(() => ({
   // Salted per test so the module-level test QueryClient can't serve one test's cache to the next
   querySalt: 0,
-  getTokenQueryFn: vi.fn(),
   getTokenMultiChainQueryFn: vi.fn(),
 }))
 
-vi.mock('uniswap/src/data/apiClients/dataApiService/tokens/queries', () => ({
-  getGetTokenQueryOptions: ({ params, enabled }: { params?: unknown; enabled?: boolean }) => ({
-    queryKey: ['test-tdp', restMocks.querySalt, 'getToken', params],
-    queryFn: restMocks.getTokenQueryFn,
-    enabled,
-    retry: false,
-  }),
-  getGetTokenMultiChainQueryOptions: ({ params, enabled }: { params?: unknown; enabled?: boolean }) => ({
-    queryKey: ['test-tdp', restMocks.querySalt, 'getTokenMultiChain', params],
-    queryFn: restMocks.getTokenMultiChainQueryFn,
-    enabled,
-    retry: false,
-  }),
-}))
+vi.mock('uniswap/src/data/apiClients/dataApiService/tokens/queries', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('uniswap/src/data/apiClients/dataApiService/tokens/queries')>()
+  return {
+    ...actual,
+    getGetTokenMultiChainQueryOptions: ({ params, enabled }: { params?: unknown; enabled?: boolean }) => ({
+      queryKey: ['test-tdp', restMocks.querySalt, 'getTokenMultiChain', params],
+      queryFn: restMocks.getTokenMultiChainQueryFn,
+      enabled,
+      retry: false,
+      // Matches the real query options' policy so navigation tests exercise the same
+      // stale-placeholder-during-refetch behavior the production hook has to handle.
+      placeholderData: keepPreviousData,
+    }),
+  }
+})
 
 vi.mock('react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router')>()
@@ -47,29 +49,10 @@ vi.mock('react-router', async (importOriginal) => {
   }
 })
 
-vi.mock('@universe/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@universe/api')>()
-  return {
-    ...actual,
-    GraphQLApi: {
-      ...actual.GraphQLApi,
-      useTokenWebQuery: vi.fn(),
-      useTokenProjectWebQuery: vi.fn(),
-    },
-  }
-})
-
 vi.mock('@universe/gating', async (importOriginal) => {
   return {
     ...(await importOriginal()),
     useFeatureFlag: vi.fn(() => false),
-  }
-})
-
-vi.mock('uniswap/src/features/rwa/useRWAWhitelist', async (importOriginal) => {
-  return {
-    ...(await importOriginal<typeof import('uniswap/src/features/rwa/useRWAWhitelist')>()),
-    useRWAWhitelist: vi.fn(() => []),
   }
 })
 
@@ -87,8 +70,8 @@ vi.mock('~/pages/TokenDetails/components/chart/TDPChartState', () => ({
   useCreateTDPChartState: vi.fn(() => mockChartState),
 }))
 
-vi.mock('ui/src', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('ui/src')>()
+vi.mock('@universe/mycelium/theme-hooks-compat', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@universe/mycelium/theme-hooks-compat')>()
   return {
     ...actual,
     useSporeColors: vi.fn(() => ({ surface2: { val: '#000000' } })),
@@ -117,39 +100,57 @@ vi.mock('uniswap/src/features/portfolio/balances/hooks', async (importOriginal) 
   }
 })
 
-// What Apollo reports on a warm-cache remount under the app-wide `cache-and-network` watchQuery
-// default (apps/web/src/data/apollo/client.ts): a fresh ObservableQuery starts in the loading
-// state and revalidates, but the cached data is already there.
-function warmCacheRevalidating(token: unknown) {
-  return {
-    data: { token },
-    loading: true,
-    networkStatus: NetworkStatus.loading,
-    error: undefined,
-  } as ReturnType<typeof GraphQLApi.useTokenWebQuery>
+vi.mock('~/pages/TokenDetails/hooks/useTokenDetailsAuction', () => ({
+  useTokenDetailsAuction: vi.fn(),
+}))
+
+beforeEach(() => {
+  mocked(useTokenDetailsAuction).mockReturnValue({
+    status: TokenDetailsSourceState.Disabled,
+  })
+})
+
+const USDC_BASE_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+
+const restMultichainAddresses = {
+  [String(UniverseChainId.Mainnet)]: USDC_MAINNET.address,
+  [String(UniverseChainId.Base)]: USDC_BASE_ADDRESS,
 }
 
-/** Same cached payload after the background revalidation resolves. */
-function revalidated(token: unknown) {
-  return {
-    data: { token },
-    loading: false,
-    networkStatus: NetworkStatus.ready,
-    error: undefined,
-  } as ReturnType<typeof GraphQLApi.useTokenWebQuery>
+const restMultichainToken = {
+  multichainId: 'mc-usdc',
+  addresses: restMultichainAddresses,
+  symbol: 'USDC',
+  decimals: 6,
+  name: 'USD Coin',
+  type: 2,
+  price: { spotUsd: 1.0001 },
+  safety: { isSpam: false, isVerified: true, isBlocked: false, features: [] },
+  fees: undefined,
+  project: { logoUrl: 'https://example.com/logo.png', descriptionTranslations: {} },
 }
 
-/** True when a render that had already stopped loading went back to loading — a skeleton bounce. */
-function bouncedBackToSkeleton(loadingStates: boolean[]): boolean {
-  const firstRendered = loadingStates.indexOf(false)
-  return firstRendered !== -1 && loadingStates.lastIndexOf(true) > firstRendered
+// What useCreateTDPContext derives from restMultichainToken for the current (Mainnet) chain —
+// every field carries straight across except the scalar chainId/address pair.
+const restToken = {
+  chainId: UniverseChainId.Mainnet,
+  address: USDC_MAINNET.address,
+  symbol: 'USDC',
+  decimals: 6,
+  name: 'USD Coin',
+  type: 2,
+  price: { spotUsd: 1.0001 },
+  safety: { isSpam: false, isVerified: true, isBlocked: false, features: [] },
+  fees: undefined,
+  project: { logoUrl: 'https://example.com/logo.png', descriptionTranslations: {} },
+  fdv: undefined,
+  multichain: { id: 'mc-usdc', addresses: restMultichainAddresses },
 }
 
 describe('useCreateTDPContext', () => {
   beforeEach(() => {
     restMocks.querySalt += 1
-    restMocks.getTokenQueryFn.mockReset()
-    restMocks.getTokenMultiChainQueryFn.mockReset()
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockResolvedValue({ token: restMultichainToken })
     mocked(useFeatureFlag).mockImplementation(() => false)
     mocked(useParams).mockReturnValue({
       tokenAddress: USDC_MAINNET.address,
@@ -162,17 +163,6 @@ describe('useCreateTDPContext', () => {
       search: '',
       hash: '',
     } as ReturnType<typeof useLocation>)
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue({
-      data: validTokenProjectResponse.data,
-      loading: false,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenWebQuery>)
-    // `currency`, `multiChainMap` and `tokenColor` now derive from the lightweight metadata query.
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue({
-      data: validTokenProjectResponse.data,
-      loading: false,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenProjectWebQuery>)
     vi.mocked(usePortfolioBalances).mockReturnValue({
       data: undefined,
       error: undefined,
@@ -190,16 +180,16 @@ describe('useCreateTDPContext', () => {
     )
   })
 
-  it('returns object with required TDP context keys', () => {
+  it('returns object with required TDP context keys', async () => {
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => expect(result.current.state.currency).toBeDefined())
 
     expect(result.current.state).toMatchObject({
       currency: expect.anything(),
       currencyChain: GraphQLApi.Chain.Ethereum,
       currencyChainId: UniverseChainId.Mainnet,
       address: expect.any(String),
-      tokenQuery: expect.anything(),
-      tokenProjectQuery: expect.anything(),
       multiChainMap: expect.any(Object),
       balanceError: undefined,
       selectedMultichainChainId: undefined,
@@ -207,33 +197,90 @@ describe('useCreateTDPContext', () => {
     expect(Object.keys(result.current.state)).toContain('tokenColor')
   })
 
-  it('returns PendingTDPContext (currency undefined) when token query has no data', () => {
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue({
-      data: undefined,
-      loading: true,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenWebQuery>)
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue({
-      data: undefined,
-      loading: true,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenProjectWebQuery>)
+  it('returns PendingTDPContext (currency undefined) while the token query is in flight', () => {
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
 
     expect(result.current.state.currency).toBeUndefined()
     expect(result.current.state.address).toBe(USDC_MAINNET.address)
-    expect(result.current.state.tokenQuery.loading).toBe(true)
-    expect(result.current.state.tokenProjectQuery.loading).toBe(true)
+    expect(result.current.state.pageQueryLoading).toBe(true)
   })
 
-  it('returns LoadedTDPContext (currency defined) when token query has data', () => {
+  it('returns LoadedTDPContext (currency defined) when the token query has data', async () => {
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
 
-    expect(result.current.state.currency).toBeDefined()
+    await waitFor(() => expect(result.current.state.currency).toBeDefined())
+
     expect(result.current.state.currency?.symbol).toBe('USDC')
     expect(result.current.state.currency?.chainId).toBe(UniverseChainId.Mainnet)
     expect(result.current.state.address).toBe(USDC_MAINNET.address)
+    expect(result.current.state.pageQueryLoading).toBe(false)
+  })
+
+  it('keeps the canonical page when the auction lookup fails', async () => {
+    mocked(useTokenDetailsAuction).mockReturnValue({
+      status: TokenDetailsSourceState.Error,
+      error: new Error('unavailable'),
+    })
+
+    const { result } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => expect(result.current.state.currency).toBeDefined())
+
+    expect(result.current.state.pageQueryLoading).toBe(false)
+    expect(result.current.state.auctionSource.status).toBe(TokenDetailsSourceState.Error)
+  })
+
+  it('keeps a found auction as supplemental data when the canonical token is missing', async () => {
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockResolvedValue({ token: undefined })
+    mocked(useTokenDetailsAuction).mockReturnValue({
+      status: TokenDetailsSourceState.Found,
+      auction: { address: '0x1111111111111111111111111111111111111111' } as PlainMessage<Auction>,
+    })
+
+    const { result } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => expect(result.current.state.pageQueryLoading).toBe(false))
+
+    expect(result.current.state.currency).toBeUndefined()
+    expect(result.current.state.auctionSource).toMatchObject({
+      status: TokenDetailsSourceState.Found,
+      auction: { address: '0x1111111111111111111111111111111111111111' },
+    })
+  })
+
+  it('preserves the existing redirect state when auction resolution is disabled', async () => {
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockResolvedValue({ token: undefined })
+
+    const { result } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => expect(result.current.state.pageQueryLoading).toBe(false))
+
+    expect(result.current.state.currency).toBeUndefined()
+  })
+
+  it('does not wait for the auction lookup after the canonical token is missing', async () => {
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockResolvedValue({ token: undefined })
+    mocked(useTokenDetailsAuction).mockReturnValue({ status: TokenDetailsSourceState.Loading })
+
+    const { result } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => expect(result.current.state.pageQueryLoading).toBe(false))
+  })
+
+  it('preserves the existing redirect state when the canonical lookup fails', async () => {
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockRejectedValue(new Error('canonical unavailable'))
+    mocked(useTokenDetailsAuction).mockReturnValue({
+      status: TokenDetailsSourceState.Error,
+      error: new Error('auction unavailable'),
+    })
+
+    const { result } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => expect(result.current.state.pageQueryLoading).toBe(false))
+
+    expect(result.current.state.currency).toBeUndefined()
   })
 
   it('returns native currency when tokenAddress is NATIVE_CHAIN_ID', () => {
@@ -241,11 +288,6 @@ describe('useCreateTDPContext', () => {
       tokenAddress: NATIVE_CHAIN_ID,
       chainName: 'ethereum',
     })
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue({
-      data: undefined,
-      loading: false,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenWebQuery>)
 
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
 
@@ -306,84 +348,14 @@ describe('useCreateTDPContext', () => {
 
     expect(refetch).toHaveBeenCalledOnce()
   })
-
-  it('adapts GraphQL data onto the V2-shaped token and multichainToken when the flag is off', () => {
-    const { result } = renderHookWithProviders(() => useCreateTDPContext())
-
-    expect(result.current.state.token).toMatchObject({
-      chainId: UniverseChainId.Mainnet,
-      address: USDC_MAINNET.address,
-      symbol: 'USDC',
-      name: 'USD Coin',
-    })
-    // Fixture has no project.tokens rows, so the multichain source hasn't resolved cross-chain data
-    expect(result.current.state.multichainToken).toBeUndefined()
-    expect(result.current.state.multichainTokenLoaded).toBe(false)
-    expect(result.current.state.pageQueryLoading).toBe(false)
-    expect(result.current.state.marketDataLoading).toBe(false)
-    // REST queries stay disabled
-    expect(restMocks.getTokenQueryFn).not.toHaveBeenCalled()
-    expect(restMocks.getTokenMultiChainQueryFn).not.toHaveBeenCalled()
-  })
 })
 
-describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
-  const USDC_BASE_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
-
-  const restToken = {
-    chainId: UniverseChainId.Mainnet,
-    address: USDC_MAINNET.address,
-    symbol: 'USDC',
-    decimals: 6,
-    name: 'USD Coin',
-    type: 2,
-    price: { spotUsd: 1.0001 },
-    safety: { isSpam: false, isVerified: true, isBlocked: false, features: [] },
-    fees: undefined,
-    project: { logoUrl: 'https://example.com/logo.png', descriptionTranslations: {} },
-    multichain: undefined,
-  }
-
-  // Matches the page token, so findRWAMatch resolves a match off the REST-derived candidates.
-  const RWA_WHITELIST: RWAWhitelist = [
-    {
-      symbol: 'USDC',
-      name: 'USD Coin',
-      icon: 'https://example.com/usdc.png',
-      tokens: [
-        {
-          chainId: UniverseChainId.Mainnet,
-          address: USDC_MAINNET.address,
-          issuer: 'ondo',
-          name: 'Ondo',
-          symbol: 'USDC.on',
-          logoUrl: 'https://example.com/usdc-ondo.png',
-        },
-      ],
-      category: RwaCategory.STOCKS,
-    },
-  ]
-
-  const restMultichainToken = {
-    multichainId: 'mc-usdc',
-    addresses: {
-      [String(UniverseChainId.Mainnet)]: USDC_MAINNET.address,
-      [String(UniverseChainId.Base)]: USDC_BASE_ADDRESS,
-    },
-    symbol: 'USDC',
-    decimals: 6,
-    name: 'USD Coin',
-    type: 2,
-  }
-
+describe('core new endpoint functionality', () => {
   beforeEach(() => {
     restMocks.querySalt += 1
-    restMocks.getTokenQueryFn.mockReset().mockResolvedValue({ token: restToken })
     restMocks.getTokenMultiChainQueryFn.mockReset().mockResolvedValue({ token: restMultichainToken })
-    mocked(useFeatureFlag).mockImplementation((flag) => flag === FeatureFlags.V2EndpointsTokens)
-    mocked(useRWAWhitelist).mockReturnValue([])
     mocked(useParams).mockReturnValue({
-      tokenAddress: USDC_MAINNET.address.toLowerCase(),
+      tokenAddress: normalizeTokenAddressForCache(USDC_MAINNET.address),
       chainName: 'ethereum',
     })
     mocked(useLocation).mockReturnValue({
@@ -393,27 +365,14 @@ describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
       search: '',
       hash: '',
     } as ReturnType<typeof useLocation>)
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue({
-      data: undefined,
-      loading: false,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenWebQuery>)
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue({
-      data: undefined,
-      loading: false,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenProjectWebQuery>)
     vi.mocked(usePortfolioBalances).mockReturnValue({
       data: undefined,
       error: undefined,
     } as ReturnType<typeof usePortfolioBalances>)
   })
 
-  it('skips both GraphQL queries and derives the context from REST', async () => {
+  it('derives the context from REST', async () => {
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
-
-    expect(GraphQLApi.useTokenProjectWebQuery).toHaveBeenCalledWith(expect.objectContaining({ skip: true }))
-    expect(GraphQLApi.useTokenWebQuery).toHaveBeenCalledWith(expect.objectContaining({ skip: true }))
 
     await waitFor(() => {
       expect(result.current.state.currency).toBeDefined()
@@ -427,40 +386,20 @@ describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
     expect(result.current.state.multichainToken).toEqual(restMultichainToken)
   })
 
-  // The sole exception to the skip above, so the only way `tokenQuery.data` survives a global flag-on —
-  // which is what keeps StatsSection's legacy marketCap/FDV fill from shadowing V2. Pinned here because
-  // StatsSection reads only the effective flag and can't tell the two states apart.
-  it('keeps the TokenWeb query alive for RWA project market data even with the V2 flag on', async () => {
-    mocked(useFeatureFlag).mockImplementation(
-      (flag) => flag === FeatureFlags.V2EndpointsTokens || flag === FeatureFlags.RWACoinGeckoData,
-    )
-    mocked(useRWAWhitelist).mockReturnValue(RWA_WHITELIST)
-
-    renderHookWithProviders(() => useCreateTDPContext())
-
-    // The RWA candidates derive from the REST response, so the carve-out engages once GetToken resolves.
-    await waitFor(() => {
-      expect(GraphQLApi.useTokenWebQuery).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          skip: false,
-          variables: expect.objectContaining({ preferProjectMarketData: true }),
-        }),
-      )
-    })
-  })
-
-  it('requests GetToken with the cache-normalized URL address (same key the shared hooks build)', async () => {
+  it('requests GetTokenMultiChain with the cache-normalized URL address (same key the shared hooks build)', async () => {
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
 
     await waitFor(() => {
       expect(result.current.state.currency).toBeDefined()
     })
 
-    expect(restMocks.getTokenQueryFn).toHaveBeenCalled()
-    const getTokenCall = restMocks.getTokenQueryFn.mock.calls[0]?.[0] as { queryKey: unknown[] }
-    expect(getTokenCall.queryKey).toContainEqual({
-      chainId: UniverseChainId.Mainnet,
-      address: USDC_MAINNET.address.toLowerCase(),
+    expect(restMocks.getTokenMultiChainQueryFn).toHaveBeenCalled()
+    const getTokenMultiChainCall = restMocks.getTokenMultiChainQueryFn.mock.calls[0]?.[0] as { queryKey: unknown[] }
+    expect(getTokenMultiChainCall.queryKey).toContainEqual({
+      identifier: {
+        case: 'token',
+        value: { chainId: UniverseChainId.Mainnet, address: USDC_MAINNET.address.toLowerCase() },
+      },
     })
   })
 
@@ -472,8 +411,8 @@ describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
     })
 
     expect(result.current.state.multiChainMap).toEqual({
-      [GraphQLApi.Chain.Ethereum]: { address: USDC_MAINNET.address, balance: undefined },
-      [GraphQLApi.Chain.Base]: { address: USDC_BASE_ADDRESS, balance: undefined },
+      [UniverseChainId.Mainnet]: { address: USDC_MAINNET.address, balance: undefined },
+      [UniverseChainId.Base]: { address: USDC_BASE_ADDRESS, balance: undefined },
     })
   })
 
@@ -484,8 +423,8 @@ describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
       // REST portfolio balances are keyed by lowercase currency ids; GetTokenMultiChain
       // addresses are checksummed — the map must still associate them.
       data: {
-        [`${UniverseChainId.Mainnet}-${USDC_MAINNET.address.toLowerCase()}`]: mainnetBalance,
-        [`${UniverseChainId.Base}-${USDC_BASE_ADDRESS.toLowerCase()}`]: baseBalance,
+        [`${UniverseChainId.Mainnet}-${normalizeTokenAddressForCache(USDC_MAINNET.address)}`]: mainnetBalance,
+        [`${UniverseChainId.Base}-${normalizeTokenAddressForCache(USDC_BASE_ADDRESS)}`]: baseBalance,
       },
       error: undefined,
     } as unknown as ReturnType<typeof usePortfolioBalances>)
@@ -497,13 +436,48 @@ describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
     })
 
     expect(result.current.state.multiChainMap).toEqual({
-      [GraphQLApi.Chain.Ethereum]: { address: USDC_MAINNET.address, balance: mainnetBalance },
-      [GraphQLApi.Chain.Base]: { address: USDC_BASE_ADDRESS, balance: baseBalance },
+      [UniverseChainId.Mainnet]: { address: USDC_MAINNET.address, balance: mainnetBalance },
+      [UniverseChainId.Base]: { address: USDC_BASE_ADDRESS, balance: baseBalance },
     })
   })
 
-  it('synthesizes a single-chain multichainToken when GetTokenMultiChain errors', async () => {
-    restMocks.getTokenMultiChainQueryFn.mockReset().mockRejectedValue(new Error('not_found'))
+  // Polygon's canonical native address is the real 0x…1010 placeholder, not the zero address the
+  // v2 backend serves for native deployments — the map must still recognize it as native and match
+  // the wallet's balance (buildNativeCurrencyId), not treat it as a distinct zero-address token.
+  it('matches a Polygon native deployment served as the zero address to the native balance', async () => {
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockResolvedValue({
+      token: {
+        ...restMultichainToken,
+        addresses: {
+          ...restMultichainAddresses,
+          [String(UniverseChainId.Polygon)]: '0x0000000000000000000000000000000000000000',
+        },
+      },
+    })
+    const polygonBalance = { quantity: 10 }
+    vi.mocked(usePortfolioBalances).mockReturnValue({
+      data: { [buildNativeCurrencyId(UniverseChainId.Polygon)]: polygonBalance },
+      error: undefined,
+    } as unknown as ReturnType<typeof usePortfolioBalances>)
+
+    const { result } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => {
+      expect(result.current.state.multichainTokenLoaded).toBe(true)
+    })
+
+    expect(result.current.state.multiChainMap[UniverseChainId.Polygon]).toEqual({
+      address: undefined,
+      balance: polygonBalance,
+    })
+  })
+
+  // The backend serves tokens outside the multichain index as a single-entry response, so a
+  // genuinely single-chain token resolves with one address rather than erroring.
+  it('handles a single-chain multichainToken resolved by GetTokenMultiChain', async () => {
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockResolvedValue({
+      token: { ...restMultichainToken, addresses: { [String(UniverseChainId.Mainnet)]: USDC_MAINNET.address } },
+    })
 
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
 
@@ -515,12 +489,81 @@ describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
       addresses: { [String(UniverseChainId.Mainnet)]: USDC_MAINNET.address },
     })
     expect(result.current.state.multiChainMap).toEqual({
-      [GraphQLApi.Chain.Ethereum]: { address: USDC_MAINNET.address, balance: undefined },
+      [UniverseChainId.Mainnet]: { address: USDC_MAINNET.address, balance: undefined },
     })
   })
 
-  it('stays pending (no redirect-eligible state) while GetToken is loading', () => {
-    restMocks.getTokenQueryFn.mockReset().mockReturnValue(new Promise(() => {}))
+  // A native deployment's address is falsy but present (isNativeCurrencyAddress treats empty as
+  // native) — distinct from the chain being absent from the map, which must return undefined.
+  it('derives a defined token for a native deployment with a falsy address entry', async () => {
+    mocked(useParams).mockReturnValue({
+      tokenAddress: NATIVE_CHAIN_ID,
+      chainName: 'ethereum',
+    })
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockResolvedValue({
+      token: { ...restMultichainToken, addresses: { [String(UniverseChainId.Mainnet)]: '' } },
+    })
+
+    const { result } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => {
+      expect(result.current.state.multichainTokenLoaded).toBe(true)
+    })
+
+    expect(result.current.state.token).toBeDefined()
+    expect(result.current.state.token?.address).toBe('')
+  })
+
+  // keepPreviousData can serve a stale, chain-mismatched token with isLoading: false — pageQueryLoading
+  // must stay true through that window instead of settling into a false redirect-eligible state.
+  it('keeps pageQueryLoading true while navigating to a token whose chain is absent from the stale placeholder data', async () => {
+    const { result, rerender } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => {
+      expect(result.current.state.currency).toBeDefined()
+    })
+
+    mocked(useChainIdFromUrlParam).mockReturnValue(UniverseChainId.ArbitrumOne)
+    mocked(useParams).mockReturnValue({
+      tokenAddress: '0x0000000000000000000000000000000000000abc',
+      chainName: 'arbitrum',
+    })
+    // Leaves the new query key's fetch pending, so the observer keeps serving restMultichainToken
+    // (no ArbitrumOne entry in its addresses) as placeholder data for the new key.
+    restMocks.getTokenMultiChainQueryFn.mockReturnValue(new Promise(() => {}))
+
+    rerender()
+
+    expect(result.current.state.pageQueryLoading).toBe(true)
+    expect(result.current.state.chainDataLoading).toBe(true)
+
+    mocked(useChainIdFromUrlParam).mockReturnValue(UniverseChainId.Mainnet)
+  })
+
+  it('keeps the page loading when an auction resolves before a same-chain token navigation', async () => {
+    const { result, rerender } = renderHookWithProviders(() => useCreateTDPContext())
+
+    await waitFor(() => {
+      expect(result.current.state.currency).toBeDefined()
+    })
+
+    mocked(useParams).mockReturnValue({
+      tokenAddress: '0x0000000000000000000000000000000000000abc',
+      chainName: 'ethereum',
+    })
+    restMocks.getTokenMultiChainQueryFn.mockReturnValue(new Promise(() => {}))
+    mocked(useTokenDetailsAuction).mockReturnValue({
+      status: TokenDetailsSourceState.Found,
+      auction: { address: '0x1111111111111111111111111111111111111111' } as PlainMessage<Auction>,
+    })
+
+    rerender()
+
+    expect(result.current.state.currency?.wrapped.address).toBe(USDC_MAINNET.address)
+    expect(result.current.state.pageQueryLoading).toBe(true)
+  })
+
+  it('stays pending (no redirect-eligible state) while GetTokenMultiChain is loading', () => {
     restMocks.getTokenMultiChainQueryFn.mockReset().mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
@@ -531,9 +574,12 @@ describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
     expect(result.current.state.multichainTokenLoaded).toBe(false)
   })
 
-  it('resolves currency undefined after GetToken not_found so the page can redirect', async () => {
-    restMocks.getTokenQueryFn.mockReset().mockRejectedValue(new Error('not_found'))
-    restMocks.getTokenMultiChainQueryFn.mockReset().mockRejectedValue(new Error('not_found'))
+  it('redirects after GetTokenMultiChain fails even when an auction resolves', async () => {
+    restMocks.getTokenMultiChainQueryFn.mockReset().mockRejectedValue(new Error('permission_denied'))
+    mocked(useTokenDetailsAuction).mockReturnValue({
+      status: TokenDetailsSourceState.Found,
+      auction: { address: '0x1111111111111111111111111111111111111111' } as PlainMessage<Auction>,
+    })
 
     const { result } = renderHookWithProviders(() => useCreateTDPContext())
 
@@ -543,248 +589,23 @@ describe('useCreateTDPContext with V2EndpointsTokens enabled', () => {
 
     expect(result.current.state.currency).toBeUndefined()
   })
-})
 
-describe('useCreateTDPContext on a Robinhood chain with V2EndpointsTokens disabled', () => {
-  const legacyToken = validTokenProjectResponse.data?.token
-
-  // Logo + every headline stat present, so `isLegacyTdpDataMissing` is false and the V2 fallback
-  // stays dormant. The bare fixture is missing market stats, which would silently arm the fallback.
-  const completeMarketToken = {
-    ...legacyToken,
-    market: {
-      totalValueLocked: { value: 1_000_000 },
-      volume24H: { value: 500_000 },
-      priceHigh52W: { value: 1.02 },
-      priceLow52W: { value: 0.98 },
-    },
-    project: {
-      ...legacyToken?.project,
-      markets: [{ marketCap: { value: 42_000_000 }, fullyDilutedValuation: { value: 45_000_000 } }],
-    },
-  }
-
-  // Logo stripped: `isLegacyTdpDataMissing` fires, so the fallback is genuinely active on this one.
-  const incompleteMetadataToken = {
-    ...legacyToken,
-    project: { ...legacyToken?.project, logoUrl: undefined },
-  }
-
-  const robinhoodRestToken = {
-    chainId: UniverseChainId.Robinhood,
-    address: USDC_MAINNET.address,
-    symbol: 'USDC',
-    decimals: 6,
-    name: 'USD Coin',
-    type: 2,
-    price: { spotUsd: 1.0001 },
-    safety: { isSpam: false, isVerified: true, isBlocked: false, features: [] },
-    fees: undefined,
-    project: { logoUrl: 'https://example.com/rest-logo.png', descriptionTranslations: {} },
-    multichain: undefined,
-  }
-
-  beforeEach(() => {
-    restMocks.querySalt += 1
-    // Robinhood prefetches the V2 endpoints; leave them unresolved so only the legacy source can
-    // satisfy the page — the loading flags must come from the cached GraphQL data alone.
-    restMocks.getTokenQueryFn.mockReset().mockReturnValue(new Promise(() => {}))
-    restMocks.getTokenMultiChainQueryFn.mockReset().mockReturnValue(new Promise(() => {}))
-    mocked(useFeatureFlag).mockImplementation(() => false)
-    mocked(useChainIdFromUrlParam).mockReturnValue(UniverseChainId.Robinhood)
-    mocked(useParams).mockReturnValue({
-      tokenAddress: USDC_MAINNET.address,
-      chainName: 'robinhood',
-    })
-    mocked(useLocation).mockReturnValue({
-      pathname: '/explore/tokens/robinhood/0x123',
-      state: null,
-      key: '',
-      search: '',
-      hash: '',
-    } as ReturnType<typeof useLocation>)
-    vi.mocked(usePortfolioBalances).mockReturnValue({
-      data: undefined,
-      error: undefined,
-    } as ReturnType<typeof usePortfolioBalances>)
-  })
-
-  afterEach(() => {
-    mocked(useChainIdFromUrlParam).mockReturnValue(UniverseChainId.Mainnet)
-  })
-
-  it('renders straight from the warm Apollo cache instead of re-skeletoning on remount', async () => {
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue(warmCacheRevalidating(legacyToken))
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue(warmCacheRevalidating(completeMarketToken))
-
-    const { result, rerender } = renderHookWithProviders(() => useCreateTDPContext())
-
-    await waitFor(() => {
-      expect(result.current.state.currency).toBeDefined()
+  it('keeps the page redirect-eligible when GetTokenMultiChain returns NotFound and an auction resolves', async () => {
+    restMocks.getTokenMultiChainQueryFn
+      .mockReset()
+      .mockRejectedValue(new ConnectError('Token not found', Code.NotFound))
+    mocked(useTokenDetailsAuction).mockReturnValue({
+      status: TokenDetailsSourceState.Found,
+      auction: { address: '0x1111111111111111111111111111111111111111' } as PlainMessage<Auction>,
     })
 
-    expect(result.current.state.pageQueryLoading).toBe(false)
-    expect(result.current.state.chainDataLoading).toBe(false)
-    expect(result.current.state.marketDataLoading).toBe(false)
-    expect(result.current.isV2TokensEnabled).toBe(false)
-
-    // Drive the background revalidation to completion — the cached legacy data is complete, so the
-    // source must stay legacy and the page must stay rendered.
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue(revalidated(legacyToken))
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue(revalidated(completeMarketToken))
-    rerender()
-
-    expect(result.current.state.pageQueryLoading).toBe(false)
-    expect(result.current.isV2TokensEnabled).toBe(false)
-  })
-
-  it('commits with the V2 source on a warm remount when the cached legacy data is incomplete', async () => {
-    restMocks.getTokenQueryFn.mockReset().mockResolvedValue({ token: robinhoodRestToken })
-    restMocks.getTokenMultiChainQueryFn.mockReset().mockRejectedValue(new Error('not_found'))
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue(warmCacheRevalidating(incompleteMetadataToken))
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue(warmCacheRevalidating(completeMarketToken))
-
-    const sources: boolean[] = []
-    const { result, rerender } = renderHookWithProviders(() => {
-      const context = useCreateTDPContext()
-      sources.push(context.isV2TokensEnabled)
-      return context
-    })
+    const { result } = renderHookWithProviders(() => useCreateTDPContext())
 
     await waitFor(() => {
       expect(result.current.state.pageQueryLoading).toBe(false)
     })
 
-    expect(result.current.isV2TokensEnabled).toBe(true)
-    expect(result.current.state.token).toEqual(robinhoodRestToken)
-
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue(revalidated(incompleteMetadataToken))
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue(revalidated(completeMarketToken))
-    rerender()
-
-    expect(result.current.isV2TokensEnabled).toBe(true)
-    // Never rendered from legacy first: no visible source swap across the revalidation.
-    expect(sources).not.toContain(false)
-  })
-
-  it('does not bounce back to the skeleton when the fallback resolves with GetToken still cold', async () => {
-    // GetToken stays unresolved (block default), so a source swap after revalidation would drop the
-    // populated page back to a skeleton while V2 loads.
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue(warmCacheRevalidating(incompleteMetadataToken))
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue(warmCacheRevalidating(completeMarketToken))
-
-    const loadingStates: boolean[] = []
-    const sources: boolean[] = []
-    const { result, rerender } = renderHookWithProviders(() => {
-      const context = useCreateTDPContext()
-      loadingStates.push(context.state.pageQueryLoading)
-      sources.push(context.isV2TokensEnabled)
-      return context
-    })
-
-    await waitFor(() => {
-      expect(result.current.state.currency).toBeDefined()
-    })
-
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue(revalidated(incompleteMetadataToken))
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue(revalidated(completeMarketToken))
-    rerender()
-
-    expect(bouncedBackToSkeleton(loadingStates)).toBe(false)
-    expect(sources).not.toContain(false)
-    // Legacy is known-incomplete and V2 has not landed, so there is nothing trustworthy to paint:
-    // the skeleton is held from the first render rather than dropped onto a populated page.
-    expect(loadingStates).not.toContain(false)
-  })
-
-  it('holds the skeleton on a cold load until both legacy queries resolve', async () => {
-    // Metadata landed, market query still in flight with nothing cached — the fallback decision is
-    // genuinely undecided, so the page must not commit yet (#37405).
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue({
-      data: validTokenProjectResponse.data,
-      loading: false,
-      networkStatus: NetworkStatus.ready,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenProjectWebQuery>)
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue({
-      data: undefined,
-      loading: true,
-      networkStatus: NetworkStatus.loading,
-      error: undefined,
-    } as ReturnType<typeof GraphQLApi.useTokenWebQuery>)
-
-    const { result } = renderHookWithProviders(() => useCreateTDPContext())
-
-    await waitFor(() => {
-      expect(result.current.state.pageQueryLoading).toBe(true)
-    })
-
-    expect(result.current.state.chainDataLoading).toBe(true)
-    expect(result.current.state.marketDataLoading).toBe(true)
-  })
-})
-
-// The data-gated loading reads are not Robinhood-scoped: with the V2 flag off, every chain now
-// takes `pageQueryLoading` / `chainDataLoading` from `legacyMetadataPending` instead of raw Apollo
-// `loading`. Mainnet is the highest-traffic case, and the Robinhood fallback is inert here.
-describe('useCreateTDPContext on a non-Robinhood chain with V2EndpointsTokens disabled', () => {
-  const legacyToken = validTokenProjectResponse.data?.token
-
-  beforeEach(() => {
-    restMocks.querySalt += 1
-    // Off Robinhood with the flag off, the V2 endpoints are never enabled — leave them unresolved
-    // so nothing but the cached GraphQL data can satisfy the page.
-    restMocks.getTokenQueryFn.mockReset().mockReturnValue(new Promise(() => {}))
-    restMocks.getTokenMultiChainQueryFn.mockReset().mockReturnValue(new Promise(() => {}))
-    mocked(useFeatureFlag).mockImplementation(() => false)
-    mocked(useChainIdFromUrlParam).mockReturnValue(UniverseChainId.Mainnet)
-    mocked(useParams).mockReturnValue({
-      tokenAddress: USDC_MAINNET.address,
-      chainName: 'ethereum',
-    })
-    mocked(useLocation).mockReturnValue({
-      pathname: '/explore/tokens/ethereum/0x123',
-      state: null,
-      key: '',
-      search: '',
-      hash: '',
-    } as ReturnType<typeof useLocation>)
-    vi.mocked(usePortfolioBalances).mockReturnValue({
-      data: undefined,
-      error: undefined,
-    } as ReturnType<typeof usePortfolioBalances>)
-  })
-
-  it('renders straight from the warm Apollo cache on remount and stays rendered across revalidation', async () => {
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue(warmCacheRevalidating(legacyToken))
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue(warmCacheRevalidating(legacyToken))
-
-    const loadingStates: boolean[] = []
-    const { result, rerender } = renderHookWithProviders(() => {
-      const context = useCreateTDPContext()
-      loadingStates.push(context.state.pageQueryLoading)
-      return context
-    })
-
-    await waitFor(() => {
-      expect(result.current.state.currency).toBeDefined()
-    })
-
-    // Cache is warm and only a background revalidate is in flight: nothing may report loading.
-    expect(result.current.state.pageQueryLoading).toBe(false)
-    expect(result.current.state.chainDataLoading).toBe(false)
-    // The bare fixture carries no market stats, but the fallback is Robinhood-only — the source
-    // must stay legacy here regardless of how incomplete the cached data is.
-    expect(result.current.isV2TokensEnabled).toBe(false)
-
-    vi.mocked(GraphQLApi.useTokenProjectWebQuery).mockReturnValue(revalidated(legacyToken))
-    vi.mocked(GraphQLApi.useTokenWebQuery).mockReturnValue(revalidated(legacyToken))
-    rerender()
-
-    expect(result.current.state.pageQueryLoading).toBe(false)
-    expect(result.current.state.chainDataLoading).toBe(false)
-    expect(result.current.isV2TokensEnabled).toBe(false)
-    expect(bouncedBackToSkeleton(loadingStates)).toBe(false)
-    expect(loadingStates).not.toContain(true)
+    expect(result.current.state.currency).toBeUndefined()
+    expect(result.current.state.auctionSource.status).toBe(TokenDetailsSourceState.Found)
   })
 })

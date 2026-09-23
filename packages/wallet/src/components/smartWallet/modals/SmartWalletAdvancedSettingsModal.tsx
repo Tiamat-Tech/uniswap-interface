@@ -1,8 +1,9 @@
 import { isMobileApp } from '@universe/environment'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Switch, Text, TouchableArea, useSporeColors } from '@universe/mycelium'
 import { type ReactNode, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, type IconProps, Switch, Text, TouchableArea, useSporeColors } from 'ui/src'
+import { type IconProps } from 'ui/src'
 import { Box } from 'ui/src/components/icons/Box'
 import { Gas } from 'ui/src/components/icons/Gas'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
@@ -63,7 +64,6 @@ export function SmartWalletAdvancedSettingsModal({
   return (
     <Modal name={ModalName.SmartWalletAdvancedSettingsModal} isModalOpen={isOpen} onClose={onClose}>
       <Flex
-        animation="fast"
         gap="$gap8"
         pt="$spacing4"
         px={isMobileApp ? '$spacing16' : undefined}

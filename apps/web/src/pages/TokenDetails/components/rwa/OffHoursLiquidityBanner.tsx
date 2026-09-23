@@ -1,10 +1,10 @@
 import { OffHoursWarningCard } from 'uniswap/src/features/rwa/OffHoursWarningCard'
 import { useIsEquityOffHours } from 'uniswap/src/features/rwa/useIsEquityOffHours'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
-import { useRWATokenDetailsMatch } from '~/pages/TokenDetails/hooks/useRWATokenDetailsMatch'
+import { useTDPRWAMatch } from '~/pages/TokenDetails/hooks/useTDPRWAMatch'
 
 export function OffHoursLiquidityBanner(): JSX.Element | null {
-  const rwaMatch = useRWATokenDetailsMatch()
+  const rwaMatch = useTDPRWAMatch()
   const isOffHours = useIsEquityOffHours()
 
   if (!rwaMatch || !isOffHours) {

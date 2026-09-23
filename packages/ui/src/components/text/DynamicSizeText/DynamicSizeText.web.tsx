@@ -1,9 +1,9 @@
+import { Flex } from '@universe/mycelium'
+import { Text } from '@universe/mycelium'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { StyleSheet } from 'react-native'
-import { Flex } from 'ui/src/components/layout'
-import { Text } from 'ui/src/components/text'
 import type { DynamicSizeTextProps } from 'ui/src/components/text/DynamicSizeText/DynamicSizeText'
-import { bodyFont } from 'ui/src/theme/fonts'
+import { baselBook } from 'ui/src/theme/fonts'
 
 const RESIZING_STEP_SIZE = 2
 const DEFAULT_MIN_WEB_FONT_SIZE = 8
@@ -44,7 +44,7 @@ export function DynamicSizeText({
 
       const flattened = StyleSheet.flatten(style) as { fontFamily?: unknown }
       const ff = flattened.fontFamily
-      const fontFamily = typeof ff === 'string' ? ff : bodyFont.family
+      const fontFamily = typeof ff === 'string' ? ff : baselBook
 
       let low = minWebFontSize
       let high = maxWebFontSize

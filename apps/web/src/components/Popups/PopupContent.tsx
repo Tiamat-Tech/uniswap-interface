@@ -1,16 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { UniswapX } from 'ui/src/components/icons/UniswapX'
 import { X } from 'ui/src/components/icons/X'
 import { CrossChainIcon } from 'uniswap/src/components/CurrencyLogo/SplitLogo'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useIsSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import type { FORTransaction } from 'uniswap/src/features/fiatOnRamp/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
@@ -34,7 +34,21 @@ import { EllipsisTamaguiStyle } from '~/theme/components/styles'
 
 const THUMBNAIL_TRANSITION_ENTER_SCALE = 0.75
 const THUMBNAIL_TRANSITION_ENTER_OPACITY = 0.16
-const THUMBNAIL_TRANSITION_ANIMATION_PRESET = 'bouncy'
+// The legacy 'bouncy' spring preset, as the fixed cubic-bezier approximation the legacy web driver rendered.
+const THUMBNAIL_TRANSITION_TIMING = SPORE_ANIMATION_CURVE_CSS.bouncy
+const THUMBNAIL_TRANSITION_KEYFRAMES_NAME = 'popups-activity-thumbnail-enter'
+const THUMBNAIL_TRANSITION_KEYFRAMES = `
+  @keyframes ${THUMBNAIL_TRANSITION_KEYFRAMES_NAME} {
+    from {
+      opacity: ${THUMBNAIL_TRANSITION_ENTER_OPACITY};
+      transform: scale(${THUMBNAIL_TRANSITION_ENTER_SCALE});
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+`
 
 export function FailedNetworkSwitchPopup({ chainId, onClose }: { chainId: UniverseChainId; onClose: () => void }) {
   const isSupportedChain = useIsSupportedChainId(chainId)
@@ -75,20 +89,16 @@ function ActivityThumbnailTransition({
 
   return (
     <Flex alignItems="center" justifyContent="center" position="relative">
+      {shouldAnimate && <style>{THUMBNAIL_TRANSITION_KEYFRAMES}</style>}
       <Flex
-        animateOnly={['transform', 'opacity']}
-        animation={shouldAnimate ? THUMBNAIL_TRANSITION_ANIMATION_PRESET : undefined}
-        enterStyle={
-          shouldAnimate
-            ? {
-                opacity: THUMBNAIL_TRANSITION_ENTER_OPACITY,
-                scale: THUMBNAIL_TRANSITION_ENTER_SCALE,
-              }
-            : undefined
-        }
         opacity={1}
         scale={1}
-        style={{ transformOrigin: 'center' }}
+        style={{
+          transformOrigin: 'center',
+          animation: shouldAnimate
+            ? `${THUMBNAIL_TRANSITION_KEYFRAMES_NAME} ${THUMBNAIL_TRANSITION_TIMING}`
+            : undefined,
+        }}
       >
         {children}
       </Flex>
@@ -148,8 +158,9 @@ export function ActivityPopupContent({ activity, onClick, onClose }: ActivityPop
       borderColor="$surface3"
       py="$spacing2"
       px={0}
-      animation="300ms"
-      data-testid={TestID.ActivityPopup}
+      // Scoped to opacity/transform (never color properties) so theme toggling doesn't animate token colors.
+      transition="opacity 300ms ease-in-out, transform 300ms ease-in-out"
+      testID={TestID.ActivityPopup}
       $sm={{
         mx: 'auto',
         width: '100%',
@@ -195,7 +206,7 @@ export function ActivityPopupContent({ activity, onClick, onClose }: ActivityPop
         </Flex>
       </TouchableArea>
       {!pending ? (
-        <Flex position="absolute" right="$spacing16" top="$spacing16" data-testid={TestID.ActivityPopupCloseIcon}>
+        <Flex position="absolute" right="$spacing16" top="$spacing16" testID={TestID.ActivityPopupCloseIcon}>
           <TouchableArea onPress={onClose}>
             <X color="$neutral2" size={16} />
           </TouchableArea>
@@ -208,13 +219,10 @@ export function ActivityPopupContent({ activity, onClick, onClose }: ActivityPop
 export function TransactionPopupContent({ hash, onClose }: { hash: string; onClose: () => void }) {
   const transaction = useTransaction(hash)
   const { formatNumberOrString } = useLocalizationContext()
-  const isEarnActivityDisplayEnabled = useIsEarnEnabled()
-
   const { data: activity } = useQuery(
     getTransactionToActivityQueryOptions({
       transaction,
       formatNumber: formatNumberOrString,
-      isEarnActivityDisplayEnabled,
     }),
   )
 
@@ -251,12 +259,10 @@ export function PlanPopupContent({ planId, onClose }: { planId: string; onClose:
   const plan = usePlanTransactions([planId]).at(0)
   const openTransactionDetailsModal = useOpenTransactionDetailsModal()
   const { formatNumberOrString } = useLocalizationContext()
-  const isEarnActivityDisplayEnabled = useIsEarnEnabled()
   const { data: activity } = useQuery(
     getTransactionToActivityQueryOptions({
       transaction: plan,
       formatNumber: formatNumberOrString,
-      isEarnActivityDisplayEnabled,
     }),
   )
 
@@ -272,15 +278,12 @@ export function PlanPopupContent({ planId, onClose }: { planId: string; onClose:
 export function UniswapXOrderPopupContent({ orderHash, onClose }: { orderHash: string; onClose: () => void }) {
   const order = useUniswapXOrderByOrderHash(orderHash)
   const openOffchainActivityModal = useOpenOffchainActivityModal()
-  const isEarnActivityDisplayEnabled = useIsEarnEnabled()
-
   const { formatNumberOrString } = useLocalizationContext()
 
   const { data: activity } = useQuery(
     getTransactionToActivityQueryOptions({
       transaction: order,
       formatNumber: formatNumberOrString,
-      isEarnActivityDisplayEnabled,
     }),
   )
 

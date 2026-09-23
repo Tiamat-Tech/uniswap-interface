@@ -1,7 +1,8 @@
-import { LegendList, type LegendListRef } from '@legendapp/list/react-native'
 import { useScrollToTop } from '@react-navigation/native'
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { RefreshControl, useWindowDimensions } from 'react-native'
+import { Flex, Loader, UniversalList, type UniversalListRef } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { memo, useEffect, useRef, useState } from 'react'
+import { useWindowDimensions } from 'react-native'
 import { useDispatch } from 'react-redux'
 import { useAdaptiveFooter } from 'src/components/home/hooks'
 import type { TabProps } from 'src/components/layout/TabHelpers'
@@ -9,12 +10,10 @@ import { useBiometricAppSettings } from 'src/features/biometrics/useBiometricApp
 import { useBiometricPrompt } from 'src/features/biometricsSettings/hooks'
 import { openModal } from 'src/features/modals/modalSlice'
 import { removePendingSession } from 'src/features/walletConnect/walletConnectSlice'
-import { Flex, Loader, useSporeColors } from 'ui/src'
 import {
   SCREEN_DRAW_MULTIPLIER,
   ACTIVITY_ROW_HEIGHT,
   activityItemsAreEqual,
-  getActivityItemSize,
   ON_END_REACHED_THRESHOLD,
 } from 'uniswap/src/components/activity/activityListItems'
 import { getActivityItemType } from 'uniswap/src/components/activity/utils'
@@ -99,12 +98,8 @@ export const ActivityContent = memo(function ActivityTabInner({
 
   const refreshingAll = refreshing ?? isRefreshing
 
-  const refreshControl = useMemo(() => {
-    return <RefreshControl refreshing={refreshingAll} tintColor={colors.neutral3.get()} onRefresh={handleRefresh} />
-  }, [refreshingAll, colors.neutral3, handleRefresh])
-
-  const legendListRef = useRef<LegendListRef>(null)
-  useScrollToTop(legendListRef)
+  const listRef = useRef<UniversalListRef>(null)
+  useScrollToTop(listRef)
 
   const handleEndReached = useEvent((): void => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -114,21 +109,19 @@ export const ActivityContent = memo(function ActivityTabInner({
 
   return (
     <Flex grow px="$spacing24" testID={TestID.ActivityContent}>
-      <LegendList
+      <UniversalList
         // Force remount when wallet changes to reset internal list state
         key={owner}
-        ref={legendListRef}
+        ref={listRef}
         recycleItems
-        keyExtractor={keyExtractor}
+        contentContainerStyle={{ style: containerProps?.contentContainerStyle }}
         data={sectionData}
-        estimatedListSize={dimensions}
-        renderItem={renderActivityItem}
-        getItemType={getActivityItemType}
-        getFixedItemSize={getActivityItemSize}
-        itemsAreEqual={activityItemsAreEqual}
-        showsVerticalScrollIndicator={false}
-        estimatedItemSize={ACTIVITY_ROW_HEIGHT}
         drawDistance={dimensions.height * SCREEN_DRAW_MULTIPLIER}
+        estimatedItemSize={ACTIVITY_ROW_HEIGHT}
+        estimatedListSize={dimensions}
+        getItemType={getActivityItemType}
+        itemsAreEqual={activityItemsAreEqual}
+        keyExtractor={keyExtractor}
         ListEmptyComponent={maybeEmptyComponent}
         ListFooterComponent={
           isExternalProfile ? null : (
@@ -138,12 +131,14 @@ export const ActivityContent = memo(function ActivityTabInner({
             </Flex>
           )
         }
-        contentContainerStyle={containerProps?.contentContainerStyle}
-        refreshControl={refreshControl}
+        refreshIndicatorColor={colors.neutral3.get()}
         refreshing={refreshingAll}
+        renderItem={renderActivityItem}
+        showsVerticalScrollIndicator={false}
         onContentSizeChange={onContentSizeChange}
         onEndReached={isExternalProfile ? undefined : handleEndReached}
         onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
+        onRefresh={handleRefresh}
       />
     </Flex>
   )

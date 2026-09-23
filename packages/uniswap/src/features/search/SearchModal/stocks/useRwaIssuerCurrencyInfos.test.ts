@@ -1,9 +1,9 @@
+import { UniverseChainId, normalizeTokenAddressForCache } from '@universe/chains'
 import { OnchainItemListOptionType, type SearchModalOption } from 'uniswap/src/components/lists/items/types'
 import type { OnchainItemSection } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
 import type { ChainToken, IssuerToken, Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import {
   collectRwaIssuerPrimaryCurrencyIds,
@@ -14,8 +14,6 @@ import {
 } from 'uniswap/src/features/search/SearchModal/stocks/useRwaIssuerCurrencyInfos'
 import { useCurrencyInfos } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { renderHook } from 'uniswap/src/test/test-utils'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
-
 vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({ useEnabledChains: vi.fn() }))
 vi.mock('uniswap/src/features/tokens/useCurrencyInfo', () => ({ useCurrencyInfos: vi.fn() }))
 

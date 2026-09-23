@@ -1,5 +1,4 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { Shine } from 'ui/src'
+import { Shine } from '@universe/mycelium'
 import { RelativeChange } from 'uniswap/src/components/RelativeChange/RelativeChange'
 
 interface PortfolioRelativeChangeProps {
@@ -17,18 +16,16 @@ export function PortfolioRelativeChange({
   percentChange,
   absoluteChange,
 }: PortfolioRelativeChangeProps): JSX.Element {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-
   return (
     <Shine disabled={!isWarmLoading}>
       <RelativeChange
+        shouldAnimate
         absoluteChange={absoluteChange}
         arrowSize="$icon.16"
         change={percentChange}
         loading={isLoading}
         negativeChangeColor={isWarmLoading || hasError ? '$neutral2' : '$statusCritical'}
         positiveChangeColor={isWarmLoading || hasError ? '$neutral2' : '$statusSuccess'}
-        shouldAnimate={isDataLivelinessEnabled}
         variant="body3"
       />
     </Shine>

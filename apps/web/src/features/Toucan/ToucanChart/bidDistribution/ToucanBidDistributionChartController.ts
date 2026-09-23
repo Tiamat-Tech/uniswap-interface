@@ -1,7 +1,7 @@
 /* oxlint-disable max-lines -- TODO(Toucan): keep controller small; current file is an orchestration hub */
 
+import { opacify } from '@universe/mycelium/theme-hooks-compat'
 import { IChartApi, ISeriesApi, MouseEventParams, Time, UTCTimestamp } from 'lightweight-charts'
-import { opacify } from 'ui/src/theme'
 import { logger } from 'utilities/src/logger/logger'
 import {
   BID_LINE,

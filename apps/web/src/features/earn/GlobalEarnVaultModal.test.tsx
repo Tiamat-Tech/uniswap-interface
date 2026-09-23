@@ -1,15 +1,10 @@
+import { UniverseChainId } from '@universe/chains'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EarnVaultView } from 'uniswap/src/features/earn/hooks/useEarnVaultModalFlow'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { GlobalEarnVaultModal } from '~/features/earn/GlobalEarnVaultModal'
 import { useGlobalEarnVaultModalStore } from '~/features/earn/globalEarnVaultModalStore'
 import { act, render, screen, waitFor } from '~/test-utils/render'
-
-vi.mock('uniswap/src/features/earn/hooks/useIsEarnEnabled', () => ({
-  useIsEarnEnabled: vi.fn(),
-}))
 
 vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({
   useEnabledChains: vi.fn(),
@@ -21,7 +16,6 @@ vi.mock('~/features/earn/EarnVaultModal', () => ({
   ),
 }))
 
-const mockUseIsEarnEnabled = vi.mocked(useIsEarnEnabled)
 const mockUseEnabledChains = vi.mocked(useEnabledChains)
 
 const VAULT: EarnVaultInfo = {
@@ -40,7 +34,6 @@ const VAULT: EarnVaultInfo = {
 
 describe(GlobalEarnVaultModal, () => {
   beforeEach(() => {
-    mockUseIsEarnEnabled.mockReturnValue(true)
     mockUseEnabledChains.mockReturnValue({
       chains: [UniverseChainId.Mainnet],
       defaultChainId: UniverseChainId.Mainnet,
@@ -50,7 +43,7 @@ describe(GlobalEarnVaultModal, () => {
     useGlobalEarnVaultModalStore.setState({ selectedVaultState: null })
   })
 
-  it('renders the selected vault when Earn is enabled', async () => {
+  it('renders the selected vault', async () => {
     act(() => {
       useGlobalEarnVaultModalStore.getState().openDepositModal(VAULT)
     })
@@ -58,20 +51,6 @@ describe(GlobalEarnVaultModal, () => {
     render(<GlobalEarnVaultModal />)
 
     expect(await screen.findByTestId('earn-vault-modal')).toHaveAttribute('data-vault-id', VAULT.id)
-  })
-
-  it('clears stale modal state without rendering when Earn is disabled', async () => {
-    mockUseIsEarnEnabled.mockReturnValue(false)
-    act(() => {
-      useGlobalEarnVaultModalStore.setState({
-        selectedVaultState: { vault: VAULT, initialView: EarnVaultView.DepositAmount },
-      })
-    })
-
-    render(<GlobalEarnVaultModal />)
-
-    expect(screen.queryByTestId('earn-vault-modal')).not.toBeInTheDocument()
-    await waitFor(() => expect(useGlobalEarnVaultModalStore.getState().selectedVaultState).toBeNull())
   })
 
   it('clears stale modal state without rendering in testnet mode', async () => {

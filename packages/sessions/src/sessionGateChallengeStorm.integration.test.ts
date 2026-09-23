@@ -82,7 +82,7 @@ function buildStuckSessionChain(getNow: () => number): {
     // Verify always fails → initialize() exhausts retries and throws → query lands in `error`.
     '/uniswap.platformservice.v1.SessionService/Verify': async () => new VerifyResponse({ retry: true }),
     '/uniswap.platformservice.v1.SessionService/GetChallengeTypes': async () =>
-      new GetChallengeTypesResponse({ challengeTypes: [] }),
+      new GetChallengeTypesResponse({ challengeTypeConfig: [] }),
     '/uniswap.platformservice.v1.SessionService/Signout': async () => new SignoutResponse({}),
   })
 
@@ -103,7 +103,6 @@ function buildStuckSessionChain(getNow: () => number): {
     getSessionService: () => sessionService,
     challengeSolverService,
     performanceTracker: NOOP_PERF,
-    getIsSessionUpgradeAutoEnabled: () => true,
   })
 
   // REAL React Query adapter — mirrors provideSession.ts `bootstrapSession`.

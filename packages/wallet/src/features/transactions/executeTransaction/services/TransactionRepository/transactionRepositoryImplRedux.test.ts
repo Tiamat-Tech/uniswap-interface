@@ -1,8 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { providers } from 'ethers/lib/ethers'
 import createSagaMiddleware from 'redux-saga'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { makeSelectAddressTransactions } from 'uniswap/src/features/transactions/selectors'
 import { transactionActions, transactionReducer } from 'uniswap/src/features/transactions/slice'
 import {

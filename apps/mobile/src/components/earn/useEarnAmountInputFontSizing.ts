@@ -1,7 +1,7 @@
+import { fonts } from '@universe/mycelium'
 import { useEffect } from 'react'
 import type { LayoutChangeEvent } from 'react-native'
 import { useDynamicFontSizing } from 'ui/src/hooks/useDynamicFontSizing'
-import { fonts } from 'ui/src/theme'
 
 export const MAX_INPUT_FONT_SIZE = fonts.heading1.fontSize
 const MIN_INPUT_FONT_SIZE = 32

@@ -1,8 +1,9 @@
 import { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { BigNumber, providers } from 'ethers'
 import { formatEther } from 'ethers/lib/utils'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId, UniverseChainInfo } from 'uniswap/src/features/chains/types'
+import { UniverseChainInfo } from 'uniswap/src/features/chains/types'
 import { getCurrencyAmount, ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { isBridge, isClassic } from 'uniswap/src/features/transactions/swap/utils/routing'
 import {

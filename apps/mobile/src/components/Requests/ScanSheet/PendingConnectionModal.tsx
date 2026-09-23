@@ -1,5 +1,6 @@
 import { useBottomSheetInternal } from '@gorhom/bottom-sheet'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
 import { getSdkError } from '@walletconnect/utils'
 import React, { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,7 +17,6 @@ import {
   setDidOpenFromDeepLink,
   WalletConnectPendingSession,
 } from 'src/features/walletConnect/walletConnectSlice'
-import { Flex } from 'ui/src'
 import { AccountType } from 'uniswap/src/features/accounts/types'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
@@ -41,6 +41,7 @@ import {
   useHasSmartWalletConsent,
   useSignerAccounts,
 } from 'wallet/src/features/wallet/hooks'
+import { setAccountAsActive } from 'wallet/src/features/wallet/slice'
 
 type Props = {
   pendingSession: WalletConnectPendingSession
@@ -56,7 +57,6 @@ export const PendingConnectionModal = ({ pendingSession, onClose }: Props): JSX.
   const isViewOnly = activeAccount.type === AccountType.Readonly
 
   const didOpenFromDeepLink = useSelector(selectDidOpenFromDeepLink)
-  const hasSmartWalletConsent = useHasSmartWalletConsent()
   const eip5792MethodsEnabled = useFeatureFlag(FeatureFlags.Eip5792Methods)
 
   const [isConnecting, setIsConnecting] = useState(false)
@@ -106,6 +106,10 @@ export const PendingConnectionModal = ({ pendingSession, onClose }: Props): JSX.
     })
   }, [selectedAccountAddresses, activeAddress])
 
+  const connectionAddress = orderedSelectedAccountAddresses[0] ?? activeAddress
+
+  const hasSmartWalletConsent = useHasSmartWalletConsent(connectionAddress)
+
   const onPressSettleConnection = useEvent(async (approved: boolean) => {
     // Prevent multiple concurrent connection attempts
     if (isConnecting) {
@@ -128,7 +132,7 @@ export const PendingConnectionModal = ({ pendingSession, onClose }: Props): JSX.
       if (approved) {
         const namespaces = getSessionNamespaces(orderedSelectedAccountAddresses, pendingSession.proposalNamespaces)
         const capabilities = await getCapabilitiesCore({
-          address: activeAddress,
+          address: connectionAddress,
           chainIds: pendingSession.chains,
           hasSmartWalletConsent: hasSmartWalletConsent ?? false,
         })
@@ -140,6 +144,11 @@ export const PendingConnectionModal = ({ pendingSession, onClose }: Props): JSX.
           namespaces,
           ...(eip5792MethodsEnabled ? { scopedProperties } : {}),
         })
+
+        // Switch before addSession so monitorAccountChanges doesn't emit a redundant accountsChanged for the session the dapp was just handed
+        if (connectionAddress !== activeAddress) {
+          dispatch(setAccountAsActive(connectionAddress))
+        }
 
         dispatch(
           addSession({
@@ -153,7 +162,7 @@ export const PendingConnectionModal = ({ pendingSession, onClose }: Props): JSX.
               },
               chains: pendingSession.chains,
               namespaces,
-              activeAccount: activeAddress,
+              activeAccount: connectionAddress,
               ...(eip5792MethodsEnabled ? { capabilities } : {}),
             },
           }),
@@ -162,7 +171,7 @@ export const PendingConnectionModal = ({ pendingSession, onClose }: Props): JSX.
         dispatch(
           pushNotification({
             type: AppNotificationType.WalletConnect,
-            address: activeAddress,
+            address: connectionAddress,
             event: WalletConnectEvent.Connected,
             dappName: session.peer.metadata.name,
             imageUrl: session.peer.metadata.icons[0] ?? null,
@@ -283,6 +292,7 @@ function PendingConnectionModalContent({
         allAccountAddresses={allAccountAddresses}
         selectedAccountAddresses={selectedAccountAddresses}
         setSelectedAccountAddresses={setSelectedAccountAddresses}
+        selectionMode="multiple"
         isViewOnly={isViewOnly}
         bottomSpacing={<Animated.View style={bottomSpacerStyle} />}
         onConfirmWarning={onConfirmWarning}

@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { Ether } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { WBTC } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { type CurrencyId } from 'uniswap/src/types/currency'
 import { normalizeCurrencyIdForMapLookup } from 'uniswap/src/utils/currencyId'
 import { currencyId as idFromCurrency } from 'uniswap/src/utils/currencyId'

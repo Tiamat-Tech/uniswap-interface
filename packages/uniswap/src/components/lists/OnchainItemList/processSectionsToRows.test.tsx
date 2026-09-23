@@ -4,6 +4,7 @@ import {
   ProcessedRow,
   ProcessedRowType,
   processSectionsToRows,
+  toFlatRowIndex,
 } from 'uniswap/src/components/lists/OnchainItemList/processSectionsToRows'
 import { type OnchainItemSection, OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
@@ -192,5 +193,92 @@ describe('processSectionsToRows', () => {
 
     expect(header.data.section.name).toBeUndefined()
     expect(result).toHaveLength(2) // Should still process header + item
+  })
+})
+
+describe('toFlatRowIndex', () => {
+  const mockToken = new Token(1, '0x1234567890123456789012345678901234567890', 18, 'TEST', 'Test Token')
+
+  const mockCurrencyInfo: CurrencyInfo = {
+    currency: mockToken,
+    currencyId: 'test-id',
+    logoUrl: null,
+    safetyInfo: benignSafetyInfo,
+    isSpam: false,
+  }
+
+  const item: TokenOption = {
+    type: OnchainItemListOptionType.Token,
+    currencyInfo: mockCurrencyInfo,
+    quantity: 1,
+    balanceUSD: 100,
+  }
+
+  const section = (sectionKey: OnchainItemSectionName, count: number): OnchainItemSection<TokenOption> => ({
+    sectionKey,
+    data: Array.from({ length: count }, () => item),
+  })
+
+  // RN's SectionList measures itemIndex from the section header, so 0 is the header itself. This is
+  // the case the sole caller exercises: SelectorBaseList resets to the very top with { 0, 0 }.
+  it('addresses the section header at itemIndex 0, as SectionList does', () => {
+    const sections = [section(OnchainItemSectionName.YourTokens, 3)]
+
+    expect(toFlatRowIndex({ sections, sectionIndex: 0, itemIndex: 0 })).toBe(0)
+    expect(toFlatRowIndex({ sections, sectionIndex: 0, itemIndex: 1 })).toBe(1)
+    expect(toFlatRowIndex({ sections, sectionIndex: 0, itemIndex: 3 })).toBe(3)
+  })
+
+  it('counts the header of every preceding section, not just their items', () => {
+    const sections = [section(OnchainItemSectionName.YourTokens, 2), section(OnchainItemSectionName.TrendingTokens, 2)]
+
+    // (header + 2 items) => 3, so the second section's header sits at 3, not 2
+    expect(toFlatRowIndex({ sections, sectionIndex: 1, itemIndex: 0 })).toBe(3)
+    expect(toFlatRowIndex({ sections, sectionIndex: 1, itemIndex: 1 })).toBe(4)
+  })
+
+  it('round-trips against processSectionsToRows for every item', () => {
+    const sections = [
+      section(OnchainItemSectionName.YourTokens, 2),
+      section(OnchainItemSectionName.TrendingTokens, 1),
+      section(OnchainItemSectionName.SearchResults, 3),
+    ]
+    const rows = processSectionsToRows({ sections })
+
+    sections.forEach((s, sectionIndex) => {
+      s.data.forEach((_, itemOrdinal) => {
+        // +1 because itemIndex counts the header, so the section's first item is itemIndex 1.
+        const flatIndex = toFlatRowIndex({ sections, sectionIndex, itemIndex: itemOrdinal + 1 })
+        const row = rows[flatIndex]
+
+        expect(row?.type).toBe(ProcessedRowType.Item)
+        if (row?.type === ProcessedRowType.Item) {
+          expect(row.data.index).toBe(itemOrdinal)
+          expect(row.data.section.sectionKey).toBe(s.sectionKey)
+          // processSectionsToRows stamps the same flat position it was built at
+          expect(row.data.rowIndex).toBe(flatIndex)
+        }
+      })
+    })
+  })
+
+  it('treats an empty section as its header alone', () => {
+    const sections = [section(OnchainItemSectionName.YourTokens, 0), section(OnchainItemSectionName.TrendingTokens, 1)]
+
+    expect(toFlatRowIndex({ sections, sectionIndex: 1, itemIndex: 0 })).toBe(1)
+  })
+
+  it('lands on a header row, which is what scroll-to-top of a section needs', () => {
+    const sections = [section(OnchainItemSectionName.YourTokens, 2), section(OnchainItemSectionName.TrendingTokens, 2)]
+    const rows = processSectionsToRows({ sections })
+
+    for (const sectionIndex of [0, 1]) {
+      const row = rows[toFlatRowIndex({ sections, sectionIndex, itemIndex: 0 })]
+
+      expect(row?.type).toBe(ProcessedRowType.Header)
+      if (row?.type === ProcessedRowType.Header) {
+        expect(row.data.section.sectionKey).toBe(sections[sectionIndex]?.sectionKey)
+      }
+    }
   })
 })

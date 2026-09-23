@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { TradingApi } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import { type ProposalTypes, type SessionTypes } from '@walletconnect/types'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EthMethod, type EthSignMethod } from 'uniswap/src/features/dappRequests/types'
 import { type DappRequestInfo, type EthTransaction, UwULinkMethod } from 'uniswap/src/types/walletConnect'
 import { logger } from 'utilities/src/logger/logger'

@@ -1,4 +1,5 @@
 import { createAction } from '@reduxjs/toolkit'
+import { areEvmAddressesEqual } from '@universe/chains'
 import { isAndroid } from '@universe/environment'
 import { FeatureFlags, getFeatureFlagName, getOverrideAdapter, getStatsigClient } from '@universe/gating'
 import { parseUri } from '@walletconnect/utils'
@@ -161,6 +162,17 @@ export function* handleDeepLink(action: ReturnType<typeof openDeepLink>) {
           yield* call(handleGoToTokenDetailsDeepLink, deepLinkAction.data.currencyId)
           break
         }
+        case DeepLinkAction.EarnScreen: {
+          yield* put(closeAllModals())
+          const mainTabsParams = {
+            screen: MobileScreens.Home,
+            params: {
+              earnCardExpansionRequestId: Date.now(),
+            },
+          } as const
+          yield* call(navigate, MobileScreens.MainTabs, mainTabsParams)
+          break
+        }
         case DeepLinkAction.Unknown:
         case DeepLinkAction.Error: {
           break
@@ -253,8 +265,8 @@ export function* parseAndValidateUserAddress(userAddress: string | null) {
   }
 
   const userAccounts = yield* select(selectAccounts)
-  const matchingAccount = Object.values(userAccounts).find(
-    (account) => account.address.toLowerCase() === userAddress.toLowerCase(),
+  const matchingAccount = Object.values(userAccounts).find((account) =>
+    areEvmAddressesEqual(account.address, userAddress),
   )
 
   if (!matchingAccount) {

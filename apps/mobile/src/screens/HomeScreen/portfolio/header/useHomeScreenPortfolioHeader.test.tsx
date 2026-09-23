@@ -46,7 +46,7 @@ vi.mock('wallet/src/features/wallet/hooks', async () => ({
 
 vi.mock('src/notification-service/MobileNotificationServiceManager', async () => {
   const { useEffect } = await vi.importActual<typeof import('react')>('react')
-  const { Flex } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Flex } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     MobileNotificationServiceManager: ({ onCardsChange }: { onCardsChange: (hasCards: boolean) => void }) => {
       useEffect(() => onCardsChange(true), [onCardsChange])
@@ -56,16 +56,34 @@ vi.mock('src/notification-service/MobileNotificationServiceManager', async () =>
 })
 
 vi.mock('wallet/src/features/earn/HomeScreenEarningSection', async () => {
-  const { Text } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Text } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
-    HomeScreenEarningSection: ({ mb, isRevealReady }: { mb?: string; isRevealReady?: boolean }) => (
-      <Text testID={EARNING_TEST_ID}>{`${String(mb)}|${String(isRevealReady)}`}</Text>
+    HomeScreenEarningSection: ({
+      mb,
+      isRevealReady,
+      earnCardExpansionRequestId,
+      onEarnCardExpansionRequestHandled,
+    }: {
+      mb?: string
+      isRevealReady?: boolean
+      earnCardExpansionRequestId?: number
+      onEarnCardExpansionRequestHandled?: (requestId: number) => void
+    }) => (
+      <Text testID={EARNING_TEST_ID}>
+        {`${String(mb)}|${String(isRevealReady)}|${String(earnCardExpansionRequestId)}|${String(Boolean(onEarnCardExpansionRequestHandled))}`}
+      </Text>
     ),
   }
 })
 
-function TestHost(): JSX.Element {
-  return useHomeScreenPortfolioHeader().header
+function TestHost({
+  earnCardExpansionRequestId,
+  onEarnCardExpansionRequestHandled,
+}: {
+  earnCardExpansionRequestId?: number
+  onEarnCardExpansionRequestHandled?: (requestId: number) => void
+}): JSX.Element {
+  return useHomeScreenPortfolioHeader({ earnCardExpansionRequestId, onEarnCardExpansionRequestHandled }).header
 }
 
 describe('useHomeScreenPortfolioHeader', () => {
@@ -79,6 +97,12 @@ describe('useHomeScreenPortfolioHeader', () => {
     expect(notif.compareDocumentPosition(earning)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     // With intro cards present, Earning receives the compact bottom margin instead of its -8 default,
     // and the reveal is marked ready (focused, tabs loaded, unitag eligibility settled).
-    expect(earning.textContent).toBe('$spacing8|true')
+    expect(earning.textContent).toBe('$spacing8|true|undefined|false')
+  })
+
+  it('passes the Earn expansion request and consumption callback to the earning section', () => {
+    render(<TestHost earnCardExpansionRequestId={42} onEarnCardExpansionRequestHandled={vi.fn()} />)
+
+    expect((screen.getByTestId(EARNING_TEST_ID) as unknown as HTMLElement).textContent).toBe('$spacing8|true|42|true')
   })
 })

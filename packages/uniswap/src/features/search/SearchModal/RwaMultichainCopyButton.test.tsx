@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { MultichainContextMenuAddressSubview } from 'uniswap/src/components/MultichainTokenDetails/MultichainContextMenuAddressSubview'
 import type { MultichainTokenEntry } from 'uniswap/src/components/MultichainTokenDetails/useOrderedMultichainEntries'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { buildCurrencyInfo } from 'uniswap/src/features/dataApi/utils/buildCurrency'
 import { RwaMultichainCopyButton } from 'uniswap/src/features/search/SearchModal/RwaMultichainCopyButton'
 import { ON_PRESS_EVENT_PAYLOAD } from 'uniswap/src/test/fixtures'

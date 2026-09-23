@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 const CHAIN_ID = 4663
 const TOKEN = '0xAaAa000000000000000000000000000000000001'
-const TOKEN_LOWER = TOKEN.toLowerCase()
+const TOKEN_LOWER = '0xaaaa000000000000000000000000000000000001'
 const TIMESTAMP = '2026-07-18T12:00:00.000Z'
 const TIMESTAMP_MS = new Date(TIMESTAMP).getTime()
 

@@ -1,10 +1,10 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { ethers } from 'ethers'
 import React, { PropsWithChildren, useCallback, useEffect, useState } from 'react'
 import { UniswapProvider } from 'uniswap/src/contexts/UniswapContext'
 import { getDelegationService } from 'uniswap/src/domains/services'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useUpdateDelegatedState } from 'uniswap/src/features/smartWallet/delegation/hooks/useUpdateDelegateState'
 import type { SignDelegationAuthorizationFn } from 'uniswap/src/features/smartWallet/delegation/types'
 import { useHasAccountMismatchCallback } from 'uniswap/src/features/smartWallet/mismatch/hooks'
@@ -15,6 +15,7 @@ import type {
 } from 'uniswap/src/features/smartWallet/mismatch/mismatch'
 import { createHasMismatchUtil } from 'uniswap/src/features/smartWallet/mismatch/mismatch'
 import { MismatchContextProvider } from 'uniswap/src/features/smartWallet/mismatch/MismatchContext'
+import { isPermit2MismatchDelegate } from 'uniswap/src/features/smartWallet/mismatch/permit2MismatchDelegates'
 import { useGetCanSignPermits } from 'uniswap/src/features/transactions/hooks/useGetCanSignPermits'
 import { prepareSwapFormState } from 'uniswap/src/features/transactions/types/transactionState'
 import { CurrencyField } from 'uniswap/src/types/currency'
@@ -81,6 +82,7 @@ function WalletUniswapProviderInner({ children }: PropsWithChildren): JSX.Elemen
     navigateToExternalProfile,
     navigateToPoolDetails,
     navigateToEarnVault,
+    navigateToCategoryDetails,
     handleShareToken,
     navigateToAdvancedSettings,
   } = useWalletNavigation()
@@ -152,6 +154,7 @@ function WalletUniswapProviderInner({ children }: PropsWithChildren): JSX.Elemen
       navigateToNftDetails={navigateToNftDetails}
       navigateToPoolDetails={navigateToPoolDetails}
       navigateToEarnVault={navigateToEarnVault}
+      navigateToCategoryDetails={navigateToCategoryDetails}
       handleShareToken={handleShareToken}
       navigateToAdvancedSettings={navigateToAdvancedSettings}
       signer={signer}
@@ -217,6 +220,8 @@ function useMismatchCallback(): HasMismatchUtil {
           // hardcoded to false for now
           return false
         },
+        // limit the mismatch fallback flow to delegates that reject raw Permit2 signatures
+        shouldTreatAsMismatch: isPermit2MismatchDelegate,
       })(input),
   )
 }

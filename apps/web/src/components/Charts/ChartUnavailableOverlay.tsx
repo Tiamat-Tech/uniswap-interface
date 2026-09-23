@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
+import { ChartBarCrossed } from '@universe/mycelium/icons/ChartBarCrossed'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { ChartBarCrossed } from 'ui/src/components/icons/ChartBarCrossed'
 import { ChartSkeleton } from '~/components/Charts/LoadingState'
 import { ChartType } from '~/components/Charts/utils'
 

@@ -1,11 +1,8 @@
 import { tryProvideSession } from '@universe/api'
-import { ViemClientManager } from '@universe/chains'
+import { ViemClientManager, Platform, areAddressesEqual } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { createViemClientFactory } from 'uniswap/src/features/providers/createViemClient'
 import { defaultResolveRpcConfig } from 'uniswap/src/features/providers/resolveRpcConfig'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
-
 const createClient = createViemClientFactory({
   resolveRpcConfig: defaultResolveRpcConfig,
   getChainInfo,

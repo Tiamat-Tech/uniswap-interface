@@ -1,3 +1,4 @@
+import { nearestUsableTick, TickMath } from '@uniswap/v3-sdk'
 import { getCandlestickPriceBounds } from '~/components/Charts/PriceChart/utils'
 import { CHART_BEHAVIOR, CHART_DIMENSIONS } from '~/features/Liquidity/charts/D3LiquidityChartShared/constants'
 import { createChartActions } from '~/features/Liquidity/charts/D3LiquidityChartShared/store/createChartActions'
@@ -9,6 +10,7 @@ import {
   type ChartStoreState,
   DefaultPriceStrategy,
 } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/types'
+import { calculateDefaultPriceRange } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/utils/defaultPriceRange'
 import { calculateStrategyTicks } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/utils/priceStrategies'
 import { snapTickToSpacing } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/utils/tickUtils'
 import { RangeAmountInputPriceMode } from '~/features/Liquidity/Create/types'
@@ -84,24 +86,10 @@ export const createViewActions = ({
 
       const { priceData, liquidityData, tickSpacing, currentTick } = renderingContext
 
-      // If full range, use the min and max liquidity data points
-
-      const minTickValue = liquidityData[0].tick
-      const maxTickValue = liquidityData[liquidityData.length - 1].tick
-
-      // Calculate default range using price RATIOS relative to current price.
-      // This correctly handles token decimal differences (e.g., WBTC 8 decimals vs USDC 6 decimals)
-      // because tick differences represent price ratios: price1/price2 = 1.0001^(tick1-tick2)
-      //
-      // Step by step calculation:
-      // 1. Find historical price bounds and current price
-      // 2. Calculate viewport prices centered on current price
-      // 3. Convert price ratios to tick offsets from currentTick
-      //
-      // For example, if the pair is stablecoin (e.g. USDC/USDT):
-      // - price bounds: 0.98 to 1.02, current: 1.00
-      // - min ratio: 0.988/1.00 = 0.988, max ratio: 1.016/1.00 = 1.016
-      // - min tick offset: log(0.988)/log(1.0001) ≈ -120, max: log(1.016)/log(1.0001) ≈ +159
+      // Full range spans the liquidity distribution. A pool being created has none (the chart only
+      // borrows a sibling's price line), so it spans the whole usable tick range instead.
+      const minTickValue = liquidityData.at(0)?.tick ?? nearestUsableTick(TickMath.MIN_TICK, tickSpacing)
+      const maxTickValue = liquidityData.at(-1)?.tick ?? nearestUsableTick(TickMath.MAX_TICK, tickSpacing)
 
       // Calculate price data bounds (historical price range)
       const { min: priceDataMin, max: priceDataMax } = getCandlestickPriceBounds(priceData)
@@ -109,29 +97,25 @@ export const createViewActions = ({
       // Get current price (most recent price point)
       const currentPrice = priceData[priceData.length - 1]?.value || 0
 
-      // Calculate viewport bounds (centered on current price, fitting all data)
-      const maxSpread = Math.max(currentPrice - priceDataMin, priceDataMax - currentPrice)
-      const viewportRange = 2 * maxSpread
-      const minVisiblePrice = currentPrice - viewportRange / 2
-      const maxVisiblePrice = currentPrice + viewportRange / 2
-
-      const visibleRange = maxVisiblePrice - minVisiblePrice
-
-      // Take the 20%-80% of the viewport range (middle 60%) as the default range
-      const calculatedDefaultMinPrice = minVisiblePrice + visibleRange * 0.2
-      const calculatedDefaultMaxPrice = minVisiblePrice + visibleRange * 0.8
+      // Default the range to the middle 60% of a viewport centered on the current price. Computed in
+      // log/ratio space so the lower bound can't collapse to MIN_TICK for volatile pairs — see
+      // calculateDefaultPriceRange. When there is no usable price history the prices fall back to the
+      // current price, leaving the range degenerate (min === max) so the stable strategy takes over.
+      const defaultPriceRange = calculateDefaultPriceRange({ priceDataMin, priceDataMax, currentPrice })
+      const calculatedDefaultMinPrice = defaultPriceRange?.minPrice ?? currentPrice
+      const calculatedDefaultMaxPrice = defaultPriceRange?.maxPrice ?? currentPrice
 
       // Convert display prices to ticks using the SDK
       const defaultMinTick = tryParseV4Tick({
         baseToken: baseCurrency,
         quoteToken: quoteCurrency,
-        value: String(Math.max(calculatedDefaultMinPrice, 0)),
+        value: String(calculatedDefaultMinPrice),
         tickSpacing,
       })
       const defaultMaxTick = tryParseV4Tick({
         baseToken: baseCurrency,
         quoteToken: quoteCurrency,
-        value: String(Math.max(calculatedDefaultMaxPrice, 0)),
+        value: String(calculatedDefaultMaxPrice),
         tickSpacing,
       })
 
@@ -221,11 +205,10 @@ export const createViewActions = ({
         })
       }
 
-      // Wait until animation is complete before calling handleTickChange
+      // Wait until animation is complete before emitting the range
       setTimeout(
         () => {
-          actions.handleTickChange({ changeType: 'min', tick: minTick })
-          actions.handleTickChange({ changeType: 'max', tick: maxTick })
+          actions.handleTickRangeChange({ minTick, maxTick })
         },
         animate ? CHART_BEHAVIOR.ANIMATION_DURATION : 0,
       )

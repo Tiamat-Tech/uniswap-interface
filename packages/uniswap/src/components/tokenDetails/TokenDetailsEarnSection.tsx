@@ -1,10 +1,13 @@
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text, TouchableArea } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
+import { getProjectedAnnualEarnings } from 'uniswap/src/features/earn/amount'
+import { LiveEarnRewardsAmount } from 'uniswap/src/features/earn/LiveEarnRewardsAmount'
 import { RewardsUnavailableIndicator } from 'uniswap/src/features/earn/RewardsUnavailableIndicator'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
+import { getDisplayLifetimeEarningsUsd } from 'uniswap/src/features/earn/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { getCurrencyAmount, ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
@@ -18,6 +21,14 @@ type TokenDetailsEarnSectionProps = {
   onDepositPress: (vault: EarnVaultInfo, position: EarnPositionInfo) => void
   mobileLayout?: boolean
   rewardsUnavailable?: boolean
+  /**
+   * Web-only: the web caller's position comes from the list endpoint, which has no lifetime PnL, so
+   * it's fetched separately (GetEarnPosition); row hidden when omitted. The mobile branch ignores
+   * these — its caller already passes a GetEarnPosition-backed position (with `rewardsUnavailable`
+   * as its error path), so `earnPosition.lifetimePnlUsd` is the source of truth there.
+   */
+  lifetimeEarningsUsd?: number
+  lifetimeEarningsError?: boolean
 }
 
 export function TokenDetailsEarnSection({
@@ -28,10 +39,11 @@ export function TokenDetailsEarnSection({
   onDepositPress,
   mobileLayout = false,
   rewardsUnavailable = false,
+  lifetimeEarningsUsd,
+  lifetimeEarningsError = false,
 }: TokenDetailsEarnSectionProps): JSX.Element {
   const { t } = useTranslation()
   const { convertFiatAmountFormatted, formatPercent } = useLocalizationContext()
-
   if (mobileLayout) {
     return (
       <MobileTokenDetailsEarnSection
@@ -74,6 +86,36 @@ export function TokenDetailsEarnSection({
           </Text>
           <RotatableChevron direction="right" color="$neutral2" size="$icon.16" />
         </TouchableArea>
+
+        {(lifetimeEarningsUsd !== undefined || lifetimeEarningsError) && (
+          <Flex row alignItems="center" justifyContent="space-between" gap="$spacing8" py="$spacing4">
+            <Text variant="body2" color="$neutral2">
+              {t('explore.earn.vault.lifetimeEarnings')}
+            </Text>
+            {lifetimeEarningsError || lifetimeEarningsUsd === undefined ? (
+              <RewardsUnavailableIndicator />
+            ) : (
+              <LiveEarnRewardsAmount
+                // Remount on vault switch so a prior position's extrapolation never carries over.
+                key={earnVault.id}
+                lifetimeEarningsUsd={lifetimeEarningsUsd}
+                annualRewardsRateUsd={getProjectedAnnualEarnings({
+                  balance: earnPosition.depositedUsd,
+                  apyPercent: earnPosition.apyPercent,
+                })}
+                textVariant="$body2"
+                fallback={
+                  <Text variant="body2" color="$statusSuccess">
+                    {convertFiatAmountFormatted(
+                      getDisplayLifetimeEarningsUsd(lifetimeEarningsUsd),
+                      NumberType.FiatStandard,
+                    )}
+                  </Text>
+                }
+              />
+            )}
+          </Flex>
+        )}
       </Flex>
 
       <Flex row gap="$spacing8">
@@ -154,7 +196,10 @@ function MobileTokenDetailsEarnSection({
               <Text variant="body3" color="$statusSuccess">
                 {totalRewards === undefined
                   ? '-'
-                  : convertFiatAmountFormatted(Math.abs(totalRewards), NumberType.FiatTokenDetails)}
+                  : convertFiatAmountFormatted(
+                      getDisplayLifetimeEarningsUsd(totalRewards),
+                      NumberType.FiatTokenDetails,
+                    )}
               </Text>
             )
           }

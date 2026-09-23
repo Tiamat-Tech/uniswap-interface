@@ -1,22 +1,24 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency, CurrencyAmount, Price, Token } from '@uniswap/sdk-core'
+import type { UniverseChainId } from '@universe/chains'
 import { useGetPasskeyAuthStatus } from '@universe/embedded-wallet'
+import { Button, Flex, iconSizes, Text, zIndexes } from '@universe/mycelium'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Separator, Text } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { iconSizes } from 'ui/src/theme'
+import { Separator } from 'ui/src'
 import { replaceSeparators } from 'uniswap/src/components/AmountInput/utils/replaceSeparators'
 import { ProgressIndicator } from 'uniswap/src/components/ConfirmSwapModal/ProgressIndicator'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { GetHelpHeader } from 'uniswap/src/components/dialog/GetHelpHeader'
 import { Modal } from 'uniswap/src/components/modals/Modal'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
+import { WarningInfo } from 'uniswap/src/components/modals/WarningModal/WarningInfo'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { ModalNameType } from 'uniswap/src/features/telemetry/constants'
+import { ModalName, ModalNameType } from 'uniswap/src/features/telemetry/constants'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import { TransactionStep } from 'uniswap/src/features/transactions/steps/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -316,7 +318,14 @@ export function ReviewModal({
               <Text variant="body3" color="$neutral2">
                 {t('position.initialPrice')}
               </Text>
-              <BaseQuoteFiatAmount variant="body1" price={price} base={baseCurrency} quote={quoteCurrency} />
+              {/* A pool being created gets a canonical (token1-per-token0) price from getInitialPrice,
+                  while base/quote here are display-oriented, so re-orient it to match the labels. */}
+              <BaseQuoteFiatAmount
+                variant="body1"
+                price={priceInverted ? price?.invert() : price}
+                base={baseCurrency}
+                quote={quoteCurrency}
+              />
             </Flex>
           )}
           <Flex gap="$spacing12" pb="$spacing8" mt="$spacing32">
@@ -338,13 +347,25 @@ export function ReviewModal({
           </Flex>
           {refundedAmounts && (refundedAmounts.TOKEN0?.greaterThan(0) || refundedAmounts.TOKEN1?.greaterThan(0)) && (
             <Flex gap="$spacing12" pb="$spacing8" mt="$spacing32">
-              <Flex row gap="$gap4">
+              <Flex row gap="$gap4" alignItems="center">
                 <Text variant="body3" color="$neutral2">
                   {t('migrate.refund.title')}
                 </Text>
-                <MouseoverTooltip text={t('migrate.refund')}>
-                  <InfoCircleFilled size="$icon.16" color="$neutral2" />
-                </MouseoverTooltip>
+                {/* Hover tooltips never open from a tap, so mobile web gets the copy in a modal instead */}
+                <WarningInfo
+                  showModalOnMobileWeb
+                  trigger={<InfoCircleFilled size="$icon.16" color="$neutral2" />}
+                  tooltipProps={{ text: t('migrate.refund'), placement: 'top' }}
+                  modalProps={{
+                    title: t('migrate.refund.title'),
+                    caption: t('migrate.refund'),
+                    icon: <InfoCircleFilled size="$icon.24" color="$neutral2" />,
+                    modalName: ModalName.MigrateRefundInfo,
+                    severity: WarningSeverity.None,
+                    rejectText: t('common.button.close'),
+                    zIndex: zIndexes.popover,
+                  }}
+                />
               </Flex>
               <TokenInfo
                 currencyAmount={refundedAmounts.TOKEN0}

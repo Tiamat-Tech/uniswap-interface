@@ -1,7 +1,9 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useMedia } from 'ui/src'
 import { BidDistributionChartTab } from '~/features/Toucan/Auction/AuctionChartShared'
+import { useIsQuickLaunchAuction } from '~/features/Toucan/Auction/hooks/useIsQuickLaunchAuction'
 
 interface BidDistributionChartHeaderProps {
   activeTab: BidDistributionChartTab
@@ -25,18 +27,25 @@ export const BidDistributionChartHeader = ({
 
   const tabVariant = media.lg ? 'subheading1' : 'heading3'
 
+  // QuickLaunch: quick launches hide the demand chart, so drop its tab.
+  const isQuickLaunch = useIsQuickLaunchAuction()
+
   const tabs: TabConfig[] = useMemo(
     () => [
       {
         key: BidDistributionChartTab.ClearingPrice,
         label: t('toucan.bidDistribution.tabs.clearingPriceChart'),
       },
-      {
-        key: BidDistributionChartTab.Demand,
-        label: t('toucan.bidDistribution.tabs.demandChart'),
-      },
+      ...(isQuickLaunch
+        ? []
+        : [
+            {
+              key: BidDistributionChartTab.Demand,
+              label: t('toucan.bidDistribution.tabs.demandChart'),
+            },
+          ]),
     ],
-    [t],
+    [t, isQuickLaunch],
   )
 
   const prefetchTab = useCallback((tab: BidDistributionChartTab) => {

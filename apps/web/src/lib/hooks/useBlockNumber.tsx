@@ -1,9 +1,9 @@
 // TODO(WEB-4448): for multichain, refactored our custom useBlockNumber in favor of wagmi's hook. Remove this provider
 
+import { UniverseChainId } from '@universe/chains'
 import { atom } from 'jotai'
 import { useAtomValue } from 'jotai/utils'
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useIsWindowVisible } from 'utilities/src/react/useIsWindowVisible'
 import { getRpcProvider } from '~/constants/providers'
 import { useAccount } from '~/hooks/useAccount'

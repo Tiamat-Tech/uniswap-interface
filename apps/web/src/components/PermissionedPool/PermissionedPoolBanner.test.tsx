@@ -17,23 +17,12 @@ vi.mock('uniswap/src/features/permissionedTokens/PermissionedTokenInfoBottomShee
 }))
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import type { PropsWithChildren } from 'react'
-import { TamaguiProvider } from 'ui/src'
-import config from 'ui/src/tamagui.config'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { PermissionedPoolBanner } from '~/components/PermissionedPool/PermissionedPoolBanner'
 
-function ThemeWrapper({ children }: PropsWithChildren) {
-  return (
-    <TamaguiProvider config={config} defaultTheme="light">
-      {children}
-    </TamaguiProvider>
-  )
-}
-
 describe('PermissionedPoolBanner', () => {
   it('renders the banner with heading and description', () => {
-    render(<PermissionedPoolBanner tokenSymbol="SLINK" />, { wrapper: ThemeWrapper })
+    render(<PermissionedPoolBanner tokenSymbol="SLINK" />)
 
     expect(screen.getByTestId(TestID.PermissionedPoolBanner)).toBeInTheDocument()
     expect(screen.getByText('permissionedPool.banner.heading:SLINK')).toBeInTheDocument()
@@ -41,7 +30,7 @@ describe('PermissionedPoolBanner', () => {
   })
 
   it('opens the info bottom sheet on press', () => {
-    render(<PermissionedPoolBanner tokenSymbol="SLINK" />, { wrapper: ThemeWrapper })
+    render(<PermissionedPoolBanner tokenSymbol="SLINK" />)
 
     expect(screen.queryByTestId('info-sheet')).toBeNull()
 

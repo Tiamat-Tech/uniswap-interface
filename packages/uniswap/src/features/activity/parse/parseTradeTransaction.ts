@@ -1,5 +1,6 @@
 import { BigNumber } from '@ethersproject/bignumber'
 import { Direction, OnChainTransaction, OnChainTransactionLabel } from '@uniswap/client-data-api/dist/data/v1/types_pb'
+import { areAddressesEqual } from '@universe/chains'
 import { AssetType } from 'uniswap/src/entities/assets'
 import { extractDappInfo } from 'uniswap/src/features/activity/utils/extractDappInfo'
 import { AssetCase } from 'uniswap/src/features/activity/utils/remote'
@@ -13,7 +14,6 @@ import {
   WrapTransactionInfo,
 } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { DepositTransactionInfo } from 'uniswap/src/features/transactions/types/transactionDetails'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 
 interface TokenMovementParseOptions {

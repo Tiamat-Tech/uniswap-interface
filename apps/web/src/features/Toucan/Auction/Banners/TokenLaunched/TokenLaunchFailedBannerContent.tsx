@@ -1,8 +1,8 @@
+import { Flex, Text, zIndexes } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { opacifyRaw, useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { CSSProperties, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { opacifyRaw, zIndexes } from 'ui/src/theme'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { TokenLaunchedBannerWrapper } from '~/features/Toucan/Auction/Banners/TokenLaunched/TokenLaunchedBannerWrapper'
 import { ExternalLink } from '~/theme/components/Links'
@@ -17,6 +17,7 @@ interface TokenLaunchFailedBannerContentProps {
 export function TokenLaunchFailedBannerContent({ tokenName, bannerGradient }: TokenLaunchFailedBannerContentProps) {
   const { t } = useTranslation()
   const colors = useSporeColors()
+  const media = useMedia()
   const accentColor = colors.statusCritical.val
   const iconBackgroundColor = useMemo(() => opacifyRaw(12, accentColor), [accentColor])
 
@@ -41,12 +42,8 @@ export function TokenLaunchFailedBannerContent({ tokenName, bannerGradient }: To
             justifyContent="center"
             backgroundColor={iconBackgroundColor}
           >
-            <AlertTriangleFilled
-              color="$statusCritical"
-              fill={accentColor}
-              size="$icon.24"
-              $sm={{ size: '$icon.20' }}
-            />
+            {/* Icons carry no responsive size variants; useMedia evaluates the same $sm max-width query */}
+            <AlertTriangleFilled color="$statusCritical" fill={accentColor} size={media.sm ? '$icon.20' : '$icon.24'} />
           </Flex>
           <Flex gap="$spacing2" flexShrink={1}>
             <Text variant="subheading1" $md={{ variant: 'subheading2' }} $sm={{ variant: 'body3' }} color="$neutral1">

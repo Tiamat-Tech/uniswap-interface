@@ -1,19 +1,23 @@
 import { SharedEventName } from '@uniswap/analytics-events'
 import type { Currency } from '@uniswap/sdk-core'
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, type FlexCompatProps, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { ArrowsExpand } from '@universe/mycelium/icons/ArrowsExpand'
+import { useShadowPropsShort, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Flex, Loader, styled, Text, TouchableArea, useShadowPropsShort, useSporeColors } from 'ui/src'
-import { ArrowsExpand } from 'ui/src/components/icons/ArrowsExpand'
-import { iconSizes } from 'ui/src/theme'
+import { Loader } from 'ui/src'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { getChainLabel, toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { FORMAT_DATE_MONTH_DAY_TIME, useLocalizedDayjs } from 'uniswap/src/features/language/localizedDayjs'
 import { CopyNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { ElementName, InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
+import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { CurrencyField } from 'uniswap/src/types/currency'
+import { currencyId } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
 import { ChartUnavailableOverlay } from '~/components/Charts/ChartUnavailableOverlay'
 import { useChartAnimatedColor } from '~/components/Charts/hooks/useChartAnimatedColor'
@@ -22,7 +26,6 @@ import type { PriceChartData } from '~/components/Charts/PriceChart'
 import { PriceChartBody } from '~/components/Charts/PriceChart'
 import { PriceChartDelta } from '~/components/Charts/PriceChart/PriceChartDelta'
 import { ChartType, PriceChartType } from '~/components/Charts/utils'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
 import { TimePeriod, toHistoryDuration } from '~/data/util'
 import { useSwapAndLimitContext } from '~/features/Swap/state/useSwapContext'
 import { useColor } from '~/hooks/useColor'
@@ -44,17 +47,20 @@ const TIME_OPTIONS = [
  *  which need a concrete pixel value for their internal layout math. */
 const SWAP_CHART_AREA_HEIGHT = 108
 
-const CardShell = styled(Flex, {
-  width: '100%',
-  height: '100%',
-  backgroundColor: '$surface1',
-  borderColor: '$surface3',
-  borderWidth: '$spacing1',
-  borderStyle: 'solid',
-  borderRadius: '$rounded20',
-  p: '$spacing8',
-  gap: '$spacing8',
-})
+const CardShell = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    width="100%"
+    height="100%"
+    backgroundColor="$surface1"
+    borderColor="$surface3"
+    borderWidth="$spacing1"
+    borderStyle="solid"
+    borderRadius="$rounded20"
+    p="$spacing8"
+    gap="$spacing8"
+    {...props}
+  />
+)
 
 interface SlideoutChartCardContentProps {
   selectedCurrency: Currency
@@ -175,13 +181,14 @@ function SlideoutChartCardBody({
       : sporeColors.statusCritical.val
     : tokenColor
   const chartColor = useChartAnimatedColor(targetChartColor)
+  const selectedCurrencyInfo = useCurrencyInfo(currencyId(selectedCurrency))
 
   return (
     <>
       {/* Token row — px provides horizontal inset; outer card p already covers top */}
       <Flex row alignItems="center" px="$spacing8">
         <Flex row flex={1} alignItems="center" gap="$spacing8">
-          <CurrencyLogo currency={selectedCurrency} size={24} />
+          <CurrencyLogo currencyInfo={selectedCurrencyInfo} size={24} />
           <Text variant="body2" color="$neutral2">
             {selectedCurrency.symbol ?? '—'}
           </Text>

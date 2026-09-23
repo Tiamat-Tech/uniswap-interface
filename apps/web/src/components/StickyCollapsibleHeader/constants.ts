@@ -1,4 +1,4 @@
-import { iconSizes } from 'ui/src/theme'
+import { iconSizes } from '@universe/mycelium'
 
 // Avoid `all` — see CLAUDE.md. Shared layout/motion props only (no `background-color` here).
 export const HEADER_TRANSITION =

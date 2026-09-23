@@ -1,4 +1,4 @@
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
+import { Platform } from '@universe/chains'
 
 export type AccountAddressesByPlatform = Record<Platform, string>
 

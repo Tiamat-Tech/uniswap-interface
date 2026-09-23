@@ -1,7 +1,7 @@
 import { isExtensionApp, isIOS } from '@universe/environment'
+import { Button, Flex } from '@universe/mycelium'
 import type { ComponentType, PropsWithChildren } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex } from 'ui/src'
 import { spacing } from 'ui/src/theme'
 import { KeyboardAwareScrollView } from 'wallet/src/components/scrollView/KeyboardAwareScrollView'
 import { UnitagProfileForm } from 'wallet/src/features/unitags/components/UnitagProfileForm'

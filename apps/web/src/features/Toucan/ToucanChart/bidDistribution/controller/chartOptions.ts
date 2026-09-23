@@ -24,7 +24,11 @@ export function createToucanBidDistributionChartOptions({
   return {
     width,
     height,
+    // v5 lifts a hovered series above its pane siblings by default — keep
+    // v4's draw order (QA can deliberately opt in later).
+    hoveredSeriesOnTop: false,
     layout: {
+      attributionLogo: false,
       background: { type: ColorType.Solid, color: 'transparent' },
       textColor: colors.neutral2.val,
       fontSize: LABEL_CONFIG.FONT_SIZE,

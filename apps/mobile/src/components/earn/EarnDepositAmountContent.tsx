@@ -1,5 +1,6 @@
+/* oxlint-disable max-lines -- Tamagui conversion split one ui/src import into a mycelium import plus a kept ui/src import, pushing the file one line past the cap; not new code */
 import { TradingApi } from '@universe/api'
-import { isIOS } from '@universe/environment'
+import { Button, Flex } from '@universe/mycelium'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TextInput as RNTextInput, TextInputProps as RNTextInputProps } from 'react-native'
@@ -27,7 +28,7 @@ import { useEarnAmountInputFontSizing } from 'src/components/earn/useEarnAmountI
 import { useEarnDepositAmountInlineErrors } from 'src/components/earn/useEarnDepositAmountInlineErrors'
 import { Screen } from 'src/components/layout/Screen'
 import { useLayoutHeight } from 'src/utils/useLayoutHeight'
-import { Button, Flex, useIsShortMobileDevice, useShakeAnimation } from 'ui/src'
+import { useIsShortMobileDevice, useShakeAnimation } from 'ui/src'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { useBottomSheetContext } from 'uniswap/src/components/modals/BottomSheetContext'
 import { HandleBar } from 'uniswap/src/components/modals/HandleBar'
@@ -36,6 +37,7 @@ import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { getEarnAmountValidation, getProjectedAnnualEarnings } from 'uniswap/src/features/earn/amount'
 import { useEarnMinDepositUsd } from 'uniswap/src/features/earn/config'
 import { DEFAULT_WITHDRAW_CHAIN_ID } from 'uniswap/src/features/earn/constants'
+import { useEarnAmountEntryAnalytics } from 'uniswap/src/features/earn/hooks/useEarnAmountEntryAnalytics'
 import { useEarnAmountEntryMobile } from 'uniswap/src/features/earn/hooks/useEarnAmountEntryMobile'
 import { useEarnDepositCurrencyContext } from 'uniswap/src/features/earn/hooks/useEarnDepositCurrencyContext'
 import { useEarnDepositSources } from 'uniswap/src/features/earn/hooks/useEarnDepositSources'
@@ -43,17 +45,24 @@ import { EarnAction } from 'uniswap/src/features/earn/types'
 import { hasConfirmedEarnPositionRawBalance } from 'uniswap/src/features/earn/utils'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import type { EarnAnalyticsAction } from 'uniswap/src/features/telemetry/types'
 import {
   DecimalPadCalculatedSpaceId,
   DecimalPadCalculateSpace,
   DecimalPadInput,
   type DecimalPadInputRef,
 } from 'uniswap/src/features/transactions/components/DecimalPadInput/DecimalPadInput'
+import { useBottomScreenGap } from 'uniswap/src/hooks/useBottomScreenGap'
 import { areCurrencyIdsEqual } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
 import { useActiveAccountAddress } from 'wallet/src/features/wallet/hooks'
 
+function getEarnAnalyticsAction(isWithdrawing: boolean): EarnAnalyticsAction {
+  return isWithdrawing ? 'withdraw' : 'deposit'
+}
+
 export function EarnDepositAmountContent({
+  analyticsProperties,
   vault,
   position,
   initialAction,
@@ -73,6 +82,7 @@ export function EarnDepositAmountContent({
   const minDepositUsd = useEarnMinDepositUsd()
   const fiatCurrencyInfo = useAppFiatCurrencyInfo()
   const isShortMobileDevice = useIsShortMobileDevice()
+  const { bottomScreenExtraGap } = useBottomScreenGap()
   const { isSheetReady } = useBottomSheetContext()
 
   const walletAddress = useActiveAccountAddress()
@@ -219,18 +229,26 @@ export function EarnDepositAmountContent({
     [currentAction, onActionChange, resetAmounts, resetSelection],
   )
 
+  const { logPresetSelected, logAmountEntered } = useEarnAmountEntryAnalytics({ analyticsProperties })
+  const action = getEarnAnalyticsAction(isWithdrawing)
+
   const setActiveAmount = useCallback(
     (next: string) => {
       if (isWithdrawing) {
         setWithdrawMode(TradingApi.EarnWithdrawMode.EXACT_ASSETS)
       }
-      setEntryActiveAmount(next)
+      const accepted = setEntryActiveAmount(next)
+      // A rejected keystroke is not an amount entry.
+      if (accepted) {
+        logAmountEntered({ action, inputMethod: 'manual', value: next })
+      }
     },
-    [isWithdrawing, setEntryActiveAmount],
+    [action, isWithdrawing, logAmountEntered, setEntryActiveAmount],
   )
 
   const handlePercentPress = useCallback(
     (pct: number) => {
+      logPresetSelected({ action, pct })
       if (isWithdrawing) {
         setWithdrawMode(
           pct === 1 && !isWithdrawLiquidityLimited
@@ -238,9 +256,10 @@ export function EarnDepositAmountContent({
             : TradingApi.EarnWithdrawMode.EXACT_ASSETS,
         )
       }
-      handleEntryPercentPress(pct)
+      const resolvedAmount = handleEntryPercentPress(pct)
+      logAmountEntered({ action, inputMethod: 'preset', pct, value: resolvedAmount })
     },
-    [handleEntryPercentPress, isWithdrawLiquidityLimited, isWithdrawing],
+    [action, handleEntryPercentPress, isWithdrawLiquidityLimited, isWithdrawing, logAmountEntered, logPresetSelected],
   )
   const isConversionPending = getIsEarnAmountConversionPending({ exactAmountFiat, hasInputAmount, isFiatInput })
   const hasConfirmedWithdrawPosition = hasConfirmedEarnPositionRawBalance(position)
@@ -415,7 +434,7 @@ export function EarnDepositAmountContent({
                   gap={isShortMobileDevice ? 0 : '$spacing8'}
                   left={0}
                   opacity={decimalPadReady ? 1 : 0}
-                  pb={isShortMobileDevice && isIOS ? '$spacing4' : '$spacing24'}
+                  pb={bottomScreenExtraGap}
                   position="absolute"
                   px="$spacing24"
                   right={0}

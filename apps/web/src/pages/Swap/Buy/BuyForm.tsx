@@ -1,9 +1,8 @@
+import { Flex, type FlexCompatProps, fonts, Text } from '@universe/mycelium'
 import { type ComponentRef, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router'
-import { Flex, styled, Text } from 'ui/src'
 import { useDynamicFontSizing } from 'ui/src/hooks/useDynamicFontSizing'
-import { fonts } from 'ui/src/theme'
 import { useUrlContext } from 'uniswap/src/contexts/UrlContext'
 import { TradeableAsset } from 'uniswap/src/entities/assets'
 import { useAppFiatCurrency, useFiatCurrencyComponents } from 'uniswap/src/features/fiatCurrency/hooks'
@@ -19,7 +18,6 @@ import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { normalizeCurrencyIdForMapLookup } from 'uniswap/src/utils/currencyId'
 import { currencyId } from 'uniswap/src/utils/currencyId'
-import useResizeObserver from 'use-resize-observer'
 import { isSafeNumber } from 'utilities/src/primitives/integer'
 import { usePrevious } from 'utilities/src/react/hooks'
 import { AlternateCurrencyDisplay } from '~/components/AlternateCurrencyDisplay/AlternateCurrencyDisplay'
@@ -28,6 +26,7 @@ import {
   NumericalInputSymbolContainer,
   NumericalInputWrapper,
   StyledNumericalInput,
+  useMeasuredFieldWidth,
 } from '~/components/NumericalInput/LargeAmountInput'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { useActiveAddresses } from '~/features/accounts/store/hooks'
@@ -49,27 +48,27 @@ import { SwitchNetworkAction } from '~/state/popups/types'
 import { getChainUrlParam } from '~/utils/params/chainParams'
 import { showSwitchNetworkNotification } from '~/utils/showSwitchNetworkNotification'
 
-const InputWrapper = styled(Flex, {
-  backgroundColor: '$surface1',
-  p: '$spacing16',
-  pt: '$spacing12',
-  pb: 52,
-  height: 264,
-  alignItems: 'center',
-  borderRadius: '$rounded20',
-  justifyContent: 'space-between',
-  overflow: 'hidden',
-  gap: '$spacing8',
-  borderWidth: 1,
-  borderColor: '$surface3',
-})
+const InputWrapper = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    backgroundColor="$surface1"
+    p="$spacing16"
+    pt="$spacing12"
+    pb={52}
+    height={264}
+    alignItems="center"
+    borderRadius="$rounded20"
+    justifyContent="space-between"
+    overflow="hidden"
+    gap="$spacing8"
+    borderWidth={1}
+    borderColor="$surface3"
+    {...props}
+  />
+)
 
-const HeaderRow = styled(Flex, {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  width: '100%',
-})
+const HeaderRow = (props: FlexCompatProps): JSX.Element => (
+  <Flex flexDirection="row" alignItems="center" justifyContent="space-between" width="100%" {...props} />
+)
 
 const DEFAULT_FIAT_DECIMALS = 2
 const PREDEFINED_AMOUNTS = [100, 300, 1000]
@@ -109,7 +108,7 @@ function BuyFormInner({ disabled, initialCurrency }: BuyFormProps) {
   const navigate = useNavigate()
 
   const prevQuoteCurrency = usePrevious(quoteCurrency)
-  const hiddenObserver = useResizeObserver<HTMLElement>()
+  const { ref: hiddenObserverRef, fieldWidth: scaledInputWidth } = useMeasuredFieldWidth(inputAmount)
   const inputRef = useRef<ComponentRef<typeof StyledNumericalInput>>(null)
 
   useEffect(() => {
@@ -237,11 +236,6 @@ function BuyFormInner({ disabled, initialCurrency }: BuyFormProps) {
     return currentCurrencyId ? balancesById?.[normalizeCurrencyIdForMapLookup(currentCurrencyId)] : undefined
   }, [balancesById, quoteCurrency?.currencyInfo?.currency])
 
-  const scaledInputWidth = useMemo(
-    () => (inputAmount && hiddenObserver.width ? hiddenObserver.width + 1 : undefined),
-    [inputAmount, hiddenObserver.width],
-  )
-
   const offRampRequest = useOffRampTransferDetailsRequest()
 
   useEffect(() => {
@@ -314,7 +308,7 @@ function BuyFormInner({ disabled, initialCurrency }: BuyFormProps) {
                 testId={TestID.BuyFormAmountInput}
                 ref={inputRef}
               />
-              <NumericalInputMimic ref={hiddenObserver.ref} numericalFontSize={fontSize}>
+              <NumericalInputMimic ref={hiddenObserverRef} numericalFontSize={fontSize}>
                 {inputAmount}
               </NumericalInputMimic>
             </NumericalInputWrapper>

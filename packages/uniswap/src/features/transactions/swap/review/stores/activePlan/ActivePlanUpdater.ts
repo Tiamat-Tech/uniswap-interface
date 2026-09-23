@@ -1,8 +1,8 @@
 import { UseQueryResult, useQuery } from '@tanstack/react-query'
 import { type TradingApi, V1_TRADING_API_PATHS } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { useEffect } from 'react'
 import { TradingApiSessionClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiSessionClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   TransactionScreen,
   useTransactionModalContext,

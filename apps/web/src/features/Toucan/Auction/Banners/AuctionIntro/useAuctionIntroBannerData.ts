@@ -1,10 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
+import { opacifyRaw, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { TFunction } from 'i18next'
 import { CSSProperties, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSporeColors } from 'ui/src'
-import { opacifyRaw } from 'ui/src/theme'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useAuctionKycStatus } from '~/features/Toucan/Auction/hooks/useAuctionKycStatus'
 import { useAuctionTokenColor } from '~/features/Toucan/Auction/hooks/useAuctionTokenColor'
 import { useDurationRemaining } from '~/features/Toucan/Auction/hooks/useDurationRemaining'
@@ -31,12 +30,14 @@ function getAuctionBannerConfig({
   variant: AuctionIntroBannerVariant
   targetBlock: string | bigint | number | undefined
   durationLabel: string
+  isAuctionEndCountdown: boolean
 } {
   if (isPreBidPeriod) {
     return {
       variant: 'in-progress',
       targetBlock: auctionDetails?.preBidEndBlock,
       durationLabel: t('toucan.auction.introBanner.preBiddingEndsIn'),
+      isAuctionEndCountdown: false,
     }
   }
 
@@ -45,6 +46,7 @@ function getAuctionBannerConfig({
       variant: 'not-started',
       targetBlock: auctionDetails?.startBlock,
       durationLabel: t('toucan.auction.introBanner.auctionStartsIn'),
+      isAuctionEndCountdown: false,
     }
   }
 
@@ -53,6 +55,7 @@ function getAuctionBannerConfig({
       variant: 'in-progress',
       targetBlock: allowlistEndBlock,
       durationLabel: t('toucan.auction.introBanner.generalSaleStartsIn'),
+      isAuctionEndCountdown: false,
     }
   }
 
@@ -60,6 +63,7 @@ function getAuctionBannerConfig({
     variant: 'in-progress',
     targetBlock: auctionDetails?.endBlock,
     durationLabel: t('toucan.auction.introBanner.auctionEndsIn'),
+    isAuctionEndCountdown: true,
   }
 }
 
@@ -68,6 +72,7 @@ interface UseAuctionIntroBannerDataResult {
   variant: AuctionIntroBannerVariant
   durationRemaining: string | undefined
   durationLabel: string
+  isAuctionEndCountdown: boolean
   /** Token accent color - used for indicator dot */
   tokenAccentColor: string
   backgroundGradientStyle: CSSProperties
@@ -141,7 +146,7 @@ export function useAuctionIntroBannerData(): UseAuctionIntroBannerDataResult {
     currentBlockNumber < allowlistEndBlock
 
   // Determine the variant, target block, and duration label based on progress state
-  const { variant, targetBlock, durationLabel } = getAuctionBannerConfig({
+  const { variant, targetBlock, durationLabel, isAuctionEndCountdown } = getAuctionBannerConfig({
     isPreBidPeriod,
     isNotStarted,
     isAllowlistOnlyWindow,
@@ -174,6 +179,7 @@ export function useAuctionIntroBannerData(): UseAuctionIntroBannerDataResult {
     variant,
     durationRemaining,
     durationLabel,
+    isAuctionEndCountdown,
     tokenAccentColor,
     backgroundGradientStyle,
     isColorLoading,

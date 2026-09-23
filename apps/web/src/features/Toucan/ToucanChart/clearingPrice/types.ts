@@ -1,5 +1,5 @@
+import type { UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 import type { UTCTimestamp } from 'lightweight-charts'
-import type { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
 import type { BidTokenInfo } from '~/features/Toucan/Auction/store/types'
 
 export interface ClearingPriceChartPoint {

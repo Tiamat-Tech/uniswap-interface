@@ -1,7 +1,7 @@
 import { FeeType, TradingApi } from '@universe/api'
+import { Platform } from '@universe/chains'
 import { AccountType } from 'uniswap/src/features/accounts/types'
 import { DEFAULT_GAS_STRATEGY } from 'uniswap/src/features/gas/consts'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
 import { ExecuteSwapParams } from 'uniswap/src/features/transactions/swap/types/swapHandlers'
 import {

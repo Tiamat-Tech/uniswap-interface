@@ -1,6 +1,6 @@
+import { Flex } from '@universe/mycelium'
+import { ArrowDownToLine } from '@universe/mycelium/icons/ArrowDownToLine'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
-import { ArrowDownToLine } from 'ui/src/components/icons'
 import { TransactionAssetList } from 'wallet/src/components/dappRequests/TransactionAssetList'
 import type { TransactionAsset } from 'wallet/src/features/dappRequests/types'
 

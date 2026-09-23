@@ -1,5 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useMedia } from 'ui/src'
 
 export const DetectedBadge = () => {
   const { t } = useTranslation()

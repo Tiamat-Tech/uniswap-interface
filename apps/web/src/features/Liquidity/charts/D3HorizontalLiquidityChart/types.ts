@@ -1,12 +1,12 @@
 import type { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import type { Currency } from '@uniswap/sdk-core'
+import type { UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 import type * as d3 from 'd3'
-import type { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
-import type { TickData } from '~/data/AllV3TicksQuery'
 import type { ChartCoreActions } from '~/features/Liquidity/charts/D3LiquidityChartShared/store/createChartActions'
 import type { LinearTickScale, Renderer } from '~/features/Liquidity/charts/D3LiquidityChartShared/types'
 import type { BucketChartEntry } from '~/features/Liquidity/charts/D3LiquidityChartShared/utils/liquidityBucketing/liquidityBucketing'
 import type { ChartEntry } from '~/features/Liquidity/charts/LiquidityRangeInput/types'
+import type { TickData } from '~/features/Liquidity/types/ticks'
 
 export type HorizontalLiquidityChartState = {
   dimensions: {
@@ -49,6 +49,8 @@ export type HorizontalLiquidityRenderingContext = {
     width: number
     height: number
   }
+  /** Vertical space (px) kept clear at the top of the chart for an overlaid header; bars draw below it. */
+  topInset: number
   liquidityData: ChartEntry[]
   rawTicks: TickData[]
   tickSpacing: number

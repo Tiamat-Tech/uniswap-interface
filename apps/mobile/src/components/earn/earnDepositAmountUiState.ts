@@ -1,5 +1,5 @@
-import type { AppTFunction } from 'ui/src/i18n/types'
 import { NumberType } from 'utilities/src/format/types'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 
 export function getHasRequiredSelection({
   hasConfirmedWithdrawPosition,

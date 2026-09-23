@@ -1,12 +1,11 @@
 import { ProtocolVersion as RestProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency } from '@uniswap/sdk-core'
 import { FeeAmount } from '@uniswap/v3-sdk'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Shine, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Shine, Text } from 'ui/src'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
-import { useGetPool } from 'uniswap/src/data/apiClients/dataApiService/pools/getPools'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ChartHeader } from '~/components/Charts/ChartHeader'
 import { ChartSkeleton } from '~/components/Charts/LoadingState'
 import { ChartType } from '~/components/Charts/utils'
@@ -16,11 +15,20 @@ import { HorizontalLiquidityChartStoreProvider } from '~/features/Liquidity/char
 import { useHorizontalLiquidityChartSelector } from '~/features/Liquidity/charts/D3HorizontalLiquidityChart/useHorizontalLiquidityChartStore'
 import { useDensityChartData } from '~/features/Liquidity/charts/LiquidityRangeInput/hooks'
 import { ChartEntry } from '~/features/Liquidity/charts/LiquidityRangeInput/types'
-import { normalizeTickSpacing, useAllPoolTicks } from '~/features/Liquidity/hooks/usePoolTickData'
+import { useAllPoolTicks } from '~/features/Liquidity/hooks/usePoolTickData'
+import { buildV2SyntheticPool, V2Reserves } from '~/features/Liquidity/utils/v2SyntheticTicks'
 import { useColor } from '~/hooks/useColor'
+import { usePdpPool } from '~/pages/PoolDetails/components/ChartSection/usePdpPool'
 import { unwrappedToken } from '~/utils/unwrappedToken'
 
 const PDP_CHART_HEIGHT_PX = 356
+// Top inset (px) reserved for the absolutely-positioned ChartHeader. The chart keeps its full
+// height, so its dotted background still fills the area behind the price text (matching the
+// volume/price/depth charts); only the liquidity bars are drawn below this inset so they never
+// sit under the text. Sized for the tallest header state — two heading3 price lines, their gaps,
+// and the "active range" label — with a little breathing room. Fixed rather than measured because
+// the "active range" label toggles on hover, which would otherwise resize the bars mid-hover.
+const LIQUIDITY_CHART_HEADER_INSET_PX = 104
 
 export type D3LiquidityPoolChartZoomActions = {
   zoomIn: () => void
@@ -96,7 +104,7 @@ function PriceHeader({
   const { t } = useTranslation()
   return (
     <Flex gap="$spacing8" $md={{ gap: '$spacing4' }}>
-      <Text variant="heading3" animation="125ms" animateOnly={['opacity']} enterStyle={{ opacity: 0 }}>
+      <Text variant="heading3" className="animate-spore-enter-fade-in opacity-[1]">
         <Flex row gap="$spacing4">
           {`1 ${baseDescriptor} =`}{' '}
           {hasPriceData ? (
@@ -111,7 +119,7 @@ function PriceHeader({
           )}
         </Flex>
       </Text>
-      <Text variant="heading3" animation="125ms" animateOnly={['opacity']} enterStyle={{ opacity: 0 }}>
+      <Text variant="heading3" className="animate-spore-enter-fade-in opacity-[1]">
         <Flex row gap="$spacing4">
           {`1 ${quoteDescriptor} =`}{' '}
           {hasPriceData ? (
@@ -130,9 +138,7 @@ function PriceHeader({
         <Text
           variant="subheading2"
           color="$neutral2"
-          animation="125ms"
-          animateOnly={['opacity']}
-          enterStyle={{ opacity: 0 }}
+          className="animate-spore-enter-fade-in opacity-[1]"
           $md={{ variant: 'body3' }}
         >
           {t('pool.activeRange')}
@@ -219,6 +225,7 @@ function useD3LiquidityPoolChartData({
   version,
   hooks,
   poolId,
+  v2Reserves,
 }: {
   tokenA: Currency
   tokenB: Currency
@@ -228,18 +235,26 @@ function useD3LiquidityPoolChartData({
   version: RestProtocolVersion
   hooks?: string
   poolId?: string
+  v2Reserves?: V2Reserves
 }) {
   const resolvedHooks = hooks ?? ZERO_ADDRESS
+  const isV2 = version === RestProtocolVersion.V2
 
-  const { data: poolData, isLoading: poolDataLoading } = useGetPool(
-    { chainId, poolId, protocolVersion: version },
-    Boolean(poolId),
-  )
-
-  const tickSpacing = normalizeTickSpacing(poolData?.pool?.tickSpacing)
-  const currentTick = poolData?.pool?.tick
+  const { pool, isLoading: poolDataLoading } = usePdpPool({ poolId, chainId, enabled: !isV2 })
 
   const sdkCurrencies = useMemo(() => ({ TOKEN0: tokenA, TOKEN1: tokenB }), [tokenA, tokenB])
+
+  // A v2 pair has neither a tick nor a tick spacing on chain, so both come from the synthetic pool.
+  const v2SyntheticPool = useMemo(
+    () => (isV2 ? buildV2SyntheticPool({ reserves: v2Reserves, token0: tokenA, token1: tokenB }) : undefined),
+    [isV2, v2Reserves, tokenA, tokenB],
+  )
+
+  // The v2 branch is not redundant with `pool`: `usePdpPool` is disabled for v2 pairs (enabled:
+  // !isV2), and the GetPool row carries no tick or tick spacing for v2 pools anyway, so deriving
+  // both from the pair's reserves is the only correct source for v2.
+  const tickSpacing = isV2 ? v2SyntheticPool?.tickSpacing : pool?.tickSpacing
+  const currentTick = isV2 ? v2SyntheticPool?.currentTick : pool?.currentTick
 
   const { formattedData: liquidityData, isLoading: liquidityDataLoading } = useDensityChartData({
     poolId,
@@ -250,6 +265,7 @@ function useD3LiquidityPoolChartData({
     feeAmount: feeTier,
     tickSpacing,
     hooks: resolvedHooks,
+    v2Reserves,
   })
 
   const { ticks: rawTicks, isLoading: rawTicksLoading } = useAllPoolTicks({
@@ -260,6 +276,7 @@ function useD3LiquidityPoolChartData({
     tickSpacing,
     hooks: resolvedHooks,
     precalculatedPoolId: poolId,
+    v2Reserves,
   })
 
   const sortedLiquidityData = useMemo(
@@ -284,6 +301,7 @@ export function D3LiquidityPoolChart({
   hooks,
   poolId,
   onZoomActionsReady,
+  v2Reserves,
 }: {
   tokenA: Currency
   tokenB: Currency
@@ -294,6 +312,7 @@ export function D3LiquidityPoolChart({
   hooks?: string
   poolId?: string
   onZoomActionsReady?: (actions: D3LiquidityPoolChartZoomActions) => void
+  v2Reserves?: V2Reserves
 }) {
   const { tickSpacing, currentTick, sortedLiquidityData, finalTickData, isLoading } = useD3LiquidityPoolChartData({
     tokenA,
@@ -304,6 +323,7 @@ export function D3LiquidityPoolChart({
     version,
     hooks,
     poolId,
+    v2Reserves,
   })
 
   const token0Color = useColor(tokenA)
@@ -381,6 +401,7 @@ export function D3LiquidityPoolChart({
           priceInverted={isReversed}
           protocolVersion={version}
           height={PDP_CHART_HEIGHT_PX}
+          topInset={LIQUIDITY_CHART_HEADER_INSET_PX}
           onActionsReady={onZoomActionsReady}
         />
       </Flex>

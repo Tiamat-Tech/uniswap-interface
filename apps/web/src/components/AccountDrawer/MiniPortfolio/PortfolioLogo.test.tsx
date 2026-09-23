@@ -1,6 +1,6 @@
 import '~/test-utils/tokens/mocks'
+import { UniverseChainId } from '@universe/chains'
 import { DAI, DAI_ARBITRUM_ONE, USDC_ARBITRUM, USDC_MAINNET } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { PortfolioLogo } from '~/components/AccountDrawer/MiniPortfolio/PortfolioLogo'
 import { render, screen } from '~/test-utils/render'
 

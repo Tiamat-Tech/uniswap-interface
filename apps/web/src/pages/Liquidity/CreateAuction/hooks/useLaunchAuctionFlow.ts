@@ -1,7 +1,6 @@
+import type { UniverseChainId } from '@universe/chains'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { AuctionEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import type {
@@ -20,11 +19,11 @@ import { isSignerMnemonicAccountDetails } from 'uniswap/src/features/wallet/type
 import { logger } from 'utilities/src/logger/logger'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useAuctionLaunch } from '~/hooks/useAuctionLaunch'
+import { useNavigateToAuctionDetails } from '~/hooks/useNavigateToAuctionDetails'
 import { LaunchProgressStep } from '~/pages/Liquidity/CreateAuction/components/LaunchAuctionProgressIndicator'
 import type { CreateAuctionSubmitResult } from '~/pages/Liquidity/CreateAuction/hooks/useCreateAuctionSubmit'
 import { useTransactionByHashOrBatchId } from '~/state/transactions/hooks'
 import { coerceUnknownToError } from '~/utils/coerceUnknownToError'
-import { getChainUrlParam } from '~/utils/params/chainParams'
 import { didUserReject } from '~/utils/swapErrorToUserReadableMessage'
 
 interface UseLaunchAuctionFlowParams {
@@ -105,7 +104,7 @@ export function useLaunchAuctionFlow({
   getFailedDiagnostics,
 }: UseLaunchAuctionFlowParams): LaunchAuctionFlow {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const navigateToAuctionDetails = useNavigateToAuctionDetails()
   const submitLaunchTransactions = useAuctionLaunch()
 
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
@@ -277,10 +276,10 @@ export function useLaunchAuctionFlow({
     if (!launchSuccess) {
       return
     }
-    const chainUrlParam = getChainUrlParam(chainId)
-    if (chainUrlParam) {
-      navigate(`/explore/auctions/${chainUrlParam}/${launchSuccess.auctionAddress}`)
-    }
+    navigateToAuctionDetails({
+      chainId,
+      auctionAddress: launchSuccess.auctionAddress,
+    })
   })
 
   // Tapping "View auction" is an explicit request to leave now, so navigate immediately.
@@ -316,13 +315,17 @@ export function useLaunchAuctionFlow({
   }, [preparedResult])
 
   const currentProgressStepIndex = useMemo<number>(() => {
-    // Each step wraps the exact tx we passed in (createApprovalTransactionStep / createSwapTransactionStep),
-    // so match currentStep.step.txRequest by reference to find which step is active.
+    // Each step wraps the tx we passed in (createApprovalTransactionStep / createSwapTransactionStep),
+    // but the saga submits a copy with gas-service params merged in — so match
+    // currentStep.step.txRequest by reference first, then by content (to + data uniquely
+    // identify each tx here: approvals target distinct tokens, the launch is a multicall).
     const step = currentStep?.step
     if (!step || !('txRequest' in step)) {
       return -1
     }
-    return (preparedResult?.transactions ?? []).findIndex((tx) => tx === step.txRequest)
+    return (preparedResult?.transactions ?? []).findIndex(
+      (tx) => tx === step.txRequest || (tx.to === step.txRequest.to && tx.data === step.txRequest.data),
+    )
   }, [currentStep, preparedResult])
 
   return {

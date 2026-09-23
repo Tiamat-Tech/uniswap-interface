@@ -1,3 +1,4 @@
+import { getValidAddress } from '@universe/chains'
 /* oxlint-disable typescript/explicit-function-return-type */
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
 import { providers } from 'ethers'
@@ -22,7 +23,6 @@ import {
   TransactionType,
   UniswapXOrderDetails,
 } from 'uniswap/src/features/transactions/types/transactionDetails'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { logger } from 'utilities/src/logger/logger'
 import {
   ExecuteTransactionParams,

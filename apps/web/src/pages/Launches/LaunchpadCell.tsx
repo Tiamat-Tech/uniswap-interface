@@ -1,5 +1,4 @@
-import { Flex } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { Flex, iconSizes } from '@universe/mycelium'
 import { EllipsisText } from '~/components/Table/shared/TableText'
 import { LaunchpadLogo } from '~/pages/Launches/LaunchpadLogo'
 

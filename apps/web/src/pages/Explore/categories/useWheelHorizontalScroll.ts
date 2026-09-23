@@ -1,9 +1,16 @@
+import type { MyceliumElement } from '@universe/mycelium'
 import { useEffect, useRef, useState } from 'react'
-import type { TamaguiElement } from 'ui/src'
 
 const SCROLL_EDGE_TOLERANCE_PX = 1
 /** Approximate px per line when `WheelEvent.deltaMode` is `DOM_DELTA_LINE` (common on Windows). */
 const WHEEL_LINE_HEIGHT_PX = 40
+
+const EDGE_FADE_WIDTH_PX = 24
+const RIGHT_EDGE_FADE_MASK = `linear-gradient(to right, black calc(100% - ${EDGE_FADE_WIDTH_PX}px), transparent)`
+
+export function rightEdgeFadeStyle(showRightFade: boolean): { maskImage: string; WebkitMaskImage: string } | undefined {
+  return showRightFade ? { maskImage: RIGHT_EDGE_FADE_MASK, WebkitMaskImage: RIGHT_EDGE_FADE_MASK } : undefined
+}
 
 function wheelDeltaYToPixels(event: WheelEvent, containerWidthPx: number): number {
   const { deltaMode, deltaY } = event
@@ -25,10 +32,10 @@ function wheelDeltaYToPixels(event: WheelEvent, containerWidthPx: number): numbe
  * - Tracks `showRightFade`: whether content remains off-screen to the right (drives the edge fade).
  */
 export function useWheelHorizontalScroll(): {
-  scrollerRef: React.RefObject<TamaguiElement | null>
+  scrollerRef: React.RefObject<MyceliumElement | null>
   showRightFade: boolean
 } {
-  const scrollerRef = useRef<TamaguiElement>(null)
+  const scrollerRef = useRef<MyceliumElement>(null)
   const [showRightFade, setShowRightFade] = useState(false)
 
   useEffect(() => {

@@ -1,5 +1,13 @@
 // oxlint-disable typescript/no-duplicate-type-constituents
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { ArrowDownCircle } from '@universe/mycelium/icons/ArrowDownCircle'
+import { CoinConvert } from '@universe/mycelium/icons/CoinConvert'
+import { MinusCircle } from '@universe/mycelium/icons/MinusCircle'
+import { PlusCircle } from '@universe/mycelium/icons/PlusCircle'
+import { SendAction } from '@universe/mycelium/icons/SendAction'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { iconSizes, spacing } from '@universe/mycelium/tokens'
 import React, { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList, ListRenderItemInfo } from 'react-native'
@@ -7,9 +15,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { navigate } from 'src/app/navigation/rootNavigation'
 import { useOpenReceiveModal } from 'src/features/modals/hooks/useOpenReceiveModal'
 import { openModal } from 'src/features/modals/modalSlice'
-import { Flex, Text, TouchableArea, useSporeColors } from 'ui/src'
-import { ArrowDownCircle, MinusCircle, PlusCircle, SendAction, SwapDotted } from 'ui/src/components/icons'
-import { iconSizes, spacing } from 'ui/src/theme'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { useHighestBalanceNativeCurrencyId } from 'uniswap/src/features/portfolio/balances/hooks'
 import { useHapticFeedback } from 'uniswap/src/features/settings/useHapticFeedback/useHapticFeedback'
@@ -24,7 +29,7 @@ import { useActiveAccountAddressWithThrow } from 'wallet/src/features/wallet/hoo
 const MIN_BUTTON_WIDTH = 102
 
 type IconComponent =
-  | typeof SwapDotted
+  | typeof CoinConvert
   | typeof PlusCircle
   | typeof MinusCircle
   | typeof SendAction
@@ -128,7 +133,7 @@ export function HomeScreenQuickActions(): JSX.Element {
   const actions = useMemo(
     () => [
       {
-        Icon: SwapDotted,
+        Icon: CoinConvert,
         label: 'Swap',
         name: ElementName.Swap,
         onPress: onPressSwap,
@@ -174,16 +179,9 @@ export function HomeScreenQuickActions(): JSX.Element {
           testID={name}
           onPress={onPress}
         >
-          <Flex
-            fill
-            backgroundColor="$accent2"
-            borderRadius="$rounded20"
-            py="$spacing16"
-            px="$spacing12"
-            gap="$spacing12"
-            justifyContent="space-between"
-            height="100%"
-          >
+          {/* Content-sized cell: percentage/fill heights resolve to 0 inside an
+              auto-height horizontal FlatList row under the mycelium compat primitives. */}
+          <Flex backgroundColor="$accent2" borderRadius="$rounded20" py="$spacing16" px="$spacing12" gap="$spacing12">
             <Icon color={contentColor} size={iconSize} strokeWidth={2} />
             <Text color={contentColor} variant="buttonLabel2">
               {label}

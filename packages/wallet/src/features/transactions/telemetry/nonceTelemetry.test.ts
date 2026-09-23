@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import type { OnChainTransactionDetails } from 'uniswap/src/features/transactions/types/transactionDetails'
 import {
   buildBacklogProperties,

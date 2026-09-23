@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { isUniverseChainId, toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import type { TokenProjectTokenForEarn } from 'uniswap/src/features/earn/utils'
 import { useTDPStore } from '~/pages/TokenDetails/context/useTDPStore'
 
@@ -10,7 +11,11 @@ export function useTDPMultichainTokensForEarn(): TokenProjectTokenForEarn[] | un
   const multiChainMap = useTDPStore((s) => s.multiChainMap)
 
   return useMemo(() => {
-    const rows = Object.entries(multiChainMap).map(([chain, info]) => ({ chain, address: info.address }))
+    // The shared earn matching still speaks GraphQL chain names; convert at the boundary.
+    const rows = Object.entries(multiChainMap).flatMap(([chainIdKey, info]) => {
+      const chainId = Number(chainIdKey)
+      return isUniverseChainId(chainId) ? [{ chain: toGraphQLChain(chainId), address: info.address }] : []
+    })
     return rows.length > 0 ? rows : undefined
   }, [multiChainMap])
 }

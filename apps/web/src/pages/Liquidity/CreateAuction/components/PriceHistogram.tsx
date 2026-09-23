@@ -1,7 +1,7 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { mix } from 'polished'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSporeColors } from 'ui/src/hooks/useSporeColors'
 import {
   useLocalizationContext,
   type LocalizationContextState,
@@ -13,7 +13,10 @@ import {
   type CustomPriceRangeValue,
   PriceRangeStrategy,
 } from '~/pages/Liquidity/CreateAuction/types'
-import { isCustomPriceRangeEntryValid } from '~/pages/Liquidity/CreateAuction/utils'
+import {
+  CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS,
+  isCustomPriceRangeEntryValid,
+} from '~/pages/Liquidity/CreateAuction/utils'
 
 const HISTOGRAM_MAX_BAR_COUNT = 200
 const HISTOGRAM_BAR_WIDTH = 4
@@ -75,23 +78,28 @@ function getComparableBound(value: CustomPriceRangeValue): number {
   return value
 }
 
-const HISTOGRAM_PERCENT_MAX_DECIMALS = 4 as const
-
-/** One custom range’s histogram tooltip / accessible name (used per hovered layer). */
-export function getCustomPriceHistogramLayerTitle(
-  entry: CustomPriceRangeEntry,
-  formatPercent: LocalizationContextState['formatPercent'],
-): string {
+/**
+ * One custom range’s histogram tooltip / accessible name (used per hovered layer). The synthetic
+ * remainder needs no special case: its row renders the same `-100` / `+∞` bounds, so reading them
+ * back here matches what the user sees.
+ */
+export function getCustomPriceHistogramLayerTitle({
+  entry,
+  formatPercent,
+}: {
+  entry: CustomPriceRangeEntry
+  formatPercent: LocalizationContextState['formatPercent']
+}): string {
   if (!isCustomPriceRangeEntryValid(entry)) {
     return ''
   }
 
-  const liquidity = formatPercent(entry.liquidityPercent, HISTOGRAM_PERCENT_MAX_DECIMALS)
+  const liquidity = formatPercent(entry.liquidityPercent, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS)
   const min = formatPriceRangeBound(entry.minPercentFromClearing, (value) =>
-    formatPercent(value, HISTOGRAM_PERCENT_MAX_DECIMALS),
+    formatPercent(value, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS),
   )
   const max = formatPriceRangeBound(entry.maxPercentFromClearing, (value) =>
-    formatPercent(value, HISTOGRAM_PERCENT_MAX_DECIMALS),
+    formatPercent(value, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS),
   )
   const details = `${liquidity} (${min}, ${max})`
   return details
@@ -380,7 +388,7 @@ export function PriceHistogram(props: PriceHistogramProps) {
             const hasActiveEntry =
               props.activeEntryId !== null && customLayers.some((l) => l.entryId === props.activeEntryId)
             const entry = customPriceRanges?.find((e) => e.id === layer.entryId)
-            const layerTitle = entry !== undefined ? getCustomPriceHistogramLayerTitle(entry, formatPercent) : ''
+            const layerTitle = entry !== undefined ? getCustomPriceHistogramLayerTitle({ entry, formatPercent }) : ''
 
             return (
               <g

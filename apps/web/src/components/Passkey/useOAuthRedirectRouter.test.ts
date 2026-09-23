@@ -98,6 +98,29 @@ describe('useOAuthRedirectRouter', () => {
     expect(mockDispatch).toHaveBeenCalledWith(setOpenModal({ name: ModalName.AddBackupLogin }))
   })
 
+  it('leaves privy_oauth_* URL params in place for the headless code exchange', () => {
+    // Regression (INFRA-3555): the router used to strip these params in the same effect that opens
+    // the modal — before the modal's useLoginWithOAuth could mount and run the code exchange that
+    // reads them from window.location.search. The flow then died silently.
+    window.history.replaceState(
+      {},
+      '',
+      '/swap?privy_oauth_state=state123&privy_oauth_provider=google&privy_oauth_code=code123',
+    )
+    sessionStorage.setItem('addBackupLogin:oauthProvider', 'google')
+    setupMocks()
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState')
+
+    renderHook(() => useOAuthRedirectRouter())
+
+    expect(mockDispatch).toHaveBeenCalledWith(setOpenModal({ name: ModalName.AddBackupLogin }))
+    expect(replaceStateSpy).not.toHaveBeenCalled()
+    expect(window.location.search).toContain('privy_oauth_code=code123')
+
+    replaceStateSpy.mockRestore()
+    window.history.replaceState({}, '', '/')
+  })
+
   it('fires when ready transitions from false to true', () => {
     sessionStorage.setItem('recoverWallet:oauthProvider', 'google')
     setupMocks({ ready: false })

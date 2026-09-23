@@ -1,4 +1,5 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import {
   OnchainItemListOptionType,
   type RwaTokenOption,
@@ -7,7 +8,6 @@ import {
 } from 'uniswap/src/components/lists/items/types'
 import { OnchainItemSectionName, type OnchainItemSection } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { tagRwaTokenSelectorSections } from 'uniswap/src/components/TokenSelector/tagRwaTokenSelectorSections'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   buildRwaSearchIndex,
   type RwaSearchIndex,

@@ -1,6 +1,6 @@
 import type { Row } from '@tanstack/react-table'
+import { TouchableArea } from '@universe/mycelium'
 import { useCallback } from 'react'
-import { TouchableArea } from 'ui/src'
 import {
   EXPANDABLE_ASSET_INNER_PADDING_Y_PX,
   EXPANDABLE_ASSET_ISSUER_GAP_PX,

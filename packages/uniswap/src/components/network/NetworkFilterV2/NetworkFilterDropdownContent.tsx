@@ -1,10 +1,12 @@
+import type { UniverseChainId } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
 import { useEffect } from 'react'
-import { Flex, HeightAnimator, useScrollbarStyles } from 'ui/src'
+import { useScrollbarStyles } from 'ui/src'
 import { NetworkFilterContent } from 'uniswap/src/components/network/NetworkFilterV2/NetworkFilterContent'
 import { NetworkSearchBar } from 'uniswap/src/components/network/NetworkFilterV2/NetworkSearchBar'
 import type { TieredNetworkOptions } from 'uniswap/src/components/network/NetworkFilterV2/types'
 import { useNetworkFilterSearch } from 'uniswap/src/components/network/NetworkFilterV2/useNetworkFilterSearch'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 interface NetworkFilterDropdownContentProps {
   chainIds: UniverseChainId[]

@@ -116,7 +116,7 @@ export const areUpdateParamsEqual = (
     left.rangePaddingUnits === right.rangePaddingUnits &&
     left.totalBidVolume === right.totalBidVolume &&
     areBidTokenInfoEqual(left.bidTokenInfo, right.bidTokenInfo) &&
-    left.totalSupply === right.totalSupply &&
+    left.tokenTotalSupply === right.tokenTotalSupply &&
     left.auctionTokenDecimals === right.auctionTokenDecimals &&
     left.floorPriceQ96 === right.floorPriceQ96 &&
     left.clearingPriceQ96 === right.clearingPriceQ96 &&
@@ -259,7 +259,7 @@ export const areChartBarTooltipStatesEqual = (
 export interface BidDistributionChartRendererProps {
   chartData: ProcessedChartData
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals: number
   clearingPrice: string
   onchainClearingPrice?: string // For marker in-range detection (on-chain truth)
@@ -279,7 +279,7 @@ export const areRendererPropsEqual = (
   return (
     areProcessedChartDataEqual(left.chartData, right.chartData) &&
     areBidTokenInfoEqual(left.bidTokenInfo, right.bidTokenInfo) &&
-    left.totalSupply === right.totalSupply &&
+    left.tokenTotalSupply === right.tokenTotalSupply &&
     left.auctionTokenDecimals === right.auctionTokenDecimals &&
     left.clearingPrice === right.clearingPrice &&
     left.onchainClearingPrice === right.onchainClearingPrice &&

@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import {
   DappLogoWithTxStatus,
   DappLogoWithWCBadge,
@@ -6,7 +7,6 @@ import {
 } from 'uniswap/src/components/CurrencyLogo/LogoWithTxStatus'
 import { AssetType } from 'uniswap/src/entities/assets'
 import { ALL_EVM_CHAIN_IDS } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TransactionStatus, TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { ETH_CURRENCY_INFO, ethCurrencyInfo } from 'uniswap/src/test/fixtures/wallet/currencies'
@@ -16,11 +16,6 @@ import { WalletConnectEvent } from 'uniswap/src/types/walletConnect'
 
 const arbitrumNetworkLogoTestID = `${TestID.NetworkLogoPrefix}${UniverseChainId.ArbitrumOne}`
 const mainnetNetworkLogoTestID = `${TestID.NetworkLogoPrefix}${UniverseChainId.Mainnet}`
-
-vi.mock('ui/src/components/UniversalImage/internal/PlainImage', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('ui/src/components/UniversalImage/internal/PlainImage.web')>()
-  return { ...actual }
-})
 
 const currencyLogoProps = createFixture<LogoWithTxStatusProps>()(() => ({
   assetType: AssetType.Currency,
@@ -187,10 +182,26 @@ describe(LogoWithTxStatus, () => {
   })
 })
 
-vi.mock(
-  'ui/src/components/UniversalImage/UniversalImage',
-  () => import('ui/src/components/UniversalImage/UniversalImage.mock'),
-)
+// UniversalImage is exported from BOTH the barrel and the `/universal-image` subpath,
+// and vitest keys a mock to the resolved module — so mocking one leaves the other
+// rendering the real component (SVG fetch included). Nothing in this tree reaches the
+// subpath today; both are mocked so that stays true when something does. Neither the
+// census tooling nor a green run can see a missing mock specifier.
+vi.mock('@universe/mycelium', async (importOriginal) => {
+  const { UniversalImage } = await import('@universe/mycelium/universal-image/testing')
+  return {
+    ...(await importOriginal<typeof import('@universe/mycelium')>()),
+    UniversalImage,
+  }
+})
+
+vi.mock('@universe/mycelium/universal-image', async (importOriginal) => {
+  const { UniversalImage } = await import('@universe/mycelium/universal-image/testing')
+  return {
+    ...(await importOriginal<typeof import('@universe/mycelium/universal-image')>()),
+    UniversalImage,
+  }
+})
 
 describe(DappLogoWithTxStatus, () => {
   const props = {
@@ -248,14 +259,14 @@ describe(DappLogoWithTxStatus, () => {
     it('renders dapp image if dappImageUrl is provided', () => {
       const { queryByTestId } = render(<DappLogoWithTxStatus {...props} />)
 
-      expect(queryByTestId('dapp-image')).toBeTruthy()
+      expect(queryByTestId('img-dapp-image')).toBeTruthy()
       expect(queryByTestId('image-fallback')).toBeFalsy()
     })
 
     it('renders fallback image if dappImageUrl is not provided', () => {
       const { queryByTestId } = render(<DappLogoWithTxStatus {...props} dappImageUrl={undefined} />)
 
-      expect(queryByTestId('dapp-image')).toBeFalsy()
+      expect(queryByTestId('img-dapp-image')).toBeFalsy()
       expect(queryByTestId('image-fallback')).toBeTruthy()
     })
   })
@@ -279,14 +290,14 @@ describe(DappLogoWithWCBadge, () => {
     it('renders dapp icon placeholder if dappImageUrl is not provided', () => {
       const { queryByTestId } = render(<DappLogoWithWCBadge {...props} dappImageUrl={undefined} />)
 
-      expect(queryByTestId('dapp-image')).toBeFalsy()
+      expect(queryByTestId('img-dapp-image')).toBeFalsy()
       expect(queryByTestId('dapp-icon-placeholder')).toBeTruthy()
     })
 
     it('renders dapp image if dappImageUrl is provided', () => {
       const { queryByTestId } = render(<DappLogoWithWCBadge {...props} />)
 
-      expect(queryByTestId('dapp-image')).toBeTruthy()
+      expect(queryByTestId('img-dapp-image')).toBeTruthy()
       expect(queryByTestId('dapp-icon-placeholder')).toBeFalsy()
     })
   })

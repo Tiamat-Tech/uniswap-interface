@@ -1,6 +1,6 @@
+import { Button, Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Button, Flex } from 'ui/src'
 import { TokenDetailsVaultShareBanner as SharedTokenDetailsVaultShareBanner } from 'uniswap/src/components/tokenDetails/TokenDetailsVaultShareBanner'
 import { EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import { currencyIdToAddress, currencyIdToChain } from 'uniswap/src/utils/currencyId'

@@ -1,18 +1,18 @@
+import { Platform } from '@universe/chains'
 import { FeatureFlags, getFeatureFlag, useFeatureFlagWithExposureLoggingDisabled } from '@universe/gating'
 import { useEffect } from 'react'
 import { PortfolioBalancePart } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { usePortfolioBalancePart } from 'uniswap/src/features/dataApi/balances/balancesRest'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import {
   POSITION_STATUS_FILTER_TO_STATUSES,
   PositionStatusFilterValue,
 } from 'uniswap/src/features/positions/components/PositionStatusFilter'
-import { useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
+import { SORT_BY_USD_VALUE_DESC, useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
 
 /**
  * Drives the home Pools tab (extension + mobile). Tab visibility uses the fast GetWalletBalances pools
- * count first, then ListPositions and its error state. includeHidden + all-statuses keep the tab reachable
+ * count first, then the wallet positions list and its error state. includeHidden + all-statuses keep the tab reachable
  * regardless of the in-tab filter. `openPoolPositionsCount` counts only visible open positions —
  * hidden ones are intentionally excluded from the "view open positions" CTA.
  */
@@ -41,6 +41,8 @@ export function usePoolsTabVisibility(address: Address): {
     statuses: POSITION_STATUS_FILTER_TO_STATUSES[PositionStatusFilterValue.All],
     includeHidden: true,
     autoFetchAllPages: false,
+    // Sort params are part of the query key; must match the Pools tab queries to share their cache entry.
+    ...SORT_BY_USD_VALUE_DESC,
     disabled: !isPoolsBalancesEnabled,
   })
 

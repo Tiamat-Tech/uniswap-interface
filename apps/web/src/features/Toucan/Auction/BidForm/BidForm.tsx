@@ -1,17 +1,18 @@
+import { UniverseChainId, AddressStringFormat, normalizeAddress } from '@universe/chains'
 //! tamagui-ignore
 // tamagui-ignore
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Flex, styled, useColorsFromTokenColor } from 'ui/src'
-import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
+// useColorsFromTokenColor stays on ui/src: the theme-hooks-compat twin returns
+// plain `string | undefined`, which useBidFormController's param type rejects.
+import { useColorsFromTokenColor } from 'ui/src'
 import { useIsModeMismatch } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { setIsTestnetModeEnabled } from 'uniswap/src/features/settings/slice'
 import { AuctionEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
-import { getTokenWarningSeverity } from 'uniswap/src/features/tokens/warnings/safetyUtils'
 import { TokenWarningCard } from 'uniswap/src/features/tokens/warnings/TokenWarningCard'
 import TokenWarningModal from 'uniswap/src/features/tokens/warnings/TokenWarningModal'
 import { useEvent } from 'utilities/src/react/hooks'
@@ -24,6 +25,7 @@ import { getAuctionBidInputtedAnalyticsProperties } from '~/features/Toucan/Auct
 import { AuctionAccessIndicators } from '~/features/Toucan/Auction/BidForm/AuctionAccessIndicators'
 import { BidBudgetInput } from '~/features/Toucan/Auction/BidForm/BidBudgetInput'
 import { BidFormActionButton } from '~/features/Toucan/Auction/BidForm/BidFormActionButton'
+import { BidFormStateBanners } from '~/features/Toucan/Auction/BidForm/BidFormStateBanners'
 import { BidFormWarningBanner } from '~/features/Toucan/Auction/BidForm/BidFormWarningBanner'
 import { BidMaxValuationInputV2 } from '~/features/Toucan/Auction/BidForm/BidMaxValuationInputV2'
 import { BidReceiveOutput } from '~/features/Toucan/Auction/BidForm/BidReceiveOutput'
@@ -35,22 +37,21 @@ import { useBidFormWarningState } from '~/features/Toucan/Auction/BidForm/useBid
 import { useAuctionKycStatus } from '~/features/Toucan/Auction/hooks/useAuctionKycStatus'
 import { useAuctionTokenColor } from '~/features/Toucan/Auction/hooks/useAuctionTokenColor'
 import { useBidFormController } from '~/features/Toucan/Auction/hooks/useBidFormController'
+import { useIsQuickLaunchAuction } from '~/features/Toucan/Auction/hooks/useIsQuickLaunchAuction'
+import { useVerifyWalletParams } from '~/features/Toucan/Auction/hooks/useVerifyWalletParams'
 import { AuctionProgressState } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStore, useAuctionStoreActions } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getRequiredTestnetMode } from '~/features/Toucan/Shared/getRequiredTestnetMode'
-import { InlineAlertBanner } from '~/features/Toucan/Shared/InlineAlertBanner'
+import { shouldShowAuctionTokenWarning } from '~/features/Toucan/utils/auctionTokenProtection'
 
-const VerticalLineContainer = styled(Flex, {
-  width: '100%',
-  alignItems: 'center',
-  paddingVertical: '$spacing2',
+const VerticalLineContainer = styled('div', {
+  platform: 'web',
+  base: 'flex flex-col items-stretch basis-auto box-border relative min-h-[0px] min-w-[0px] shrink-0 w-full items-center py-[2px]',
 })
 
-const VerticalLine = styled(Flex, {
-  width: 1,
-  height: 8,
-  backgroundColor: '$surface3',
-  borderRadius: '$roundedFull',
+const VerticalLine = styled('div', {
+  platform: 'web',
+  base: 'flex flex-col items-stretch basis-auto box-border relative min-h-[0px] min-w-[0px] shrink-0 w-[1px] h-[8px] bg-surface3 rounded-full',
 })
 
 interface BidFormProps {
@@ -61,7 +62,6 @@ interface BidFormProps {
 export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.Element {
   const { t } = useTranslation()
   const trace = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const chainId = useAuctionStore((state) => state.auctionDetails?.chainId)
   const auctionContractAddress = useAuctionStore((state) => state.auctionAddress)
   const currency = useAuctionStore((state) => state.auctionDetails?.currency)
@@ -70,13 +70,17 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
   const { isGeoRestricted, unavailableLabel } = useToucanGeoRestriction(token?.currency)
   const auctionTokenName = useAuctionStore((state) => state.auctionDetails?.token?.currency.name)
   const { tokenColor, effectiveTokenColor } = useAuctionTokenColor()
-  const auctionAddress = useAuctionStore((state) => state.auctionAddress)
   const auctionProgressState = useAuctionStore((state) => state.progress.state)
-  const currentBlockNumber = useAuctionStore((state) => state.currentBlockNumber)
   const validationHook = useAuctionStore((state) => state.auctionDetails?.validationHook)
+  const currentBlockNumber = useAuctionStore((state) => state.currentBlockNumber)
   const isAuctionInProgress = auctionProgressState === AuctionProgressState.IN_PROGRESS
   const isAuctionEnded = auctionProgressState === AuctionProgressState.ENDED
   const { validTokenColor } = useColorsFromTokenColor(tokenColor)
+
+  // QuickLaunch: quick launches hide the max-FDV input/slider; the bid is placed at the fixed
+  // 25,000 ETH FDV ceiling — no longer a 50x-of-reference cap
+  // (see quickLaunchMaxValuationDisplay in useBidFormController).
+  const isQuickLaunch = useIsQuickLaunchAuction()
 
   const { setBidInputFocused } = useAuctionStoreActions()
 
@@ -85,11 +89,7 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
   const [isKycFailedModalOpen, setIsKycFailedModalOpen] = useState(false)
   const [showTokenWarningModal, setShowTokenWarningModal] = useState(false)
 
-  // Token-protection warnings stay on for every auction, including quick launches: the
-  // quick-launch classifier is forgeable by construction, so it must never gate a protection
-  // signal. Any exemption policy is deferred to security review (LP-1076).
-  const tokenWarningSeverity = token ? getTokenWarningSeverity(token) : WarningSeverity.None
-  const shouldShowTokenWarning = tokenWarningSeverity > WarningSeverity.Low
+  const shouldShowTokenWarning = shouldShowAuctionTokenWarning(token)
 
   const {
     budgetField,
@@ -106,6 +106,7 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
     bidCurrencyAddress,
     bidTokenSymbol,
     isNativeBidToken,
+    maxBidPrice,
   } = useBidFormController({
     tokenColor: validTokenColor,
     onTransactionSubmitted: () => {
@@ -132,24 +133,39 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
   })
   const needsTestnetModeSwitch = requiredTestnetMode !== undefined
 
+  // Same derivation the ceiling hook uses, so both land on one VerifyWallet cache entry.
+  // Assembling these by hand here is how they drift — note this component holds the auction
+  // address under two names (`auctionAddress` and `auctionContractAddress`).
+  const verifyWalletParams = useVerifyWalletParams()
   const kycStatus = useAuctionKycStatus({
-    walletAddress: accountAddress,
-    auctionAddress,
+    walletAddress: verifyWalletParams.walletAddress,
+    auctionAddress: verifyWalletParams.auctionAddress,
     chainId,
     currentBlockNumber,
   })
 
-  const { showDisabledState, shouldShowWarningBanner, shouldDisableBidForm } = useBidFormWarningState({
-    chainId,
-    currency,
-    auctionProgressState,
-    userBids,
-    validationHook,
-    // Only treat KYC as an unsupported-auction signal once a wallet is connected;
-    // otherwise the disabled verify-wallet query is misread as an error and surfaces
-    // the warning banner instead of the connect-wallet CTA on the action button.
-    validationError: isWalletConnected && kycStatus.isError,
-  })
+  const { showDisabledState, shouldShowWarningBanner, shouldDisableBidForm, showMaxBidPriceReachedState } =
+    useBidFormWarningState({
+      chainId,
+      currency,
+      auctionProgressState,
+      userBids,
+      // Only treat KYC as an unsupported-auction signal once a wallet is connected;
+      // otherwise the disabled verify-wallet query is misread as an error and surfaces
+      // the warning banner instead of the connect-wallet CTA on the action button.
+      validationError: isWalletConnected && kycStatus.isError,
+      isMaxBidPriceReached: maxBidPrice.isMaxBidPriceReached,
+      // A hook is present and the backend recognized NOTHING about it (empty validations).
+      // Not gated on a connected wallet: the hook governs the auction, so this must render
+      // before anyone connects.
+      //
+      // Scope: a wholly unrecognized hook, not a composed one. A hook with a modeled leg
+      // plus an unmodeled leg returns a non-empty array, so this stays false and bidding
+      // proceeds against the uninspected leg. The response cannot express "recognized in
+      // part", so closing that needs a backend signal rather than a client predicate.
+      isUnmodeledValidationHook:
+        Boolean(validationHook && validationHook !== zeroAddress) && kycStatus.hasNoRecognizedValidations,
+    })
 
   const handleButtonPress = (): void => {
     if (!isWalletConnected) {
@@ -177,9 +193,13 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
     if (needsTestnetModeSwitch) {
       return requiredTestnetMode ? t('toucan.action.enableTestnetMode') : t('toucan.action.disableTestnetMode')
     }
-    return (kycStatus.kycButtonLabel ?? showDisabledState)
-      ? t('toucan.auction.bidForm.auctionConcluded')
-      : t('toucan.bidForm.reviewBid')
+    // A KYC label wins outright. Grouping matters: `(kycButtonLabel ?? showDisabledState)
+    // ? concluded : reviewBid` made ANY KYC label render "Auction concluded" while the
+    // button still fired onKycAction. Latent until the KYC query became unconditional.
+    return (
+      kycStatus.kycButtonLabel ??
+      (showDisabledState ? t('toucan.auction.bidForm.auctionConcluded') : t('toucan.bidForm.reviewBid'))
+    )
   })()
 
   // The testnet-mode-switch CTA stays tappable regardless of the bid inputs, since switching mode is
@@ -212,7 +232,7 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
 
       const bidTokenAmountRaw = budgetField.currencyAmount.quotient.toString()
       const maxPriceQ96String = maxValuationField.currencyAmount.quotient.toString()
-      const bidTokenAddress = currency.toLowerCase() === zeroAddress ? zeroAddress : currency.toLowerCase()
+      const bidTokenAddress = normalizeAddress(currency, AddressStringFormat.Lowercase)
 
       sendAnalyticsEvent(
         AuctionEventName.AuctionBidInputted,
@@ -230,7 +250,6 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
           minExpectedReceiveAmount,
           maxReceivableAmount,
           tokenSymbol: auctionTokenSymbol,
-          isCentralizedPricesEnabled,
         }),
       )
     }
@@ -249,16 +268,17 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
 
   return (
     <Flex flexDirection="column" gap="$spacing8">
-      <AuctionAccessIndicators />
+      <AuctionAccessIndicators
+        maxBidPriceFdvFormatted={maxBidPrice.maxBidPriceFdvFormatted}
+        bidTokenSymbol={bidTokenSymbol}
+      />
       <BidFormWarningBanner isVisible={shouldShowWarningBanner} />
       <Flex flexGrow={1} justifyContent="space-between" gap="$spacing16">
         <Flex gap="$spacing12">
-          {showDisabledState && (
-            <InlineAlertBanner
-              title={t('toucan.auction.bidForm.auctionConcluded')}
-              description={t('toucan.auction.bidForm.auctionConcluded.description')}
-            />
-          )}
+          <BidFormStateBanners
+            showDisabledState={showDisabledState}
+            showMaxBidPriceReachedState={showMaxBidPriceReachedState}
+          />
           <Flex
             opacity={shouldDisableBidForm ? 0.54 : 1}
             pointerEvents={shouldDisableBidForm ? 'none' : 'auto'}
@@ -271,16 +291,22 @@ export function BidForm({ onInputChange, onBidSubmitted }: BidFormProps): JSX.El
                 field={budgetField}
                 disabled={!isAuctionInProgress}
               />
-              <VerticalLineContainer>
-                <VerticalLine />
-              </VerticalLineContainer>
-              <BidMaxValuationInputV2
-                label={t('toucan.bidDetails.label.maxFdv')}
-                field={maxValuationField}
-                auctionTokenDecimals={auctionTokenDecimals}
-                tokenColor={validTokenColor ?? effectiveTokenColor}
-                disabled={!isAuctionInProgress}
-              />
+              {!isQuickLaunch && (
+                <>
+                  <VerticalLineContainer>
+                    <VerticalLine />
+                  </VerticalLineContainer>
+                  <BidMaxValuationInputV2
+                    label={t('toucan.bidDetails.label.maxFdv')}
+                    field={maxValuationField}
+                    maxBidPriceQ96={maxBidPrice.maxBidPriceQ96}
+                    maxBidPriceFdvFormatted={maxBidPrice.maxBidPriceFdvFormatted}
+                    auctionTokenDecimals={auctionTokenDecimals}
+                    tokenColor={validTokenColor ?? effectiveTokenColor}
+                    disabled={!isAuctionInProgress}
+                  />
+                </>
+              )}
               {!isAuctionEnded && (
                 <>
                   <VerticalLineContainer>

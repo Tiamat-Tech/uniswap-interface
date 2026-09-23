@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { SearchHistoryResultType } from 'uniswap/src/features/search/SearchHistoryResult'
 import {
   addToSearchHistory,

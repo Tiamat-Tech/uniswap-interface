@@ -120,7 +120,7 @@ const getTransactionFeatureSchema = () =>
 
 /**
  * Lazy-loaded Zod schema factory for asset amount
- * Note: For NFTs (ERC721/ERC1155), 'value' is not present, only 'token_id'
+ * ERC721 entries use token_id without value; ERC1155 entries include both.
  */
 const getAssetAmountSchema = () =>
   z.object({
@@ -241,6 +241,10 @@ const getSpenderExposureSchema = () =>
     summary: z.string().optional(),
     exposure: z.array(getAssetAmountSchema()).optional(),
     approval: z.string().optional(),
+    // NFT spender exposures use this instead of the ERC20-only `approval` amount. It reports the
+    // post-simulation approval-for-all state: `true` confirms a collection-wide grant, while `false`
+    // can corroborate a decoded revoke. An absent value provides no directional evidence.
+    is_approved_for_all: z.boolean().optional(),
   })
 
 /**

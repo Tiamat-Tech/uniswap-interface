@@ -1,8 +1,8 @@
 import { Protocol } from '@uniswap/router-sdk'
 import { TradeType } from '@uniswap/sdk-core'
 import { type ClassicQuoteResponse, TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { UNI, WBTC } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   createBridgeTrade,
   createClassicTrade as createClassicTradeFromQuote,

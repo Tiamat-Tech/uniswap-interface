@@ -1,4 +1,8 @@
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
+import {
+  getIsPermissionedForAnalytics,
+  permissionedAnalyticsTokenFromQuoteParams,
+} from 'uniswap/src/features/permissionedTokens/getIsPermissionedForAnalytics'
 import { SwapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { SwapEventType, timestampTracker } from 'uniswap/src/features/transactions/swap/utils/SwapEventTimestampTracker'
@@ -6,12 +10,18 @@ import { logger } from 'utilities/src/logger/logger'
 
 export function logSwapQuoteFetch({
   chainId,
+  tokenOutChainId,
+  tokenIn,
+  tokenOut,
   isUSDQuote = false,
   isQuickRoute = false,
   quoteSource,
   pollInterval,
 }: {
   chainId: number
+  tokenOutChainId: number
+  tokenIn: string
+  tokenOut: string
   isUSDQuote?: boolean
   isQuickRoute?: boolean
   quoteSource?: 'routing_api' | 'trading_api'
@@ -30,12 +40,19 @@ export function logSwapQuoteFetch({
 
     performanceMetrics = { time_to_first_quote_request, time_to_first_quote_request_since_first_input }
   }
+  // Fires before the quote resolves, so a truly cold `/permissions` cache yields undefined
+  // (property omitted) rather than a wrong `false`.
+  const is_permissioned = getIsPermissionedForAnalytics([
+    permissionedAnalyticsTokenFromQuoteParams({ address: tokenIn, chainId }),
+    permissionedAnalyticsTokenFromQuoteParams({ address: tokenOut, chainId: tokenOutChainId }),
+  ])
   sendAnalyticsEvent(SwapEventName.SwapQuoteFetch, {
     chainId,
     isQuickRoute,
     isUSDQuote,
     quoteSource,
     pollInterval,
+    is_permissioned,
     ...performanceMetrics,
   })
   logger.info('analytics', 'logSwapQuoteFetch', SwapEventName.SwapQuoteFetch, {
@@ -46,6 +63,7 @@ export function logSwapQuoteFetch({
     isUSDQuote,
     quoteSource,
     pollInterval,
+    is_permissioned,
     ...performanceMetrics,
   })
 }

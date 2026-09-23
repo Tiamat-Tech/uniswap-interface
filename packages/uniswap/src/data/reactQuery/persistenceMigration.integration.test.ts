@@ -20,10 +20,9 @@ import { PlainMessage, toPlainMessage } from '@bufbuild/protobuf'
 import { dehydrate, hydrate, QueryClient } from '@tanstack/react-query'
 import { type PersistedClient } from '@tanstack/react-query-persist-client'
 import { ListPositionsResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { Position, PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { Position, PositionStatus } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { createPersister } from 'uniswap/src/data/reactQuery/createPersister.web'
 import { sharedDehydrateOptions } from 'uniswap/src/data/reactQuery/sharedDehydrateOptions'
-import { parseRestPosition } from 'uniswap/src/features/positions/parseRestPosition'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { persistableQueryOptions } from 'utilities/src/reactQuery/persistableQueryOptions'
 
@@ -41,7 +40,7 @@ vi.mock('idb-keyval', () => ({
 }))
 
 // Force the dev-guard branch on without depending on NODE_ENV; keep all other
-// real exports (parseRestPosition's transitive deps use isWebApp, etc.).
+// real exports (the persister's transitive deps use isWebApp, etc.).
 vi.mock('@universe/environment', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@universe/environment')>()),
   isDevEnv: () => true,
@@ -94,7 +93,7 @@ describe('persistence migration integration (dehydrate → persist → restore �
 
   // Builds a real v3 Position with a oneof set and a numeric enum status — the
   // exact shape that breaks under raw JSON serialization (oneof flattens, enum
-  // stringifies). chainId/address must be non-default for parseRestPosition to parse.
+  // stringifies).
   function buildV3Position(): Position {
     const token = (address: string, symbol: string): Record<string, unknown> => ({
       chainId: 1,
@@ -341,14 +340,12 @@ describe('persistence migration integration (dehydrate → persist → restore �
       ['TokenPrice', 1, '0xabc'],
       ['GetPortfolio', { evmAddress: '0xabc' }, {}],
       ['GetPortfolioChart', {}, {}],
-      ['ListPositions', {}],
-      ['GetPosition', {}],
       ['ListTransactions', 'abc', {}, false],
       ['GetWalletProfitLoss'],
       ['GetWalletTokenProfitLoss'],
       ['GetWalletTokensProfitLoss'],
       ['DataApiService', 'listTokens', {}],
-      ['DataApiService', 'listTopPools', {}],
+      ['DataApiService', 'listPools', {}, undefined, true],
       ['TradingApi', 'swappable-tokens', {}],
       ['UnitagsApi', 'address', {}],
       ['UnitagsApi', 'username', {}],
@@ -445,12 +442,12 @@ describe('persistence migration integration (dehydrate → persist → restore �
     expect(typeof (rehydrated as unknown as FakeProtoMessage).getTotalBalance).not.toBe('function')
   })
 
-  it('toPlainMessage-converted protobuf survives the round-trip: oneof case and numeric enum intact, parseRestPosition parses it', async () => {
+  it('toPlainMessage-converted protobuf survives the round-trip: oneof case and numeric enum intact', async () => {
     // The durable fix: queryFns convert via toPlainMessage before caching, so the
     // value is a plain object that round-trips faithfully — unlike a raw Message,
     // whose toJSON() emits wire format (oneof flattens, enums stringify).
     const client = new QueryClient()
-    const queryKey = [ReactQueryCacheKey.ListPositions, {}] as const
+    const queryKey = [ReactQueryCacheKey.LiquidityService, 'getWalletPositions', {}] as const
 
     const plain = toPlainMessage(new ListPositionsResponse({ positions: [buildV3Position()] }))
     primeQuery(client, { queryKey, meta: { persist: true } }, plain)
@@ -476,15 +473,11 @@ describe('persistence migration integration (dehydrate → persist → restore �
     // enum preserved as a number (NOT the wire-format string).
     expect(restoredPosition.status).toBe(PositionStatus.IN_RANGE)
     expect(typeof restoredPosition.status).toBe('number')
-
-    // The consumer that broke on restore now parses the restored value.
-    const parsed = parseRestPosition(restoredPosition)
-    expect(parsed?.version).toBe(ProtocolVersion.V3)
   })
 
   it('tripwire: a raw protobuf Message is rejected at dehydrate and logs an error', () => {
     const client = new QueryClient()
-    const queryKey = [ReactQueryCacheKey.ListPositions, 'raw'] as const
+    const queryKey = [ReactQueryCacheKey.LiquidityService, 'getWalletPositions', 'raw'] as const
 
     // Raw (unconverted) Message — what a queryFn missing toPlainMessage would cache.
     primeQuery(

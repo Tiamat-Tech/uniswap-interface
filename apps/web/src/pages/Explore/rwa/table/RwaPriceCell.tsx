@@ -1,4 +1,4 @@
-import { Flex, Text } from 'ui/src'
+import { Flex, Text } from '@universe/mycelium'
 import type { RwaPriceDisplay } from 'uniswap/src/data/apiClients/dataApiService/rwa/rwaMetrics'
 import { NumberType, type FiatNumberType, type PercentNumberDecimals } from 'utilities/src/format/types'
 import { TableText } from '~/components/Table/shared/TableText'

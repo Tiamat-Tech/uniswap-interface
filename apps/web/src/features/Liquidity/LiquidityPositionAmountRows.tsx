@@ -1,20 +1,23 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
+import { clickableStyle, Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { getTokenDetailsURL } from '~/data/util'
-import { ClickableTamaguiStyle } from '~/theme/components/styles'
 import { getChainUrlParam } from '~/utils/params/chainParams'
 
 type AmountRow = {
   currencyInfo: CurrencyInfo
-  fiatValue: Maybe<CurrencyAmount<Currency>>
   currencyAmount: CurrencyAmount<Currency>
+  /**
+   * What the amount is worth, in USD. Some rows are valued by a client-side quote and others by the
+   * backend, so callers reduce whichever they have to a plain figure; unset renders the placeholder.
+   */
+  usdValue?: number
 }
 
 type LiquidityPositionAmountRowsProps = {
@@ -23,18 +26,16 @@ type LiquidityPositionAmountRowsProps = {
 
 export function LiquidityPositionAmountRows({ rows }: LiquidityPositionAmountRowsProps) {
   const navigate = useNavigate()
-  const { formatCurrencyAmount } = useLocalizationContext()
-  const chainUrlParam = getChainUrlParam(rows[0].currencyInfo.currency.chainId || UniverseChainId.Mainnet)
+  const { formatCurrencyAmount, convertFiatAmountFormatted } = useLocalizationContext()
 
-  const getLink = useCallback(
-    (currencyInfo: CurrencyInfo) => {
-      return getTokenDetailsURL({
-        address: currencyInfo.currency.isToken ? currencyInfo.currency.address : undefined, // util handles native addresses
-        chainUrlParam,
-      })
-    },
-    [chainUrlParam],
-  )
+  const getLink = useCallback((currencyInfo: CurrencyInfo) => {
+    return getTokenDetailsURL({
+      address: currencyInfo.currency.isToken ? currencyInfo.currency.address : undefined, // util handles native addresses
+      // Derived per row rather than from the first one: reward rows can be denominated in a token
+      // from a different chain than the row above them.
+      chainUrlParam: getChainUrlParam(currencyInfo.currency.chainId || UniverseChainId.Mainnet),
+    })
+  }, [])
 
   return (
     <Flex gap="$gap16">
@@ -42,13 +43,13 @@ export function LiquidityPositionAmountRows({ rows }: LiquidityPositionAmountRow
         <Flex row alignItems="center" justifyContent="space-between" key={row.currencyInfo.currencyId}>
           <TouchableArea
             onPress={() => navigate(getLink(row.currencyInfo))}
-            {...ClickableTamaguiStyle}
+            {...clickableStyle}
             pressStyle={{ scale: 1 }}
           >
             <Flex row alignItems="center" gap="$gap12" maxWidth={160}>
               <CurrencyLogo currencyInfo={row.currencyInfo} size={24} />
-              <Text variant="subheading1" color="neutral1" $lg={{ variant: 'subheading2' }}>
-                {formatCurrencyAmount({ value: row.fiatValue, type: NumberType.FiatTokenPrice })}
+              <Text variant="subheading1" color="$neutral1" $lg={{ variant: 'subheading2' }}>
+                {convertFiatAmountFormatted(row.usdValue, NumberType.FiatTokenPrice)}
               </Text>
             </Flex>
           </TouchableArea>

@@ -1,7 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
+import { heights, zIndexes } from '@universe/mycelium/tokens'
 import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { INTERFACE_NAV_HEIGHT, zIndexes } from 'ui/src/theme'
 import { assert } from 'utilities/src/errors'
 import { useAppHeaderHeight } from '~/hooks/useAppHeaderHeight'
 import { useStickyHeaderBorder } from '~/hooks/useStickyHeaderBorder'
@@ -16,8 +16,10 @@ interface PoolProgressStep {
 }
 
 export const SIDEBAR_WIDTH = 360
-// Gap (px) between the sticky app header and a sticky sidebar. Default breathing room; pass 0 to sit
-// flush with the header so the sidebar aligns with a sticky sibling such as a table header.
+// Gap (px) between the sticky app header and a sticky sidebar. To align with a sticky table beside it,
+// pass whatever that table receives as its `stickyTopOffset` (`STICKY_HEADER_TOP_GAP` for the pools
+// table) — not 0. A table head pins to the app header on its own, so 0 only lines up with a head that
+// already happens to clear it.
 export const SIDEBAR_STICKY_TOP_OFFSET = 25
 
 export function PoolProgressIndicator({
@@ -25,12 +27,12 @@ export function PoolProgressIndicator({
   stickyTopOffset = SIDEBAR_STICKY_TOP_OFFSET,
 }: {
   steps: PoolProgressStep[]
-  // See SIDEBAR_STICKY_TOP_OFFSET. Pass 0 to align with a sticky sibling such as a table header.
+  // See SIDEBAR_STICKY_TOP_OFFSET.
   stickyTopOffset?: number
 }) {
   const { t } = useTranslation()
   // Stick below the full app header (nav + any top-level banners), matching the pools table header.
-  // INTERFACE_NAV_HEIGHT alone ignores the banner and tucks the indicator underneath it.
+  // The nav height alone ignores the banner and tucks the indicator underneath it.
   const headerHeight = useAppHeaderHeight()
   assert(steps.length > 0, 'PoolProgressIndicator: steps must have at least one step')
 
@@ -40,10 +42,10 @@ export function PoolProgressIndicator({
       alignSelf="flex-start"
       $platform-web={{ position: 'sticky', top: headerHeight + stickyTopOffset }}
       borderRadius="$rounded24"
-      py="$padding8"
       borderColor="$surface3"
       borderWidth="$spacing1"
-      p="$padding16"
+      px="$padding16"
+      py="$padding20"
     >
       {steps.map((step, index) => (
         <Fragment key={step.label + index}>
@@ -100,7 +102,7 @@ export function PoolProgressIndicatorHeader({
   flush?: boolean
 }) {
   const { t } = useTranslation()
-  const { showBorder: showBottomBorder, elementRef } = useStickyHeaderBorder(INTERFACE_NAV_HEIGHT)
+  const { showBorder: showBottomBorder, elementRef } = useStickyHeaderBorder(heights['interface-nav'])
   assert(steps.length > 0, 'PoolProgressIndicatorHeader: steps must have at least one step')
 
   const currentStepIndex = steps.findIndex((step) => step.active)
@@ -127,7 +129,7 @@ export function PoolProgressIndicatorHeader({
       borderTopWidth={flush ? 0 : '$spacing1'}
       borderTopColor={showBottomBorder ? 'transparent' : '$surface3'}
       borderBottomColor={showBottomBorder ? '$surface3' : 'transparent'}
-      $platform-web={{ position: 'sticky', top: INTERFACE_NAV_HEIGHT, zIndex: zIndexes.header }}
+      $platform-web={{ position: 'sticky', top: heights['interface-nav'], zIndex: zIndexes.header }}
     >
       <Flex
         width="$spacing32"

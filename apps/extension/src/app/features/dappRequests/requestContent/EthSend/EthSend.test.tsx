@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { UniverseChainId } from '@universe/chains'
 import React from 'react'
 import type { DappRequestStoreItemForEthSendTxn } from 'src/app/features/dappRequests/slice'
 
@@ -102,7 +103,6 @@ vi.mock('utilities/src/logger/logger', () => ({
 }))
 
 import { EthSendRequestContent } from 'src/app/features/dappRequests/requestContent/EthSend/EthSend'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 const swapRequest = {
   // transaction.chainId is pinned at request intake and is what the content reads to bind

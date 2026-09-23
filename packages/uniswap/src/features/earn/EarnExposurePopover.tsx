@@ -1,6 +1,7 @@
 import { isMobileWeb, isWebPlatform } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useExtractedTokenColor, useSporeColors } from 'ui/src'
+import { useExtractedTokenColor, useSporeColors } from 'ui/src'
 import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import { colors as palette, iconSizes, zIndexes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'

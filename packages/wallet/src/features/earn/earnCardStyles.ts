@@ -8,4 +8,7 @@ export const EARNING_CARD_FRAME_PROPS = {
   gap: '$spacing12',
   px: '$spacing16',
   py: '$spacing16',
+  // The stacked vault logos carry descending z-index values; without a stacking context here they resolve against
+  // the root instead of this card and paint over the connection-status popover on the home screen.
+  isolation: 'isolate',
 } as const

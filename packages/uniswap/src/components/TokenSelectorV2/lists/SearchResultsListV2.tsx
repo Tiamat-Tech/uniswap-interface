@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TokenSelectorOption } from 'uniswap/src/components/lists/items/types'
@@ -11,7 +12,6 @@ import { TokenSelectorV2List } from 'uniswap/src/components/TokenSelectorV2/Toke
 import { useSectionsWithV2Headers } from 'uniswap/src/components/TokenSelectorV2/TokenSelectorV2SectionHeader'
 import { TradeableAsset } from 'uniswap/src/entities/assets'
 import type { AddressGroup } from 'uniswap/src/features/accounts/store/types/AccountsState'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useEvent } from 'utilities/src/react/hooks'
 

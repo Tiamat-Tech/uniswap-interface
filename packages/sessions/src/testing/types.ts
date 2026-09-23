@@ -11,8 +11,6 @@ export interface CreateTestSessionContextOptions {
   platform?: TestSessionPlatform
   /** Backend URL. Default: staging entry gateway */
   backendUrl?: string
-  /** Whether to auto-upgrade (complete challenge flow). Default: true */
-  autoUpgrade?: boolean
   /** Session ID persistence. Default: in-memory (inject e.g. a file store to persist across runs) */
   sessionStorage?: SessionStorage
   /** Device ID persistence. Default: in-memory */

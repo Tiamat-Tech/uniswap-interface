@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import type { ITraceContext } from 'utilities/src/telemetry/trace/TraceContext'
 import { describe, expect, it } from 'vitest'
 import {

@@ -1,61 +1,78 @@
 import { ProtocolVersion as RestProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { useMemo, useState } from 'react'
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, Text, type TextCompatProps } from '@universe/mycelium'
+import {
+  forwardRef,
+  type ForwardRefExoticComponent,
+  type ReactNode,
+  type RefAttributes,
+  useMemo,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, Tooltip } from 'ui/src'
+import { Tooltip } from 'ui/src'
 import { DocumentList } from 'ui/src/components/icons/DocumentList'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
 import { FeeDisplay } from 'uniswap/src/components/FeeDisplay/FeeDisplay'
+import { UniswapBuiltHookMark } from 'uniswap/src/components/logos/UniswapBuiltHookMark'
 import { BIPS_BASE, ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { V2_DEFAULT_FEE_TIER, V2_PROTOCOL_FEE_PIPS } from 'uniswap/src/constants/pools'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { feeAmountToBps } from 'uniswap/src/features/fees/feeUnits'
 import { getFeeBreakdown } from 'uniswap/src/features/fees/getFeeBreakdown'
 import type { FeeBreakdown } from 'uniswap/src/features/fees/types'
+import { getHookRegistryKey, useHookRegistryMap } from 'uniswap/src/features/poolHooks/hooks/useHookRegistryMap'
+import { useUniswapHookProvenance } from 'uniswap/src/features/poolHooks/hooks/useUniswapHookProvenance'
 import type { FeeData } from 'uniswap/src/features/positions/types'
 import { shortenAddress } from 'utilities/src/addresses'
 import { isEVMAddress } from 'utilities/src/addresses/evm/evm'
 import { Portal } from '~/components/Popups/Portal'
 import { HookDetailsModal } from '~/features/Liquidity/HookDetailsModal'
+import { HookTooltip } from '~/features/Liquidity/HookTooltip'
 import { isDynamicFeeTier } from '~/features/Liquidity/utils/feeTiers'
 import { getProtocolVersionFromLabel, getProtocolVersionLabel } from '~/features/Liquidity/utils/protocolVersion'
-import { getHookRegistryKey, useHookRegistryMap } from '~/hooks/useHookRegistryMap'
 
-const PositionInfoBadge = styled(Text, {
-  display: 'flex',
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: '$spacing2',
-  variant: 'body3',
-  color: '$neutral2',
-  backgroundColor: '$surface3',
-  py: '$spacing2',
-  px: '$padding6',
-  variants: {
-    size: {
-      default: {
-        variant: 'body3',
-      },
-      small: {
-        variant: 'body4',
-      },
-    },
-    placement: {
-      start: {
-        borderTopLeftRadius: '$rounded4',
-        borderBottomLeftRadius: '$rounded4',
-      },
-      middle: {},
-      end: {
-        borderTopRightRadius: '$rounded4',
-        borderBottomRightRadius: '$rounded4',
-      },
-      only: {
-        borderRadius: '$rounded4',
-      },
-    },
-  } as const,
+type BadgeSize = 'default' | 'small' | 'compact'
+type BadgePlacement = 'start' | 'middle' | 'end' | 'only'
+
+const BADGE_SIZE_PROPS: Record<BadgeSize, TextCompatProps> = {
+  default: { variant: 'body3' },
+  small: { variant: 'body4' },
+  // Smaller than `small`: 12px text plus tighter chip padding. Used on mWeb pool header.
+  compact: { variant: 'body4', py: '$spacing1', px: '$spacing4' },
+}
+
+const BADGE_PLACEMENT_PROPS: Record<BadgePlacement, TextCompatProps> = {
+  start: { borderTopLeftRadius: '$rounded4', borderBottomLeftRadius: '$rounded4' },
+  middle: {},
+  end: { borderTopRightRadius: '$rounded4', borderBottomRightRadius: '$rounded4' },
+  only: { borderRadius: '$rounded4' },
+}
+
+type PositionInfoBadgeProps = TextCompatProps & { size?: BadgeSize; placement?: BadgePlacement }
+
+// Explicit return type: forwardRef's inferred type isn't nameable under declaration emit (TS2883).
+const PositionInfoBadge: ForwardRefExoticComponent<PositionInfoBadgeProps & RefAttributes<HTMLElement>> = forwardRef<
+  HTMLElement,
+  PositionInfoBadgeProps
+>(function PositionInfoBadge({ size, placement, ...rest }, ref) {
+  return (
+    <Text
+      ref={ref}
+      display="flex"
+      flexDirection="row"
+      alignItems="center"
+      gap="$spacing2"
+      variant="body3"
+      color="$neutral2"
+      backgroundColor="$surface3"
+      py="$spacing2"
+      px="$padding6"
+      {...(size ? BADGE_SIZE_PROPS[size] : {})}
+      {...(placement ? BADGE_PLACEMENT_PROPS[placement] : {})}
+      {...rest}
+    />
+  )
 })
 
 function getPlacement(index: number, length: number): 'start' | 'middle' | 'end' | 'only' {
@@ -65,12 +82,15 @@ function getPlacement(index: number, length: number): 'start' | 'middle' | 'end'
 interface BadgeData {
   label: string
   tooltipContent?: string
+  // Rich hover tooltip node, used instead of the plain `tooltipContent` text (e.g. the Uniswap-built
+  // hook provenance card).
+  tooltipNode?: ReactNode
   copyable?: boolean
   truncate?: boolean
   icon?: JSX.Element
   iconAfter?: JSX.Element
   onPress?: () => void
-  // Flag on: wraps the fee badge in a FeeDisplay so the plain % gains a hover breakdown.
+  // Wraps the fee badge in a FeeDisplay so the plain % gains a hover breakdown.
   feeBreakdown?: FeeBreakdown
 }
 
@@ -97,18 +117,21 @@ export function LiquidityPositionInfoBadges({
   // create/migrate flow passes this so the badge can reveal a curve-derived fee for a pool that doesn't
   // exist yet (the backend has no served value); read surfaces keep passing `protocolFeePips`.
   feeBreakdown?: FeeBreakdown
-  size: 'small' | 'default'
+  size: 'small' | 'default' | 'compact'
   cta?: BadgeCta
 }): JSX.Element {
   const { t } = useTranslation()
   const [showHookDetails, setShowHookDetails] = useState(false)
-  const isFeeDisplayEnabled = useFeatureFlag(FeatureFlags.V4ProtocolFeeDisplay)
+  const getUniswapHookProvenance = useUniswapHookProvenance()
 
-  const hookRegistry = useHookRegistryMap()
+  // The lookup below also requires a non-zero v4hook, so v2/v3 positions (no hook) skip the fetch too.
+  const hookRegistry = useHookRegistryMap({ chainId, enabled: !!chainId && !!v4hook && v4hook !== ZERO_ADDRESS })
   const hookEntry =
     v4hook && v4hook !== ZERO_ADDRESS && chainId
       ? hookRegistry?.get(getHookRegistryKey({ chainId, hookAddress: v4hook }))
       : undefined
+  // Trusted `chainId` (the one that built the registry key), not the entry's self-reported chainId.
+  const provenance = hookEntry ? getUniswapHookProvenance({ chainId, address: hookEntry.address }) : undefined
 
   const badges = useMemo(() => {
     const versionLabel = version
@@ -121,19 +144,19 @@ export function LiquidityPositionInfoBadges({
     // v2 carries no explicit feeTier; fall back to the fixed 0.3% tier so the breakdown still renders.
     const feeAmount = feeTier ? feeTier.feeAmount : isV2 ? V2_DEFAULT_FEE_TIER : undefined
     const restProtocolVersion = getProtocolVersionFromLabel(versionLabel)
-    // Flag on: attach a FeeBreakdown to the fee badge so it renders a FeeDisplay hover breakdown.
-    // The protocol fee is backend-served or nothing (the FE never computes fees); with no served
-    // value FeeDisplay drops the tooltip and the badge stays a plain %. pips -> bps is exact (/100).
-    // Dynamic tiers keep the plain "Dynamic" label — their feeAmount is a sentinel, not a rate.
+    // Attach a FeeBreakdown to the fee badge so it renders a FeeDisplay hover breakdown. The protocol
+    // fee is backend-served or nothing (the FE never computes fees); with no served value FeeDisplay
+    // drops the tooltip and the badge stays a plain %. pips -> bps is exact (/100). Dynamic tiers keep
+    // the plain "Dynamic" label — their feeAmount is a sentinel, not a rate.
     const isDynamic = feeTier ? isDynamicFeeTier(feeTier) : false
     // v2's protocol fee is fixed and its payload serves none, so fall back to the constant. A
     // caller-provided value still wins.
     const effectiveProtocolFeePips = protocolFeePips ?? (isV2 ? V2_PROTOCOL_FEE_PIPS : undefined)
     // A caller-supplied breakdown (create/migrate curve path) wins; otherwise build the served
-    // breakdown from `protocolFeePips`. Both are gated so the tooltip only appears with the flag on.
+    // breakdown from `protocolFeePips`.
     const feeBreakdown =
       feeBreakdownOverride ??
-      (isFeeDisplayEnabled && feeAmount !== undefined && restProtocolVersion !== undefined && !isDynamic
+      (feeAmount !== undefined && restProtocolVersion !== undefined && !isDynamic
         ? getFeeBreakdown({
             feeAmount,
             protocolVersion: restProtocolVersion,
@@ -155,13 +178,21 @@ export function LiquidityPositionInfoBadges({
       v4hook && v4hook !== ZERO_ADDRESS
         ? hookEntry
           ? // Registry-known hook: show its name and open the details dialog on click (the dialog
-            // has the copyable address).
+            // has the copyable address). Hooks Uniswap built or configured get the Uniswap mark and a
+            // provenance tooltip instead of the generic hook icon and plain address tooltip.
             {
               label: hookEntry.name || v4hook,
-              tooltipContent: t('liquidity.hooks.address.tooltip', { address: v4hook }),
               truncate: true,
-              icon: <DocumentList color="$neutral2" size={16} />,
               onPress: () => setShowHookDetails(true),
+              ...(provenance !== undefined
+                ? {
+                    icon: <UniswapBuiltHookMark />,
+                    tooltipNode: <HookTooltip hookEntry={hookEntry} provenance={provenance} />,
+                  }
+                : {
+                    icon: <DocumentList color="$neutral2" size={16} />,
+                    tooltipContent: t('liquidity.hooks.address.tooltip', { address: v4hook }),
+                  }),
             }
           : {
               label: v4hook,
@@ -173,12 +204,12 @@ export function LiquidityPositionInfoBadges({
       feeTierLabel,
       cta,
     ].filter(Boolean) as BadgeData[]
-  }, [version, v4hook, hookEntry, feeTier, protocolFeePips, feeBreakdownOverride, cta, t, isFeeDisplayEnabled])
+  }, [version, v4hook, hookEntry, provenance, feeTier, protocolFeePips, feeBreakdownOverride, cta, t])
 
   return (
     <>
       {badges.map((badge, index) => {
-        const { label, copyable, icon, iconAfter, tooltipContent } = badge
+        const { label, copyable, icon, iconAfter, tooltipContent, tooltipNode } = badge
         const displayLabel = isEVMAddress(label) ? shortenAddress({ address: label }) : label
         const key = label + index
         const content = (
@@ -201,7 +232,7 @@ export function LiquidityPositionInfoBadges({
             {icon}
             {copyable ? (
               <CopyHelper toCopy={label} iconSize={12} iconPosition="right">
-                <Text variant={size === 'small' ? 'body4' : 'body3'} color="$neutral2">
+                <Text variant={size === 'default' ? 'body3' : 'body4'} color="$neutral2">
                   {displayLabel}
                 </Text>
               </CopyHelper>
@@ -210,7 +241,7 @@ export function LiquidityPositionInfoBadges({
               // one (flag on), so only it gains the hover breakdown — every other badge renders plain.
               <FeeDisplay feeBreakdown={badge.feeBreakdown}>
                 <Text
-                  variant={size === 'small' ? 'body4' : 'body3'}
+                  variant={size === 'default' ? 'body3' : 'body4'}
                   color={badge.onPress ? '$neutral1' : '$neutral2'}
                   {...(badge.truncate && {
                     maxWidth: 160,
@@ -227,7 +258,7 @@ export function LiquidityPositionInfoBadges({
           </PositionInfoBadge>
         )
 
-        if (!tooltipContent) {
+        if (!tooltipContent && !tooltipNode) {
           return <Flex key={key}>{content}</Flex>
         }
 
@@ -236,9 +267,11 @@ export function LiquidityPositionInfoBadges({
             <Tooltip.Trigger>{content}</Tooltip.Trigger>
             <Tooltip.Content maxWidth="fit-content">
               <Tooltip.Arrow />
-              <Text variant="body4" color="$neutral2">
-                {tooltipContent}
-              </Text>
+              {tooltipNode ?? (
+                <Text variant="body4" color="$neutral2">
+                  {tooltipContent}
+                </Text>
+              )}
             </Tooltip.Content>
           </Tooltip>
         )

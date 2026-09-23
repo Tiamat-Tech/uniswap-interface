@@ -1,6 +1,7 @@
 import { isWebPlatform } from '@universe/environment'
+import { Button, Flex, Text } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { Trans, useTranslation } from 'react-i18next'
-import { Button, Flex, Text, useSporeColors } from 'ui/src'
 import { AppleLogo } from 'ui/src/components/icons/AppleLogo'
 import { Envelope } from 'ui/src/components/icons/Envelope'
 import { ExternalLink } from 'ui/src/components/icons/ExternalLink'

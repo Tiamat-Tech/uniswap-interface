@@ -1,5 +1,9 @@
 import { SharedEventName } from '@uniswap/analytics-events'
-import { isDevEnv } from '@universe/environment'
+import { sanitizeAddressText } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { CopyAlt } from '@universe/mycelium/icons/CopyAlt'
+import { ScanHome } from '@universe/mycelium/icons/ScanHome'
+import { SettingsHome } from '@universe/mycelium/icons/SettingsHome'
 import React, { useCallback, useEffect } from 'react'
 import { Gesture, GestureDetector, State } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated'
@@ -8,8 +12,6 @@ import { useDispatch } from 'react-redux'
 import { navigate } from 'src/app/navigation/rootNavigation'
 import { openModal } from 'src/features/modals/modalSlice'
 import { removePendingSession } from 'src/features/walletConnect/walletConnectSlice'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { CopyAlt, ScanHome, SettingsHome } from 'ui/src/components/icons'
 import { ScannerModalState } from 'uniswap/src/components/ReceiveQRCode/constants'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
 import { AccountType, DisplayNameType } from 'uniswap/src/features/accounts/types'
@@ -20,7 +22,6 @@ import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { MobileUserPropertyName, setUserProperty } from 'uniswap/src/features/telemetry/user'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
-import { sanitizeAddressText } from 'uniswap/src/utils/addresses'
 import { shortenAddress } from 'utilities/src/addresses'
 import { setClipboard } from 'utilities/src/clipboard/clipboard'
 import { AnimatedUnitagDisplayName } from 'wallet/src/components/accounts/AnimatedUnitagDisplayName'
@@ -138,11 +139,6 @@ export function AccountHeader(): JSX.Element {
                 hitSlop={20}
                 testID={TestID.AccountHeaderAvatar}
                 dd-action-name={TestID.AccountHeaderAvatar}
-                onLongPress={async (): Promise<void> => {
-                  if (isDevEnv()) {
-                    navigate(ModalName.Experiments)
-                  }
-                }}
                 onPress={onPressAccountHeader}
               >
                 <AccountIcon

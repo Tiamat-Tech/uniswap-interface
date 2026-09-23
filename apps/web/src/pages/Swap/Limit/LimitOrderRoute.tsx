@@ -1,5 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Separator, Text } from 'ui/src'
+import { Separator } from 'ui/src'
 import { UniswapXDescription } from '~/pages/Swap/Limit/GasBreakdownTooltip'
 import { RouterLabel } from '~/pages/Swap/Limit/RouterLabel/RouterLabel'
 import { SubmittableTrade } from '~/state/routing/types'

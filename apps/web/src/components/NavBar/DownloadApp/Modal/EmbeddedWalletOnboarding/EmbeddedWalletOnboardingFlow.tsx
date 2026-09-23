@@ -1,6 +1,6 @@
+import { AnimatedPager } from '@universe/mycelium/animate-presence-pager'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
 import { useState } from 'react'
-import { AnimatedPager } from 'ui/src'
-import { HeightAnimator } from 'ui/src/animations/components/HeightAnimator'
 import { useSuggestedUnitag } from 'uniswap/src/features/unitags/suggestions/useSuggestedUnitag'
 import { CreateWalletScreen } from '~/components/NavBar/DownloadApp/Modal/EmbeddedWalletOnboarding/CreateWalletScreen'
 import { WelcomeScreen } from '~/components/NavBar/DownloadApp/Modal/EmbeddedWalletOnboarding/WelcomeScreen'
@@ -16,7 +16,7 @@ export function EmbeddedWalletOnboardingFlow({ onClose }: { onClose: () => void 
 
   return (
     <HeightAnimator animation="quickLong">
-      <AnimatedPager animation="quickLong" currentIndex={showCreate ? 1 : 0}>
+      <AnimatedPager curve="quickLong" currentIndex={showCreate ? 1 : 0}>
         <WelcomeScreen onContinue={() => setShowCreate(true)} onClose={onClose} />
         <CreateWalletScreen suggested={suggested} goBack={() => setShowCreate(false)} onClose={onClose} />
       </AnimatedPager>

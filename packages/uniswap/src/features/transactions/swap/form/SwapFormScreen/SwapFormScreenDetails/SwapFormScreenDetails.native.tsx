@@ -1,4 +1,5 @@
-import { Accordion, Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
+import { Accordion } from '@universe/mycelium'
 import { GeoRestrictionCard } from 'uniswap/src/features/transactions/swap/components/GeoRestrictionCard/GeoRestrictionCard'
 import { SwapOffHoursBanner } from 'uniswap/src/features/transactions/swap/components/SwapOffHoursBanner/SwapOffHoursBanner'
 import { SwapFormScreenFooter } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/SwapFormScreenFooter'

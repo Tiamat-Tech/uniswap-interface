@@ -1,25 +1,39 @@
 import { select } from '@redux-saga/core/effects'
+import { Platform, UniverseChainId } from '@universe/chains'
 import { expectSaga } from 'redux-saga-test-plan'
 import * as matchers from 'redux-saga-test-plan/matchers'
 import type { StaticProvider } from 'redux-saga-test-plan/providers'
 import { type DappInfo, dappStore } from 'src/app/features/dapp/store'
 import { addRequest, rejectRequest } from 'src/app/features/dappRequests/actions'
-import { dappRequestWatcher, handleSendTransaction, handleSignTypedData } from 'src/app/features/dappRequests/saga'
+import {
+  dappRequestWatcher,
+  handleSendCalls,
+  handleSendTransaction,
+  handleSignTypedData,
+} from 'src/app/features/dappRequests/saga'
 import { type SenderTabInfo } from 'src/app/features/dappRequests/shared'
 import { dappRequestActions } from 'src/app/features/dappRequests/slice'
 import {
   EthSendTransactionRPCActions,
+  type SendCallsRequest,
   type SendTransactionRequest,
 } from 'src/app/features/dappRequests/types/DappRequestTypes'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { DappRequestType } from 'uniswap/src/features/dappRequests/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
+import { dappResponseMessageChannel } from 'src/background/messagePassing/messageChannels'
+import { DappRequestType, DappResponseType } from 'uniswap/src/features/dappRequests/types'
 import { getEnabledChainIdsSaga } from 'uniswap/src/features/settings/saga'
+import { TransactionType, type TransactionTypeInfo } from 'uniswap/src/features/transactions/types/transactionDetails'
+import type { RpcUserOperation } from 'viem/account-abstraction'
 import { executeTransaction } from 'wallet/src/features/transactions/executeTransaction/executeTransactionSaga'
+import { createTransactionServices } from 'wallet/src/features/transactions/factories/createTransactionServices'
 import { getProvider } from 'wallet/src/features/wallet/context'
 import { selectActiveAccount } from 'wallet/src/features/wallet/selectors'
 import { signTypedDataMessage } from 'wallet/src/features/wallet/signing/signing'
 import { ACCOUNT } from 'wallet/src/test/fixtures'
+
+vi.mock('@universe/gating', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getFeatureFlag: vi.fn(() => true),
+}))
 
 const SENDER_TAB_INFO: SenderTabInfo = {
   id: 1,
@@ -50,6 +64,17 @@ function sendTransactionRequest(chainId?: number): SendTransactionRequest {
       value: '0x0',
       ...(chainId === undefined ? {} : { chainId }),
     },
+  }
+}
+
+function sendCallsRequest(chainId: string): SendCallsRequest {
+  return {
+    type: DappRequestType.SendCalls,
+    requestId: 'send-calls-1',
+    version: '2.0.0',
+    from: ACCOUNT.address,
+    chainId,
+    calls: [{ to: PERMIT2 }],
   }
 }
 
@@ -239,6 +264,172 @@ describe('eth_sendTransaction chain binding', () => {
         .silentRun()
 
       expect(effects.put.some((effect) => effect.payload.action.type === rejectRequest.type)).toBe(true)
+    })
+  })
+})
+
+describe('wallet_sendCalls chain binding', () => {
+  it('accepts a prefixed hexadecimal chain ID that matches the connected chain', async () => {
+    const dappInfo = dappInfoOn(UniverseChainId.Optimism)
+
+    const { effects } = await expectSaga(dappRequestWatcher)
+      .provide(intakeProviders(dappInfo))
+      .dispatch(
+        addRequest({
+          isSidebarClosed: false,
+          dappRequest: sendCallsRequest('0xa'),
+          senderTabInfo: SENDER_TAB_INFO,
+        }),
+      )
+      .silentRun()
+
+    expect(effects.put.some((effect) => effect.payload.action.type === rejectRequest.type)).toBe(false)
+    expect(effects.put.some((effect) => effect.payload.action.type === dappRequestActions.add.type)).toBe(true)
+  })
+
+  it('rejects an unprefixed chain ID that execution would interpret as a different hexadecimal value', async () => {
+    const dappInfo = dappInfoOn(UniverseChainId.Optimism)
+
+    const { effects } = await expectSaga(dappRequestWatcher)
+      .provide(intakeProviders(dappInfo))
+      .dispatch(
+        addRequest({
+          isSidebarClosed: false,
+          dappRequest: sendCallsRequest('10'),
+          senderTabInfo: SENDER_TAB_INFO,
+        }),
+      )
+      .silentRun()
+
+    expect(effects.put.some((effect) => effect.payload.action.type === rejectRequest.type)).toBe(true)
+    expect(effects.put.some((effect) => effect.payload.action.type === dappRequestActions.add.type)).toBe(false)
+  })
+
+  // Same staleness window as eth_sendTransaction. The prompt prepares and scans on the queued
+  // snapshot chain, so the handler must refuse once the dapp has moved off it. The sponsored path
+  // matters most: an unsigned UserOperation carries no chain, and the signer takes its EIP-712
+  // domain from whatever chain the handler picks.
+  describe('confirmation', () => {
+    const unsignedUserOperation = {
+      sender: ACCOUNT.address,
+      nonce: '0x0',
+      callData: '0x',
+    } as unknown as RpcUserOperation<'0.8'>
+    const sponsoredTypeInfo: TransactionTypeInfo = { type: TransactionType.SendCalls, unsignedUserOperation }
+    const encodedTypeInfo: TransactionTypeInfo = {
+      type: TransactionType.SendCalls,
+      encodedTransaction: { from: ACCOUNT.address, to: PERMIT2, data: '0x' },
+      encodedRequestId: 'encoded-1',
+    }
+
+    const executeUserOp = vi.fn(async () => ({ userOpHash: '0xuserop' }))
+
+    const confirmProviders = (currentDappInfo: DappInfo | undefined): StaticProvider[] => [
+      [matchers.call.fn(dappStore.getDappInfo), currentDappInfo],
+      [matchers.call.fn(createTransactionServices), { transactionService: { executeUserOp } }],
+      [matchers.call.fn(executeTransaction), { transactionHash: '0xhash' }],
+      [matchers.call.fn(dappResponseMessageChannel.sendMessageToTab), undefined],
+    ]
+
+    // handleSendCalls reports failure to the dapp rather than rethrowing.
+    function responseTypesSentToTab(effects: {
+      call: Array<{ payload: { fn: unknown; args: unknown[] } }>
+    }): unknown[] {
+      return effects.call
+        .filter((effect) => effect.payload.fn === dappResponseMessageChannel.sendMessageToTab)
+        .map((effect) => (effect.payload.args[1] as { type: unknown }).type)
+    }
+
+    beforeEach(() => {
+      executeUserOp.mockClear()
+    })
+
+    it('submits the sponsored user operation on the reviewed chain when the dapp has not moved', async () => {
+      const reviewed = dappInfoOn(UniverseChainId.Mainnet)
+
+      const { effects } = await expectSaga(handleSendCalls, {
+        request: sendCallsRequest('0x1'),
+        senderTabInfo: SENDER_TAB_INFO,
+        dappInfo: reviewed,
+        transactionTypeInfo: sponsoredTypeInfo,
+      })
+        .provide(confirmProviders(reviewed))
+        .call.fn(createTransactionServices)
+        .silentRun()
+
+      expect(executeUserOp).toHaveBeenCalledWith(
+        expect.objectContaining({ chainId: UniverseChainId.Mainnet, userOp: unsignedUserOperation }),
+      )
+      expect(responseTypesSentToTab(effects)).toEqual([DappResponseType.SendCallsResponse])
+    })
+
+    it('refuses to submit the sponsored user operation when the dapp switched chains while the prompt was open', async () => {
+      const reviewed = dappInfoOn(UniverseChainId.Mainnet)
+
+      const { effects } = await expectSaga(handleSendCalls, {
+        request: sendCallsRequest('0x1'),
+        senderTabInfo: SENDER_TAB_INFO,
+        dappInfo: reviewed,
+        transactionTypeInfo: sponsoredTypeInfo,
+      })
+        .provide(confirmProviders(dappInfoOn(UniverseChainId.Base)))
+        .not.call.fn(createTransactionServices)
+        .silentRun()
+
+      expect(executeUserOp).not.toHaveBeenCalled()
+      expect(responseTypesSentToTab(effects)).toEqual([DappResponseType.ErrorResponse])
+    })
+
+    it('refuses to submit when the dapp disconnected while the prompt was open', async () => {
+      const reviewed = dappInfoOn(UniverseChainId.Mainnet)
+
+      const { effects } = await expectSaga(handleSendCalls, {
+        request: sendCallsRequest('0x1'),
+        senderTabInfo: SENDER_TAB_INFO,
+        dappInfo: reviewed,
+        transactionTypeInfo: sponsoredTypeInfo,
+      })
+        .provide(confirmProviders(undefined))
+        .not.call.fn(createTransactionServices)
+        .silentRun()
+
+      expect(executeUserOp).not.toHaveBeenCalled()
+      expect(responseTypesSentToTab(effects)).toEqual([DappResponseType.ErrorResponse])
+    })
+
+    // Intake already pins the request chain to the snapshot; this keeps a stale persisted request
+    // from slipping past the handler on its own.
+    it('refuses to submit when the request chain disagrees with the reviewed snapshot', async () => {
+      const reviewed = dappInfoOn(UniverseChainId.Mainnet)
+
+      const { effects } = await expectSaga(handleSendCalls, {
+        request: sendCallsRequest(`0x${UniverseChainId.Base.toString(16)}`),
+        senderTabInfo: SENDER_TAB_INFO,
+        dappInfo: reviewed,
+        transactionTypeInfo: sponsoredTypeInfo,
+      })
+        .provide(confirmProviders(reviewed))
+        .not.call.fn(createTransactionServices)
+        .silentRun()
+
+      expect(executeUserOp).not.toHaveBeenCalled()
+      expect(responseTypesSentToTab(effects)).toEqual([DappResponseType.ErrorResponse])
+    })
+
+    it('refuses to send the encoded 7702 transaction when the dapp switched chains while the prompt was open', async () => {
+      const reviewed = dappInfoOn(UniverseChainId.Mainnet)
+
+      const { effects } = await expectSaga(handleSendCalls, {
+        request: sendCallsRequest('0x1'),
+        senderTabInfo: SENDER_TAB_INFO,
+        dappInfo: reviewed,
+        transactionTypeInfo: encodedTypeInfo,
+      })
+        .provide(confirmProviders(dappInfoOn(UniverseChainId.Base)))
+        .not.call.fn(executeTransaction)
+        .silentRun()
+
+      expect(responseTypesSentToTab(effects)).toEqual([DappResponseType.ErrorResponse])
     })
   })
 })

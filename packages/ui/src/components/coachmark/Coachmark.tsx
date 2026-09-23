@@ -9,7 +9,9 @@ import { PlatformSplitStubError } from 'utilities/src/errors'
 export interface CoachmarkProps {
   open: boolean
   onDismiss: () => void
+  title?: string
   text: string
+  width?: number
   placement?: TooltipProps['placement']
   offset?: TooltipProps['offset']
   zIndex?: number

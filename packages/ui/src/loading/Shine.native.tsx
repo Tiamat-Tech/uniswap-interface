@@ -1,3 +1,4 @@
+import { Flex } from '@universe/mycelium'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useEffect, useState } from 'react'
 import { LayoutRectangle, StyleSheet } from 'react-native'
@@ -8,7 +9,6 @@ import Reanimated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated'
-import { Flex } from 'ui/src/components/layout'
 import { useSporeColors } from 'ui/src/hooks/useSporeColors'
 import { ShineProps } from 'ui/src/loading/ShineProps'
 import { opacify } from 'ui/src/theme'

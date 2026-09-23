@@ -1,6 +1,6 @@
 import type { Currency } from '@uniswap/sdk-core'
+import { areEvmAddressesEqual } from '@universe/chains'
 import { useTokenKYCStatus } from 'uniswap/src/features/permissionedTokens/useTokenKYCStatus'
-import { areEvmAddressesEqual } from 'uniswap/src/utils/addresses'
 
 // Which party's allowlist status blocks the send. The Superstate AllowList enforces on BOTH
 // endpoints, so a permissioned transfer reverts if either the sender or the recipient is not

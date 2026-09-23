@@ -2,15 +2,17 @@ import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes
 import { Currency } from '@uniswap/sdk-core'
 import { tickToPrice } from '@uniswap/v3-sdk'
 import { tickToPrice as tickToPriceV4 } from '@uniswap/v4-sdk'
+import { UniverseChainId } from '@universe/chains'
 import JSBI from 'jsbi'
 import { UTCTimestamp } from 'lightweight-charts'
 import { useEffect, useState } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import { NumberType } from 'utilities/src/format/types'
 import { LiquidityBarData } from '~/features/Liquidity/charts/LiquidityChart/types'
 import { calculateTokensLocked } from '~/features/Liquidity/charts/LiquidityChart/utils/calculateTokensLocked'
 import { usePoolActiveLiquidity } from '~/features/Liquidity/hooks/usePoolTickData'
+import { V2Reserves } from '~/features/Liquidity/utils/v2SyntheticTicks'
 import { PositionField } from '~/types/position'
 
 export function useLiquidityBarData({
@@ -22,6 +24,7 @@ export function useLiquidityBarData({
   tickSpacing,
   hooks,
   poolId,
+  v2Reserves,
 }: {
   sdkCurrencies: { [field in PositionField]: Currency }
   feeTier: number
@@ -31,6 +34,7 @@ export function useLiquidityBarData({
   tickSpacing?: number
   hooks?: string
   poolId?: string
+  v2Reserves?: V2Reserves
 }) {
   const { formatNumberOrString } = useLocalizationContext()
 
@@ -42,6 +46,7 @@ export function useLiquidityBarData({
     chainId,
     tickSpacing,
     hooks,
+    v2Reserves,
   })
 
   const [tickData, setTickData] = useState<{
@@ -88,9 +93,14 @@ export function useLiquidityBarData({
           activeRangeIndex = index
           activeRangePercentage = 1 - (currentTick - t.tick) / resolvedTickSpacing
 
+          // v3 denominates prices in wrapped tokens; chains with no wrapped native (Arc, Tempo)
+          // have none, so fall through to the v4 conversion — same tick math, and its sort
+          // comparator is the one that handles a native currency.
+          const wrappedToken0 = getWrappedTokenIfExists(sdkCurrencies.TOKEN0)
+          const wrappedToken1 = getWrappedTokenIfExists(sdkCurrencies.TOKEN1)
           price0 =
-            version === ProtocolVersion.V3
-              ? tickToPrice(sdkCurrencies.TOKEN0.wrapped, sdkCurrencies.TOKEN1.wrapped, t.tick)
+            version === ProtocolVersion.V3 && wrappedToken0 && wrappedToken1
+              ? tickToPrice(wrappedToken0, wrappedToken1, t.tick)
               : tickToPriceV4(sdkCurrencies.TOKEN0, sdkCurrencies.TOKEN1, t.tick)
           price1 = price0.invert()
         }

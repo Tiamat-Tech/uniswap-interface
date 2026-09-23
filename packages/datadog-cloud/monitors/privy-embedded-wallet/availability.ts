@@ -37,6 +37,11 @@ export const privyEmbeddedWalletAvailabilityMonitors: MonitorDefinition[] = [
     // baseline is trustworthy (~3 weeks post-launch).
     enablePaging: false,
     includeIncidentWebhook: false,
+    // Staging has no organic traffic (~100 req/day, mostly health checks), so a
+    // below-baseline anomaly is meaningless there — the staging copy latched in
+    // ALERT from 2026-06-04 until this change removed it. Traffic monitors are
+    // prod-only; staging keeps the no_healthy_hosts monitor below.
+    prodOnly: true,
   },
   {
     // Absolute safety net: a full hour with zero ALB requests is a real outage signal
@@ -60,6 +65,9 @@ export const privyEmbeddedWalletAvailabilityMonitors: MonitorDefinition[] = [
     dashboards: [],
     // A full hour of no data on the ALB is itself a real outage — surface it.
     onMissingData: 'show_and_notify_no_data',
+    // Staging sees ~4 req/hour, so zero-request hours are routine and the staging
+    // copy alerted continuously. Prod-only, same as the anomaly monitor above.
+    prodOnly: true,
   },
   {
     id: 'privy_embedded_wallet_no_healthy_hosts',

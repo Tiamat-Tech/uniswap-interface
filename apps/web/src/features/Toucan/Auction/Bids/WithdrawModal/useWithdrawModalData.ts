@@ -7,7 +7,7 @@ import { NumberType } from 'utilities/src/format/types'
 import { formatUnits } from '~/chains'
 import { fromQ96ToDecimalWithTokenDecimals } from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
 import { useBidTokenInfo } from '~/features/Toucan/Auction/hooks/useBidTokenInfo'
-import { AuctionBidStatus, AuctionProgressState } from '~/features/Toucan/Auction/store/types'
+import { AuctionBidStatus, AuctionOutcome, AuctionProgressState } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getClearingPrice } from '~/features/Toucan/Auction/utils/clearingPrice'
 import { approximateNumberFromRaw, computeFdvBidTokenRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
@@ -57,13 +57,16 @@ export function useWithdrawModalData({ bidId }: UseWithdrawModalDataParams): Wit
   const { formatNumberOrString } = useLocalizationContext()
 
   // Get data from auction store
-  const { userBids, auctionDetails, checkpointData, isGraduated, progressState } = useAuctionStore((state) => ({
-    userBids: state.userBids,
-    auctionDetails: state.auctionDetails,
-    checkpointData: state.checkpointData,
-    isGraduated: state.progress.isGraduated,
-    progressState: state.progress.state,
-  }))
+  const { userBids, auctionDetails, checkpointData, outcome, isGraduated, progressState } = useAuctionStore(
+    (state) => ({
+      userBids: state.userBids,
+      auctionDetails: state.auctionDetails,
+      checkpointData: state.checkpointData,
+      outcome: state.progress.outcome,
+      isGraduated: state.progress.isGraduated,
+      progressState: state.progress.state,
+    }),
+  )
 
   // Get bid token info
   const { bidTokenInfo } = useBidTokenInfo({
@@ -124,6 +127,11 @@ export function useWithdrawModalData({ bidId }: UseWithdrawModalDataParams): Wit
   // - If NOT graduated: Full refund of baseTokenInitial (entire bid amount)
   // - If graduated: Partial refund of unused budget (baseTokenInitial - currencySpent)
   const bidTokensToClaim = useMemo(() => {
+    // Which of the two shapes applies is unknowable until the outcome settles, and showing the full
+    // budget on an auction that graduated would promise a refund the bidder will not get.
+    if (outcome === AuctionOutcome.UNKNOWN) {
+      return 0n
+    }
     return targetBids.reduce((acc, bid) => {
       if (bid.status === AuctionBidStatus.Submitted) {
         if (!isGraduated) {
@@ -135,7 +143,7 @@ export function useWithdrawModalData({ bidId }: UseWithdrawModalDataParams): Wit
       }
       return acc
     }, 0n)
-  }, [targetBids, isGraduated])
+  }, [targetBids, isGraduated, outcome])
 
   // Calculate currency spent for non-claimed bids (for average cost calculation)
   const currencySpentForAuctionTokens = useMemo(() => {

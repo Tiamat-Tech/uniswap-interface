@@ -1,7 +1,6 @@
+import { Flex, Text, zIndexes } from '@universe/mycelium'
 import { CSSProperties } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
 import { PulsingIndicatorDot } from '~/features/Toucan/Auction/Banners/AuctionIntro/PulsingIndicatorDot'
 import { TokenLaunchedBannerWrapper } from '~/features/Toucan/Auction/Banners/TokenLaunched/TokenLaunchedBannerWrapper'
 

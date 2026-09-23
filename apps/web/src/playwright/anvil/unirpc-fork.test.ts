@@ -6,6 +6,7 @@ import {
   createUnirpcForkSourceProvider,
   isUnirpcForkEnabled,
   probeForkAuth,
+  redactForkUrlForLog,
   resolveForkSourceProvider,
   resolveUnirpcGatewayBaseUrl,
   shouldRelaunchForAuth,
@@ -100,6 +101,43 @@ describe('createUnirpcForkSourceProvider', () => {
     await provider.recover()
 
     expect(sessionClient.recover).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('redactForkUrlForLog', () => {
+  it('keeps the unirpc /rpc/{chainId} shape readable', () => {
+    expect(redactForkUrlForLog('https://unirpc-v2.prod.unihq.org/rpc/1')).toBe('https://unirpc-v2.prod.unihq.org/rpc/1')
+    expect(redactForkUrlForLog('https://unirpc-v2.prod.unihq.org/rpc/8453')).toBe(
+      'https://unirpc-v2.prod.unihq.org/rpc/8453',
+    )
+  })
+
+  it('keeps path-less provider defaults intact', () => {
+    expect(redactForkUrlForLog('https://ethereum-rpc.publicnode.com')).toBe('https://ethereum-rpc.publicnode.com')
+  })
+
+  it('redacts opaque path segments (provider API keys)', () => {
+    expect(redactForkUrlForLog('https://mainnet.infura.io/v3/0123456789abcdef0123456789abcdef')).toBe(
+      'https://mainnet.infura.io/v3/***',
+    )
+    expect(redactForkUrlForLog('https://eth-mainnet.g.alchemy.com/v2/AbCdEfGhIjKlMnOpQrStUvWx')).toBe(
+      'https://eth-mainnet.g.alchemy.com/v2/***',
+    )
+    expect(redactForkUrlForLog('https://cool-name.quiknode.pro/0123456789abcdef0123456789abcdef01234567/')).toBe(
+      'https://cool-name.quiknode.pro/***/',
+    )
+  })
+
+  it('drops query strings and userinfo credentials', () => {
+    expect(redactForkUrlForLog('https://user:secret@rpc.example/rpc/1?apiKey=secret')).toBe('https://rpc.example/rpc/1')
+  })
+
+  it('masks unknown segment shapes even when short (allowlist, not length)', () => {
+    expect(redactForkUrlForLog('https://rpc.example/mainnet/abc123')).toBe('https://rpc.example/***/***')
+  })
+
+  it('never throws on garbage input', () => {
+    expect(redactForkUrlForLog('not a url')).toBe('<unparseable fork url>')
   })
 })
 

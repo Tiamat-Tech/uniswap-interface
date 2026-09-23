@@ -1,7 +1,7 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Flex, Text } from '@universe/mycelium'
 import { ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, styled, Text } from 'ui/src'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
@@ -99,9 +99,9 @@ function NetworkCostDescription({ native }: { native: Currency }) {
   )
 }
 
-const InlineUniswapXGradient = styled(UniswapXGradient, {
-  display: 'inline',
-})
+const InlineUniswapXGradient = ({ children }: { children?: ReactNode }): JSX.Element => (
+  <UniswapXGradient style={{ display: 'inline' }}>{children}</UniswapXGradient>
+)
 
 export function UniswapXDescription() {
   const { t } = useTranslation()

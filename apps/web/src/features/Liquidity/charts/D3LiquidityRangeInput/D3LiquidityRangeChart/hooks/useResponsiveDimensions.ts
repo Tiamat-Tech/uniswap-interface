@@ -1,5 +1,5 @@
+import { useDeviceDimensions } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useState } from 'react'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions/useDeviceDimensions'
 import { CHART_DIMENSIONS } from '~/features/Liquidity/charts/D3LiquidityChartShared/constants'
 
 export function useResponsiveDimensions() {

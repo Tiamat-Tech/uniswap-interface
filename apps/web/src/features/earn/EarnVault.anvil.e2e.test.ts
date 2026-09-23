@@ -18,9 +18,9 @@ import {
   EarnVaultStatus,
 } from '@uniswap/client-data-api/dist/data/v2/earn_pb'
 import { WETH_ADDRESS } from '@uniswap/universal-router-sdk'
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags } from '@universe/gating'
 import { USDC, USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { parseEther, parseUnits } from 'viem'
 import { assume0xAddress } from '~/chains'
@@ -35,7 +35,6 @@ const test = getTest({ withAnvil: true })
 const buildEarnExploreUrl = createTestUrlBuilder({
   basePath: '/explore',
   defaultFeatureFlags: {
-    [FeatureFlags.Earn]: true,
     [FeatureFlags.ChainedActions]: true,
     [FeatureFlags.DisableSessionsForPlan]: true,
   },
@@ -136,7 +135,7 @@ async function deposit(page: Page, symbol: EarnVaultFixture['chipSymbol']): Prom
   await modal.getByRole('button', { name: /^deposit$/i }).click()
   // First deposit into a vault shows the "How it works" interstitial (behavior history
   // is empty in e2e), which must be acknowledged before the amount form renders.
-  await modal.getByRole('button', { name: /agree and continue/i }).click()
+  await modal.getByTestId(TestID.EarnHowItWorksContinue).click()
   await modal.getByRole('textbox').first().fill('500')
   await modal.getByRole('button', { name: /review/i }).click()
   const submitButton = modal.getByRole('button', { name: /deposit/i })

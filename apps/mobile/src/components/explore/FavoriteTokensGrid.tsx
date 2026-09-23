@@ -1,3 +1,5 @@
+import { useIsTokenCategoriesEnabled } from '@universe/gating'
+import { AnimatedFlex, Flex, getTokenValue } from '@universe/mycelium'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ScrollView } from 'react-native'
@@ -10,9 +12,6 @@ import { FavoriteHeaderRow } from 'src/components/explore/FavoriteHeaderRow'
 import { useReportFavoritesSorting } from 'src/components/explore/favoritesSortingStore'
 import FavoriteTokenCard from 'src/components/explore/FavoriteTokenCard'
 import { useFavoritesDraftOrder } from 'src/components/explore/useFavoritesDraftOrder'
-import { getTokenValue } from 'ui/src'
-import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
-import { Flex } from 'ui/src/components/layout/Flex'
 import { ExpandoRow } from 'uniswap/src/components/ExpandoRow/ExpandoRow'
 import { useCanonicalFavoritesMigration } from 'uniswap/src/features/favorites/hooks/useCanonicalFavoritesMigration'
 import { useMultichainFavoritesRankings } from 'uniswap/src/features/favorites/hooks/useMultichainFavoritesRankings'
@@ -32,6 +31,8 @@ type FavoriteTokensGridProps = {
 /** Renders the favorite tokens section on the Explore tab */
 export function FavoriteTokensGrid({ showLoading, listRef, ...rest }: FavoriteTokensGridProps): JSX.Element | null {
   const { t } = useTranslation()
+  // Standardized Explore section title; flag off keeps the legacy "Favorite tokens" heading.
+  const tokenCategoriesEnabled = useIsTokenCategoriesEnabled()
   const { hapticFeedback } = useHapticFeedback()
   const dispatch = useDispatch()
   // Pull multichain rankings independent of the Explore network filter so badge visibility and the
@@ -110,7 +111,7 @@ export function FavoriteTokensGrid({ showLoading, listRef, ...rest }: FavoriteTo
         disabled={showLoading}
         editingTitle={t('explore.tokens.favorite.title.edit')}
         isEditing={isEditing}
-        title={t('explore.tokens.favorite.title.default')}
+        title={tokenCategoriesEnabled ? t('explore.section.favorites') : t('explore.tokens.favorite.title.default')}
         onPress={toggleEditing}
       />
 

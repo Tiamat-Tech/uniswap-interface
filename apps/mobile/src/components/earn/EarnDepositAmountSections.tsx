@@ -1,10 +1,10 @@
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, SpinningLoader, Text, TouchableArea } from '@universe/mycelium'
+import { useIsDarkMode, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import type { ReactNode } from 'react'
 import { DepositSourceRowContent } from 'src/components/earn/EarnDepositAmountControls'
-import { Flex, SpinningLoader, Text, TouchableArea, useIsDarkMode } from 'ui/src'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { EarnBalanceErrorState } from 'uniswap/src/features/earn/EarnBalanceErrorState'
 
@@ -86,6 +86,7 @@ export function EarnDepositSourceSection({
   onOpenDepositSourceSelector: () => void
 }): JSX.Element {
   const isDarkMode = useIsDarkMode()
+  const colors = useSporeColors()
   const row = (
     <DepositSourceRowContent
       apyLabel={apyLabel}
@@ -107,9 +108,10 @@ export function EarnDepositSourceSection({
         borderRadius="$rounded20"
         borderWidth="$spacing1"
         p="$spacing12"
-        shadowColor="$shadowColor"
         shadowOpacity={0.03}
         shadowRadius={4}
+        // shadowColor resolved at the call site: the compat native leg drops semantic $ tokens passed as a shadowColor prop
+        style={{ shadowColor: colors.shadowColor.val }}
         onPress={onOpenDepositSourceSelector}
       >
         {row}
@@ -124,9 +126,10 @@ export function EarnDepositSourceSection({
       borderRadius="$rounded20"
       borderWidth="$spacing1"
       p="$spacing12"
-      shadowColor="$shadowColor"
       shadowOpacity={0.03}
       shadowRadius={4}
+      // shadowColor resolved at the call site: the compat native leg drops semantic $ tokens passed as a shadowColor prop
+      style={{ shadowColor: colors.shadowColor.val }}
     >
       {row}
     </Flex>

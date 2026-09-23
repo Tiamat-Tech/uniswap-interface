@@ -83,6 +83,7 @@ export { gated } from '@universe/sessions/src/session-gate/createGate'
 export {
   isConnectUnauthorized,
   isFetchUnauthorized,
+  isRetryableSessionGateError,
   isSessionAuthFailureStatus,
 } from '@universe/sessions/src/session-gate/classifyError'
 export { requireSessionInterceptor } from '@universe/sessions/src/session-gate/requireSessionInterceptor'

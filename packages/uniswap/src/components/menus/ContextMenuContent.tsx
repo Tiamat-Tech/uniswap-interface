@@ -1,6 +1,7 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex, type FlexCompatProps as FlexProps, Separator } from '@universe/mycelium'
 import { Fragment, useCallback } from 'react'
-import { DropdownMenuSheetItem, DropdownMenuSheetItemProps, Flex, FlexProps, getMenuItemColor, Separator } from 'ui/src'
+import { DropdownMenuSheetItem, DropdownMenuSheetItemProps, getMenuItemColor } from 'ui/src'
 import { MenuOptionItem } from 'uniswap/src/components/menus/ContextMenu'
 import { ElementName, SectionName, UniswapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -22,6 +23,17 @@ export const MENU_CONTENT_SHEET_CONTAINER_STYLES: FlexProps = {
   gap: '$spacing8',
   display: 'flex',
   flexDirection: 'column',
+  width: '100%',
+  minWidth: undefined,
+  maxWidth: undefined,
+}
+
+/** Neutralises the default popover frame when {@link MenuContent} is embedded in {@link MultichainContextMenuExpandContent}. */
+export const MENU_CONTENT_EMBEDDED_CONTAINER_STYLES: FlexProps = {
+  p: '$none',
+  backgroundColor: 'transparent',
+  borderWidth: '$none',
+  gap: '$spacing4',
   width: '100%',
   minWidth: undefined,
   maxWidth: undefined,

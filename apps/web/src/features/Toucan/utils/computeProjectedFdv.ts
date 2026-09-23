@@ -4,6 +4,7 @@ import {
   formatCompactFromRaw,
 } from '~/features/Toucan/Auction/utils/fixedPointFdv'
 import { isUsableAuctionTokenMetadata } from '~/features/Toucan/Auction/utils/tokenMetadata'
+import { hasTokenTotalSupply } from '~/features/Toucan/Auction/utils/tokenTotalSupply'
 import type { EnrichedAuction } from '~/features/Toucan/hooks/useTopAuctions/useTopAuctions'
 
 /** Auction token decimals from the auction API, or undefined when the metadata is unusable — see isUsableAuctionTokenMetadata */
@@ -76,9 +77,9 @@ export function computeProjectedFdvTableValue({
       return fallback
     }
 
-    const totalSupply = auction.auction.tokenTotalSupply ?? auction.auction.totalSupply
+    const totalSupply = auction.auction.tokenTotalSupply
 
-    if (!totalSupply) {
+    if (!hasTokenTotalSupply(totalSupply)) {
       return fallback
     }
 

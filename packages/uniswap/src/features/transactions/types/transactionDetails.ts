@@ -3,9 +3,9 @@ import { Protocol } from '@uniswap/router-sdk'
 import type { Currency, CurrencyAmount, TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
 import type { GasEstimate } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { providers } from 'ethers/lib/ethers'
 import { AssetType } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { AuctionCreateAnalyticsProperties, SwapRouting } from 'uniswap/src/features/telemetry/types'
 import { ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { CurrencyId } from 'uniswap/src/types/currency'
@@ -291,7 +291,7 @@ export type TransactionOptions = {
   timeoutLogged?: boolean
   appBackgroundedWhilePending?: boolean
   submitViaPrivateRpc?: boolean
-  privateRpcProvider?: 'flashbots' | 'mevblocker'
+  privateRpcProvider?: 'flashbots' | 'mevblocker' | 'unirpc'
   replacedTransactionHash?: string
   includesDelegation?: boolean
   isSmartWalletTransaction?: boolean

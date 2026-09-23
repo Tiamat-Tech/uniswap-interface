@@ -1,4 +1,5 @@
 import { ContentStyle, type InAppNotification } from '@universe/api'
+import { Flex } from '@universe/mycelium'
 import { InlineBannerNotification, type NotificationClickTarget } from '@universe/notifications'
 import { Fragment, memo, useEffect, useMemo } from 'react'
 import { isOfflineBannerNotification } from 'src/notification-service/data-sources/reactive/offlineCondition'
@@ -13,14 +14,13 @@ import {
 import { useSystemBannerPortal } from 'src/notification-service/notification-renderer/SystemBannerPortal'
 import { BackupReminderModalRenderer } from 'src/notification-service/renderers/BackupReminderModalRenderer'
 import { OfflineBannerRenderer } from 'src/notification-service/renderers/OfflineBannerRenderer'
-import { isBackupReminderNotification } from 'src/notification-service/triggers/backupReminderTrigger'
 import { isLocalTriggerNotification } from 'src/notification-service/triggers/createMobileLocalTriggerDataSource'
-import { Flex } from 'ui/src'
 import { ModalNotification } from 'uniswap/src/components/notifications/ModalNotification'
 import { getLogger } from 'utilities/src/logger/logger'
 import { useEvent } from 'utilities/src/react/hooks'
 import { type IntroCardProps } from 'wallet/src/components/introCards/IntroCard'
 import { IntroCardStack } from 'wallet/src/components/introCards/IntroCardStack'
+import { isBackupReminderNotification } from 'wallet/src/features/behaviorHistory/backupReminderTrigger'
 import {
   convertNotificationToIntroCard,
   shouldRenderAsIntroCard,

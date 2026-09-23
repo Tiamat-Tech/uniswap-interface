@@ -1,14 +1,15 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import { GasFeeResult, TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { isWebApp } from '@universe/environment'
+import { Flex, Text, UniversalImage, UniversalImageResizeMode } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, UniswapXText, UniversalImage, UniversalImageResizeMode } from 'ui/src'
+import { UniswapXText } from 'ui/src'
 import { UniswapX } from 'ui/src/components/icons/UniswapX'
 import { borderRadii, iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { NetworkFeeWarning } from 'uniswap/src/components/gas/NetworkFeeWarning'
 import { IndicativeLoadingWrapper } from 'uniswap/src/components/misc/IndicativeLoadingWrapper'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   useFormattedUniswapXGasFeeInfo,
   useGasFeeFormattedDisplayAmounts,

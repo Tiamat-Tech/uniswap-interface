@@ -14,10 +14,13 @@ export function useHorizontalSnapCarousel({
   cardWidth,
   itemCount,
   isLoading,
+  isAutoScrolling = false,
 }: {
   cardWidth: number
   itemCount: number
   isLoading: boolean
+  /** Something else (e.g. a marquee) is driving scrollLeft; its scroll events are ignored until the user hovers. */
+  isAutoScrolling?: boolean
 }): {
   setScrollRef: (node: HTMLDivElement | null) => void
   isAtEnd: boolean
@@ -39,6 +42,8 @@ export function useHorizontalSnapCarousel({
   const [isAtStart, setIsAtStart] = useState(true)
   const [isScrollSettled, setIsScrollSettled] = useState(true)
   const [isHovered, setIsHovered] = useState(false)
+  // A marquee's per-frame scroll events would otherwise set state ~30x/s and restart route transitions.
+  const trackScroll = !isAutoScrolling || isHovered
 
   const updateMetrics = useEvent((): void => {
     const el = scrollRef.current
@@ -65,6 +70,18 @@ export function useHorizontalSnapCarousel({
     }
 
     updateMetrics()
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateMetrics()
+    })
+    resizeObserver.observe(el)
+
+    if (!trackScroll) {
+      // Nothing user-driven can be mid-scroll while something else drives scrollLeft.
+      setIsScrollSettled(true)
+      targetScrollLeftRef.current = null
+      return () => resizeObserver.disconnect()
+    }
 
     let settleFallbackTimer: ReturnType<typeof setTimeout> | undefined
     const supportsScrollEnd = 'onscrollend' in el
@@ -101,11 +118,6 @@ export function useHorizontalSnapCarousel({
       el.addEventListener('scrollend', onScrollEnd, { passive: true })
     }
 
-    const resizeObserver = new ResizeObserver(() => {
-      updateMetrics()
-    })
-    resizeObserver.observe(el)
-
     return () => {
       resizeObserver.disconnect()
       el.removeEventListener('scroll', onScroll)
@@ -116,7 +128,7 @@ export function useHorizontalSnapCarousel({
         clearTimeout(settleFallbackTimer)
       }
     }
-  }, [updateMetrics, itemCount, isLoading, cardWidth])
+  }, [updateMetrics, itemCount, isLoading, cardWidth, trackScroll])
 
   const clearHideTimer = useEvent((): void => {
     if (hideButtonTimerRef.current) {

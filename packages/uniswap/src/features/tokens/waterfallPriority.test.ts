@@ -1,6 +1,6 @@
 import { Token } from '@uniswap/sdk-core'
-import { nativeOnChain, USDC_MAINNET, WBTC } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { nativeOnChain, USDC_MAINNET, USDG_MAINNET, WBTC } from 'uniswap/src/constants/tokens'
 import { getTokenTier, shouldReverseForWaterfall, TokenTier } from 'uniswap/src/features/tokens/waterfallPriority'
 
 const ETH = nativeOnChain(UniverseChainId.Mainnet)
@@ -10,6 +10,7 @@ const UNI = new Token(UniverseChainId.Mainnet, '0x1f9840a85d5aF5bf1D1762F925BDAD
 describe('getTokenTier', () => {
   it('classifies stablecoin as Tier 0', () => {
     expect(getTokenTier(USDC_MAINNET)).toBe(TokenTier.Stablecoin)
+    expect(getTokenTier(USDG_MAINNET)).toBe(TokenTier.Stablecoin)
   })
 
   it('classifies native ETH as Tier 1', () => {
@@ -67,6 +68,10 @@ describe('shouldReverseForWaterfall', () => {
       'Tether USD',
     )
     expect(shouldReverseForWaterfall(USDC_MAINNET, USDT_MAINNET)).toBe(false)
+  })
+
+  it('does not reverse a stable/stable pair, so contract order wins (USDC/USDG)', () => {
+    expect(shouldReverseForWaterfall(USDC_MAINNET, USDG_MAINNET)).toBe(false)
   })
 
   it('reverses when tokenA is stablecoin and tokenB is BTC (USDC/WBTC → WBTC/USDC)', () => {

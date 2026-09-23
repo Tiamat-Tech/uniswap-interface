@@ -1,10 +1,10 @@
 import { skipToken } from '@tanstack/react-query'
+import { UniverseChainId } from '@universe/chains'
 import { createContext, Dispatch, PropsWithChildren, SetStateAction, useContext, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { buildPartialCurrencyInfo } from 'uniswap/src/constants/routing'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useAppFiatCurrency } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalFiatToUSDConverter } from 'uniswap/src/features/fiatCurrency/useLocalFiatToUSDConverter'
 import {
@@ -164,6 +164,7 @@ function useDerivedBuyFormInfo(state: BuyFormState): BuyInfo {
       return undefined
     }
     const needsConversion =
+      // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- fiat currency codes, not addresses
       state.inputInFiat && appFiatCurrency.toLowerCase() !== meldSupportedFiatCurrency.code.toLowerCase()
     if (!needsConversion) {
       return raw

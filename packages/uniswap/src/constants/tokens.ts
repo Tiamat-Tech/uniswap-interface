@@ -1,4 +1,5 @@
 import { Currency, NativeCurrency, Token, UNI_ADDRESSES, WETH9 } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { ARBITRUM_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/arbitrum'
 import { ARC_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/arc'
@@ -24,7 +25,6 @@ import { ZKSYNC_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/zksync'
 import { ZORA_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/zora'
 import { WRAPPED_SOL_ADDRESS_SOLANA } from 'uniswap/src/features/chains/svm/defaults'
 import { SOLANA_CHAIN_INFO } from 'uniswap/src/features/chains/svm/info/solana'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
 import { SolanaToken } from 'uniswap/src/features/tokens/SolanaToken'
 import { logger } from 'utilities/src/logger/logger'
@@ -62,6 +62,7 @@ export const { USDC: USDC_SOLANA } = SOLANA_CHAIN_INFO.tokens
 export const { USDT } = MAINNET_CHAIN_INFO.tokens
 
 export const { USDC: USDC_MAINNET } = MAINNET_CHAIN_INFO.tokens
+export const { USDG: USDG_MAINNET } = MAINNET_CHAIN_INFO.tokens
 
 export const USDC = USDC_MAINNET
 

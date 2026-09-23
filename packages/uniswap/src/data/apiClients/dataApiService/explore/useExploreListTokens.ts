@@ -12,6 +12,7 @@ export interface UseExploreListTokensParams {
   orderBy: TokensOrderBy
   ascending: boolean
   pageSize: number
+  categoryId?: string
   enabled?: boolean
 }
 
@@ -38,21 +39,26 @@ export function useExploreListTokens({
   orderBy,
   ascending,
   pageSize,
+  categoryId,
   enabled = true,
 }: UseExploreListTokensParams): ExploreListTokensResult {
   const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: [ReactQueryCacheKey.TopTokens, 'v2', chainIds, orderBy, ascending, pageSize] as const,
+    queryKey: [ReactQueryCacheKey.TopTokens, 'v2', chainIds, orderBy, ascending, pageSize, categoryId] as const,
     queryFn: ({ pageParam }) =>
       dataApiServiceClientV2.listTokens({
         chainIds,
         page: { pageSize, pageToken: pageParam },
         sort: { orderBy, ascending },
-        // Required by BE — UNSPECIFIED is rejected, mirrors apps/web's listTokensService.ts.
+        // Required by BE — UNSPECIFIED is rejected, mirrors apps/web's getListTokens.ts.
         sparklineDuration: HistoryDuration.DAY,
+        ...(categoryId !== undefined && { filter: { categoryIds: [categoryId] } }),
       }),
     getNextPageParam: (lastPage: ListTokensResponse) => lastPage.page?.nextPageToken || undefined,
     initialPageParam: '',
     staleTime: ONE_MINUTE_MS,
+    // The global retry policy only covers FetchError 500s, which a ConnectRPC error never is —
+    // without this, one failed request drops the token list into its error state.
+    retry: 2,
     enabled,
   })
 

@@ -1,7 +1,7 @@
 import { IconBox } from '@universe/embedded-wallet/src/components/passkey/recovery/IconBox'
 import { StepHeader } from '@universe/embedded-wallet/src/components/passkey/recovery/StepHeader'
+import { Anchor, Button, Flex, ModalCloseIcon, Text } from '@universe/mycelium'
 import type { TFunction } from 'i18next'
-import { Anchor, Button, Flex, ModalCloseIcon, Text } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { EnvelopeHeart } from 'ui/src/components/icons/EnvelopeHeart'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'

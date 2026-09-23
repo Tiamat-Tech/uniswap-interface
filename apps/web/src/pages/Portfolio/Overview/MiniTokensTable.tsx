@@ -1,11 +1,11 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { PortfolioBalancePart } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
 import { useGetWalletTokensProfitLossQuery } from 'uniswap/src/data/apiClients/dataApiService/performance/getWalletTokensProfitLoss'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useRestPortfolioValueModifier } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { ElementName, SectionName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -72,7 +72,7 @@ export const MiniTokensTable = memo(function MiniTokensTable({ maxTokens = 8, ch
   const tableData = tokenData ?? []
   const tableLoading = loading && !tokenData
 
-  const sectionTotalValue = usePortfolioSectionTotalValue({
+  const { count: _count, ...sectionTotalValue } = usePortfolioSectionTotalValue({
     part: PortfolioBalancePart.Tokens,
     chainId,
     enabled: portfolioPoolsBalancesEnabled,

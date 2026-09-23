@@ -1,11 +1,9 @@
-import { FeatureFlags } from '@universe/gating'
+import { Flex, spacing, Text } from '@universe/mycelium'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FlatList } from 'react-native-gesture-handler'
 import { useTokenDetailsNavigation } from 'src/components/TokenDetails/hooks'
-import { useGatedTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
-import { Flex, Text } from 'ui/src'
-import { spacing } from 'ui/src/theme'
+import { useTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
 import { TokenCard } from 'uniswap/src/components/TokenCard/TokenCard'
 import { resolvePrimaryChain } from 'uniswap/src/data/apiClients/dataApiService/rwa/resolvePrimaryChain'
 import type { ExploreStockShelfItem } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
@@ -24,7 +22,7 @@ const LIST_CONTENT_CONTAINER_STYLE = {
 
 export function OtherStocks(): JSX.Element | null {
   const { t } = useTranslation()
-  const rwaMatch = useGatedTokenDetailsRWAMatch(FeatureFlags.RWATdpRelatedTokens)
+  const rwaMatch = useTokenDetailsRWAMatch()
   const { featured } = useExploreStocks([], {
     enabled: Boolean(rwaMatch),
     excludeSymbol: rwaMatch?.asset.symbol,

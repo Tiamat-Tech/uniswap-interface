@@ -389,6 +389,8 @@ export function getPostAuctionLiquidityPreviewPercent(allocation: PostAuctionLiq
 // Raise-currency resolution lives in its own module; re-exported here so callers keep one import
 // path for CreateAuction utilities.
 export {
+  areRaiseCurrencyOptionsSameToken,
+  getEffectiveRaiseCurrency,
   getPrimaryStablecoin,
   getRaiseCurrencyAddress,
   getRaiseCurrencyAsCurrency,
@@ -471,10 +473,17 @@ export {
   addCustomPriceRangePreset,
   clampCustomPriceRangeLiquidityPercent,
   createDefaultCustomPriceRangeEntry,
+  CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS,
+  FULL_RANGE_REMAINDER_BOUNDS,
+  FULL_RANGE_REMAINDER_ENTRY_ID,
+  getCustomPriceRangeFullRangeRemainderPercent,
   getCustomPriceRangeLiquidityTotal,
+  getCustomPriceRangeTotalProblem,
   isCustomPriceRangeAllocationValid,
   isCustomPriceRangeEntryValid,
   removeCustomPriceRangeEntry,
+  shouldShowFullRangeRemainder,
   updateCustomPriceRangeBounds,
   updateCustomPriceRangeLiquidityPercent,
+  withFullRangeRemainderEntry,
 } from '~/pages/Liquidity/CreateAuction/customPriceRanges'

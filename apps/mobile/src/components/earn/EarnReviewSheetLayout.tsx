@@ -1,12 +1,9 @@
 import { BottomSheetView } from '@gorhom/bottom-sheet'
-import { isAndroid } from '@universe/environment'
+import { Flex, spacing } from '@universe/mycelium'
 import { useCallback, useState } from 'react'
 import type { LayoutChangeEvent } from 'react-native'
-import { Flex } from 'ui/src'
-import { DEFAULT_BOTTOM_INSET } from 'ui/src/hooks/constants'
-import { spacing } from 'ui/src/theme'
 import { TransactionModalFooterContainer } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModal'
-import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
+import { useBottomScreenGap } from 'uniswap/src/hooks/useBottomScreenGap'
 
 interface EarnReviewSheetLayoutProps {
   content: JSX.Element
@@ -30,17 +27,15 @@ const ESTIMATED_ACTION_HEIGHT = 56
  * content change. A plain re-render reliably remeasures the sheet.
  */
 function EarnReviewSheetLayout({ content, action }: EarnReviewSheetLayoutProps): JSX.Element {
-  const insets = useAppInsets()
+  const { bottomScreenTotalGap } = useBottomScreenGap()
   const [actionHeight, setActionHeight] = useState(ESTIMATED_ACTION_HEIGHT)
   const onActionLayout = useCallback((event: LayoutChangeEvent): void => {
     setActionHeight(event.nativeEvent.layout.height)
   }, [])
 
-  // Mirrors TransactionModalFooterContainer's insets: pt spacing24 above the action, bottom inset
-  // below (Android gesture nav gets an extra spacing8).
-  const footerBottomInset =
-    isAndroid && insets.bottom !== DEFAULT_BOTTOM_INSET ? insets.bottom + spacing.spacing8 : insets.bottom
-  const footerSpace = actionHeight + spacing.spacing24 + footerBottomInset
+  // Mirrors TransactionModalFooterContainer's own padding exactly: pt spacing24 above the action,
+  // bottomScreenTotalGap below — the same hook the footer uses, so the reserved space always tracks it.
+  const footerSpace = actionHeight + spacing.spacing24 + bottomScreenTotalGap
 
   return (
     <>

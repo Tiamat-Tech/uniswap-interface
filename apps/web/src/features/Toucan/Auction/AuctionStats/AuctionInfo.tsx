@@ -1,68 +1,65 @@
+import { cn, Flex, FlexCompatProps, Text, TextCompatProps } from '@universe/mycelium'
+import { Globe } from '@universe/mycelium/icons/Globe'
+import { Lock } from '@universe/mycelium/icons/Lock'
+import { XTwitter } from '@universe/mycelium/icons/XTwitter'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { ReactNode, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, useMedia } from 'ui/src'
-import { Globe } from 'ui/src/components/icons/Globe'
-import { Lock } from 'ui/src/components/icons/Lock'
-import { XTwitter } from 'ui/src/components/icons/XTwitter'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
 import { shortenAddress } from 'utilities/src/addresses'
 import { useAuctionLiquidityLock } from '~/features/Toucan/Auction/hooks/useAuctionLiquidityLock'
 import { useAuctionStatsData } from '~/features/Toucan/Auction/hooks/useAuctionStatsData'
 import { formatTimestampToDate } from '~/features/Toucan/Auction/utils/formatting'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
-import { ExternalLink } from '~/theme/components/Links'
+import { ExternalLink, type ExternalLinkProps } from '~/theme/components/Links'
 import { ClickableTamaguiStyle } from '~/theme/components/styles'
 
-const InfoRow = styled(Flex, {
-  width: '100%',
-  flexDirection: 'row',
-  gap: '$spacing16',
-})
+const InfoRow = (props: FlexCompatProps) => <Flex width="100%" flexDirection="row" gap="$spacing16" {...props} />
 
-const InfoCell = styled(Flex, {
-  gap: '$spacing2',
-  paddingVertical: '$spacing2',
-  $md: {
-    paddingVertical: '$spacing2',
-  },
-  variants: {
-    withBorder: {
-      true: {
-        borderLeftWidth: 1,
-        borderColor: '$surface3',
-        paddingHorizontal: '$spacing16',
-      },
-    },
-  } as const,
-})
+const InfoCell = ({ withBorder, ...rest }: FlexCompatProps & { withBorder?: boolean }) => (
+  <Flex
+    gap="$spacing2"
+    paddingVertical="$spacing2"
+    $md={{ paddingVertical: '$spacing2' }}
+    {...(withBorder
+      ? { borderLeftWidth: 1, borderColor: '$surface3' as const, paddingHorizontal: '$spacing16' as const }
+      : undefined)}
+    {...rest}
+  />
+)
 
-const SocialBadge = styled(Text, {
-  variant: 'buttonLabel3',
-  display: 'flex',
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: '$spacing8',
-  paddingHorizontal: '$spacing12',
-  height: 32,
-  borderRadius: '$rounded20',
-  backgroundColor: '$surface3',
-  ...ClickableTamaguiStyle,
-  color: '$neutral1',
-})
+const SocialBadge = (props: TextCompatProps) => (
+  <Text
+    variant="buttonLabel3"
+    display="flex"
+    flexDirection="row"
+    alignItems="center"
+    gap="$spacing8"
+    paddingHorizontal="$spacing12"
+    height={32}
+    borderRadius="$rounded20"
+    backgroundColor="$surface3"
+    {...ClickableTamaguiStyle}
+    color="$neutral1"
+    {...props}
+  />
+)
 
-const CompanyIcon = styled(Flex, {
-  width: 16,
-  height: 16,
-  borderRadius: '$roundedFull',
-  backgroundColor: '$accent1',
-  alignItems: 'center',
-  justifyContent: 'center',
-})
+const CompanyIcon = (props: FlexCompatProps) => (
+  <Flex
+    width={16}
+    height={16}
+    borderRadius="$roundedFull"
+    backgroundColor="$accent1"
+    alignItems="center"
+    justifyContent="center"
+    {...props}
+  />
+)
 
 // Override ExternalLink's pink stroke to prevent it from affecting child SVG icons
-const StyledExternalLink = deprecatedStyled(ExternalLink)`
-  stroke: none;
-`
+function StyledExternalLink({ className, ...props }: ExternalLinkProps): JSX.Element {
+  return <ExternalLink className={cn('[stroke:none]', className)} {...props} />
+}
 
 const AddressWithCopy = ({ address }: { address: string }) => (
   <Flex row gap="$spacing4" alignItems="center" flexWrap="nowrap">

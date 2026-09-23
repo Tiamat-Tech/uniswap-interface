@@ -1,4 +1,4 @@
-import { Flex, Text } from 'ui/src'
+import { Flex, Text } from '@universe/mycelium'
 import { GasFieldTextInput } from 'uniswap/src/features/gas/components/NetworkCostEditor/GasFieldTextInput'
 import {
   GasFieldTooltip,
@@ -7,6 +7,7 @@ import {
 import { useEvent } from 'utilities/src/react/hooks'
 
 const DISALLOWED_CHARS = /[^0-9.,]/g
+export const MAX_GAS_FIELD_INPUT_LENGTH = 15
 
 export interface GasFieldInputProps {
   label: string
@@ -32,7 +33,7 @@ export function GasFieldInput({
   autoFocus,
 }: GasFieldInputProps): JSX.Element {
   const handleChangeText = useEvent((next: string) => {
-    onChangeValue(next.replace(DISALLOWED_CHARS, ''))
+    onChangeValue(next.replace(DISALLOWED_CHARS, '').slice(0, MAX_GAS_FIELD_INPUT_LENGTH))
   })
 
   return (
@@ -64,6 +65,7 @@ export function GasFieldInput({
           accessibilityLabel={label}
           autoFocus={autoFocus}
           keyboardType="decimal-pad"
+          maxLength={MAX_GAS_FIELD_INPUT_LENGTH}
           value={value}
           onChangeText={handleChangeText}
         />

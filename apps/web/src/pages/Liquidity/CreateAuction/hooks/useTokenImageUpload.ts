@@ -1,7 +1,7 @@
 import { Code, ConnectError } from '@connectrpc/connect'
 import { useMutation } from '@tanstack/react-query'
-import type { VerifyTokenFactoryImageResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { VerifyTokenFactoryImageResponse_Status } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import type { VerifyTokenFactoryImageResponse } from '@uniswap/client-launches/dist/launches/v1/token_factory_pb'
+import { VerifyTokenFactoryImageResponse_Status } from '@uniswap/client-launches/dist/launches/v1/token_factory_pb'
 import { useCallback, useRef, useState, type MutableRefObject } from 'react'
 import {
   createTokenFactoryPresignedUrl,

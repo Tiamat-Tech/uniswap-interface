@@ -1,5 +1,7 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { Flex, styled, Nav, useMedia } from 'ui/src'
+import { Flex, type FlexCompatProps } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { forwardRef } from 'react'
 import { INTERFACE_NAV_HEIGHT, zIndexes } from 'ui/src/theme'
 import { useConnectionStatus } from 'uniswap/src/features/accounts/store/hooks'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
@@ -14,17 +16,21 @@ import { TestnetModeTooltip } from '~/components/NavBar/TestnetMode/TestnetModeT
 import { Web3Status } from '~/components/Web3Status'
 import { PageType, useIsPage } from '~/hooks/useIsPage'
 
-const NavItemsRow = styled(Flex, {
-  position: 'unset',
-  row: true,
-  minWidth: 0,
-  alignItems: 'center',
-  flexWrap: 'nowrap',
-  justifyContent: 'flex-start',
-  gap: '$spacing12',
-  $md: {
-    gap: '$spacing4',
-  },
+const NavItemsRow = forwardRef<HTMLDivElement, FlexCompatProps>(function NavItemsRow({ $md: md, ...props }, ref) {
+  return (
+    <Flex
+      ref={ref}
+      position="static"
+      row
+      minWidth={0}
+      alignItems="center"
+      flexWrap="nowrap"
+      justifyContent="flex-start"
+      gap="$spacing12"
+      $md={{ gap: '$spacing4', ...md }}
+      {...props}
+    />
+  )
 })
 
 export function Navbar() {
@@ -40,7 +46,8 @@ export function Navbar() {
   const isEmbeddedWalletEnabled = useFeatureFlag(FeatureFlags.EmbeddedWallet)
 
   return (
-    <Nav
+    <Flex
+      tag="nav"
       position="unset"
       px="$padding12"
       width="100%"
@@ -49,7 +56,7 @@ export function Navbar() {
       justifyContent="center"
     >
       <Flex
-        position="unset"
+        position="static"
         width="100%"
         alignItems="center"
         $platform-web={{
@@ -62,7 +69,7 @@ export function Navbar() {
           {areTabsVisible && <Tabs />}
         </NavItemsRow>
 
-        <Flex position="unset" centered>
+        <Flex position="static" centered>
           {isSearchBarVisible ? <SearchBar /> : null}
         </Flex>
 
@@ -74,6 +81,6 @@ export function Navbar() {
           <Web3Status />
         </NavItemsRow>
       </Flex>
-    </Nav>
+    </Flex>
   )
 }

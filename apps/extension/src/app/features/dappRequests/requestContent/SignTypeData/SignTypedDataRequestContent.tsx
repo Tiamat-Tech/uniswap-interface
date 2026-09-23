@@ -1,4 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DappRequestContent } from 'src/app/features/dappRequests/DappRequestContent'
@@ -9,8 +11,6 @@ import { UniswapXSwapRequestContent } from 'src/app/features/dappRequests/reques
 import { useUniswapXSwapPermissionedBlock } from 'src/app/features/dappRequests/requestContent/EthSend/Swap/useSwapRequestPermissionedBlock'
 import { NonStandardTypedDataRequestContent } from 'src/app/features/dappRequests/requestContent/SignTypeData/NonStandardTypedDataRequestContent'
 import { SignTypedDataRequest } from 'src/app/features/dappRequests/types/DappRequestTypes'
-import { Flex } from 'ui/src'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedDappChainId } from 'uniswap/src/features/chains/utils'
 import { useHasAccountMismatchCallback } from 'uniswap/src/features/smartWallet/mismatch/hooks'
 import { logger } from 'utilities/src/logger/logger'
@@ -107,6 +107,7 @@ function SignTypedDataRequestContentInner({ dappRequest }: SignTypedDataRequestP
 
   // Initialize with null to indicate scan hasn't completed yet
   const [riskLevel, setRiskLevel] = useState<TransactionRiskLevel | null>(null)
+  const [isCriticalRisk, setIsCriticalRisk] = useState(false)
 
   const parsedTypedData = JSON.parse(dappRequest.typedData)
   const domainChainId = toSupportedDappChainId(parsedTypedData.domain?.chainId)
@@ -138,7 +139,7 @@ function SignTypedDataRequestContentInner({ dappRequest }: SignTypedDataRequestP
       title={t('dapp.request.signature.header')}
       showAddressFooter={false}
       disableConfirm={disableConfirm}
-      isCriticalRisk={riskLevel === TransactionRiskLevel.Critical}
+      isCriticalRisk={isCriticalRisk}
     >
       <DappSignTypedDataContent
         chainId={chainId}
@@ -149,6 +150,7 @@ function SignTypedDataRequestContentInner({ dappRequest }: SignTypedDataRequestP
         confirmedRisk={confirmedRisk}
         onConfirmRisk={setConfirmedRisk}
         onRiskLevelChange={setRiskLevel}
+        onCriticalRiskChange={setIsCriticalRisk}
         typedData={dappRequest.typedData}
       />
     </DappRequestContent>

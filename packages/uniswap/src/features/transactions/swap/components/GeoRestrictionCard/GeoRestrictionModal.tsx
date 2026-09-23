@@ -1,6 +1,7 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text, TouchableArea, useSporeColors } from 'ui/src'
+import { Button, useSporeColors } from 'ui/src'
 import { LabeledCheckbox } from 'ui/src/components/checkbox/LabeledCheckbox'
 import { EnvelopeHeart } from 'ui/src/components/icons/EnvelopeHeart'
 import { Globe } from 'ui/src/components/icons/Globe'

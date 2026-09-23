@@ -1,6 +1,12 @@
 import { CompositeScreenProps } from '@react-navigation/native'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { StackScreenProps } from '@react-navigation/stack'
+import { Flex, ScrollView, Text, TouchableArea } from '@universe/mycelium'
+import { Cloud } from '@universe/mycelium/icons/Cloud'
+import { PenLine } from '@universe/mycelium/icons/PenLine'
+import { QuestionInCircleFilled } from '@universe/mycelium/icons/QuestionInCircleFilled'
+import { ShieldCheck } from '@universe/mycelium/icons/ShieldCheck'
+import { useShadowPropsShort } from '@universe/mycelium/theme-hooks-compat'
 import React, { useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -13,8 +19,6 @@ import { BackButton } from 'src/components/buttons/BackButton'
 import { checkCloudBackupOrShowAlert } from 'src/components/mnemonic/cloudImportUtils'
 import { OnboardingScreen } from 'src/features/onboarding/OnboardingScreen'
 import { OptionCard } from 'src/features/onboarding/OptionCard'
-import { Flex, ScrollView, Text, TouchableArea, useShadowPropsShort } from 'ui/src'
-import { Cloud, PenLine, QuestionInCircleFilled, ShieldCheck } from 'ui/src/components/icons'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { ImportType, OnboardingEntryPoint } from 'uniswap/src/types/onboarding'
@@ -74,7 +78,7 @@ export function BackupScreen({ navigation, route: { params } }: Props): JSX.Elem
 
   const onPressNext = (): void => {
     if (fromBackupCard) {
-      navigation.navigate(MobileScreens.Home)
+      navigation.navigate(MobileScreens.MainTabs, { screen: MobileScreens.Home })
     } else {
       navigation.navigate({
         name: OnboardingScreens.Notifications,

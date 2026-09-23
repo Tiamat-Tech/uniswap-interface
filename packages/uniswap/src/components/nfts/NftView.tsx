@@ -1,8 +1,9 @@
-import { isAndroid } from '@universe/environment'
-import { Flex, type FlexProps, TouchableArea } from 'ui/src'
+import { Flex, type FlexProps } from '@universe/mycelium'
 import { NFTViewer } from 'uniswap/src/components/nfts/NFTViewer'
+import { NftViewLongPressArea } from 'uniswap/src/components/nfts/NftViewLongPressArea'
 import { ESTIMATED_NFT_LIST_ITEM_SIZE } from 'uniswap/src/features/nfts/constants'
 import { type NFTItem } from 'uniswap/src/features/nfts/types'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
 export type NftViewProps = {
   item: NFTItem
@@ -43,25 +44,15 @@ export function NftView({ item, onPress, index, openContextMenu, hoverAnimation 
     hoverStyle: hoverAnimation ? { transform: 'scale(1.02)' } : undefined,
   }
 
-  if (isAndroid) {
-    return (
-      <Flex>
-        <TouchableArea
-          activeOpacity={1}
-          testID={`nfts-list-item-${index ?? 0}`}
-          // Needed to fix long press issue with context menu on Android
-          onLongPress={openContextMenu}
-          onPress={onPress}
-        >
-          <Flex {...baseFlexProps}>{nftView}</Flex>
-        </TouchableArea>
-      </Flex>
-    )
-  }
-
   return (
-    <Flex {...baseFlexProps} cursor="pointer" onPress={onPress} onLongPress={openContextMenu}>
-      {nftView}
-    </Flex>
+    <NftViewLongPressArea
+      testID={`${TestID.NftsListItemPrefix}${index ?? 0}`}
+      onLongPress={openContextMenu}
+      onPress={onPress}
+    >
+      <Flex {...baseFlexProps} cursor="pointer">
+        {nftView}
+      </Flex>
+    </NftViewLongPressArea>
   )
 }

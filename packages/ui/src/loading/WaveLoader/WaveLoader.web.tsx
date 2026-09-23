@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src/components/layout'
+import { Flex } from '@universe/mycelium'
 import { useSporeColors } from 'ui/src/hooks/useSporeColors'
 import { WAVE_TILE_COUNT, WAVE_WIDTH, resolveWaveLoader } from 'ui/src/loading/WaveLoader/shared'
 import { Wave } from 'ui/src/loading/WaveLoader/Wave'

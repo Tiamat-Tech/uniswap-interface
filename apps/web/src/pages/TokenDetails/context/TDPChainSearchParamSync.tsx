@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getTokenDetailsURLForMultichainEntry } from '~/pages/TokenDetails/context/tdpUrlUtils'
 import { useTDPStore } from '~/pages/TokenDetails/context/useTDPStore'
 import { useMultichainTokenEntries } from '~/pages/TokenDetails/hooks/useMultichainTokenEntries'

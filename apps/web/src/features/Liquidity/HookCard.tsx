@@ -1,10 +1,8 @@
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { Code } from '@universe/mycelium/icons/Code'
 import type { ReactNode } from 'react'
-import { Flex, Text } from 'ui/src'
-import { Code } from 'ui/src/components/icons/Code'
-import { Verified } from 'ui/src/components/icons/Verified'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
-import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { shortenAddress } from 'utilities/src/addresses'
 
@@ -14,7 +12,8 @@ interface HookCardProps {
   chain?: string
   chainId?: UniverseChainId
   icon?: ReactNode
-  verified?: boolean
+  // Full-bleed 36x36 art that replaces the default surface-boxed icon (e.g. a branded hook logo).
+  logo?: ReactNode
   copyableAddress?: boolean
   addressEndAdornment?: ReactNode
 }
@@ -25,7 +24,7 @@ export function HookCard({
   chain,
   chainId,
   icon,
-  verified,
+  logo,
   copyableAddress,
   addressEndAdornment,
 }: HookCardProps) {
@@ -34,28 +33,24 @@ export function HookCard({
   return (
     <Flex row alignItems="center" gap="$gap12">
       <Flex width={36} height={36}>
-        <Flex
-          width={36}
-          height={36}
-          backgroundColor="$surface3"
-          borderRadius="$rounded8"
-          alignItems="center"
-          justifyContent="center"
-        >
-          {icon ?? <Code size={20} color="$neutral1" />}
-        </Flex>
-        {chainId ? (
-          <Flex position="absolute" bottom={-2} right={-3}>
-            <NetworkLogo chainId={chainId} size={14} borderWidth={1.5} />
+        {logo ?? (
+          <Flex
+            width={36}
+            height={36}
+            backgroundColor="$surface3"
+            borderRadius="$rounded8"
+            alignItems="center"
+            justifyContent="center"
+          >
+            {icon ?? <Code size={20} color="$neutral1" />}
           </Flex>
-        ) : null}
+        )}
       </Flex>
       <Flex flex={1}>
         <Flex row alignItems="center" gap="$gap8">
           <Text variant="body2" color="$neutral1">
             {name || shortenAddress({ address })}
           </Text>
-          {verified ? <Verified size="$icon.16" color="$accent1" /> : null}
         </Flex>
         <Flex row alignItems="center" gap="$gap4">
           {networkLabel ? (

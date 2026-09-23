@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { DEFAULT_NATIVE_ADDRESS, DEFAULT_NATIVE_ADDRESS_LEGACY } from 'uniswap/src/features/chains/evm/defaults'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useCurrencyInfoWithLoading } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { formatUnits } from 'viem'
@@ -12,7 +12,7 @@ import {
   TransactionSection,
   TransactionSectionType,
 } from 'wallet/src/features/dappRequests/types'
-import { roundToDecimals } from 'wallet/src/features/dappRequests/utils/blockaidUtils'
+import { roundToDecimals } from 'wallet/src/features/dappRequests/utils/blockaidAssetUtils'
 
 interface UseParseUniswapXSwapResult extends ParsedTransactionData {
   /** Whether the hook is still loading currency info */

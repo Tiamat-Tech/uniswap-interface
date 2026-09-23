@@ -1,18 +1,20 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import type { UniverseChainId } from '@universe/chains'
+import { AnimatedFlex, Text, TouchableArea } from '@universe/mycelium'
 import { useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Text, TouchableArea } from 'ui/src'
+import { Button } from 'ui/src'
 import { Search } from 'ui/src/components/icons/Search'
 import { X } from 'ui/src/components/icons/X'
-import { Flex } from 'ui/src/components/layout/Flex'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
+import { getHookRegistryKey, useHookRegistryMap } from 'uniswap/src/features/poolHooks/hooks/useHookRegistryMap'
+import { useUniswapHookProvenance } from 'uniswap/src/features/poolHooks/hooks/useUniswapHookProvenance'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { useLiquidityUrlState } from '~/features/Liquidity/Create/hooks/useLiquidityUrlState'
 import { HookCard } from '~/features/Liquidity/HookCard'
-import { getHookRegistryKey, useHookRegistryMap } from '~/hooks/useHookRegistryMap'
+import { UniswapBuiltHookIcon } from '~/features/Liquidity/UniswapBuiltHookIcon'
 import { useCreateLiquidityContext } from '~/pages/CreatePosition/CreateLiquidityContextProvider'
 
 export function AddHook() {
@@ -32,13 +34,16 @@ export function AddHook() {
     | UniverseChainId
     | undefined
 
-  // Resolve the hook address against the session-cached hook registry (one cross-chain fetch,
-  // then synchronous map lookups) instead of issuing a per-address backend query. Deferred until
-  // a hook is actually set so merely mounting AddHook doesn't fetch the registry.
-  const hookRegistryMap = useHookRegistryMap({ enabled: !!hook || !!initialHook })
+  // Resolve the hook address against the session-cached registry for the selected tokens' chain (one
+  // fetch per chain, then synchronous map lookups) instead of issuing a per-address backend query.
+  // The lookup needs both a hook and its chain, so don't fetch until both are known — merely
+  // mounting AddHook fetches nothing.
+  const hookRegistryMap = useHookRegistryMap({ chainId, enabled: !!chainId && (!!hook || !!initialHook) })
   const registryHookEntry =
     hook && chainId ? hookRegistryMap?.get(getHookRegistryKey({ chainId, hookAddress: hook })) : undefined
   const hookEntry = selectedHookEntry ?? registryHookEntry
+
+  const getUniswapHookProvenance = useUniswapHookProvenance()
 
   useEffect(() => {
     if (initialHook && protocolVersion === ProtocolVersion.V4) {
@@ -55,8 +60,12 @@ export function AddHook() {
   }, [setSelectedHookEntry, setPositionState])
 
   if (hook) {
+    // One resolved chain for both the badge predicate and the card — the registry entry's chain when
+    // it's a known universe chain, else the token chain — so the two can't key on different chains.
+    const hookChainId = isUniverseChainId(hookEntry?.chainId) ? hookEntry.chainId : chainId
+    const isUniswapHook = getUniswapHookProvenance({ chainId: hookChainId, address: hook }) !== undefined
     return (
-      <Flex
+      <AnimatedFlex
         row
         alignItems="center"
         backgroundColor="$surface2"
@@ -70,8 +79,8 @@ export function AddHook() {
             address={hook}
             name={hookEntry?.name}
             chain={hookEntry?.chain}
-            chainId={isUniverseChainId(hookEntry?.chainId) ? hookEntry.chainId : chainId}
-            verified={hookEntry?.verifiedSource}
+            chainId={hookChainId}
+            logo={isUniswapHook ? <UniswapBuiltHookIcon /> : undefined}
           />
         </TouchableArea>
         <TouchableArea
@@ -83,12 +92,12 @@ export function AddHook() {
         >
           <X size="$icon.20" color="$neutral3" />
         </TouchableArea>
-      </Flex>
+      </AnimatedFlex>
     )
   }
 
   return (
-    <Flex
+    <AnimatedFlex
       testID={TestID.HookAddButton}
       row
       alignItems="center"
@@ -99,19 +108,19 @@ export function AddHook() {
       px="$padding16"
       gap="$gap12"
     >
-      <Flex flex={1}>
-        <Flex row alignItems="center" gap="$gap4">
+      <AnimatedFlex flex={1}>
+        <AnimatedFlex row alignItems="center" gap="$gap4">
           <Text variant="body2" color="$neutral1">
             {t('position.addHook')}
           </Text>
           <Text variant="body2" color="$neutral3">
             {t('common.optional')}
           </Text>
-        </Flex>
+        </AnimatedFlex>
         <Text variant="body3" color="$neutral2">
           {t('position.addHook.subtitle')}
         </Text>
-      </Flex>
+      </AnimatedFlex>
       <Trace logPress element={ElementName.AddHook}>
         <Button
           size="xsmall"
@@ -121,9 +130,11 @@ export function AddHook() {
           testID={TestID.HookSelectButton}
           onPress={() => setHookSearchModalOpen(true)}
         >
-          {t('common.button.search')}
+          {/* i18next resolves this key's trailing `.search` against `String.prototype`, so
+              `t()` types as `string | String['search']` and the function half needs casting off. */}
+          {t('common.button.search') as string}
         </Button>
       </Trace>
-    </Flex>
+    </AnimatedFlex>
   )
 }

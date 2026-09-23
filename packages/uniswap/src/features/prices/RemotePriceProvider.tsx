@@ -1,5 +1,4 @@
 import { SharedQueryClient } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import {
   PriceServiceProvider,
   RestPriceBatcher,
@@ -12,27 +11,15 @@ import { createRestPriceClient } from 'uniswap/src/features/prices/createRestPri
 
 type RemotePriceProviderProps = {
   children: ReactNode
-  /**
-   * Optional Aurora live-price websocket client. This is only passed to
-   * PriceServiceProvider when the CentralizedPrices flag selects the Aurora
-   * live path; the TAPI quote path intentionally ignores it.
-   */
+  /** Aurora live-price websocket client. Omitted on platforms with no live-price transport. */
   wsClient?: WebSocketClient<TokenSubscriptionParams, TokenPriceMessage['data']>
 }
 
 export function RemotePriceProvider({ children, wsClient }: RemotePriceProviderProps): ReactElement {
-  const usesAuroraLivePrices = useFeatureFlag(FeatureFlags.CentralizedPrices)
-
-  const [auroraRestBatcher] = useState(() => new RestPriceBatcher(createRestPriceClient()))
-  const [quoteRestBatcher] = useState(() => new RestPriceBatcher(createRestPriceClient({ preferQuotePrices: true })))
-  const restBatcher = usesAuroraLivePrices ? auroraRestBatcher : quoteRestBatcher
+  const [restBatcher] = useState(() => new RestPriceBatcher(createRestPriceClient()))
 
   return (
-    <PriceServiceProvider
-      wsClient={usesAuroraLivePrices ? wsClient : undefined}
-      queryClient={SharedQueryClient}
-      restBatcher={restBatcher}
-    >
+    <PriceServiceProvider wsClient={wsClient} queryClient={SharedQueryClient} restBatcher={restBatcher}>
       {children}
     </PriceServiceProvider>
   )

@@ -4,10 +4,12 @@ import type { EarnAnalyticsEntryPoint, EarnAnalyticsSurface } from 'uniswap/src/
 
 export function useLogEarnSurfaceViewed({
   entryPoint,
+  isReadOnly,
   isVisible,
   surface,
 }: {
   entryPoint: EarnAnalyticsEntryPoint
+  isReadOnly?: boolean
   isVisible: boolean
   surface: EarnAnalyticsSurface
 }): void {
@@ -16,6 +18,10 @@ export function useLogEarnSurfaceViewed({
       return
     }
 
-    logEarnSurfaceViewed({ entry_point: entryPoint, surface })
-  }, [entryPoint, isVisible, surface])
+    logEarnSurfaceViewed({
+      entry_point: entryPoint,
+      surface,
+      ...(isReadOnly !== undefined && { is_read_only: isReadOnly }),
+    })
+  }, [entryPoint, isReadOnly, isVisible, surface])
 }

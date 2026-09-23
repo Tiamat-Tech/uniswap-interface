@@ -1,5 +1,4 @@
 import { GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useMemo } from 'react'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
 import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
@@ -8,8 +7,8 @@ import { findRWAMatch, type RWACandidate, type RWAMatch } from 'uniswap/src/feat
 import { useRWAWhitelist } from 'uniswap/src/features/rwa/useRWAWhitelist'
 import { isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 
-export function useTokenDetailsRWAMatch({ enabled = true }: { enabled?: boolean } = {}): RWAMatch | undefined {
-  const rwaWhitelist = useRWAWhitelist(enabled)
+export function useTokenDetailsRWAMatch(): RWAMatch | undefined {
+  const rwaWhitelist = useRWAWhitelist()
   const { address, chainId, currencyId } = useTokenDetailsContext()
 
   const { data } = GraphQLApi.useTokenDetailsScreenQuery({
@@ -36,20 +35,5 @@ export function useTokenDetailsRWAMatch({ enabled = true }: { enabled?: boolean 
     return candidates
   }, [address, chainId, data?.token?.project?.tokens])
 
-  return useMemo(
-    () => (enabled ? findRWAMatch({ rwaWhitelist, candidates: rwaCandidates }) : undefined),
-    [enabled, rwaCandidates, rwaWhitelist],
-  )
-}
-
-/** RWA whitelist match for the current TDP token, fetched only while the given feature flag is on. */
-export function useGatedTokenDetailsRWAMatch(flag: FeatureFlags): RWAMatch | undefined {
-  const enabled = useFeatureFlag(flag)
-  return useTokenDetailsRWAMatch({ enabled })
-}
-
-export function useTokenDetailsPreferProjectMarketData(): boolean {
-  const rwaMatch = useGatedTokenDetailsRWAMatch(FeatureFlags.RWACoinGeckoData)
-
-  return rwaMatch !== undefined
+  return useMemo(() => findRWAMatch({ rwaWhitelist, candidates: rwaCandidates }), [rwaCandidates, rwaWhitelist])
 }

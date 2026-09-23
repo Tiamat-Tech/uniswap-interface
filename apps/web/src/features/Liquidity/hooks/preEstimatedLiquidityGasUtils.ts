@@ -2,6 +2,7 @@ import { Currency } from '@uniswap/sdk-core'
 import { Pair } from '@uniswap/v2-sdk'
 import { maxLiquidityForAmounts, TickMath, Pool as V3Pool, Position as V3Position } from '@uniswap/v3-sdk'
 import { Pool as V4Pool, Position as V4Position } from '@uniswap/v4-sdk'
+import { UniverseChainId } from '@universe/chains'
 import {
   DynamicConfigs,
   LiquidityApprovalSimulationConfigKey,
@@ -9,8 +10,7 @@ import {
   useDynamicConfigValue,
 } from '@universe/gating'
 import JSBI from 'jsbi'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { wrappedNativeCurrency } from 'uniswap/src/utils/currency'
+import { getWrappedTokenIfExists, wrappedNativeCurrency } from 'uniswap/src/utils/currency'
 
 /** Fallback when balance is unknown or no amount yields non-zero liquidity client-side. */
 export const DUMMY_AMOUNT = '1'
@@ -105,8 +105,8 @@ type V2LiquidityInput = {
 function liquidityForIndependentAmountV2(input: V2LiquidityInput): JSBI {
   const { pair, independentCurrency, independentAmount } = input
   const token0 = pair.token0
-  const wrappedIndep = independentCurrency.wrapped
-  const isToken0 = wrappedIndep.equals(token0)
+  const wrappedIndep = getWrappedTokenIfExists(independentCurrency)
+  const isToken0 = Boolean(wrappedIndep?.equals(token0))
 
   const r0 = pair.reserve0.quotient
   const r1 = pair.reserve1.quotient
@@ -164,7 +164,9 @@ function computePreEstimateAmountRawFor({
   token0: Currency
   independentCurrency: Currency
 }): string {
-  const independentIsToken0 = independentCurrency.wrapped.equals(token0.wrapped)
+  const wrappedIndependent = getWrappedTokenIfExists(independentCurrency)
+  const wrappedToken0 = getWrappedTokenIfExists(token0)
+  const independentIsToken0 = Boolean(wrappedIndependent && wrappedToken0 && wrappedIndependent.equals(wrappedToken0))
 
   if (poolOrPair instanceof Pair) {
     return findMinimalPreEstimateIndependentAmountRaw(
@@ -259,7 +261,7 @@ export function currencyIsNativeOrWrappedNative(currency: Currency, chainId: num
     return true
   }
   const wrapped = wrappedNativeCurrency(chainId as UniverseChainId)
-  return wrapped ? currency.wrapped.equals(wrapped) : false
+  return wrapped ? getWrappedTokenIfExists(currency).equals(wrapped) : false
 }
 
 export type LiquidityPreEstimatePoolTokens = {

@@ -3,6 +3,7 @@ import { queryOptions, type UseQueryResult, useQuery } from '@tanstack/react-que
 import { type GetPortfolioRequest, type GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { type Balance } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import { getGetPortfolioQueryOptions, transformInput, type WithoutWalletAccount } from '@universe/api'
+import { areAddressesEqual } from '@universe/chains'
 import {
   cleanupCaughtUpOverrides,
   getBalanceOverrideStateForAddress,
@@ -18,7 +19,6 @@ import { useRestPortfolioValueModifier } from 'uniswap/src/features/dataApi/bala
 import { fetchAndMergeOnchainBalances } from 'uniswap/src/features/portfolio/portfolioUpdates/refetchQueriesViaOnchainOverrideVariantSaga'
 import { removeExpiredBalanceOverrides } from 'uniswap/src/features/portfolio/slice/slice'
 import { type CurrencyId } from 'uniswap/src/types/currency'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { currencyIdToAddress, currencyIdToChain, isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 import { createLogger } from 'utilities/src/logger/logger'
 import { useEvent } from 'utilities/src/react/hooks'

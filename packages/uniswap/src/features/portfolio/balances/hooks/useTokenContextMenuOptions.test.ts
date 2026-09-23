@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
+import { UniverseChainId } from '@universe/chains'
 import { act } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   TokenMenuActionType,
   useTokenContextMenuOptions,

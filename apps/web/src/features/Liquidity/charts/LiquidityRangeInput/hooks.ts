@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import JSBI from 'jsbi'
 import { useMemo } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { persistableQueryOptions } from 'utilities/src/reactQuery/persistableQueryOptions'
 import { calculateTokensLocked } from '~/features/Liquidity/charts/LiquidityChart/utils/calculateTokensLocked'
 import { ChartEntry } from '~/features/Liquidity/charts/LiquidityRangeInput/types'
 import { usePoolActiveLiquidity } from '~/features/Liquidity/hooks/usePoolTickData'
 import { TickProcessed } from '~/features/Liquidity/utils/computeSurroundingTicks'
+import { V2Reserves } from '~/features/Liquidity/utils/v2SyntheticTicks'
 import { PositionField } from '~/types/position'
 
 /**
@@ -26,6 +27,7 @@ export function useDensityChartData({
   tickSpacing,
   hooks,
   skip,
+  v2Reserves,
 }: {
   poolId?: string
   sdkCurrencies: { [field in PositionField]: Maybe<Currency> }
@@ -36,6 +38,7 @@ export function useDensityChartData({
   tickSpacing?: number
   hooks?: string
   skip?: boolean
+  v2Reserves?: V2Reserves
 }) {
   const { isLoading, error, data, activeTick, liquidity, sqrtPriceX96 } = usePoolActiveLiquidity({
     sdkCurrencies,
@@ -46,6 +49,7 @@ export function useDensityChartData({
     tickSpacing,
     hooks,
     skip,
+    v2Reserves,
   })
 
   const fetcher = async () => {

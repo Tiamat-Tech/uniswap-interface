@@ -1,4 +1,5 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, TouchableArea, useIsDarkMode, useSporeColors } from '@universe/mycelium'
 import { BlurView } from 'expo-blur'
 import { type ReactNode, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +11,6 @@ import { ESTIMATED_BOTTOM_TABS_HEIGHT } from 'src/app/navigation/tabs/CustomTabB
 import { SwapButton } from 'src/app/navigation/tabs/SwapButton'
 import { useOpenReceiveModal } from 'src/features/modals/hooks/useOpenReceiveModal'
 import { openModal } from 'src/features/modals/modalSlice'
-import { Flex, Text, TouchableArea, useIsDarkMode, useSporeColors } from 'ui/src'
 import { Bank, Buy, ReceiveAlt, SendAction } from 'ui/src/components/icons'
 import { iconSizes } from 'ui/src/theme'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'

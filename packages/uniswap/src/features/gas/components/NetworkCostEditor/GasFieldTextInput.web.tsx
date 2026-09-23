@@ -5,6 +5,7 @@ export function GasFieldTextInput({
   accessibilityLabel,
   autoFocus,
   keyboardType,
+  maxLength,
   value,
   onChangeText,
 }: GasFieldTextInputProps): JSX.Element {
@@ -21,6 +22,7 @@ export function GasFieldTextInput({
       fontSize="$medium"
       height="auto"
       keyboardType={keyboardType}
+      maxLength={maxLength}
       outlineColor="$transparent"
       p="$none"
       placeholderTextColor="$neutral3"

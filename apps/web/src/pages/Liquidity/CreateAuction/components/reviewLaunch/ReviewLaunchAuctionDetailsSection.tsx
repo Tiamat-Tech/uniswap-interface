@@ -1,9 +1,8 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { ExternalLink as ExternalLinkIcon } from '@universe/mycelium/icons/ExternalLink'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { ExternalLink as ExternalLinkIcon } from 'ui/src/components/icons/ExternalLink'
-import { iconSizes } from 'ui/src/theme'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
@@ -25,6 +24,7 @@ import {
   type ConfigureAuctionFormState,
 } from '~/pages/Liquidity/CreateAuction/types'
 import { amountToPercent } from '~/pages/Liquidity/CreateAuction/utils'
+import { getEffectivePreBidStartTime } from '~/pages/Liquidity/CreateAuction/utils/duration'
 
 const CURRENCY_LOGO_SIZE = iconSizes.icon20
 
@@ -39,6 +39,8 @@ interface ReviewLaunchAuctionDetailsSectionProps {
   tokenSymbol: string
   /** New tokens show their (customizable) total supply; existing tokens omit it here. LP-960. */
   isNewToken: boolean
+  /** Quick launch never configures a pre-bid window; needed to keep the row off a request that omits it. */
+  isQuickLaunch: boolean
   tokenColor: TokenAccentHex | undefined
   stableRaiseUsdPrice: number | null
   floorPriceNum: number | undefined
@@ -54,6 +56,7 @@ export function ReviewLaunchAuctionDetailsSection({
   chainId,
   tokenSymbol,
   isNewToken,
+  isQuickLaunch,
   tokenColor,
   stableRaiseUsdPrice,
   floorPriceNum,
@@ -65,6 +68,13 @@ export function ReviewLaunchAuctionDetailsSection({
   const { formatNumberOrString, formatPercent } = useLocalizationContext()
   const { symbol: fiatSymbol } = useAppFiatCurrencyInfo()
   const raiseCurrencySymbol = raiseCurrencyInfo.currency.symbol ?? ''
+
+  // Same gate as the request builder: this is the last screen before signing, so it has to
+  // describe the auction that will be sent, not a window the request drops.
+  const preBidStartTime = getEffectivePreBidStartTime({
+    preBidStartTime: configureAuction.preBidStartTime,
+    isQuickLaunch,
+  })
 
   const postAuctionLiquidityAllocation = configureAuction.postAuctionLiquidityAllocation
   const postAuctionLiquidityPercentDisplay = Math.round(
@@ -103,6 +113,14 @@ export function ReviewLaunchAuctionDetailsSection({
   return (
     <Flex gap="$spacing16">
       <SectionHeader title={t('toucan.createAuction.step.configureAuction.title')} onEdit={onEditAuctionConfig} />
+
+      {/* Bidding opens here, ahead of the start date below — worth its own row so the creator
+          can check the window before signing an immutable auction. */}
+      {preBidStartTime ? (
+        <ReviewRow label={t('toucan.createAuction.step.configureAuction.preBid.startDate')}>
+          <ReviewAuctionDateTime date={preBidStartTime} />
+        </ReviewRow>
+      ) : null}
 
       {configureAuction.startTime ? (
         <ReviewRow label={t('toucan.createAuction.step.reviewLaunch.startDate')}>

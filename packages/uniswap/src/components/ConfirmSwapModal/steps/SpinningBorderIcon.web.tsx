@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { PropsWithChildren } from 'react'
-import { Flex } from 'ui/src'
 import { useInjectSingleStylesheet } from 'utilities/src/react/useInjectSingleStylesheet'
 
 const SPINNER_KEYFRAMES_ID = 'uniswap-spinner-keyframes'

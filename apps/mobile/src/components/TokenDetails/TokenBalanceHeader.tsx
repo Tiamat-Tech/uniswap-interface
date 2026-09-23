@@ -1,8 +1,7 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { DataApiOutageModalContent } from 'uniswap/src/features/dataApi/outage/DataApiOutageModalContent'
@@ -29,7 +28,6 @@ export function TokenBalanceHeader({
   const { convertFiatAmountFormatted, formatNumberOrString } = useLocalizationContext()
   const { isTestnetModeEnabled } = useEnabledChains()
 
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const [isOutageSheetOpen, setIsOutageSheetOpen] = useState(false)
   const handleOutagePress = useEvent(() => setIsOutageSheetOpen(true))
   const handleOutageSheetClose = useEvent(() => setIsOutageSheetOpen(false))
@@ -58,7 +56,6 @@ export function TokenBalanceHeader({
               numericValue={balance.balanceUSD ?? undefined}
               value={fiatBalance}
               textVariant="$heading3"
-              disableAnimations={!isDataLivelinessEnabled}
             />
           )}
           <Text color="$neutral2" variant="body2" lineHeight="$large">

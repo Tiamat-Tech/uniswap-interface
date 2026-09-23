@@ -1,11 +1,10 @@
 /* oxlint-disable typescript/no-unnecessary-condition typescript/explicit-function-return-type typescript/unbound-method */
 import { tryProvideSession } from '@universe/api'
-import type { ViemClientManager } from '@universe/chains'
+import { type ViemClientManager, UniverseChainId } from '@universe/chains'
 import { Signer } from 'ethers'
 import { createContext, PropsWithChildren, useCallback, useContext, useEffect, useState } from 'react'
 import { call, getContext } from 'typed-redux-saga'
 import { SignerMnemonicAccountMeta } from 'uniswap/src/features/accounts/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { createEthersProviderFactory } from 'uniswap/src/features/providers/createEthersProvider'
 import { defaultResolveRpcConfig } from 'uniswap/src/features/providers/resolveRpcConfig'
 import { viemClients } from 'uniswap/src/features/providers/viemClients'

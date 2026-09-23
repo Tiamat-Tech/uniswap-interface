@@ -72,14 +72,13 @@ bun i18n:extract                # Extract localized strings (run after changing 
 - **React** for web/extension
 - **React Native** for mobile
 - **Redux Toolkit** for state management
-- **Tamagui** for cross-platform UI components
 - **Ethers.js/Viem** for blockchain interactions
 
 ### Code Organization Principles
 
 #### Styling
 
-- **ALWAYS** use `styled` from `ui/src` (never styled-components or direct Tamagui); UI components may use inline styling where appropriate
+- **ALWAYS** use `styled` from `ui/src` (never styled-components); UI components may use inline styling where appropriate
 - Use theme tokens instead of hardcoded values
 - Platform-specific files: `Component.ios.tsx`, `Component.android.tsx`, `Component.web.tsx`, `Component.native.tsx` (with stub files for platforms where specific implementation isn't needed)
 
@@ -113,6 +112,7 @@ bun i18n:extract                # Extract localized strings (run after changing 
 - Always update existing unit tests related to changes made
 - Run tests before considering a task to be 'complete'
 - Also run linting and typecheck before considering a task to be 'complete'
+- Don't ignore new lint warnings — fix them; suppress with a one-line reasoned `oxlint-disable-next-line` only when a proper fix would change behavior
 - Run `bun i18n:extract` after making changes to localized strings (e.g., using translation hooks like `useTranslation`)
 
 ## Critical Development Notes

@@ -1,4 +1,4 @@
-import { Flex, type FlexProps, Text, type TextProps } from 'ui/src'
+import { Flex, type FlexCompatProps as FlexProps, Text, type TextCompatProps as TextProps } from '@universe/mycelium'
 
 type SplitFormattedAmount = {
   decimals: string | undefined

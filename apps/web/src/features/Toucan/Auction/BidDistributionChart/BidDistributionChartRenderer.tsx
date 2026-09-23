@@ -1,11 +1,15 @@
+import '~/features/Toucan/Auction/BidDistributionChart/BidDistributionChartRenderer.css'
 /* oxlint-disable max-lines */
+import { Flex, Text } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
+import { useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useMedia, useSporeColors } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { useEvent } from 'utilities/src/react/hooks'
+import { ChartWrapper } from '~/components/Charts/ChartWrapper'
 import { BidLineTooltip } from '~/features/Toucan/Auction/BidDistributionChart/BidLineTooltip'
 import { ChartBarTooltip } from '~/features/Toucan/Auction/BidDistributionChart/ChartBarTooltip'
 import { ClearingPriceTooltip } from '~/features/Toucan/Auction/BidDistributionChart/ClearingPriceTooltip'
@@ -46,45 +50,16 @@ import type {
 import { calculatePriceScaleFactor } from '~/features/Toucan/ToucanChart/bidDistribution/utils/priceScaleFactor'
 import { calculateRangePaddingUnits } from '~/features/Toucan/ToucanChart/bidDistribution/utils/visibleRange'
 import type { ToucanChartData, ToucanChartSeriesOptions } from '~/features/Toucan/ToucanChart/renderer'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 
-const ChartContainer = deprecatedStyled.div<{ height: number }>`
-  width: 100%;
-  height: 100%;
-
-  /* Add padding to lightweight-charts container to prevent label cutoff */
-  .tv-lightweight-charts {
-    padding-top: 10px;
-    padding-bottom: 37px;
-    overflow: visible !important;
-  }
-
-  /* Shift y-axis canvas closer to the chart */
-  .tv-lightweight-charts td:first-child canvas {
-    left: 5px !important;
-    top: -5px !important;
-  }
-
-  /* Prevent y-axis labels from being cut off */
-  .tv-lightweight-charts td:first-child > div {
-    overflow: visible !important;
-    background-color: ${({ theme }) => theme.surface1} !important;
-    z-index: 5;
-    position: relative;
-  }
-`
-
-const ChartWrapper = deprecatedStyled.div<{ height: number }>`
-  position: relative;
-  width: 100%;
-  height: ${({ height }) => height}px;
-  overflow: visible;
-`
+const ChartContainer = styled('div', {
+  platform: 'web',
+  base: 'bid-distribution-chart-container',
+})
 
 function BidDistributionChartRendererComponent({
   chartData,
   bidTokenInfo,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals,
   clearingPrice,
   onchainClearingPrice,
@@ -327,7 +302,7 @@ function BidDistributionChartRendererComponent({
 
   const { formatPrice, formatTokenAmount } = useAuctionValueFormatters({
     bidTokenInfo,
-    totalSupply,
+    totalSupply: tokenTotalSupply,
     auctionTokenDecimals,
   })
 
@@ -669,7 +644,7 @@ function BidDistributionChartRendererComponent({
       rangePaddingUnits,
       totalBidVolume,
       bidTokenInfo,
-      totalSupply,
+      tokenTotalSupply,
       auctionTokenDecimals,
       floorPriceQ96: floorPrice,
       clearingPriceQ96: clearingPrice,
@@ -725,7 +700,7 @@ function BidDistributionChartRendererComponent({
     tickSize,
     tickSizeDecimal,
     totalBidVolume,
-    totalSupply,
+    tokenTotalSupply,
     effectiveUserBidPriceDecimal,
     userBids,
     connectedWalletAddress,
@@ -739,7 +714,7 @@ function BidDistributionChartRendererComponent({
   return (
     <Flex width="100%" height={height + LABEL_CONFIG.PADDING_BOTTOM}>
       <ChartWrapper height={height}>
-        <ChartContainer ref={chartContainerRef} height={height} />
+        <ChartContainer ref={chartContainerRef} />
         {chartMode === 'demand' && (
           <Text variant="body4" color="$neutral3" position="absolute" top={2} left={4} pointerEvents="none">
             {t('toucan.bidDistribution.yAxis.committedVolume')}
@@ -767,7 +742,7 @@ function BidDistributionChartRendererComponent({
           ref={clearingPriceTooltipRef}
           state={clearingPriceTooltipState}
           bidTokenInfo={bidTokenInfo}
-          totalSupply={totalSupply}
+          tokenTotalSupply={tokenTotalSupply}
           auctionTokenDecimals={auctionTokenDecimals}
           overrideLeft={isStacked ? adjustedClearingPricePos.left : undefined}
           overrideTop={isStacked ? adjustedClearingPricePos.top : undefined}
@@ -783,7 +758,7 @@ function BidDistributionChartRendererComponent({
           totalVolume={chartBarTooltipState.totalVolume}
           tickQ96={chartBarTooltipState.tickQ96}
           bidTokenInfo={bidTokenInfo}
-          totalSupply={totalSupply}
+          tokenTotalSupply={tokenTotalSupply}
           auctionTokenDecimals={auctionTokenDecimals}
           formatter={formatFdvValue}
           volumeFormatter={formatYAxisLabel}

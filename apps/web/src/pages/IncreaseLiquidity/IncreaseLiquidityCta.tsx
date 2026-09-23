@@ -1,7 +1,7 @@
+import { Button } from '@universe/mycelium'
+import { ExternalLink } from '@universe/mycelium/icons/ExternalLink'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from 'ui/src'
-import { ExternalLink } from 'ui/src/components/icons/ExternalLink'
 
 type IncreaseLiquidityCtaProps = {
   isGeoRestricted: boolean

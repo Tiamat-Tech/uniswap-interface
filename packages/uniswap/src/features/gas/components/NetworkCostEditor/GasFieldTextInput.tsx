@@ -5,6 +5,7 @@ export interface GasFieldTextInputProps {
   accessibilityLabel: string
   autoFocus?: boolean
   keyboardType: KeyboardTypeOptions
+  maxLength?: number
   value: string
   onChangeText: (next: string) => void
 }

@@ -30,8 +30,14 @@ export function getIssuerCount(rwa: Rwa): number {
   return rwa.issuerTokens.length
 }
 
-export function getNetworkCount(issuer: IssuerToken): number {
-  return issuer.chainTokens.length
+/**
+ * Grouping payloads carry the issuer's full chainTokens list regardless of the request's chain
+ * scoping, so the "N networks" figure must be gated client-side on the enabled/allowed chain set
+ * (same convention as the Explore tokens table's getAllowedAddressChainIds).
+ */
+export function getNetworkCount(issuer: IssuerToken, enabledChainIds: readonly number[]): number {
+  const enabled = new Set(enabledChainIds)
+  return issuer.chainTokens.filter((chainToken) => enabled.has(chainToken.chainId)).length
 }
 
 export type RwaPriceDisplay =

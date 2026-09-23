@@ -9,6 +9,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import SidebarApp from 'src/app/core/SidebarApp'
 import { prefetchExtensionStatsigUserId } from 'src/app/core/StatsigProvider'
+import { applyInitialThemeClass } from 'src/app/utils/applyInitialThemeClass'
 import { onboardingMessageChannel } from 'src/background/messagePassing/messageChannels'
 import { OnboardingMessageType } from 'src/background/messagePassing/types/ExtensionMessages'
 import { getReduxStore } from 'src/store/store'
@@ -19,7 +20,7 @@ import { logger } from 'utilities/src/logger/logger'
 // oxlint-disable-next-line typescript/no-explicit-any -- Global polyfill cleanup requires any type for runtime modification
 ;(globalThis as any).regeneratorRuntime = undefined
 
-export function makeSidebar(): void {
+export async function makeSidebar(): Promise<void> {
   function initSidebar(): void {
     onboardingMessageChannel
       .sendMessage({
@@ -48,8 +49,18 @@ export function makeSidebar(): void {
   prefetchExtensionStatsigUserId()
   StoreSynchronization.init(ExtensionAppLocation.SidePanel)
   initializePortfolioQueryOverrides({ store: getReduxStore() })
+
+  try {
+    // The root `.dark` class must be set before the first React commit — the theme hooks read it at render time
+    await applyInitialThemeClass()
+  } catch (error) {
+    logger.error(error, {
+      tags: { file: 'main.tsx', function: 'makeSidebar' },
+    })
+  }
+
   initSidebar()
   initializeScrollWatcher()
 }
 
-makeSidebar()
+void makeSidebar()

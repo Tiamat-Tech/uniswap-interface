@@ -1,5 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { WalletFilled } from '@universe/mycelium/icons/WalletFilled'
+import { useIsDarkMode } from '@universe/mycelium/theme-hooks-compat'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { OnboardingStackParamList } from 'src/app/navigation/types'
@@ -11,9 +14,6 @@ import {
   restoreWalletWithSeedPhraseOption,
 } from 'src/screens/Import/constants'
 import { useNavigationHeader } from 'src/utils/useNavigationHeader'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { WalletFilled } from 'ui/src/components/icons'
-import { useIsDarkMode } from 'ui/src/hooks/useIsDarkMode'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'

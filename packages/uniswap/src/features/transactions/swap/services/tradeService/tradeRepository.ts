@@ -33,7 +33,14 @@ export function createTradeRepository(ctx: {
 }): TradeRepository {
   return {
     fetchQuote: async ({ isUSDQuote, ...params }): Promise<DiscriminatedQuoteResponse> => {
-      logSwapQuoteFetch({ chainId: params.tokenInChainId, isUSDQuote, quoteSource: 'trading_api' })
+      logSwapQuoteFetch({
+        chainId: params.tokenInChainId,
+        tokenOutChainId: params.tokenOutChainId,
+        tokenIn: params.tokenIn,
+        tokenOut: params.tokenOut,
+        isUSDQuote,
+        quoteSource: 'trading_api',
+      })
 
       const startTime = ctx.logger ? Date.now() : undefined
 
@@ -76,7 +83,13 @@ export function createTradeRepository(ctx: {
       return result
     },
     fetchIndicativeQuote: async (params): Promise<DiscriminatedQuoteResponse> => {
-      logSwapQuoteFetch({ chainId: params.tokenInChainId, isQuickRoute: true })
+      logSwapQuoteFetch({
+        chainId: params.tokenInChainId,
+        tokenOutChainId: params.tokenOutChainId,
+        tokenIn: params.tokenIn,
+        tokenOut: params.tokenOut,
+        isQuickRoute: true,
+      })
 
       const startTime = ctx.logger ? Date.now() : undefined
 

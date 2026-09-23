@@ -1,6 +1,8 @@
+import { Flex, Text, TouchableArea, Spacer } from '@universe/mycelium'
+import { CheckCircleFilled } from '@universe/mycelium/icons/CheckCircleFilled'
 import { useTranslation } from 'react-i18next'
-import { Flex, IconButton, Popover, Spacer, Text, TouchableArea } from 'ui/src'
-import { CheckCircleFilled } from 'ui/src/components/icons/CheckCircleFilled'
+// Stays on ui/src until compat Popover gains .Close and mycelium ships IconButton/Spacer (INFRA-3644)
+import { IconButton, Popover } from 'ui/src'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { PriceRangeStrategy } from '~/pages/Liquidity/CreateAuction/types'
 

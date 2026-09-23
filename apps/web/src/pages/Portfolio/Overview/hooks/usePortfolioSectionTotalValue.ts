@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { PortfolioBalancePart } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { usePortfolioBalanceBreakdown } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
@@ -15,6 +15,8 @@ interface PortfolioSectionTotalValue {
   totalValueFormatted?: string
   totalValueNumeric?: number
   totalValueLoading: boolean
+  /** Item count for the part (for Pools: open, non-spam positions). */
+  count?: number
 }
 
 export function usePortfolioSectionTotalValue({
@@ -32,12 +34,14 @@ export function usePortfolioSectionTotalValue({
     enabled,
   })
 
-  const balanceUSD = enabled ? portfolioBreakdown?.[part].balanceUSD : undefined
+  const partBreakdown = enabled ? portfolioBreakdown?.[part] : undefined
+  const balanceUSD = partBreakdown?.balanceUSD
 
   return {
     totalValueFormatted:
       balanceUSD !== undefined ? convertFiatAmountFormatted(balanceUSD, NumberType.PortfolioBalance) : undefined,
     totalValueNumeric: balanceUSD,
     totalValueLoading: enabled && loading && balanceUSD === undefined,
+    count: partBreakdown?.count,
   }
 }

@@ -1,3 +1,9 @@
+/**
+ * Keep the `TooltipCompat` re-export below extensionless — an explicit `.tsx`
+ * specifier defeats `.web`-priority bundler resolution and silently pins
+ * production consumers to the throwing stub (this happened before and broke
+ * real apps/web and apps/extension consumers, not just this package's tests).
+ */
 export {
   mapTooltipDelay,
   TOOLTIP_CONTENT_FRAME_DEFAULTS,
@@ -15,6 +21,7 @@ export type {
   PopoverCompatPlacement,
   TooltipAnimationDirection,
   TooltipArrowCompatProps,
+  TooltipCompatConfigContextValue,
   TooltipCompatDelay,
   TooltipCompatProps,
   TooltipCompatTriggerProps,
@@ -22,4 +29,4 @@ export type {
   TooltipContentOwnProps,
   TooltipRootInertProps,
 } from './props'
-export { TooltipCompat, TooltipCompatConfigContext, type TooltipCompatConfigContextValue } from './TooltipCompat'
+export { TooltipCompat, TooltipCompatConfigContext } from './TooltipCompat'

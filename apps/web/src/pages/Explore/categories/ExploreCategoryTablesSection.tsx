@@ -1,14 +1,26 @@
-import { Flex } from 'ui/src'
+import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { Flex } from '@universe/mycelium'
+import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { MAX_WIDTH_MEDIA_BREAKPOINT } from '~/constants/breakpoints'
 import { VolumeTimeFrameSelector } from '~/features/Explore/VolumeTimeFrameSelector'
-import { ExploreCategoryChips } from '~/pages/Explore/categories/ExploreCategoryChips'
+import { AllCategoriesDropdown } from '~/pages/Explore/categories/AllCategoriesDropdown'
 import {
-  exploreCategoryToRankedRwaCategory,
-  isRankedRwaExploreCategory,
-} from '~/pages/Explore/categories/exploreRwaCategory'
+  deriveCategoryChipOptions,
+  getStaticCategoryChipOptions,
+  useFlexSlotCategoryId,
+} from '~/pages/Explore/categories/exploreCategoryChipOptions'
+import { ExploreCategoryChips } from '~/pages/Explore/categories/ExploreCategoryChips'
+import { ExploreCategoryChipsSkeleton } from '~/pages/Explore/categories/ExploreCategoryChipsSkeleton'
+import {
+  isRankedRwaCategory,
+  resolveGroupedRwaCategory,
+  showsRwaDisclaimer,
+} from '~/pages/Explore/categories/exploreGroupedCategory'
 import { ExploreRwaDisclaimer } from '~/pages/Explore/categories/ExploreRwaDisclaimer'
 import { ExploreCategory, useExploreCategory } from '~/pages/Explore/categories/useExploreCategory'
-import { useWheelHorizontalScroll } from '~/pages/Explore/categories/useWheelHorizontalScroll'
+import { useExploreTokenCategories } from '~/pages/Explore/categories/useExploreTokenCategories'
+import { rightEdgeFadeStyle, useWheelHorizontalScroll } from '~/pages/Explore/categories/useWheelHorizontalScroll'
 import { TableNetworkFilter } from '~/pages/Explore/NetworkFilter'
 import { CommoditiesTable } from '~/pages/Explore/rwa/table/CommoditiesTable'
 import { RwaCategoryTable } from '~/pages/Explore/rwa/table/RwaCategoryTable'
@@ -16,21 +28,31 @@ import { SearchBar } from '~/pages/Explore/SearchBar'
 import { TopTokensTable } from '~/pages/Explore/tables/Tokens/TopTokensTable'
 import { ExploreTab } from '~/types/explore'
 
-function ExploreCategoryTable({ category }: { category: ReturnType<typeof useExploreCategory>[0] }): JSX.Element {
-  if (category === ExploreCategory.Commodities) {
+function ExploreCategoryTable({
+  rwaCategory,
+  categoryId,
+  categoryUnverified,
+}: {
+  rwaCategory: RwaCategory
+  /** Flat-category ListTokens filter; undefined renders the unfiltered (Popular) table. */
+  categoryId?: string
+  /** The category id came from the URL and ListCategories hasn't confirmed it yet. */
+  categoryUnverified: boolean
+}): JSX.Element {
+  if (rwaCategory === RwaCategory.COMMODITIES) {
     return <CommoditiesTable />
   }
-  if (isRankedRwaExploreCategory(category)) {
+  if (isRankedRwaCategory(rwaCategory)) {
     return (
       <RwaCategoryTable
-        key={category}
-        category={exploreCategoryToRankedRwaCategory(category)}
+        key={rwaCategory}
+        category={rwaCategory}
         // Client-side column sorting is stocks-only for this sprint; ETFs use API order.
-        enableSorting={category === ExploreCategory.Stocks}
+        enableSorting={rwaCategory === RwaCategory.STOCKS}
       />
     )
   }
-  return <TopTokensTable />
+  return <TopTokensTable categoryId={categoryId} categoryUnverified={categoryUnverified} />
 }
 
 /** Uniform vertical gap between stacked category controls, disclaimer, and table on desktop. */
@@ -38,14 +60,31 @@ const CATEGORY_SECTION_GAP = '$spacing12'
 /** Matches the mobile Explore carousel <-> tabs section rhythm. */
 const CATEGORY_SECTION_MWEB_GAP = '$spacing20'
 
-/** Popular | Stocks | Commodities | ETFs chips and category tables on Explore Tokens tab. */
-const CHIPS_EDGE_FADE_WIDTH_PX = 24
-const CHIPS_EDGE_FADE_MASK = `linear-gradient(to right, black calc(100% - ${CHIPS_EDGE_FADE_WIDTH_PX}px), transparent)`
-
+/** Category filter chips and category tables on the Explore Tokens tab. */
 export function ExploreCategoryTablesSection(): JSX.Element {
-  const [category, setCategory] = useExploreCategory()
+  const { t } = useTranslation()
+  const { orderedCategories, validCategoryIds, dynamicChipsEnabled, categoriesPending, categoriesLoading } =
+    useExploreTokenCategories()
+  const [category, setCategory] = useExploreCategory({ validCategoryIds, trustUnverifiedIds: categoriesPending })
+  const flexSlotCategoryId = useFlexSlotCategoryId({ categories: orderedCategories, selectedCategoryId: category })
+  const options = useMemo(
+    () =>
+      dynamicChipsEnabled
+        ? deriveCategoryChipOptions({
+            categories: orderedCategories,
+            selectedCategoryId: category,
+            flexSlotCategoryId,
+            t,
+          })
+        : getStaticCategoryChipOptions(t),
+    [dynamicChipsEnabled, orderedCategories, category, flexSlotCategoryId, t],
+  )
   const { scrollerRef: chipsScrollerRef, showRightFade } = useWheelHorizontalScroll()
-  const showRwaDisclaimer = isRankedRwaExploreCategory(category)
+  const rwaCategory = resolveGroupedRwaCategory({ categoryId: category, categories: orderedCategories })
+  const showRwaDisclaimer = showsRwaDisclaimer(rwaCategory)
+  const flatCategoryId =
+    rwaCategory === RwaCategory.UNSPECIFIED && category !== ExploreCategory.Popular ? category : undefined
+  const categoryUnverified = flatCategoryId !== undefined && !validCategoryIds.has(flatCategoryId)
 
   return (
     <Flex width="100%" gap={CATEGORY_SECTION_GAP} $md={{ gap: CATEGORY_SECTION_MWEB_GAP }}>
@@ -71,13 +110,34 @@ export function ExploreCategoryTablesSection(): JSX.Element {
           $platform-web={{
             overflowX: 'auto',
             overscrollBehaviorX: 'none',
-            ...(showRightFade ? { maskImage: CHIPS_EDGE_FADE_MASK, WebkitMaskImage: CHIPS_EDGE_FADE_MASK } : {}),
+            ...rightEdgeFadeStyle(showRightFade),
           }}
         >
-          <ExploreCategoryChips value={category} onChange={setCategory} />
+          {categoriesLoading ? (
+            <ExploreCategoryChipsSkeleton />
+          ) : (
+            <Flex row alignItems="center" gap="$spacing4">
+              <ExploreCategoryChips
+                options={options}
+                value={category}
+                onChange={setCategory}
+                fadeSwapLastOption={dynamicChipsEnabled}
+              />
+              {dynamicChipsEnabled && (
+                <>
+                  <Flex height="$spacing16" width={1} backgroundColor="$surface3" flexShrink={0} />
+                  <AllCategoriesDropdown
+                    categories={orderedCategories}
+                    selectedCategoryId={category}
+                    onSelectCategory={setCategory}
+                  />
+                </>
+              )}
+            </Flex>
+          )}
         </Flex>
         <Flex row gap="$spacing8" alignItems="center" $md={{ width: '100%' }}>
-          {category === 'popular' && <VolumeTimeFrameSelector />}
+          {category === ExploreCategory.Popular && <VolumeTimeFrameSelector />}
           <TableNetworkFilter />
           <SearchBar tab={ExploreTab.Tokens} />
         </Flex>
@@ -85,12 +145,20 @@ export function ExploreCategoryTablesSection(): JSX.Element {
       {showRwaDisclaimer ? (
         <Flex width="100%">
           <Flex width="100%" maxWidth={MAX_WIDTH_MEDIA_BREAKPOINT} mx="auto" mb="$spacing4">
-            <ExploreRwaDisclaimer category={category} />
+            <ExploreRwaDisclaimer category={rwaCategory} />
           </Flex>
-          <ExploreCategoryTable category={category} />
+          <ExploreCategoryTable
+            rwaCategory={rwaCategory}
+            categoryId={flatCategoryId}
+            categoryUnverified={categoryUnverified}
+          />
         </Flex>
       ) : (
-        <ExploreCategoryTable category={category} />
+        <ExploreCategoryTable
+          rwaCategory={rwaCategory}
+          categoryId={flatCategoryId}
+          categoryUnverified={categoryUnverified}
+        />
       )}
     </Flex>
   )

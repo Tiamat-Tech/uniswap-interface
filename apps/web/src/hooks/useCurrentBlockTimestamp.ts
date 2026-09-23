@@ -1,6 +1,6 @@
 import { MULTICALL_ADDRESSES } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import ms from 'ms'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useReadContract } from 'wagmi'
 import { assume0xAddress } from '~/chains'
 import { useAccount } from '~/hooks/useAccount'

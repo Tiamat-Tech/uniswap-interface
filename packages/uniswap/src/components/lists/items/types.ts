@@ -1,9 +1,10 @@
 import type { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { UniverseChainId } from '@universe/chains'
 import type { Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { CurrencyInfo, MultichainSearchResult } from 'uniswap/src/features/dataApi/types'
+import { CurrencyInfo, MultichainSearchResult, SearchTokenStats } from 'uniswap/src/features/dataApi/types'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
+import type { TokenCategory } from 'uniswap/src/features/tokenCategories/types'
 
 /* Types of list item options */
 export enum OnchainItemListOptionType {
@@ -17,6 +18,7 @@ export enum OnchainItemListOptionType {
   RwaCollection = 'RwaCollection',
   EarnVault = 'EarnVault',
   Auction = 'Auction',
+  Category = 'Category',
 }
 
 /** Variable-height row descriptor read by the list primitives. Absent → fixed-height row.
@@ -24,7 +26,7 @@ export enum OnchainItemListOptionType {
 export interface DynamicRowLayout {
   /** Web: measure height at runtime instead of using the fixed row height. */
   dynamicHeight: boolean
-  /** Native FlashList cell-size estimates. */
+  /** Native Legend List cell-size estimates. */
   collapsedHeightPx: number
   expandedHeightPx: number
 }
@@ -68,9 +70,8 @@ export interface RwaTokenOption extends BaseOption {
 export interface RwaCollectionOption extends BaseOption {
   type: OnchainItemListOptionType.RwaCollection
   rwa: Rwa
-  /** Renders the category pill on each row (category derived from the carried `rwa`). False for the no-query
-   *  section, where the header conveys the category. */
   showCategoryTag?: boolean
+  searchStats?: SearchTokenStats
 }
 
 export interface MultichainTokenOption extends BaseOption {
@@ -110,6 +111,19 @@ export interface PoolOption extends BaseOption {
   protocolVersion: ProtocolVersion
   hookAddress?: string
   feeTier: number
+  /** 1d volume in USD from the v2 search stats; absent on v1 results and recent-search rows. */
+  volume1dUsd?: number
+  /**
+   * Pool fee APR from the v2 search stats, in percent units (`4.99` = 4.99%) like other backend
+   * APRs (see `backendAprToPercent`). Absent on v1 results and recent-search rows.
+   */
+  apr?: number
+}
+
+/** A token category matched by search (All tab only); pressing it opens the Category Details page/screen. */
+export interface CategoryOption extends BaseOption {
+  type: OnchainItemListOptionType.Category
+  category: TokenCategory
 }
 
 export type WalletOption = WalletByAddressOption | ENSAddressOption | UnitagOption
@@ -143,6 +157,8 @@ export interface AuctionOption extends BaseOption {
   tokenLogoUrl: string | undefined
   currencyInfo: Maybe<CurrencyInfo>
   committedVolumeUsd: number | undefined
+  /** Distinct all-time bidders. Only the top-auctions listing serves it; text-search results leave it unset. */
+  uniqueBidderCount?: number
   isVerified: boolean
 }
 
@@ -153,6 +169,7 @@ export type MobileExploreSearchModalOption =
   | WalletOption
   | RwaCollectionOption
   | EarnVaultOption
+  | CategoryOption
 export type WebSearchModalOption =
   | TokenOption
   | MultichainTokenOption
@@ -161,12 +178,16 @@ export type WebSearchModalOption =
   | RwaCollectionOption
   | EarnVaultOption
   | AuctionOption
+  | CategoryOption
 export type SearchModalOption = MobileExploreSearchModalOption | WebSearchModalOption
+
+/** Search modal rows: single options, or one array rendered as a horizontal row (Search V2 recents pills). */
+export type SearchModalListOption = SearchModalOption | SearchModalOption[]
 
 export type TokenSelectorOption = TokenOption | TokenOption[]
 
 // All item types combined
-export type OnchainItemListOption = TokenSelectorOption | SearchModalOption | RwaTokenOption[]
+export type OnchainItemListOption = TokenSelectorOption | SearchModalListOption | RwaTokenOption[]
 
 // Options renderable by the swap token-selector list (token rows/pills + the stocks row)
 export type TokenSelectorListOption = TokenSelectorOption | RwaTokenOption[]

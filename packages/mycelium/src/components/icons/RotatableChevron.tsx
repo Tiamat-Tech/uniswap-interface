@@ -1,17 +1,20 @@
 import { memo } from 'react'
-import type { CSSProperties, HTMLAttributes, ReactElement } from 'react'
-import { Flex } from '../flex'
+import type { ReactElement } from 'react'
+import { cn } from '../../cn'
+import { FlexCompat } from '../../flex-compat/FlexCompat'
+import type { FlexCompatProps } from '../../flex-compat/props'
+import type { IconProps } from '../factories/createIcon'
 import { Chevron } from './Chevron'
+import { isRTL, ROTATE_TRANSITION_CLASS } from './rotation-platform'
 
+// `direction` here is the chevron's heading, not the compat surface's CSS
+// `direction` long-tail prop; `rotate` is derived from it, so neither is
+// forwarded (the same two collisions the `ui/src` twin omits).
 type Props = {
-  size?: number | string
+  size?: IconProps['size']
   direction?: 'up' | 'right' | 'down' | 'left' | 'start' | 'end'
   color?: string
-} & Omit<HTMLAttributes<HTMLDivElement>, 'color'>
-
-function isRTL(): boolean {
-  return typeof document !== 'undefined' && document.documentElement.dir === 'rtl'
-}
+} & Omit<FlexCompatProps, 'direction' | 'rotate' | 'children'>
 
 function getDegree(direction: NonNullable<Props['direction']>): string {
   switch (direction) {
@@ -31,19 +34,27 @@ function getDegree(direction: NonNullable<Props['direction']>): string {
   }
 }
 
-function RotatableChevronIcon({ color, size = 24, direction = 'start', style, ...rest }: Props): ReactElement {
-  const wrapperStyle: CSSProperties = {
-    borderRadius: 999999,
-    transform: `rotate(${getDegree(direction)})`,
-    // Mirrors the legacy `animation="fast"` rotate transition.
-    transition: 'transform 150ms ease-in-out',
-    ...style,
-  }
-
+function RotatableChevronIcon({ color, size = 24, direction = 'start', className, ...rest }: Props): ReactElement {
+  // The rotation rides the compat `rotate` PROP, never a style object: only the
+  // prop reaches the transform lane that emits RN's transform array. A CSS
+  // string in `style` is handed to the native host verbatim, which is the shape
+  // react-native-svg's parser rejects on device.
   return (
-    <Flex direction="column" align="center" justify="center" style={wrapperStyle} {...rest}>
+    // position="static": this wrapper renders in ~40 call sites across apps/web
+    // (dropdowns, breadcrumbs, expandables, …), some of which stack it over a
+    // stretched overlay link. FlexCompat's `relative` frame default would make
+    // it the nearest positioned ancestor there and swallow the overlay's tap --
+    // keep it unpositioned, matching the retired cva Flex's default.
+    <FlexCompat
+      centered
+      position="static"
+      borderRadius="$roundedFull"
+      rotate={getDegree(direction)}
+      className={cn(ROTATE_TRANSITION_CLASS, className)}
+      {...rest}
+    >
       <Chevron color={color} size={size} />
-    </Flex>
+    </FlexCompat>
   )
 }
 export const RotatableChevron = memo(RotatableChevronIcon)

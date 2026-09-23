@@ -1,6 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
 import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
 import type { ProcessedChartData } from '~/features/Toucan/Auction/BidDistributionChart/utils/utils'
 import { TooltipContainer } from '~/features/Toucan/Shared/TooltipContainer'

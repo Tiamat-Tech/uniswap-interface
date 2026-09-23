@@ -6,10 +6,18 @@ import { PlatformSplitStubError } from '@universe/environment'
 import type { CompatThemeName } from './theme-state'
 import type { ThemeColorName } from './tokens'
 
+/**
+ * Token-typed like the legacy hook's `val`: the runtime value is the resolved
+ * color string, but the token type keeps `.val` assignable wherever
+ * `ColorTokens` is expected (pinned in parity/color-tokens/type-parity.ts).
+ */
+export type SporeThemeColorToken = `$${ThemeColorName}`
+
+/** `get()` output: the CSS variable on web, the resolved value on native. */
 export type DynamicColor = string
 
 export interface SporeColor {
-  val: string
+  val: SporeThemeColorToken
   get: () => DynamicColor
   variable: string
 }

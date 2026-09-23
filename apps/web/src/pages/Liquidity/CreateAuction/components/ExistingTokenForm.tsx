@@ -1,11 +1,10 @@
+import { Platform } from '@universe/chains'
+import { Button, Flex, iconSizes, Shine, Text, TouchableArea } from '@universe/mycelium'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Shine, Text, TouchableArea } from 'ui/src'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { TokenSelectorFlow } from 'uniswap/src/components/TokenSelector/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { AuctionEventName, ElementName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -149,7 +148,7 @@ export function ExistingTokenForm({ existing }: { existing: ExistingTokenFormSta
         </Text>
       </Flex>
       {currencyLoading ? (
-        <Shine width="100%">
+        <Shine className="w-full">
           <Flex backgroundColor="$surface3" borderRadius="$rounded12" height={50} />
         </Shine>
       ) : (

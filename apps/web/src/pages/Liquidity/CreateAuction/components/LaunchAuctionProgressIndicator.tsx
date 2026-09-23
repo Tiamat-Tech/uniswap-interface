@@ -1,7 +1,10 @@
+import '~/pages/Liquidity/CreateAuction/components/LaunchAuctionProgressIndicator.css'
+import { Flex, getTokenValue, Separator, Text } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, getTokenValue, Separator, Text, useSporeColors, VerticalDottedLineSeparator } from 'ui/src'
+import { VerticalDottedLineSeparator } from 'ui/src'
 import { Rocket } from 'ui/src/components/icons/Rocket'
-import { zIndexes } from 'ui/src/theme'
+import { zIndexes } from 'ui/src/theme/zIndexes'
 import {
   STEP_ROW_HEIGHT,
   STEP_ROW_ICON_SIZE,
@@ -57,13 +60,7 @@ export function LaunchAuctionProgressIndicator({
   const iconSize = getTokenValue(STEP_ROW_ICON_SIZE)
 
   return (
-    <Flex
-      testID={TestID.LaunchAuctionProgressIndicator}
-      enterStyle={{ opacity: 0 }}
-      animation="quicker"
-      animateOnly={['transform', 'opacity']}
-      gap="$spacing16"
-    >
+    <Flex testID={TestID.LaunchAuctionProgressIndicator} className="launch-auction-progress-enter" gap="$spacing16">
       <Flex row gap="$spacing12" alignItems="center">
         <Separator my="$spacing12" />
         <Text color="$neutral2" variant="body3">

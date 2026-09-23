@@ -1,10 +1,10 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import type { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { isMobileWeb } from '@universe/environment'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Button, Flex, ModalCloseIcon, SpinningLoader, Text } from '@universe/mycelium'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, ModalCloseIcon, SpinningLoader, Text, styled } from 'ui/src'
 import { BackArrow } from 'ui/src/components/icons/BackArrow'
 import { Plus } from 'ui/src/components/icons/Plus'
 import { Search } from 'ui/src/components/icons/Search'
@@ -13,21 +13,23 @@ import { AmountInput } from 'uniswap/src/components/AmountInput/AmountInput'
 import { numericInputRegex } from 'uniswap/src/components/AmountInput/utils/numericInputEnforcer'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import type { FeeData } from 'uniswap/src/features/positions/types'
 import { LiquidityEventName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { FeePoolSelectAction } from 'uniswap/src/features/telemetry/types'
-import useResizeObserver from 'use-resize-observer'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
-import { NumericalInputMimic, NumericalInputSymbolContainer } from '~/components/NumericalInput/LargeAmountInput'
-import { StyledPercentInput } from '~/components/PercentInput'
+import {
+  NumericalInputMimic,
+  NumericalInputSymbolContainer,
+  useMeasuredFieldWidth,
+} from '~/components/NumericalInput/LargeAmountInput'
+import { StyledPercentInput, type StyledPercentInputProps } from '~/components/PercentInput'
 import { FeeTierSearchRow } from '~/features/Liquidity/FeeTierSearchRow'
 import { useAllFeeTierPoolData } from '~/features/Liquidity/hooks/useAllFeeTierPoolData'
 import { useHoldToStepFeeValue } from '~/features/Liquidity/hooks/useHoldToStepFeeValue'
-import { getCreateFeeTierSearchData } from '~/features/Liquidity/utils/createFeeTiers'
+import { getCreatedPoolAtFeeAmount, getCreateFeeTierSearchData } from '~/features/Liquidity/utils/createFeeTiers'
 import {
   calculateTickSpacingFromFeeAmount,
   getFeeTierKey,
@@ -39,11 +41,11 @@ import {
 import { ClickableTamaguiStyle } from '~/theme/components/styles'
 import type { FeeTierData } from '~/types/liquidity'
 
-const FeeTierPercentInput = styled(StyledPercentInput, {
-  flexGrow: 0,
-  textAlign: 'right',
-  justifyContent: 'flex-end',
-})
+// Only `flexGrow: 0` is carried over from the legacy config: `StyledPercentInput` re-sets
+// `textAlign` after spreading props, and `justify-content` does nothing on an `<input>`.
+function FeeTierPercentInput(props: StyledPercentInputProps): JSX.Element {
+  return <StyledPercentInput flexGrow={0} {...props} />
+}
 
 const MAX_CHAR_PIXEL_WIDTH = 46
 const MAX_FONT_SIZE = 70
@@ -102,13 +104,9 @@ export function FeeTierSearchModal({
   const [searchValue, setSearchValue] = useState('')
   const [createFeeValue, setCreateFeeValue] = useState('')
   const [createModeEnabled, setCreateModeEnabled] = useState(false)
-  const hiddenObserver = useResizeObserver<HTMLElement>()
+  const { ref: hiddenObserverRef, fieldWidth: createFeeFieldWidth } = useMeasuredFieldWidth(createFeeValue)
 
   const withDynamicFeeTier = Boolean(hook)
-  const isLpIncentivesEnabled = useFeatureFlag(FeatureFlags.LpIncentives)
-  const isV4FeeDisplayEnabled = useFeatureFlag(FeatureFlags.V4ProtocolFeeDisplay)
-  // Newly created tiers use 1x the fee tier (instead of 2x) when the flag is on.
-  const isL2DefaultTickSpacingEnabled = useFeatureFlag(FeatureFlags.L2DefaultTickSpacing)
 
   // When blocking existing pools (CCA), also check the user-entered custom tier on-chain so an
   // abandoned/zero-liquidity pool the indexed data omits still blocks the "Create" action.
@@ -120,9 +118,9 @@ export function FeeTierSearchModal({
     return {
       isDynamic: false,
       feeAmount,
-      tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount, isL2DefaultTickSpacingEnabled),
+      tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount),
     }
-  }, [createFeeValue, isL2DefaultTickSpacingEnabled])
+  }, [createFeeValue])
   const additionalFeeTiersToCheck = useMemo(
     () => (createFeeTierToCheck ? [createFeeTierToCheck] : []),
     [createFeeTierToCheck],
@@ -138,15 +136,16 @@ export function FeeTierSearchModal({
     additionalFeeTiersToCheck,
   })
 
-  // While the existing-pool check is settling, withhold the final create/select UI so an existing
-  // tier never momentarily appears selectable (CCA requires a brand-new pool).
-  const isExistingPoolCheckLoading = Boolean(blockExistingPools) && isFeeTierDataLoading
+  // While the existing-pool check is settling, withhold the create/select UI. Not CCA-only: an unsettled
+  // record reads as "no pool at this fee", which is what would let the create action mint a pool beside an
+  // existing one. `useAllFeeTierPoolData` keeps this set on a failed read too, so an unverifiable tier
+  // stays gated rather than being created blind.
+  const isExistingPoolCheckLoading = isFeeTierDataLoading
 
-  // Behind V4ProtocolFeeDisplay, the create flow defaults to the new canonical tiers (an old tier stays
-  // only when its pool is deep). Mirror that here so the search list matches the inline selector. CCA
-  // (blockExistingPools) keeps the canonical tiers for its brand-new-pool gating.
-  const isV4FeeDisplay = isV4FeeDisplayEnabled && protocolVersion === ProtocolVersion.V4
-  const useNewDefaultFeeTiers = isV4FeeDisplay && !blockExistingPools
+  // The v4 create flow defaults to the new canonical tiers (an old tier stays only when its pool is
+  // deep). Mirror that here so the search list matches the inline selector. CCA (blockExistingPools)
+  // keeps the canonical tiers for its brand-new-pool gating.
+  const useNewDefaultFeeTiers = protocolVersion === ProtocolVersion.V4 && !blockExistingPools
   const displayedFeeTiers = useMemo(
     () =>
       getCreateFeeTierSearchData({
@@ -154,9 +153,9 @@ export function FeeTierSearchModal({
         feeTierData,
         formatPercent,
         hook,
-        useSingleTickSpacing: isL2DefaultTickSpacingEnabled,
+        selectedFee,
       }),
-    [useNewDefaultFeeTiers, feeTierData, formatPercent, hook, isL2DefaultTickSpacingEnabled],
+    [useNewDefaultFeeTiers, feeTierData, formatPercent, hook, selectedFee],
   )
 
   // Stable stepper for the +/- buttons.
@@ -177,16 +176,23 @@ export function FeeTierSearchModal({
   }, [isOpen, initialCreateModeEnabled])
 
   const feeHundredthsOfBips = Math.round(parseFloat(createFeeValue) * 10000)
-  const feeTierAlreadyExists = Boolean(feeTierData[feeHundredthsOfBips])
 
-  // feeTierData is keyed by `{fee}-{tickSpacing}` (the legacy lookup above never matches); resolve the
-  // full key to block existing pools in the CCA flow, which requires a brand-new pool.
-  const createFeeTierKey = getFeeTierKey({
-    feeTier: feeHundredthsOfBips,
-    tickSpacing: calculateTickSpacingFromFeeAmount(feeHundredthsOfBips, isL2DefaultTickSpacingEnabled),
-  })
-  const existingPoolForCreateFee = createFeeTierKey ? feeTierData[createFeeTierKey] : undefined
-  const blockedByExistingPool = Boolean(blockExistingPools && existingPoolForCreateFee?.created)
+  // The deployed pool at the typed fee, at whatever tick spacing it carries — matched on fee amount alone
+  // because a key built from `calculateTickSpacingFromFeeAmount` names a different pool than one created
+  // under the old 2x schedule. Confirming resolves to this pool rather than a synthesized tier, so the
+  // typed fee can't mint an empty pool beside a deep one at the same fee.
+  const existingPoolForCreateFee = getCreatedPoolAtFeeAmount({ feeTierData, feeAmount: feeHundredthsOfBips })
+  const feeTierAlreadyExists = Boolean(existingPoolForCreateFee)
+  // CCA requires a brand-new pool, so any pool at the fee amount blocks — the same rule the tier grid
+  // applies via `getCommonFeeTiersWithData`, so neither entry point can create a second pool at a fee the
+  // other already considers taken.
+  const blockedByExistingPool = Boolean(blockExistingPools && feeTierAlreadyExists)
+
+  const feeDataForCreateFee: FeeData = existingPoolForCreateFee?.fee ?? {
+    isDynamic: false,
+    feeAmount: feeHundredthsOfBips,
+    tickSpacing: calculateTickSpacingFromFeeAmount(feeHundredthsOfBips),
+  }
 
   const handleSelectExistingFeeTier = useEvent((pool: FeeTierData) => {
     if (isDynamicFeeTier(pool.fee)) {
@@ -245,7 +251,11 @@ export function FeeTierSearchModal({
         {createModeEnabled ? (
           <Flex gap="$gap20">
             <Text variant="body2" color="$neutral2" textAlign="center">
-              {createDescription ?? t('fee.tier.create.description')}
+              {/* The default copy promises a new pool; say so plainly when the typed fee resolves to an
+                  existing one instead. CCA keeps its own copy — a blocking warning renders below. */}
+              {feeTierAlreadyExists && !blockExistingPools
+                ? t('fee.tier.create.existing.description')
+                : (createDescription ?? t('fee.tier.create.description'))}
             </Text>
             <Flex row alignItems="center" gap="$spacing28" px="$spacing20">
               <Flex
@@ -275,12 +285,12 @@ export function FeeTierSearchModal({
                     placeholder="0"
                     maxDecimals={MAX_FEE_TIER_DECIMALS}
                     numericalFontSize={fontSize}
-                    fieldWidth={createFeeValue && hiddenObserver.width ? hiddenObserver.width + 1 : undefined}
+                    fieldWidth={createFeeFieldWidth}
                   />
                   <NumericalInputSymbolContainer showPlaceholder={!createFeeValue} numericalFontSize={fontSize}>
                     %
                   </NumericalInputSymbolContainer>
-                  <NumericalInputMimic ref={hiddenObserver.ref} numericalFontSize={fontSize}>
+                  <NumericalInputMimic ref={hiddenObserverRef} numericalFontSize={fontSize}>
                     {createFeeValue}
                   </NumericalInputMimic>
                 </Flex>
@@ -315,11 +325,7 @@ export function FeeTierSearchModal({
                 }
                 loading={isExistingPoolCheckLoading && Boolean(createFeeValue)}
                 onPress={() => {
-                  onSelectFee({
-                    isDynamic: false,
-                    feeAmount: feeHundredthsOfBips,
-                    tickSpacing: calculateTickSpacingFromFeeAmount(feeHundredthsOfBips, isL2DefaultTickSpacingEnabled),
-                  })
+                  onSelectFee(feeDataForCreateFee)
                   sendAnalyticsEvent(LiquidityEventName.SelectLiquidityPoolFeeTier, {
                     action: FeePoolSelectAction.Search,
                     fee_tier: feeHundredthsOfBips,
@@ -416,18 +422,9 @@ export function FeeTierSearchModal({
                       pool={pool}
                       blocked={Boolean(blockExistingPools && pool.created)}
                       isSelected={
-                        getFeeTierKey({
-                          feeTier: pool.fee.feeAmount,
-                          tickSpacing: pool.fee.tickSpacing,
-                          isDynamicFee: pool.fee.isDynamic,
-                        }) ===
-                        getFeeTierKey({
-                          feeTier: selectedFee?.feeAmount,
-                          tickSpacing: selectedFee?.tickSpacing,
-                          isDynamicFee: selectedFee?.isDynamic,
-                        })
+                        getFeeTierKey({ feeTier: pool.fee.feeAmount, tickSpacing: pool.fee.tickSpacing }) ===
+                        getFeeTierKey({ feeTier: selectedFee?.feeAmount, tickSpacing: selectedFee?.tickSpacing })
                       }
-                      isLpIncentivesEnabled={isLpIncentivesEnabled}
                       existingPoolWarning={existingPoolWarning}
                       existingPoolWarningLearnMoreUrl={existingPoolWarningLearnMoreUrl}
                       onSelect={handleSelectExistingFeeTier}

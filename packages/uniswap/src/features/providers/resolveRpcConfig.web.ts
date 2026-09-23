@@ -1,8 +1,12 @@
 import { getEntryGatewayUrl, provideDeviceIdService, provideSessionStorage } from '@universe/api'
-import { createRpcConfigResolver, createUniRpcConfigResolver, type RpcConfig } from '@universe/chains'
+import {
+  createRpcConfigResolver,
+  createUniRpcConfigResolver,
+  type RpcConfig,
+  type UniverseChainId,
+} from '@universe/chains'
 import { isE2eTestEnv, isExtensionApp, REQUEST_SOURCE } from '@universe/environment'
 import { FeatureFlags, getFeatureFlag, isStatsigClientRegistered } from '@universe/gating'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { selectRpcUrl } from 'uniswap/src/features/providers/rpcUrlSelector'
 import { isUniRpcOnlyChain } from 'uniswap/src/features/providers/unirpcOnlyChains'
 

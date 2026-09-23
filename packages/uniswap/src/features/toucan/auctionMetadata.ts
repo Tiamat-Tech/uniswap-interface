@@ -55,6 +55,10 @@ const AUCTION_METADATA_OVERRIDES: Record<string, AuctionMetadataOverride> = {
   '1-0xf9a352b7c7b62a852e5c8a64a455246dd9596461': {
     logoUrl: '/images/logos/bwlk-token-launch-logo.png',
   },
+  // Umia — Base auction token
+  '8453-0x56ab53b77f07da3af732150e8aec4783eb5bba7d': {
+    logoUrl: '/images/logos/umia-token-launch-logo.jpeg',
+  },
 }
 
 /**
@@ -114,7 +118,9 @@ export function findAuctionOverrideMatches(query: string): Array<{ chainId: numb
 
   const matches: Array<{ chainId: number; tokenAddress: string }> = []
   for (const [key, override] of Object.entries(AUCTION_METADATA_OVERRIDES)) {
+    // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- token name for case-insensitive search, not an address
     const name = override.tokenName?.toLowerCase() ?? ''
+    // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- token symbol for case-insensitive search, not an address
     const symbol = override.tokenSymbol?.toLowerCase() ?? ''
     if (name.includes(normalizedQuery) || symbol.includes(normalizedQuery)) {
       const parsed = parseOverrideKey(key)
@@ -134,5 +140,6 @@ export const DEFAULT_VERIFIED_AUCTION_IDS = [
   '1_0xfFDab1083fCbBCEE32997795388B3D61Ebab786E',
   '1_0x20eEBd78151EAe9Ed2380AC613204aaF5CA0cd24',
   '1_0x687Cc38d8279dF3352b64cF3EC1fe8e033933595', // Interfold (FOLD)
+  '1_0xfA63c5B9220a7f0D21e156490eC0b296838e6605', // Interfold (FOLD) — second CCA
   '1_0x74D1fbC555D8888b0AD87f5822dD1666498459e4', // Boardwalk (BWLK)
 ]

@@ -27,7 +27,7 @@
  * The parity suite in `packages/tailwind/src/parity/menu` pins all of this.
  */
 import * as React from 'react'
-import { adaptiveWebPopoverContentCompatClassName } from '../popover-compat/compile'
+import { adaptiveWebPopoverContentCompatEmission } from '../popover-compat/compile'
 import {
   mapOffsetToAnchorPosition,
   mapPlacementToAnchorPosition,
@@ -263,6 +263,15 @@ export const ContextMenuCompat = React.forwardRef<ContextMenuCompatHandle, Conte
       return <React.Fragment>{children}</React.Fragment>
     }
 
+    // Strict emission path (INFRA-3217): fixed args today, but the guard
+    // keeps any future interpolated value off the dead-class lane.
+    const popupEmission = adaptiveWebPopoverContentCompatEmission({
+      backgroundColor: 'transparent',
+      p: '$none',
+      py: '$spacing8',
+      placement,
+    })
+
     return (
       <DropdownMenu open={isOpen} onOpenChange={handleMenuOpenChange} modal={false}>
         {/*
@@ -298,12 +307,8 @@ export const ContextMenuCompat = React.forwardRef<ContextMenuCompatHandle, Conte
           data-slot="context-menu-compat-popup"
           // Legacy menus never move focus; ledgered with the a11y upgrade.
           finalFocus={false}
-          className={adaptiveWebPopoverContentCompatClassName({
-            backgroundColor: 'transparent',
-            p: '$none',
-            py: '$spacing8',
-            placement,
-          })}
+          className={popupEmission.className}
+          style={popupEmission.style}
         >
           <EffectiveOverlayZIndexContext.Provider value={stackingLayerNumber}>
             <MenuCompatHostContext.Provider value={INSIDE_MENU}>

@@ -14,8 +14,10 @@ import {
   useFeatureFlagWithExposureLoggingDisabled,
   WALLET_FEATURE_FLAG_NAMES,
 } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
+import { Accordion } from '@universe/mycelium'
 import React, { PropsWithChildren, useCallback } from 'react'
-import { Accordion, Flex, Separator, Switch, Text } from 'ui/src'
+import { Separator, Switch } from 'ui/src'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { ComplianceOverrides } from 'uniswap/src/components/gating/ComplianceOverrides'
 import {

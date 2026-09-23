@@ -1,17 +1,15 @@
 import { GraphQLApi } from '@universe/api'
 
 /**
- * Canned GraphQL gateway responses for the cloud-function tests.
+ * Canned gateway responses for the cloud-function tests.
  *
- * Keyed by operation name + the identifying variables the worker sends
- * (chain + token address / pool address / pool id). The fixture server
- * (gatewayFixtureServer.ts) replays these so the meta-tag and OG-image tests
- * don't depend on live gateway latency. Values mirror real gateway data for
- * the assets the tests exercise; only the fields the worker consumes
- * (symbol, name, feeTier, protocolVersion, project.logoUrl) are included —
- * getToken/getPool read the raw network result, so omitted optional fields
- * are never observed. Logo URLs point at assets the dev server serves itself
- * to keep the tests off the network entirely.
+ * `gatewayFixtureResponses` holds GraphQL responses (getToken.ts), keyed by operation name + the
+ * identifying variables the worker sends (chain + token address). `liquidityFixtureResponses` holds
+ * liquidity v2 connect-RPC responses (getPool.ts's GetPool), keyed by RPC name + chain id +
+ * identifier. The fixture server (gatewayFixtureServer.ts) replays these so the meta-tag and
+ * OG-image tests don't depend on live gateway latency. Values mirror real gateway data for the
+ * assets the tests exercise; only the fields the worker consumes are included. Logo URLs point at
+ * assets the dev server serves itself to keep the tests off the network entirely.
  */
 
 // Served by the Vite dev server from apps/web/public — satori (OG image
@@ -51,89 +49,14 @@ function tokenResponse({ id, chain, address, symbol, name }: TokenFixtureInput):
   }
 }
 
-type PoolToken = { id: string; chain: GraphQLApi.Chain; address: string; symbol: string; name: string }
-
-function poolToken({ id, chain, address, symbol, name }: PoolToken) {
-  return {
-    __typename: 'Token' as const,
-    id,
-    chain,
-    address,
-    symbol,
-    name,
-    standard: GraphQLApi.TokenStandard.Erc20,
-    decimals: 18,
-    project: {
-      __typename: 'TokenProject' as const,
-      id: `${id}-project`,
-      name,
-      logoUrl: LOCAL_LOGO_URL,
-      isSpam: false,
-    },
-  }
-}
-
-interface PoolFixtureInput {
-  id: string
-  address: string
-  feeTier: number
-  token0: PoolToken
-  token1: PoolToken
-}
-
-function v3PoolResponse({ id, address, feeTier, token0, token1 }: PoolFixtureInput): {
-  data: GraphQLApi.V3PoolQuery
-} {
-  return {
-    data: {
-      v3Pool: {
-        __typename: 'V3Pool',
-        id,
-        protocolVersion: GraphQLApi.ProtocolVersion.V3,
-        address,
-        feeTier,
-        token0: poolToken(token0),
-        token1: poolToken(token1),
-        txCount: 1000,
-      },
-    },
-  }
-}
-
-function v2PairResponse({ id, address, token0, token1 }: Omit<PoolFixtureInput, 'feeTier'>): {
-  data: GraphQLApi.V2PairQuery
-} {
-  return {
-    data: {
-      v2Pair: {
-        __typename: 'V2Pair',
-        id,
-        protocolVersion: GraphQLApi.ProtocolVersion.V2,
-        address,
-        token0: poolToken(token0),
-        token1: poolToken(token1),
-        txCount: 1000,
-      },
-    },
-  }
-}
-
 const { Chain } = GraphQLApi
 
-const WETH = (chain: GraphQLApi.Chain, id: string) => ({
-  id,
-  chain,
-  address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-  symbol: 'WETH',
-  name: 'Wrapped Ether',
-})
-
 /**
- * Fixtures keyed by `${operationName}:${chain}:${lowercased address|poolId}`.
- * The native-token TokenWeb query sends no address variable, so its key has
- * an empty address segment. Requests without a matching key get a null root
- * field, which is exactly how the live gateway answers for unknown assets —
- * the "invalid token/pool" test cases rely on that.
+ * GraphQL fixtures keyed by `${operationName}:${chain}:${lowercased address}`.
+ * The native-token TokenWeb query sends no address variable, so its key has an
+ * empty address segment. Requests without a matching key get a null root field,
+ * which is exactly how the live gateway answers for unknown assets — the
+ * "invalid token" test cases rely on that.
  */
 export const gatewayFixtureResponses: Record<string, { data: object }> = {
   // ── Token meta-tag + OG-image cases (token.test.ts, tokenImage.test.ts) ──
@@ -164,85 +87,126 @@ export const gatewayFixtureResponses: Record<string, { data: object }> = {
     symbol: 'PEPE',
     name: 'Pepe',
   }),
+}
 
+const token = (symbol: string) => ({ symbol, logoUrl: LOCAL_LOGO_URL })
+
+function getPoolResponse({
+  poolIdentifier,
+  protocolVersion,
+  feeTier,
+  token0Symbol,
+  token1Symbol,
+}: {
+  poolIdentifier: string
+  protocolVersion: 'V2' | 'V3' | 'V4'
+  feeTier?: number
+  token0Symbol: string
+  token1Symbol: string
+}): object {
+  return {
+    pool: {
+      poolIdentifier,
+      protocolVersion,
+      isDynamicFee: false,
+      ...(feeTier === undefined ? {} : { feeTier }),
+      token0Metadata: token(token0Symbol),
+      token1Metadata: token(token1Symbol),
+    },
+  }
+}
+
+function getPositionResponse({
+  status = 'POSITION_STATUS_OPEN',
+  feeTier,
+  tickLower = -1000,
+  tickUpper = 1000,
+  currentTick = 0,
+  token0Symbol,
+  token1Symbol,
+}: {
+  status?: string
+  feeTier?: number
+  tickLower?: number
+  tickUpper?: number
+  currentTick?: number
+  token0Symbol: string
+  token1Symbol: string
+}): object {
+  return {
+    position: {
+      // The backend sends the full proto enum name for the status (POSITION_STATUS_OPEN).
+      status,
+      ...(feeTier === undefined ? {} : { feeTier }),
+      tickLower,
+      tickUpper,
+      currentTick,
+      token0Metadata: token(token0Symbol),
+      token1Metadata: token(token1Symbol),
+    },
+  }
+}
+
+/**
+ * liquidity v2 fixtures keyed by `GetPool:${chainId}:${lowercased addressOrId}` and
+ * `GetPosition:${chainId}:${version}:${tokenId}` (chainId: ethereum = 1, optimism = 10, base = 8453;
+ * version is the Protocols enum: V2 = 0, V3 = 1, V4 = 2). GetPool resolves the version from the
+ * identifier, so there's one entry per pool. An unknown identifier gets an empty message, which the
+ * invalid-pool/position test cases rely on.
+ */
+export const liquidityFixtureResponses: Record<string, object> = {
   // ── Pool meta-tag cases (pool.test.ts) ──
-  'V3Pool:ETHEREUM:0xcbcdf9626bc03e24f779434178a73a0b4bad62ed': v3PoolResponse({
-    id: 'fixture-pool-wbtc-weth',
-    address: '0xcbcdf9626bc03e24f779434178a73a0b4bad62ed',
+  // WBTC/WETH — ethereum V3, 0.30%
+  'GetPool:1:0xcbcdf9626bc03e24f779434178a73a0b4bad62ed': getPoolResponse({
+    poolIdentifier: '0xcbcdf9626bc03e24f779434178a73a0b4bad62ed',
+    protocolVersion: 'V3',
     feeTier: 3000,
-    token0: {
-      id: 'fixture-token-wbtc',
-      chain: Chain.Ethereum,
-      address: '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599',
-      symbol: 'WBTC',
-      name: 'Wrapped BTC',
-    },
-    token1: WETH(Chain.Ethereum, 'fixture-token-weth'),
+    token0Symbol: 'WBTC',
+    token1Symbol: 'WETH',
   }),
-  'V2Pair:ETHEREUM:0x517f9dd285e75b599234f7221227339478d0fcc8': v2PairResponse({
-    id: 'fixture-pair-dai-mkr',
-    address: '0x517f9dd285e75b599234f7221227339478d0fcc8',
-    token0: {
-      id: 'fixture-token-dai',
-      chain: Chain.Ethereum,
-      address: '0x6b175474e89094c44da98b954eedeac495271d0f',
-      symbol: 'DAI',
-      name: 'Dai Stablecoin',
-    },
-    token1: {
-      id: 'fixture-token-mkr',
-      chain: Chain.Ethereum,
-      address: '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2',
-      symbol: 'MKR',
-      name: 'Maker',
-    },
+  // DAI/MKR — ethereum V2 (fee defaults to 0.30%)
+  'GetPool:1:0x517f9dd285e75b599234f7221227339478d0fcc8': getPoolResponse({
+    poolIdentifier: '0x517f9dd285e75b599234f7221227339478d0fcc8',
+    protocolVersion: 'V2',
+    token0Symbol: 'DAI',
+    token1Symbol: 'MKR',
   }),
-  'V3Pool:OPTIMISM:0xd1f1bad4c9e6c44dec1e9bf3b94902205c5cd6c3': v3PoolResponse({
-    id: 'fixture-pool-usdce-wld',
-    address: '0xd1f1bad4c9e6c44dec1e9bf3b94902205c5cd6c3',
+  // USDC.e/WLD — optimism V3, 1%
+  'GetPool:10:0xd1f1bad4c9e6c44dec1e9bf3b94902205c5cd6c3': getPoolResponse({
+    poolIdentifier: '0xd1f1bad4c9e6c44dec1e9bf3b94902205c5cd6c3',
+    protocolVersion: 'V3',
     feeTier: 10000,
-    token0: {
-      id: 'fixture-token-usdce',
-      chain: Chain.Optimism,
-      address: '0x7f5c764cbc14f9669b88837ca1490cca17c31607',
-      symbol: 'USDC.e',
-      name: 'Bridged USDC',
-    },
-    token1: {
-      id: 'fixture-token-wld',
-      chain: Chain.Optimism,
-      address: '0xdc6ff44d5d932cbd77b52e5612ba0529dc6226f1',
-      symbol: 'WLD',
-      name: 'Worldcoin',
-    },
+    token0Symbol: 'USDC.e',
+    token1Symbol: 'WLD',
   }),
 
-  // ── Pool OG-image cases (poolImage.test.ts) — only status + content-type
-  // are asserted, so representative token data is sufficient. ──
-  'V3Pool:ETHEREUM:0xa43fe16908251ee70ef74718545e4fe6c5ccec9f': v3PoolResponse({
-    id: 'fixture-pool-pepe-weth',
-    address: '0xa43fe16908251ee70ef74718545e4fe6c5ccec9f',
+  // ── Pool OG-image cases (poolImage.test.ts) — only status + content-type are asserted ──
+  // PEPE/WETH — ethereum V3, 0.30%
+  'GetPool:1:0xa43fe16908251ee70ef74718545e4fe6c5ccec9f': getPoolResponse({
+    poolIdentifier: '0xa43fe16908251ee70ef74718545e4fe6c5ccec9f',
+    protocolVersion: 'V3',
     feeTier: 3000,
-    token0: {
-      id: 'fixture-token-pepe',
-      chain: Chain.Ethereum,
-      address: '0x6982508145454ce325ddbe47a25d4ec3d2311933',
-      symbol: 'PEPE',
-      name: 'Pepe',
-    },
-    token1: WETH(Chain.Ethereum, 'fixture-token-weth'),
+    token0Symbol: 'PEPE',
+    token1Symbol: 'WETH',
   }),
-  'V3Pool:BASE:0xc9034c3e7f58003e6ae0c8438e7c8f4598d5acaa': v3PoolResponse({
-    id: 'fixture-pool-weth-usdc-base',
-    address: '0xc9034c3e7f58003e6ae0c8438e7c8f4598d5acaa',
+  // WETH/USDC — base V3, 0.05%
+  'GetPool:8453:0xc9034c3e7f58003e6ae0c8438e7c8f4598d5acaa': getPoolResponse({
+    poolIdentifier: '0xc9034c3e7f58003e6ae0c8438e7c8f4598d5acaa',
+    protocolVersion: 'V3',
     feeTier: 500,
-    token0: WETH(Chain.Base, 'fixture-token-weth-base'),
-    token1: {
-      id: 'fixture-token-usdc-base',
-      chain: Chain.Base,
-      address: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913',
-      symbol: 'USDC',
-      name: 'USDC',
-    },
+    token0Symbol: 'WETH',
+    token1Symbol: 'USDC',
+  }),
+
+  // ── Position meta-tag + OG-image cases (position.test.ts, positionImage.test.ts). Synthetic token
+  // ids (real position NFTs would resolve to different pairs against the live service). ──
+  // WBTC/WETH — v3 (Protocols.V3 = 1) on ethereum, in range
+  'GetPosition:1:1:40001': getPositionResponse({ feeTier: 3000, token0Symbol: 'WBTC', token1Symbol: 'WETH' }),
+  // DAI/USDC — v4 (Protocols.V4 = 2) on ethereum, out of range (currentTick above upper)
+  'GetPosition:1:2:40002': getPositionResponse({
+    feeTier: 500,
+    currentTick: 5000,
+    token0Symbol: 'DAI',
+    token1Symbol: 'USDC',
   }),
 }

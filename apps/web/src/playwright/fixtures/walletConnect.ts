@@ -76,6 +76,12 @@ export const test = base.extend<{ walletConnect: WalletConnectFixture }, { wcRel
     }
 
     await use(fixture)
-    await counterparty.close()
+    try {
+      await counterparty.close()
+    } finally {
+      // The relay is worker-scoped, the session is test-scoped: retire this test's topics so
+      // nothing that outlives teardown can re-subscribe them and pick up the stored backlog.
+      wcRelay.retireTopics()
+    }
   },
 })

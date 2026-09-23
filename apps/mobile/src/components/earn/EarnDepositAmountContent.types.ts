@@ -1,8 +1,10 @@
 import type { TradingApi } from '@universe/api'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import type { EarnAction, EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
+import type { EarnAnalyticsBaseProperties } from 'uniswap/src/features/telemetry/types'
 
 export type EarnDepositAmountContentProps = {
+  analyticsProperties?: EarnAnalyticsBaseProperties
   vault: EarnVaultInfo
   position?: EarnPositionInfo
   initialAction?: EarnAction

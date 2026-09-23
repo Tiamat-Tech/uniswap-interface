@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { isUniRpcOnlyChain } from 'uniswap/src/features/providers/unirpcOnlyChains'
 
 describe('isUniRpcOnlyChain', () => {

@@ -5,25 +5,25 @@ import { ModalRegistry, ModalWrapperProps } from '~/app/layout/TopLevelModals/ty
 import { ErrorBoundary } from '~/components/ErrorBoundary'
 import { useModalState } from '~/hooks/useModalState'
 import { useAppSelector } from '~/state/hooks'
-import { createLazy } from '~/utils/lazyWithRetry'
+import { createLazy, createLazyNoReload } from '~/utils/lazyWithRetry'
 
 const AddressClaimModal = createLazy(() => import('~/features/claim/AddressClaimModal'))
 const ConnectedAccountBlocked = createLazy(() => import('~/components/ConnectedAccountBlocked'))
-const PendingWalletConnectionModal = createLazy(
+const PendingWalletConnectionModal = createLazyNoReload(
   () => import('~/components/WalletModal/PendingWalletConnectionModal/PendingWalletConnectionModal'),
 )
-const UniwalletModal = createLazy(() => import('~/components/AccountDrawer/UniwalletModal'))
-const OffchainActivityModal = createLazy(() => import('~/components/modals/OffchainActivityModal'))
-const TransactionDetailsModalDispatcher = createLazy(() =>
+const UniwalletModal = createLazyNoReload(() => import('~/components/AccountDrawer/UniwalletModal'))
+const OffchainActivityModal = createLazyNoReload(() => import('~/components/modals/OffchainActivityModal'))
+const TransactionDetailsModalDispatcher = createLazyNoReload(() =>
   import('~/app/layout/TopLevelModals/TransactionDetailsModalDispatcher').then((module) => ({
     default: module.TransactionDetailsModalDispatcher,
   })),
 )
-const UkDisclaimerModal = createLazy(() => import('~/app/layout/TopLevelModals/UkDisclaimerModal'))
+const UkDisclaimerModal = createLazyNoReload(() => import('~/app/layout/TopLevelModals/UkDisclaimerModal'))
 const TestnetModeModal = createLazy(() =>
   import('uniswap/src/features/testnets/TestnetModeModal').then((module) => ({ default: module.TestnetModeModal })),
 )
-const GetTheAppModal = createLazy(() =>
+const GetTheAppModal = createLazyNoReload(() =>
   import('~/components/NavBar/DownloadApp/Modal').then((module) => ({ default: module.GetTheAppModal })),
 )
 const PrivacyPolicyModal = createLazy(() =>
@@ -36,7 +36,7 @@ const DisclosuresModal = createLazy(() =>
   import('~/components/Disclosures').then((module) => ({ default: module.DisclosuresModal })),
 )
 const FeatureFlagModal = createLazy(() => import('~/components/FeatureFlagModal/FeatureFlagModal'))
-const DevFlagsBox = createLazy(() => import('~/dev/DevFlagsBox'))
+const DevFlagsBox = createLazyNoReload(() => import('~/dev/DevFlagsBox'))
 const TokenNotFoundModal = createLazy(() => import('~/components/NotFoundModal/TokenNotFoundModal'))
 const PoolNotFoundModal = createLazy(() => import('~/components/NotFoundModal/PoolNotFoundModal'))
 const IncreaseLiquidityModal = createLazy(() =>
@@ -55,11 +55,11 @@ const DelegationMismatchModal = createLazy(() =>
     default: module.default,
   })),
 )
-const HelpModal = createLazy(() =>
+const HelpModal = createLazyNoReload(() =>
   import('~/components/HelpModal/HelpModal').then((module) => ({ default: module.HelpModal })),
 )
 
-const ReceiveCryptoModal = createLazy(() =>
+const ReceiveCryptoModal = createLazyNoReload(() =>
   import('~/components/ReceiveCryptoModal').then((module) => ({ default: module.ReceiveCryptoModal })),
 )
 

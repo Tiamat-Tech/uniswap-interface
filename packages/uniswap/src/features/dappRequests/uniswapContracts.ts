@@ -1,6 +1,5 @@
 import { permit2Address } from '@uniswap/permit2-sdk'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
+import { areAddressesEqual, UniverseChainId } from '@universe/chains'
 
 /**
  * Whether an address is a canonical Uniswap protocol contract on the given chain.

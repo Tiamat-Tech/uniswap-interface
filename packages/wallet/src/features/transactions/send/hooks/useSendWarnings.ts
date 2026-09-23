@@ -1,7 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
 import { TFunction } from 'i18next'
 import isEqual from 'lodash/isEqual'
 import { Warning, WarningAction, WarningLabel, WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { NFTItem } from 'uniswap/src/features/nfts/types'
 import type { PermissionedSendBlockReason } from 'uniswap/src/features/permissionedTokens/useIsPermissionedSendBlocked'

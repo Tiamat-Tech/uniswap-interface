@@ -1,55 +1,26 @@
-import { FlashList, FlashListRef } from '@shopify/flash-list'
-import { memo, useCallback, useEffect, useMemo, useRef, type PropsWithChildren } from 'react'
-import type { LayoutChangeEvent, StyleProp, ViewStyle } from 'react-native'
-import Animated, { LinearTransition } from 'react-native-reanimated'
-import { AnimatedBottomSheetFlashList } from 'ui/src/components/AnimatedFlashList/AnimatedFlashList'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
+import { UniversalList, type UniversalListRef, type UniversalListRenderItemInfo } from '@universe/mycelium'
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { OnchainItemListOption } from 'uniswap/src/components/lists/items/types'
+import {
+  getNativeRowFixedSize,
+  getNativeRowItemType,
+} from 'uniswap/src/components/lists/OnchainItemList/nativeRowLayout'
 import { OnchainItemListProps } from 'uniswap/src/components/lists/OnchainItemList/OnchainItemList'
 import {
+  getProcessedRowKey,
   ProcessedRow,
   ProcessedRowType,
   processSectionsToRows,
+  toFlatRowIndex,
 } from 'uniswap/src/components/lists/OnchainItemList/processSectionsToRows'
-import { getSectionHeaderRowKey, getSectionItemRowKey } from 'uniswap/src/components/lists/OnchainItemList/rowKeys'
-import { EXPANDABLE_ASSET_ROW_HEIGHT_TRANSITION_MS } from 'uniswap/src/features/expandableAsset/expandableAssetLayout'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
 
 const TOKEN_ITEM_SIZE = 64
-// Rows ahead of the viewport to pre-render. Kept small so the initial mount stays cheap;
-// a large window mounts dozens of heavy rows synchronously when the list first appears.
-const AMOUNT_TO_DRAW = 5
-
-const EXPANDABLE_ROW_LAYOUT_TRANSITION = LinearTransition.duration(EXPANDABLE_ASSET_ROW_HEIGHT_TRANSITION_MS)
-const AnimatedCellContainer = Animated.View
-
-// Only multi-issuer (grouped ticker) rows are expandable / dynamic-height.
-function isExpandableRow(row: ProcessedRow): boolean {
-  return (
-    row.type === ProcessedRowType.Item &&
-    !Array.isArray(row.data.item) &&
-    row.data.item.rowLayout?.dynamicHeight === true
-  )
-}
-
-// Reanimated tweens the cell view between its collapsed and expanded layouts so an expanding/collapsing row grows
-// smoothly and the rows below slide rather than snap. `overflow: hidden` clips the fully-rendered issuer panel to
-// the animating height so it reveals progressively.
-function AnimatedCellRenderer({
-  style,
-  ...props
-}: PropsWithChildren<{
-  style?: StyleProp<ViewStyle>
-  onLayout?: (event: LayoutChangeEvent) => void
-  index: number
-}>): JSX.Element {
-  return (
-    <AnimatedCellContainer
-      {...props}
-      layout={EXPANDABLE_ROW_LAYOUT_TRANSITION}
-      style={[style, { overflow: 'hidden' }]}
-    />
-  )
-}
+// Rows to keep rendered beyond the viewport. Legend List caps the first paint at the visible rows
+// regardless and fills the rest of this window a frame later, so a larger window costs nothing at
+// open and gives a normal-speed scroll rows that are already there.
+const AMOUNT_TO_DRAW = 10
 
 export const OnchainItemList = memo(function OnchainItemListInner({
   sectionListRef,
@@ -63,25 +34,29 @@ export const OnchainItemList = memo(function OnchainItemListInner({
   contentContainerStyle,
 }: OnchainItemListProps<OnchainItemListOption>): JSX.Element {
   const insets = useAppInsets()
-  const ref = useRef<FlashListRef<ProcessedRow>>(null)
+  const ref = useRef<UniversalListRef>(null)
 
   useEffect(() => {
     if (sectionListRef) {
       sectionListRef.current = {
-        scrollToLocation: ({ itemIndex, sectionIndex, animated }): void => {
-          void ref.current?.scrollToIndex({ index: itemIndex || sectionIndex, animated })
+        // Callers address rows the SectionList way (section-relative, itemIndex counting the header),
+        // but the row array is flat with a header ahead of each section's items, so both halves fold
+        // into one index.
+        scrollToLocation: ({ sectionIndex, itemIndex, animated }): void => {
+          ref.current?.scrollToIndex({ index: toFlatRowIndex({ sections, sectionIndex, itemIndex }), animated })
         },
       }
     }
-  }, [sectionListRef])
+  }, [sectionListRef, sections])
 
+  // Rows keep their identity across rebuilds (see `processSectionsToRows`), so a refetch that
+  // rebuilds `sections` re-renders only the rows that actually changed.
+  const previousRows = useRef<ProcessedRow[]>([])
   const data = useMemo(() => {
-    return processSectionsToRows({ sections, expandedItems, keyExtractor })
+    const rows = processSectionsToRows({ sections, expandedItems, keyExtractor, previousRows: previousRows.current })
+    previousRows.current = rows
+    return rows
   }, [sections, expandedItems, keyExtractor])
-
-  // Only animate cell layout when the list contains expandable rows, so plain token/wallet lists keep their instant
-  // layout and don't animate on every search keystroke.
-  const hasExpandableRows = useMemo(() => data.some(isExpandableRow), [data])
 
   // TODO(WALL-5889): fix sticky header indices (prevent duplicates)
   // const stickyHeaderIndices: number[] = useMemo(() => {
@@ -90,8 +65,8 @@ export const OnchainItemList = memo(function OnchainItemListInner({
   //     .filter((index) => index !== null) as number[]
   // }, [data])
 
-  const renderFlashListItem = useCallback(
-    ({ item }: { item: ProcessedRow }) => {
+  const renderRow = useCallback(
+    ({ item }: UniversalListRenderItemInfo<ProcessedRow>): JSX.Element | null => {
       switch (item.type) {
         case ProcessedRowType.Header:
           return renderSectionHeader?.(item.data) ?? null
@@ -104,58 +79,39 @@ export const OnchainItemList = memo(function OnchainItemListInner({
     [renderItem, renderSectionHeader],
   )
 
-  const getItemType = useCallback((row: ProcessedRow): string => {
-    // Typing fixed-height single-issuer rows as dynamic fragments the recycle pool and breaks RecyclerListView's
-    // type-based height reuse for neighboring rows.
-    return isExpandableRow(row) ? 'item-dynamic-height' : row.type
-  }, [])
-
-  const overrideItemLayout = useCallback((layout: { size?: number }, row: ProcessedRow): void => {
-    if (row.type !== ProcessedRowType.Item || Array.isArray(row.data.item) || !row.data.item.rowLayout) {
-      return
-    }
-    const { rowLayout } = row.data.item
-    layout.size = row.data.expanded ? rowLayout.expandedHeightPx : rowLayout.collapsedHeightPx
-  }, [])
-
   const makeKey = useCallback(
     // Section-scoped, position-independent keys (mirrors web). A `-${index}` suffix would re-key every row below
     // an added/removed Recents section, forcing a relayout that under-estimates content height (SWAP-2787).
-    (item: ProcessedRow): string => {
-      switch (item.type) {
-        case ProcessedRowType.Header:
-          return getSectionHeaderRowKey(item.data.section.sectionKey)
-        case ProcessedRowType.Item:
-          return getSectionItemRowKey({
-            sectionKey: item.data.section.sectionKey,
-            itemKey: keyExtractor?.(item.data.item, item.data.index),
-            index: item.data.index,
-          })
-        default:
-          return ''
-      }
-    },
+    (item: ProcessedRow): string => getProcessedRowKey(item, keyExtractor),
     [keyExtractor],
   )
-  const ListComponent = renderedInModal ? AnimatedBottomSheetFlashList : FlashList
+
+  const listContentContainerStyle = useMemo(
+    () => ({ style: [{ paddingBottom: insets.bottom }, contentContainerStyle] }),
+    [insets.bottom, contentContainerStyle],
+  )
 
   return (
-    <ListComponent
+    <UniversalList
       ref={ref}
+      // Reassigning a cell re-renders the mounted row instead of tearing down and recreating ~25 native
+      // views. Row-local state is safe to carry over: the only stateful bits are open-overlay flags
+      // (warning modal, context menu), and an open overlay blocks the scroll that would recycle the row.
+      recycleItems
+      contentContainerStyle={listContentContainerStyle}
       data={data}
-      ListEmptyComponent={ListEmptyComponent}
+      drawDistance={TOKEN_ITEM_SIZE * AMOUNT_TO_DRAW}
       estimatedItemSize={TOKEN_ITEM_SIZE}
-      contentContainerStyle={[{ paddingBottom: insets.bottom }, contentContainerStyle]}
+      getFixedItemSize={getNativeRowFixedSize}
+      getItemType={getNativeRowItemType}
+      keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="always"
       keyExtractor={makeKey}
-      keyboardDismissMode="on-drag"
-      renderItem={renderFlashListItem}
-      getItemType={getItemType}
-      overrideItemLayout={overrideItemLayout}
-      CellRendererComponent={hasExpandableRows ? AnimatedCellRenderer : undefined}
-      extraData={expandedItems}
+      ListEmptyComponent={ListEmptyComponent}
+      renderItem={renderRow}
+      // Route scroll gestures through the sheet's own scrollable when rendered inside one.
+      renderScrollComponent={renderedInModal ? BottomSheetScrollView : undefined}
       showsVerticalScrollIndicator={false}
-      drawDistance={TOKEN_ITEM_SIZE * AMOUNT_TO_DRAW}
       // TODO(WALL-5889): fix sticky header indices (prevent duplicates)
       // stickyHeaderIndices={stickyHeaderIndices}
     />

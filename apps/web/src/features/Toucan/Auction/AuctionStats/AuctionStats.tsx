@@ -1,11 +1,13 @@
+import { Flex, FlexCompatProps, Text, TouchableArea } from '@universe/mycelium'
+import { ArrowRight } from '@universe/mycelium/icons/ArrowRight'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
+import { Lock } from '@universe/mycelium/icons/Lock'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 // oxlint-disable-next-line no-restricted-imports -- Used outside React component context where useTranslation is not available
 import { TFunction, t } from 'i18next'
 import { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, Tooltip, TouchableArea, useMedia } from 'ui/src'
-import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
-import { Lock } from 'ui/src/components/icons/Lock'
 import {
   AuctionLiquidityLockData,
   useAuctionLiquidityLock,
@@ -188,65 +190,48 @@ const STATS_PER_ROW_DESKTOP = 4
 // With the buyback & burn stat the grid re-flows to 3 columns x 2 rows
 const STATS_PER_ROW_DESKTOP_BUYBACK = 3
 
-const StatsGrid = styled(Flex, {
-  width: '100%',
-  '$platform-web': {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr 1fr',
-  },
-  $lg: {
-    backgroundColor: '$surface3',
-    '$platform-web': {
-      gridTemplateColumns: '1fr 1fr',
-      gap: 1,
-    },
-  },
-  variants: {
-    columns: {
-      ':number': (columns) => ({
-        '$platform-web': {
-          display: 'grid',
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
-        },
-      }),
-    },
-  } as const,
-})
+const StatsGrid = ({ columns, ...rest }: FlexCompatProps & { columns: number }) => (
+  <Flex
+    width="100%"
+    $platform-web={{
+      display: 'grid',
+      gridTemplateColumns: `repeat(${columns}, 1fr)`,
+    }}
+    $lg={{
+      backgroundColor: '$surface3',
+      '$platform-web': {
+        gridTemplateColumns: '1fr 1fr',
+        gap: 1,
+      },
+    }}
+    {...rest}
+  />
+)
 
-const StatCell = styled(Flex, {
-  paddingVertical: '$spacing12',
-  gap: '$spacing2',
-  paddingRight: '$spacing6',
-  borderRightWidth: 1,
-  borderColor: '$surface3',
-  $md: {
-    paddingVertical: '$spacing8',
-  },
-  $lg: {
-    borderRightWidth: 0,
-    paddingRight: 0,
-    paddingHorizontal: '$spacing12',
-    backgroundColor: '$surface1',
-  },
-  variants: {
-    isLastInRow: {
-      true: {
-        borderRightWidth: 0,
-      },
-    },
-    isFirstRow: {
-      true: {
-        borderBottomWidth: 1,
-        borderColor: '$surface3',
-      },
-    },
-    hasLeftPadding: {
-      true: {
-        paddingLeft: '$spacing12',
-      },
-    },
-  } as const,
-})
+const StatCell = ({
+  isLastInRow,
+  isFirstRow,
+  hasLeftPadding,
+  ...rest
+}: FlexCompatProps & { isLastInRow?: boolean; isFirstRow?: boolean; hasLeftPadding?: boolean }) => (
+  <Flex
+    paddingVertical="$spacing12"
+    gap="$spacing2"
+    paddingRight="$spacing6"
+    paddingLeft={hasLeftPadding ? '$spacing12' : undefined}
+    borderRightWidth={isLastInRow ? 0 : 1}
+    borderBottomWidth={isFirstRow ? 1 : undefined}
+    borderColor="$surface3"
+    $md={{ paddingVertical: '$spacing8' }}
+    $lg={{
+      borderRightWidth: 0,
+      paddingRight: 0,
+      paddingHorizontal: '$spacing12',
+      backgroundColor: '$surface1',
+    }}
+    {...rest}
+  />
+)
 
 export const AuctionStatsGrid = ({ onViewAllStats }: { onViewAllStats?: () => void }) => {
   // oxlint-disable-next-line no-shadow

@@ -1,7 +1,6 @@
 import { TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
 import { useMergeLocalAndRemoteTransactions } from 'uniswap/src/features/activity/hooks/useMergeLocalAndRemoteTransactions'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ValueType } from 'uniswap/src/features/tokens/getCurrencyAmount'
 import { activePlanStore } from 'uniswap/src/features/transactions/swap/review/stores/activePlan/activePlanStore'
 import {
@@ -12,11 +11,13 @@ import {
 } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { TEST_WALLET } from 'uniswap/src/test/fixtures/wallet/addresses'
 import {
+  approveTransactionInfo,
   extractInputSwapTransactionInfo,
   transactionDetails,
   uniswapXOrderDetails,
 } from 'uniswap/src/test/fixtures/wallet/transactions'
 import { act, renderHook } from 'uniswap/src/test/test-utils'
+import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import type { Mock } from 'vitest'
 
 // Mock dependencies
@@ -29,6 +30,7 @@ vi.mock('@universe/gating', async () => ({
   useFeatureFlag: vi.fn(() => false),
 }))
 
+import { UniverseChainId } from '@universe/chains'
 import { useFeatureFlag } from '@universe/gating'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 
@@ -64,6 +66,7 @@ describe('useMergeLocalAndRemoteTransactions', () => {
   const renderMergeHook = (
     remoteTransactions: TransactionDetails[] | undefined,
     localTransactions: TransactionDetails[] = [],
+    skipLocalTransactions = false,
   ) => {
     const preloadedState = localTransactions.length
       ? {
@@ -88,6 +91,7 @@ describe('useMergeLocalAndRemoteTransactions', () => {
         useMergeLocalAndRemoteTransactions({
           evmAddress: TEST_WALLET,
           remoteTransactions,
+          skipLocalTransactions,
         }),
       { preloadedState },
     )
@@ -100,14 +104,96 @@ describe('useMergeLocalAndRemoteTransactions', () => {
 
       expect(result.current).toEqual([remoteTx])
     })
+
+    it.each([
+      { skipLocalTransactions: false, state: 'no local transactions exist' },
+      { skipLocalTransactions: true, state: 'local transactions are skipped' },
+    ])('sorts remote transactions newest first when $state', ({ skipLocalTransactions }) => {
+      const olderTx = createTestTransaction({
+        id: 'older-remote',
+        hash: '0xolderremote',
+        status: TransactionStatus.Success,
+        addedTime: 1,
+      })
+      const newerTx = createTestTransaction({
+        id: 'newer-remote',
+        hash: '0xnewerremote',
+        status: TransactionStatus.Success,
+        addedTime: 2,
+      })
+      const { result } = renderMergeHook([olderTx, newerTx], [], skipLocalTransactions)
+
+      expect(result.current?.map((tx) => tx.id)).toEqual([newerTx.id, olderTx.id])
+    })
+
+    it.each([
+      { inputOrder: ['approval', 'unrelated', 'swap'], state: 'the approval is received first' },
+      { inputOrder: ['swap', 'unrelated', 'approval'], state: 'the swap is received first' },
+    ])('keeps a matching swap ahead of its equal-time approval when $state', ({ inputOrder }) => {
+      const addedTime = 1
+      const tokenAddress = '0x0000000000000000000000000000000000000001'
+      const approval = createTestTransaction({
+        id: 'approval',
+        hash: '0xapproval',
+        addedTime,
+        typeInfo: approveTransactionInfo({ tokenAddress }),
+      })
+      const unrelated = createTestTransaction({
+        id: 'unrelated',
+        hash: '0xunrelated',
+        addedTime,
+      })
+      const swap = createTestTransaction({
+        id: 'swap',
+        hash: '0xswap',
+        addedTime,
+        typeInfo: extractInputSwapTransactionInfo({
+          inputCurrencyId: buildCurrencyId(UniverseChainId.Mainnet, tokenAddress),
+        }),
+      })
+      const transactionsById: Record<string, TransactionDetails> = { approval, unrelated, swap }
+      const transactions = inputOrder.map((id) => transactionsById[id]!)
+      const { result } = renderMergeHook(transactions)
+      const resultIds = result.current?.map((tx) => tx.id) ?? []
+
+      expect(resultIds.indexOf(swap.id)).toBeLessThan(resultIds.indexOf(approval.id))
+      expect(resultIds.filter((id) => id !== swap.id)).toEqual(inputOrder.filter((id) => id !== swap.id))
+    })
   })
 
   describe('when only local transactions exist', () => {
+    it('returns undefined when both transaction sources are unavailable', () => {
+      const { result } = renderMergeHook(undefined)
+
+      expect(result.current).toBeUndefined()
+    })
+
     it('should return local transactions', () => {
       const localTx = createTestTransaction({ status: TransactionStatus.Pending, hash: '0xlocal123' })
       const { result } = renderMergeHook(undefined, [localTx])
 
       expect(result.current).toEqual([localTx])
+    })
+
+    it.each([
+      { remoteTransactions: undefined, state: 'unavailable' },
+      { remoteTransactions: [], state: 'empty' },
+    ])('sorts local transactions newest first when remote transactions are $state', ({ remoteTransactions }) => {
+      const olderTx = createTestTransaction({
+        id: 'older-local',
+        hash: '0xolderlocal',
+        status: TransactionStatus.Success,
+        addedTime: 1,
+      })
+      const newerTx = createTestTransaction({
+        id: 'newer-local',
+        hash: '0xnewerlocal',
+        status: TransactionStatus.Success,
+        addedTime: 2,
+      })
+      const { result } = renderMergeHook(remoteTransactions, [olderTx, newerTx])
+
+      expect(result.current?.map((tx) => tx.id)).toEqual([newerTx.id, olderTx.id])
     })
   })
 
@@ -653,7 +739,7 @@ describe('useMergeLocalAndRemoteTransactions', () => {
         status: TransactionStatus.Pending,
       })
 
-      const { result } = renderMergeHook([plan1, plan2])
+      const { result } = renderMergeHook([plan2, plan1])
 
       // Should be sorted by updatedTime (newest first), not addedTime
       expect(result.current).toHaveLength(2)

@@ -6,8 +6,10 @@ import { startGatewayFixtureServer } from './gatewayFixtureServer'
  * When CLOUD_FUNCTIONS_GRAPHQL_ENDPOINT_OVERRIDE points at localhost (as the
  * cloud-tests CI job sets it, for both the dev server and this test run),
  * starts the gateway fixture server on that URL's port so the dev-server
- * worker gets deterministic GraphQL responses. Without the override the
- * tests run against the live gateway, matching local `bun run dev` usage.
+ * worker gets deterministic GraphQL responses. The same server also answers the
+ * liquidity v2 connect-RPC calls (CLOUD_FUNCTIONS_LIQUIDITY_ENDPOINT_OVERRIDE
+ * points at the same host:port). Without the overrides the tests run against the
+ * live gateway, matching local `bun run dev` usage.
  */
 export default async function setup(): Promise<(() => Promise<void>) | undefined> {
   const override = process.env.CLOUD_FUNCTIONS_GRAPHQL_ENDPOINT_OVERRIDE

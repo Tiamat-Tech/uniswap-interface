@@ -1,5 +1,5 @@
-import { Flex, Text, TouchableArea, useIsTouchDevice, WebBottomSheet } from 'ui/src'
-import { MoreHorizontal } from 'ui/src/components/icons/MoreHorizontal'
+import { Flex, Text, TouchableArea, useIsTouchDevice, WebBottomSheet } from '@universe/mycelium'
+import { MoreHorizontal } from '@universe/mycelium/icons/MoreHorizontal'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
 import { ActionButtonStyle } from '~/components/StickyCollapsibleHeader/HeaderActions/ActionButtonStyle'
 import { HeaderActionRowContent } from '~/components/StickyCollapsibleHeader/HeaderActions/HeaderActionRowContent'

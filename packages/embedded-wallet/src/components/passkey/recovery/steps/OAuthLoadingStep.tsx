@@ -1,6 +1,6 @@
 import { StepHeader } from '@universe/embedded-wallet/src/components/passkey/recovery/StepHeader'
+import { Flex, SpinningLoader, Text } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Flex, SpinningLoader, Text } from 'ui/src'
 
 export function OAuthLoadingStep({
   oauthError,

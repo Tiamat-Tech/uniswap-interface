@@ -1,14 +1,12 @@
 import { isWebAppDesktop } from '@universe/environment'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { atom } from 'jotai'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Button,
-  Flex,
   getContrastPassingTextColor,
   ModalCloseIcon,
-  Text,
-  TouchableArea,
   useColorsFromTokenColor,
   useExtractedTokenColor,
   useSporeColors,

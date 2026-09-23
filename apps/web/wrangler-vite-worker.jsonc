@@ -16,7 +16,7 @@
   "vars": {
     "ENTRY_GATEWAY_API_URL": "https://entry-gateway.backend-staging.api.uniswap.org",
     "WEBSOCKET_URL": "https://websockets.backend-staging.api.uniswap.org",
-    "EMBED_FRAME_ANCESTORS": "https://dexscreener.com https://*.dexscreener.com http://localhost:*",
+    "EMBED_FRAME_ANCESTORS": "https://dexscreener.com https://*.dexscreener.com https://omen.town https://*.omen.town http://localhost:*",
   },
 
   "env": {
@@ -24,7 +24,7 @@
       "vars": {
         "ENTRY_GATEWAY_API_URL": "https://entry-gateway.backend-dev.api.uniswap.org",
         "WEBSOCKET_URL": "https://entry-gateway.backend-dev.api.uniswap.org/ws",
-        "EMBED_FRAME_ANCESTORS": "https://dexscreener.com https://*.dexscreener.com http://localhost:*",
+        "EMBED_FRAME_ANCESTORS": "https://dexscreener.com https://*.dexscreener.com https://omen.town https://*.omen.town http://localhost:*",
       },
     },
     "staging": {
@@ -32,7 +32,7 @@
       "vars": {
         "ENTRY_GATEWAY_API_URL": "https://entry-gateway.backend-staging.api.uniswap.org",
         "WEBSOCKET_URL": "https://entry-gateway.backend-staging.api.uniswap.org/ws",
-        "EMBED_FRAME_ANCESTORS": "https://dexscreener.com https://*.dexscreener.com",
+        "EMBED_FRAME_ANCESTORS": "https://dexscreener.com https://*.dexscreener.com https://omen.town https://*.omen.town",
       },
       "observability": {
         "enabled": true,
@@ -44,7 +44,7 @@
       "vars": {
         "ENTRY_GATEWAY_API_URL": "https://entry-gateway.backend-prod.api.uniswap.org",
         "WEBSOCKET_URL": "https://entry-gateway.backend-prod.api.uniswap.org/ws",
-        "EMBED_FRAME_ANCESTORS": "https://dexscreener.com https://*.dexscreener.com",
+        "EMBED_FRAME_ANCESTORS": "https://dexscreener.com https://*.dexscreener.com https://omen.town https://*.omen.town",
       },
       "observability": {
         "enabled": true,

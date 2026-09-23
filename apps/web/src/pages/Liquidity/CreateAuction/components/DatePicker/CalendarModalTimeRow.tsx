@@ -1,8 +1,8 @@
+import { Flex, fonts, Text, TouchableArea } from '@universe/mycelium'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Input, Text, TouchableArea } from 'ui/src'
-import { fonts } from 'ui/src/theme/fonts'
+import { Input } from 'ui/src'
 import { useCurrentLanguageInfo } from 'uniswap/src/features/language/hooks'
 import {
   getLocaleUses12HourTime,

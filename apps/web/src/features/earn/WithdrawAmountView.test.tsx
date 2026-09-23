@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import type { ReactNode } from 'react'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { WithdrawAmountView } from '~/features/earn/WithdrawAmountView'
@@ -77,6 +77,7 @@ vi.mock('~/components/NumericalInput/LargeAmountInput', async () => {
     StyledNumericalInput: React.forwardRef(({ value }: { value: string }, _ref) => (
       <input aria-label="withdraw amount" readOnly value={value} />
     )),
+    useMeasuredFieldWidth: () => ({ ref: vi.fn(), fieldWidth: undefined }),
   }
 })
 

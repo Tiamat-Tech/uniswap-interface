@@ -1,5 +1,6 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
-import { LaunchesOrderBy, type Launch } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import { LaunchesOrderBy, type Launch } from '@uniswap/client-launches/dist/launches/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import {
   DynamicConfigs,
   FeatureFlags,
@@ -7,12 +8,12 @@ import {
   useDynamicConfigValue,
   useFeatureFlag,
 } from '@universe/gating'
+import { Flex, spacing, Text } from '@universe/mycelium'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, Tooltip } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
-import { INTERFACE_NAV_HEIGHT, spacing } from 'ui/src/theme'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { INTERFACE_NAV_HEIGHT } from 'ui/src/theme'
 import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { logger } from 'utilities/src/logger/logger'
@@ -37,6 +38,7 @@ import { LaunchFilterBar, LaunchQuickSelects } from '~/pages/Launches/LaunchFilt
 import { LaunchTable } from '~/pages/Launches/LaunchTable'
 import { TrendingLaunchCard } from '~/pages/Launches/TrendingLaunchCard'
 import { LaunchQuickFilter, toLaunchesRequestParams, useLaunchesFilters } from '~/pages/Launches/useLaunchesList'
+import { preloadTokenDetailsChunk } from '~/pages/Launches/usePrefetchLaunchTokenDetails'
 import { useTrendingMarquee } from '~/pages/Launches/useTrendingMarquee'
 
 const TRENDING_COUNT = 10
@@ -51,10 +53,10 @@ const DEFAULT_LAUNCHES_NETWORK_FILTER_CHAIN_IDS = [UniverseChainId.Robinhood] as
 const HERO_PAGE_SIZE = 100
 
 /**
- * Hero brand admission rule (its caller re-checks the chain). The request already scopes both
- * server-side; this re-check exists so an older data-api that doesn't recognise the `pools` group
- * id (and degrades to serving every launchpad) can't put a third-party launch in a Uniswap-branded
- * marquee. Both mechanisms are admitted — the group id asks for both on purpose.
+ * Hero admission rule. The request already scopes chain and brand server-side; this only re-checks
+ * the brand, so an older data-api that doesn't recognise the `pools` group id (and degrades to
+ * serving every launchpad) can't put a third-party launch in a Uniswap-branded marquee. Both
+ * mechanisms are admitted — the group id asks for both on purpose.
  */
 function isPoolsLaunch(launch: PlainMessage<Launch>): boolean {
   return POOLS_LAUNCHPAD_MECHANISM_IDS.includes(launch.launchpadId)
@@ -141,8 +143,13 @@ function TrendingCarousel({
   const { t } = useTranslation()
   const layoutRef = useRef<HTMLDivElement>(null)
   const { cardWidth, fadeWidth, showArrowButtons } = useCarouselLayout(layoutRef)
-  const carousel = useHorizontalSnapCarousel({ cardWidth, itemCount: trending.length, isLoading })
   const marquee = useTrendingMarquee({ itemCount: trending.length, cardWidth, isLoading })
+  const carousel = useHorizontalSnapCarousel({
+    cardWidth,
+    itemCount: trending.length,
+    isLoading,
+    isAutoScrolling: marquee.isMarqueeActive,
+  })
 
   // Marquee-aware handler wrappers: the same hover that reveals the arrows pauses the drift, and
   // the marquee shares the carousel's scroll element.
@@ -212,6 +219,8 @@ function TrendingCarousel({
           // heuristics (isAtStart / isScrollSettled) hide the left fade whenever the drift pauses
           // or settles, hard-clipping a card — keep it on to match the permanent right fade.
           forceLeftFade={marquee.isMarqueeActive}
+          // A resting marquee still auto-scrolls, so its fades must stay up or cards hard-clip at the edges.
+          fadeOnHoverOnly={!marquee.isMarqueeActive}
         />
       </Flex>
     </Flex>
@@ -220,6 +229,8 @@ function TrendingCarousel({
 
 export default function LaunchesPage(): JSX.Element {
   const { t } = useTranslation()
+  // Touch devices never hover, so warm the TDP chunk as soon as the page mounts.
+  useEffect(preloadTokenDetailsChunk, [])
 
   const enablePoolsXyzBanner = useFeatureFlag(FeatureFlags.EnablePoolsXyzBanner)
   const enablePoolsXyzTeaser = useFeatureFlag(FeatureFlags.EnablePoolsXyzTeaser)
@@ -277,14 +288,15 @@ export default function LaunchesPage(): JSX.Element {
   // silently thins the network-filter options, so log it.
   const { launches: allLaunches, error: allLaunchesError } = useLaunches({ chainIds: allowedNetworkChainIds })
   useLogFeedError(allLaunchesError, 'networkOptionsFeed')
-  // Dedicated Robinhood Chain feed for the hero marquee, requested with the same params as the
-  // Trending tab Pools renders: the `pools` group (both launch mechanisms), the chain pinned, and
-  // the server's TRENDING ranking, which backfills its page by 24h volume so the page is never
-  // thin. Asking CCA-only, newest-first for 25 rows was what starved the marquee.
-  // A failure just empties the marquee, so log it.
+  // Dedicated Pools-chains feed for the hero marquee, requested with the same params as the
+  // Trending tab Pools renders: the `pools` group (both launch mechanisms), the chains pinned (Arc
+  // joins Robinhood once its rollout flag is on), and the server's TRENDING ranking, which backfills
+  // its page by 24h volume so the page is never thin. Asking CCA-only, newest-first for 25 rows was
+  // what starved the marquee. A failure just empties the marquee, so log it.
+  const isArcEnabled = useFeatureFlag(FeatureFlags.Arc)
   const { launches: poolsLaunches, error: poolsLaunchesError } = useLaunches({
     launchpadIds: [POOLS_LAUNCHPAD_GROUP_ID],
-    chainIds: [UniverseChainId.Robinhood],
+    chainIds: isArcEnabled ? [UniverseChainId.Robinhood, UniverseChainId.Arc] : [UniverseChainId.Robinhood],
     sortBy: LaunchesOrderBy.TRENDING,
     pageSize: HERO_PAGE_SIZE,
   })
@@ -322,16 +334,11 @@ export default function LaunchesPage(): JSX.Element {
     [trendingLaunches, launchpadById, auctionAddressByToken],
   )
 
-  // Robinhood Chain Pools launches feed the hero marquee, in the server's trending order. Both
-  // scopes are re-checked client-side even though the request pins them: a feed that ignores the
-  // params must not put a third-party launchpad, or a token off the Robinhood chain the hero copy
-  // promises, into a Uniswap-branded marquee.
-  const quickLaunches = useMemo(
+  // Pools launches on the hero's chains feed the marquee, in the server's trending order.
+  const heroLaunches = useMemo(
     () =>
       toLaunchItems({
-        launches: poolsLaunches.filter(
-          (launch) => isPoolsLaunch(launch) && launch.token?.chainId === UniverseChainId.Robinhood,
-        ),
+        launches: poolsLaunches.filter(isPoolsLaunch),
         launchpadById,
         auctionAddressByToken,
       }),
@@ -374,7 +381,7 @@ export default function LaunchesPage(): JSX.Element {
         >
           {/* Banner wins outright; the teaser only stands in when the banner is off. */}
           {enablePoolsXyzBanner ? (
-            <LaunchesHero quickLaunches={quickLaunches} />
+            <LaunchesHero launches={heroLaunches} />
           ) : (
             enablePoolsXyzTeaser && <LaunchesTeaserBanner />
           )}

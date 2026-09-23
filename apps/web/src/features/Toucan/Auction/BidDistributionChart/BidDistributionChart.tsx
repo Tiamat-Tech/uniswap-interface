@@ -1,8 +1,8 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { BidDistributionChartPlaceholder } from '~/features/Toucan/Auction/BidDistributionChart/BidDistributionChartPlaceholder'
 import { BidDistributionChartRenderer } from '~/features/Toucan/Auction/BidDistributionChart/BidDistributionChartRenderer'
 import { areUserBidsEqualUnordered } from '~/features/Toucan/Auction/BidDistributionChart/utils/equality'
@@ -69,7 +69,7 @@ export function BidDistributionChart({
   // Use auction parameters from API data
   const tickSize = auctionDetails.tickSize || '0'
   const floorPrice = auctionDetails.floorPrice || '0'
-  const totalSupply = auctionDetails.tokenTotalSupply
+  const tokenTotalSupply = auctionDetails.tokenTotalSupply
 
   const normalizedChainId = auctionDetails.chainId as UniverseChainId
   const connectedWalletAddress = useActiveAddress(normalizedChainId)
@@ -107,7 +107,7 @@ export function BidDistributionChart({
         ? generateChartData({
             bidData: effectiveBidDistributionData,
             bidTokenInfo,
-            totalSupply,
+            tokenTotalSupply,
             auctionTokenDecimals,
             clearingPrice,
             floorPrice,
@@ -124,7 +124,7 @@ export function BidDistributionChart({
       clearingPrice,
       floorPrice,
       tickSize,
-      totalSupply,
+      tokenTotalSupply,
       auctionTokenDecimals,
       chartMode,
       excludedBidVolume,
@@ -191,7 +191,7 @@ export function BidDistributionChart({
       key={auctionDetails.auctionId}
       chartData={chartData}
       bidTokenInfo={bidTokenInfo}
-      totalSupply={totalSupply}
+      tokenTotalSupply={tokenTotalSupply}
       auctionTokenDecimals={auctionTokenDecimals}
       clearingPrice={clearingPrice}
       onchainClearingPrice={onchainClearingPrice}

@@ -1,11 +1,14 @@
+import { useNavigation, useRoute } from '@react-navigation/native'
 import { ReactNavigationPerformanceView } from '@shopify/react-native-performance-navigation'
 import { SharedEventName } from '@uniswap/analytics-events'
 import { isAndroid } from '@universe/environment'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
+import { useDeviceDimensions, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import type { LayoutChangeEvent, ListRenderItem } from 'react-native'
 import { RefreshControl, View } from 'react-native'
 import Animated, { runOnJS, useAnimatedReaction } from 'react-native-reanimated'
+import type { TabsScreenProp } from 'src/app/navigation/types'
 import { Screen } from 'src/components/layout/Screen'
 import { TAB_BAR_HEIGHT, TAB_VIEW_SCROLL_THROTTLE } from 'src/components/layout/TabHelpers'
 import { useHideSplashScreen } from 'src/features/splashScreen/useHideSplashScreen'
@@ -28,19 +31,17 @@ import {
   type HomeScreenPortfolioProps,
 } from 'src/screens/HomeScreen/portfolio/types'
 import { useHomeScreenState } from 'src/screens/HomeScreen/useHomeScreenState'
-import { Flex, useSporeColors } from 'ui/src'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
 import { useNftListRenderData } from 'uniswap/src/components/nfts/hooks/useNftListRenderData'
 import {
   PositionStatusFilterButton,
   PositionStatusFilterValue,
 } from 'uniswap/src/features/positions/components/PositionStatusFilter'
-import { usePoolsPositionsReport } from 'uniswap/src/features/positions/hooks/usePoolsPositionsReport'
 import { usePoolsTabVisibility } from 'uniswap/src/features/positions/hooks/usePoolsTabVisibility'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
+import { useEvent } from 'utilities/src/react/hooks'
 import { useActiveAccountWithThrow } from 'wallet/src/features/wallet/hooks'
 
 /** Initial portfolio header height before first layout measurement. */
@@ -53,8 +54,19 @@ const FEED_LIST_ROWS: FeedListRow[] = [FEED_LIST_ROW_PORTFOLIO, { id: 'tabBar' }
 function HomeScreenPortfolioContent({ setIsLayoutReady }: HomeScreenPortfolioProps): JSX.Element {
   const hideSplashScreen = useHideSplashScreen()
   const activeAccount = useActiveAccountWithThrow()
+  const homeRoute = useRoute<TabsScreenProp<MobileScreens.Home>['route']>()
+  const navigation = useNavigation<TabsScreenProp<MobileScreens.Home>['navigation']>()
+  const earnCardExpansionRequestId = homeRoute.params?.earnCardExpansionRequestId
   const { showEmptyWalletState: hasNoWalletActivity } = useHomeScreenState()
-  const { header: portfolio, outageModal } = useHomeScreenPortfolioHeader()
+  const onEarnCardExpansionRequestHandled = useEvent((handledRequestId: number): void => {
+    if (earnCardExpansionRequestId === handledRequestId) {
+      navigation.setParams({ earnCardExpansionRequestId: undefined })
+    }
+  })
+  const { header: portfolio, outageModal } = useHomeScreenPortfolioHeader({
+    earnCardExpansionRequestId,
+    onEarnCardExpansionRequestHandled,
+  })
   const { shouldShowPoolsTab } = usePoolsTabVisibility(activeAccount.address)
   // A pools-only wallet (positions but no tokens/NFTs/activity) should still see its tabs.
   const showEmptyWalletState = hasNoWalletActivity && !shouldShowPoolsTab
@@ -64,10 +76,15 @@ function HomeScreenPortfolioContent({ setIsLayoutReady }: HomeScreenPortfolioPro
   // before resolving the active tab via route.key.
   const tabIndex = Math.max(0, Math.min(rawTabIndex, routes.length - 1))
   const activeKey = routes[tabIndex]?.key
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-  useHomeScreenHeartbeatCoordinator({ enabled: isDataLivelinessEnabled, activeTab: activeKey })
+  useHomeScreenHeartbeatCoordinator({ activeTab: activeKey })
   const { feedScrollValue, feedScrollHandler, feedScrollRef } = useHomeScreenPortfolioScroll()
   const [headerHeight, setHeaderHeight] = useState(CONTENT_HEADER_HEIGHT_ESTIMATE)
+
+  useEffect(() => {
+    if (earnCardExpansionRequestId !== undefined) {
+      feedScrollRef.current?.scrollToOffset({ offset: 0, animated: true })
+    }
+  }, [earnCardExpansionRequestId, feedScrollRef])
 
   const onPortfolioLayout = useCallback(
     (event: LayoutChangeEvent) => {
@@ -114,14 +131,6 @@ function HomeScreenPortfolioContent({ setIsLayoutReady }: HomeScreenPortfolioPro
     skip: !shouldLoadPools,
   })
   const poolsHasErrorWithoutData = poolsListRenderData.hasErrorWithoutData
-
-  usePoolsPositionsReport({
-    positions: poolsListRenderData.positions,
-    pagesLoaded: poolsListRenderData.pagesLoaded,
-    hasMore: poolsListRenderData.hasNextPage,
-    isLoading: poolsListRenderData.isLoadingFirstPage,
-    enabled: activeKey === HomeTab.Pools,
-  })
 
   useEffect(() => {
     if (!shouldLoadNfts) {

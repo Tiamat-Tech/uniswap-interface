@@ -1,16 +1,17 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency, Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { nativeOnChain, WRAPPED_NATIVE_CURRENCY } from 'uniswap/src/constants/tokens'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import { areCurrenciesEqual } from 'uniswap/src/utils/currencyId'
 import { PositionField } from '~/types/position'
 
 export function getCurrencyForProtocol(
   currency: Currency,
   protocolVersion: ProtocolVersion.V2 | ProtocolVersion.V3,
-): Token
+): Token | undefined
 export function getCurrencyForProtocol(
   currency: Maybe<Currency>,
   protocolVersion: ProtocolVersion.V2 | ProtocolVersion.V3,
@@ -42,14 +43,13 @@ export function getCurrencyForProtocol(
     return currency
   }
 
-  if (currency.isToken) {
-    return currency
-  }
-
-  return currency.wrapped
+  return getWrappedTokenIfExists(currency)
 }
 
-export function getCurrencyWithWrap(currency: Currency, protocolVersion: ProtocolVersion.V2 | ProtocolVersion.V3): Token
+export function getCurrencyWithWrap(
+  currency: Currency,
+  protocolVersion: ProtocolVersion.V2 | ProtocolVersion.V3,
+): Token | undefined
 export function getCurrencyWithWrap(
   currency: Maybe<Currency>,
   protocolVersion: ProtocolVersion.V2 | ProtocolVersion.V3,
@@ -68,7 +68,7 @@ export function getCurrencyWithWrap(
     return currency
   }
 
-  return currency?.wrapped
+  return getWrappedTokenIfExists(currency)
 }
 
 export function getTokenOrZeroAddress(currency: Currency): string
@@ -141,4 +141,20 @@ export function getCurrencyWithOptionalUnwrap({
   }
 
   return nativeOnChain(currency.chainId)
+}
+
+export function getCurrencyWithUnwrap(currency: Currency, protocolVersion?: ProtocolVersion): Currency
+export function getCurrencyWithUnwrap(
+  currency: Currency | undefined,
+  protocolVersion?: ProtocolVersion,
+): Currency | undefined
+export function getCurrencyWithUnwrap(currency: Maybe<Currency>, protocolVersion?: ProtocolVersion): Maybe<Currency>
+/**
+ * The display counterpart of `getCurrencyWithWrap`: for v2/v3 a wrapped-native currency reads as the
+ * native one, because those protocols can only ever hold wrapped native. v4 keeps the currency as
+ * served — a v4 pool can hold native and wrapped native as two distinct currencies, so a WETH leg
+ * shown as ETH would be indistinguishable from the native pool's.
+ */
+export function getCurrencyWithUnwrap(currency: Maybe<Currency>, protocolVersion?: ProtocolVersion): Maybe<Currency> {
+  return getCurrencyWithOptionalUnwrap({ currency, shouldUnwrap: canUnwrapCurrency(currency, protocolVersion) })
 }

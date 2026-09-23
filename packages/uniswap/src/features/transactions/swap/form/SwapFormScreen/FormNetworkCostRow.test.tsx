@@ -1,7 +1,7 @@
 import { fireEvent } from '@testing-library/react-native'
 import type { GasFeeResult } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import type { providers } from 'ethers/lib/ethers'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { FormNetworkCostRow } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/FormNetworkCostRow'
 import { renderWithProviders } from 'uniswap/src/test/render'
 
@@ -9,6 +9,7 @@ const mockSetGasOverrides = vi.fn()
 const mockDispatch = vi.fn()
 const mockUseSwapFormScreenStore = vi.fn()
 const mockUseGasOverridesWarningState = vi.fn()
+const mockUpdateSwapForm = vi.fn()
 
 vi.mock('react-i18next', () => ({
   useTranslation: (): { t: (key: string) => string } => ({
@@ -43,6 +44,9 @@ vi.mock('uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/
 }))
 
 vi.mock('uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore', () => ({
+  useSwapFormStore: (
+    selector: (s: { updateSwapForm: typeof mockUpdateSwapForm; focusOnCurrencyField: 'input' }) => unknown,
+  ): unknown => selector({ updateSwapForm: mockUpdateSwapForm, focusOnCurrencyField: 'input' }),
   useSwapFormStoreDerivedSwapInfo: (selector: (s: { trade: { trade: undefined } }) => unknown): unknown =>
     selector({ trade: { trade: undefined } }),
 }))

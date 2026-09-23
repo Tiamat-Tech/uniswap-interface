@@ -1,27 +1,25 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import type { Currency } from '@uniswap/sdk-core'
+import { type UniverseChainId, AddressStringFormat, normalizeAddress } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useQueryState, useQueryStates } from 'nuqs'
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
-import { Button, Flex, SpinningLoader, Text, TouchableArea, useMedia } from 'ui/src'
-import { BackArrow } from 'ui/src/components/icons/BackArrow'
-import { Chevron } from 'ui/src/components/icons/Chevron'
+import { Button, SpinningLoader } from 'ui/src'
 import { Plus } from 'ui/src/components/icons/Plus'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { v2TokenToCurrency } from 'uniswap/src/features/dataApi/utils/parsedToken'
 import type { FeeData } from 'uniswap/src/features/positions/types'
 import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { LPTransactionSettingsStoreContextProvider } from 'uniswap/src/features/transactions/components/settings/stores/transactionSettingsStore/LPTransactionSettingsStoreContextProvider'
-import { AddressStringFormat, normalizeAddress } from 'uniswap/src/utils/addresses'
-import { isEVMAddress } from 'utilities/src/addresses/evm/evm'
-import { BreadcrumbNavContainer, BreadcrumbNavLink } from '~/components/BreadcrumbNav'
-import type { PoolData } from '~/data/pools/usePoolData'
-import { usePoolData } from '~/data/pools/usePoolData'
-import { gqlToCurrency } from '~/data/util'
-import { ExploreTablesFilterStoreContextProvider } from '~/features/Explore/state/exploreTablesFilterStore'
+import { STICKY_HEADER_TOP_GAP } from '~/components/Table/constants'
+import type { PoolData } from '~/data/pools/poolData'
+import { useLiquidityServicePoolData } from '~/data/pools/useLiquidityServicePoolData'
 import { PageLayout } from '~/features/Liquidity/Create/Container'
+import { CreatePositionHeader } from '~/features/Liquidity/Create/CreatePositionHeader'
 import { getNextFlowStep } from '~/features/Liquidity/Create/flowSteps'
 import { FormStepsWrapper } from '~/features/Liquidity/Create/FormWrapper'
 import { useEntryPointBreadcrumb } from '~/features/Liquidity/Create/hooks/useEntryPointBreadcrumb'
@@ -36,9 +34,12 @@ import {
   PoolProgressIndicatorHeader,
   SIDEBAR_WIDTH,
 } from '~/features/Liquidity/PoolProgressIndicator/PoolProgressIndicator'
-import { getProtocolVersionFromLabel, gqlToRestProtocolVersion } from '~/features/Liquidity/utils/protocolVersion'
+import { canUnwrapCurrency, getCurrencyWithOptionalUnwrap } from '~/features/Liquidity/utils/currency'
+import { getProtocolVersionFromLabel } from '~/features/Liquidity/utils/protocolVersion'
 import { type FlowState, resolveAddLiquidityRenderGuard } from '~/pages/AddLiquidity/addLiquidityRenderGuard'
 import { PoolBrowser } from '~/pages/AddLiquidity/PoolBrowser'
+import { ADD_LIQUIDITY_PATH } from '~/pages/AddLiquidity/poolLinkParams'
+import { useCreatePoolHrefFromSelection } from '~/pages/AddLiquidity/useCreatePoolHrefFromSelection'
 import {
   CreateLiquidityContextProvider,
   useCreateLiquidityContext,
@@ -53,16 +54,14 @@ function resolveSelectedProtocolVersion(poolData: PoolData | undefined, fallback
   if (!poolData) {
     return fallback
   }
-  return gqlToRestProtocolVersion(poolData.protocolVersion) ?? ProtocolVersion.V4
+  return poolData.protocolVersion ?? ProtocolVersion.V4
 }
 
 export default function AddLiquidity(): JSX.Element {
   return (
-    <ExploreTablesFilterStoreContextProvider>
-      <PoolTableStoreContextProvider>
-        <AddLiquidityContent />
-      </PoolTableStoreContextProvider>
-    </ExploreTablesFilterStoreContextProvider>
+    <PoolTableStoreContextProvider>
+      <AddLiquidityContent />
+    </PoolTableStoreContextProvider>
   )
 }
 
@@ -89,10 +88,10 @@ function AddLiquidityContent(): JSX.Element {
   }, [poolAddress])
 
   // --- Pool data (fetched when poolAddress is present) ---
-  const { data: poolData, loading: poolLoading } = usePoolData({
+  const { data: poolData, loading: poolLoading } = useLiquidityServicePoolData({
     poolIdOrAddress: normalizeAddress(poolAddress ?? '', AddressStringFormat.Lowercase),
     chainId: chainInfo?.id,
-    isPoolAddress: isEVMAddress(poolAddress),
+    disabled: !poolAddress,
   })
 
   // --- URL token state (for immediate rendering before pool data loads) ---
@@ -103,14 +102,19 @@ function AddLiquidityContent(): JSX.Element {
   const urlHook = liquidityUrlState.hook ?? undefined
   const urlProtocolVersion = getProtocolVersionFromLabel(liquidityUrlState.protocolVersion) ?? ProtocolVersion.V4
 
+  // The header CTA sits above the pool browser, so it reads the browser's token selection off the
+  // URL and carries it into the create form rather than opening it blank.
+  const createPoolHref = useCreatePoolHrefFromSelection()
+
   const location = useLocation()
   const handleBack = useCallback(() => {
-    // Pop to the stored browse entry (filters intact) rather than pushing a fresh URL that the form's
-    // nuqs hooks would rewrite and strip the filters from. No in-app history → fall back to the table.
+    // `from` marks an in-app entry (the create flow's "Add liquidity" CTA, the pool browser). Pop to it
+    // rather than pushing a fresh URL, which would both lose where the user came from and let the form's
+    // nuqs hooks rewrite the browse entry's filters away. No in-app history → fall back to the table.
     if (location.state && (location.state as { from?: string }).from) {
       navigate(-1)
     } else {
-      navigate('/positions/add')
+      navigate(ADD_LIQUIDITY_PATH)
     }
   }, [navigate, location.state])
 
@@ -121,11 +125,6 @@ function AddLiquidityContent(): JSX.Element {
     ],
     [t],
   )
-
-  // A pool route with no `step` isn't a valid form state — send it back to the table.
-  if (poolAddress && flowStep === null) {
-    return <Navigate to="/positions/add" replace />
-  }
 
   // --- Redirect / loading guards ---
   const renderGuard = resolveAddLiquidityRenderGuard({
@@ -140,7 +139,7 @@ function AddLiquidityContent(): JSX.Element {
   })
 
   if (renderGuard === 'redirect') {
-    return <Navigate to="/positions/add" replace />
+    return <Navigate to={ADD_LIQUIDITY_PATH} replace />
   }
 
   if (renderGuard === 'loading') {
@@ -154,41 +153,34 @@ function AddLiquidityContent(): JSX.Element {
   return (
     <Trace logImpression page={InterfacePageName.AddLiquidity}>
       <PageLayout py="$spacing24">
-        {/* Breadcrumbs */}
-        <BreadcrumbNavContainer aria-label="breadcrumb-nav">
-          <BreadcrumbNavLink to={entryPointBreadcrumb.to}>
-            {entryPointBreadcrumb.label} <Chevron size="$icon.16" color="$neutral2" rotate="180deg" />
-          </BreadcrumbNavLink>
-          <Text color="$neutral1">{t('common.addLiquidity')}</Text>
-        </BreadcrumbNavContainer>
-
-        {/* Title row */}
-        <Flex row justifyContent="space-between" alignItems="center" width="100%" mb="$spacing12">
-          <Flex row alignItems="center" gap="$spacing8" grow>
-            {flowState === 'form' && (
-              <TouchableArea onPress={handleBack}>
-                <BackArrow size="$icon.24" color="$neutral1" />
-              </TouchableArea>
-            )}
-            <Text variant="heading3">{t('addLiquidity.choosePool')}</Text>
-          </Flex>
-          <Button
-            fill={false}
-            emphasis="text-only"
-            icon={<Plus color="$neutral2" />}
-            onPress={() => navigate('/positions/add/new')}
-          >
-            <Button.Text color="$neutral2">{t('addLiquidity.createPool')}</Button.Text>
-          </Button>
-        </Flex>
+        <CreatePositionHeader
+          leadingBreadcrumb={entryPointBreadcrumb}
+          trailingBreadcrumb={<Text color="$neutral1">{t('common.createPosition')}</Text>}
+          onBack={flowState === 'form' ? handleBack : undefined}
+          title={flowState === 'form' ? t('addLiquidity.setYourPosition') : t('addLiquidity.choosePool')}
+          actions={
+            <Button
+              fill={false}
+              emphasis="text-only"
+              icon={<Plus color="$neutral2" />}
+              onPress={() => navigate(createPoolHref)}
+            >
+              <Button.Text color="$neutral2">{t('addLiquidity.createPool')}</Button.Text>
+            </Button>
+          }
+        />
 
         {/* Two-column layout */}
-        <Flex row gap="$spacing20" justifyContent="space-between" width="100%" mt="$spacing16">
+        <Flex row gap="$spacing20" justifyContent="space-between" width="100%">
           {/* Left sidebar — hidden on mobile. The wrapper stretches to the full row height (no
               alignSelf) so the sticky card inside has room to stick; see FormWrapper for the same pattern. */}
           {!media.xl && (
             <Flex width={SIDEBAR_WIDTH}>
-              {flowState === 'browse' && <PoolProgressIndicator steps={browseSteps} stickyTopOffset={0} />}
+              {/* Offset by the table head's own top spacer so the card's top edge lines up with the
+                  header row beside it, and both clear the app header. */}
+              {flowState === 'browse' && (
+                <PoolProgressIndicator steps={browseSteps} stickyTopOffset={STICKY_HEADER_TOP_GAP} />
+              )}
               {flowState === 'form' && <PoolInfoCard poolData={poolData ?? undefined} loading={poolLoading} />}
             </Flex>
           )}
@@ -206,7 +198,7 @@ function AddLiquidityContent(): JSX.Element {
                 urlProtocolVersion={urlProtocolVersion}
                 urlFee={urlFee}
                 urlHook={urlHook}
-                initialFlowStep={flowStep ?? PositionFlowStep.PRICE_RANGE}
+                flowStep={flowStep ?? undefined}
               />
             )}
           </Flex>
@@ -221,7 +213,11 @@ function PoolBrowserPane({ browseSteps }: { browseSteps: { label: string; active
   return (
     <>
       {media.xl && <PoolProgressIndicatorHeader steps={browseSteps} />}
-      <PoolBrowser />
+      {/* The sticky step header (zIndexes.header) paints over anything overhanging into its box, and the
+          toolbar's filter-count badge sits $spacing4 above its button — keep that much clearance under it. */}
+      <Flex pt={media.xl ? '$spacing4' : undefined}>
+        <PoolBrowser />
+      </Flex>
     </>
   )
 }
@@ -234,7 +230,7 @@ function AddLiquidityFormContent({
   urlProtocolVersion,
   urlFee,
   urlHook,
-  initialFlowStep,
+  flowStep,
 }: {
   chainId: UniverseChainId
   poolData?: PoolData
@@ -243,19 +239,45 @@ function AddLiquidityFormContent({
   urlProtocolVersion: ProtocolVersion
   urlFee?: FeeData
   urlHook?: string
-  initialFlowStep: PositionFlowStep
+  flowStep?: PositionFlowStep
 }) {
   const protocolVersion = resolveSelectedProtocolVersion(poolData, urlProtocolVersion)
 
+  // Entry points that already know the step (a pool browser row) put it in the URL. The create
+  // flow's "Add liquidity" CTA deliberately doesn't, so derive it here from the loaded pool: v2
+  // pairs skip straight to deposit, v3/v4 start on the range.
+  const initialFlowStep =
+    flowStep ??
+    getNextFlowStep({
+      currentStep: PositionFlowStep.SELECT_TOKENS_AND_FEE_TIER,
+      protocolVersion,
+      creatingPoolOrPair: false,
+    })
+
   const { token0, token1 } = useMemo(() => {
-    if (poolData) {
-      return {
-        token0: gqlToCurrency(poolData.token0),
-        token1: gqlToCurrency(poolData.token1),
-      }
+    // Both seeds carry the pool's canonical on-chain tokens — WETH for a v2/v3 native pool, since
+    // those pools are always WETH-denominated on-chain — and the pool-row / PDP links write that
+    // same WETH address into `currencyA`/`currencyB`. Unwrap back to the native currency Explore
+    // displayed so "ETH/USDC" doesn't land here as "WETH/USDC". The render guard lets the form
+    // mount from URL tokens before `poolData` resolves, and `currencyInputs` is seeded once from
+    // whichever arrives first, so the URL branch must unwrap too or the fix depends on a race.
+    // No-op for v4 (already native) and for plain ERC20/ERC20 pools.
+    const [rawToken0, rawToken1] = poolData
+      ? [v2TokenToCurrency(poolData.token0), v2TokenToCurrency(poolData.token1)]
+      : [urlToken0, urlToken1]
+    return {
+      token0:
+        getCurrencyWithOptionalUnwrap({
+          currency: rawToken0,
+          shouldUnwrap: canUnwrapCurrency(rawToken0, protocolVersion),
+        }) ?? undefined,
+      token1:
+        getCurrencyWithOptionalUnwrap({
+          currency: rawToken1,
+          shouldUnwrap: canUnwrapCurrency(rawToken1, protocolVersion),
+        }) ?? undefined,
     }
-    return { token0: urlToken0, token1: urlToken1 }
-  }, [poolData, urlToken0, urlToken1])
+  }, [poolData, protocolVersion, urlToken0, urlToken1])
 
   const [currencyInputs, setCurrencyInputs] = useState<{ tokenA: Maybe<Currency>; tokenB: Maybe<Currency> }>({
     tokenA: token0,

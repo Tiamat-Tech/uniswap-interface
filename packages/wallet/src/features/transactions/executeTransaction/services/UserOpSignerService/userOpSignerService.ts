@@ -8,7 +8,9 @@ export type PaymasterFields = Pick<
 >
 
 export interface UserOpSigner {
-  signUserOp(userOp: RpcUserOperation<'0.8'>): Promise<RpcUserOperation<'0.8'>>
+  // `chainId` is the chain the userOp was prepared for. A RpcUserOperation carries no chain of its
+  // own, so the signer checks it against the client it signs through before building the domain.
+  signUserOp(params: { userOp: RpcUserOperation<'0.8'>; chainId: UniverseChainId }): Promise<RpcUserOperation<'0.8'>>
   sendUserOp(signed: RpcUserOperation<'0.8'>): Promise<string>
   // For Uniswap-initiated userops only. Requests paymaster sponsorship through our paymaster.
   sponsorUniswapUserOp(params: {

@@ -8,16 +8,33 @@ const noop = (): void => undefined
 
 const EMPTY_STATE_TEST_ID = 'empty-wallet-tokens-tab'
 const TAB_VIEW_TEST_ID = 'tab-view-body'
+const mockUseHomeScreenPortfolioHeader = vi.hoisted(() =>
+  vi.fn(
+    (_props: {
+      earnCardExpansionRequestId?: number
+      onEarnCardExpansionRequestHandled: (requestId: number) => void
+    }) => ({ header: null, outageModal: null }),
+  ),
+)
+const mockScrollToOffset = vi.hoisted(() => vi.fn())
+const mockUseRoute = vi.hoisted(() => vi.fn())
+const mockSetParams = vi.hoisted(() => vi.fn())
+
+vi.mock('@react-navigation/native', async () => ({
+  ...(await vi.importActual('@react-navigation/native')),
+  useNavigation: () => ({ setParams: mockSetParams }),
+  useRoute: mockUseRoute,
+}))
 
 // Stub the two mutually-exclusive outcomes so the test asserts purely on which branch renders.
 vi.mock('src/screens/HomeScreen/portfolio/tabs/tokens/empty/EmptyWalletTokensTab', async () => {
-  const { Text } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Text } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     EmptyWalletTokensTab: () => <Text testID="empty-wallet-tokens-tab">empty</Text>,
   }
 })
 vi.mock('src/screens/HomeScreen/portfolio/tabs/common/TabViewBody', async () => {
-  const { Text } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Text } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     TabViewBody: () => <Text testID="tab-view-body">tabs</Text>,
   }
@@ -55,7 +72,7 @@ vi.mock('wallet/src/features/wallet/hooks', async () => ({
   useActiveAccountWithThrow: () => ({ address: '0x0000000000000000000000000000000000000001' }),
 }))
 vi.mock('src/screens/HomeScreen/portfolio/header/useHomeScreenPortfolioHeader', () => ({
-  useHomeScreenPortfolioHeader: () => ({ header: null, outageModal: null }),
+  useHomeScreenPortfolioHeader: mockUseHomeScreenPortfolioHeader,
 }))
 vi.mock('src/screens/HomeScreen/portfolio/hooks/useHomeScreenPortfolioRefresh', () => ({
   useHomeScreenPortfolioRefresh: () => ({ refreshing: false, onRefresh: (): void => undefined }),
@@ -85,9 +102,11 @@ const mockUseHomeScreenState = useHomeScreenState as MockedFunction<typeof useHo
 const mockUsePoolsTabVisibility = usePoolsTabVisibility as MockedFunction<typeof usePoolsTabVisibility>
 
 const setup = ({
+  earnCardExpansionRequestId,
   hasNoWalletActivity,
   shouldShowPoolsTab,
 }: {
+  earnCardExpansionRequestId?: number
   hasNoWalletActivity: boolean
   shouldShowPoolsTab: boolean
 }): void => {
@@ -95,12 +114,17 @@ const setup = ({
     typeof useHomeScreenState
   >)
   mockUsePoolsTabVisibility.mockReturnValue({ shouldShowPoolsTab, openPoolPositionsCount: 0 })
+  mockUseRoute.mockReturnValue({ params: { earnCardExpansionRequestId } })
   render(<HomeScreenPortfolio isLayoutReady={false} setIsLayoutReady={noop} />)
 }
 
 describe('HomeScreenPortfolio empty-state gating', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    Object.defineProperty(HTMLElement.prototype, 'scrollToOffset', {
+      configurable: true,
+      value: mockScrollToOffset,
+    })
   })
 
   it('does not show the empty state for a pools-only wallet (no tokens/NFTs/activity)', () => {
@@ -123,5 +147,26 @@ describe('HomeScreenPortfolio empty-state gating', () => {
 
     expect(screen.queryByTestId(EMPTY_STATE_TEST_ID)).toBeNull()
     expect(screen.getByTestId(TAB_VIEW_TEST_ID)).toBeDefined()
+  })
+
+  it('passes an Earn expansion request to the portfolio header', () => {
+    setup({ earnCardExpansionRequestId: 42, hasNoWalletActivity: false, shouldShowPoolsTab: false })
+
+    expect(mockUseHomeScreenPortfolioHeader).toHaveBeenCalledWith({
+      earnCardExpansionRequestId: 42,
+      onEarnCardExpansionRequestHandled: expect.any(Function),
+    })
+    expect(mockScrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: true })
+  })
+
+  it('consumes only the handled Earn request so an account remount cannot replay it', () => {
+    setup({ earnCardExpansionRequestId: 42, hasNoWalletActivity: false, shouldShowPoolsTab: false })
+
+    const headerProps = mockUseHomeScreenPortfolioHeader.mock.lastCall?.[0]
+    headerProps?.onEarnCardExpansionRequestHandled(41)
+    expect(mockSetParams).not.toHaveBeenCalled()
+
+    headerProps?.onEarnCardExpansionRequestHandled(42)
+    expect(mockSetParams).toHaveBeenCalledWith({ earnCardExpansionRequestId: undefined })
   })
 })

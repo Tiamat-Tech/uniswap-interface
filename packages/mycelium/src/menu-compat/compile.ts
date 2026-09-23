@@ -8,22 +8,22 @@
  * Tamagui CSSOM per prop, state, and theme.
  */
 import { cn } from '../cn'
-import type { SporeSpaceToken } from '../compat/tokens'
-import { lookupToken, SPACE_TOKEN_PX } from '../compat/tokens'
+import { type CompatEmission, composeCompatEmission } from '../compat/compose'
 import { flexCompatClassName } from '../flex-compat/compile'
-import type { FlexCompatProps } from '../flex-compat/props'
-import { textCompatClassName } from '../text-compat/compile'
+import { BASE_CLASSES, flexStyleClasses } from '../flex-compat/flex-style-classes'
+import type { FlexCompatProps, FlexCompatStyleProps } from '../flex-compat/props'
+import { textCompatClassName, textCompatEmissionWithFixed, textFixedCompatClasses } from '../text-compat/compile'
+import type { TextCompatProps } from '../text-compat/props'
 import { colorCssExpression } from '../text-compat/tokens'
 import type { MenuCompatColorValue } from './types'
 
 /**
- * The legacy `containerStyles: FlexProps` leak, with `borderWidth` widened to
- * the space tokens the real call sites pass (`'$none'` in the sheet styles,
- * `'$spacing1'` in the defaults) — normalized to pixels at compile time.
+ * The legacy `containerStyles: FlexProps` leak. `borderWidth` takes the
+ * `$space` tokens the real call sites pass (`'$none'` in the sheet styles,
+ * `'$spacing1'` in the defaults) straight from the base compat contract,
+ * resolved by the emitter (INFRA-3232).
  */
-export type MenuContentContainerStyles = Omit<FlexCompatProps, 'borderWidth' | 'children'> & {
-  borderWidth?: number | SporeSpaceToken
-}
+export type MenuContentContainerStyles = Omit<FlexCompatProps, 'children'>
 
 /** Legacy MenuContent constants (ContextMenuContent.tsx). */
 export const MENU_MIN_WIDTH = 200
@@ -63,25 +63,33 @@ export const MENU_CONTENT_SHEET_CONTAINER_STYLES_COMPAT: MenuContentContainerSty
   maxWidth: undefined,
 }
 
-function normalizeContainerStyles(styles: MenuContentContainerStyles): FlexCompatProps {
-  const { borderWidth, ...rest } = styles
-  if (typeof borderWidth !== 'string') {
-    return borderWidth === undefined && !Object.hasOwn(styles, 'borderWidth')
-      ? (rest as FlexCompatProps)
-      : ({ ...rest, borderWidth } as FlexCompatProps)
-  }
-  const px = lookupToken(SPACE_TOKEN_PX, borderWidth)
-  if (px === undefined) {
-    throw new Error(`menu-compat: unknown space token for borderWidth "${borderWidth}"`)
-  }
-  return { ...rest, borderWidth: px } as FlexCompatProps
-}
-
 /** Compile the MenuContent card className: legacy defaults + containerStyles overrides (spread semantics). */
 export function menuContentContainerClassName(containerStyles?: MenuContentContainerStyles): string {
   return flexCompatClassName({
-    ...normalizeContainerStyles(MENU_CONTENT_CONTAINER_DEFAULTS_COMPAT),
-    ...normalizeContainerStyles(containerStyles ?? {}),
+    ...MENU_CONTENT_CONTAINER_DEFAULTS_COMPAT,
+    ...containerStyles,
+  })
+}
+
+function menuFlexEmission(props: FlexCompatProps): CompatEmission {
+  return composeCompatEmission<FlexCompatStyleProps>({
+    props,
+    baseClasses: BASE_CLASSES,
+    styleClasses: flexStyleClasses,
+    fixedClasses: menuFixedCompatClasses,
+  })
+}
+
+/**
+ * The MenuContent card for rendering (INFRA-3217): every returned class is
+ * guaranteed present in the emitted stylesheet; caller `containerStyles`
+ * values outside the closed set (e.g. `maxHeight: 400`) ride the
+ * inline-value lane instead of shipping a dead class.
+ */
+export function menuContentContainerEmission(containerStyles?: MenuContentContainerStyles): CompatEmission {
+  return menuFlexEmission({
+    ...MENU_CONTENT_CONTAINER_DEFAULTS_COMPAT,
+    ...containerStyles,
   })
 }
 
@@ -97,12 +105,12 @@ export interface DropdownMenuSheetItemFrameStyleInputs {
  * radius, no text selection, pointer cursor unless disabled, theme background
  * with the hovered-surface hover state.
  */
-export function dropdownMenuSheetItemFrameClassName({
+function dropdownMenuSheetItemFrameProps({
   variant,
   disabled,
   height,
-}: DropdownMenuSheetItemFrameStyleInputs): string {
-  return flexCompatClassName({
+}: DropdownMenuSheetItemFrameStyleInputs): FlexCompatProps {
+  return {
     group: true,
     flexGrow: 1,
     py: '$spacing8',
@@ -120,7 +128,20 @@ export function dropdownMenuSheetItemFrameClassName({
     hoverStyle: disabled ? undefined : { backgroundColor: '$surface1Hovered' },
     // TouchableArea's disabled styling (dim + inert), mirrored verbatim.
     ...(disabled === true ? { opacity: 0.6, pointerEvents: 'none' } : {}),
-  })
+  }
+}
+
+export function dropdownMenuSheetItemFrameClassName(inputs: DropdownMenuSheetItemFrameStyleInputs): string {
+  return flexCompatClassName(dropdownMenuSheetItemFrameProps(inputs))
+}
+
+/**
+ * The DropdownMenuSheetItem frame for rendering (INFRA-3217): a caller
+ * `height` outside the closed set (e.g. `height={44}`) rides the
+ * inline-value lane instead of shipping a dead class.
+ */
+export function dropdownMenuSheetItemFrameEmission(inputs: DropdownMenuSheetItemFrameStyleInputs): CompatEmission {
+  return menuFlexEmission(dropdownMenuSheetItemFrameProps(inputs))
 }
 
 export interface DropdownMenuSheetItemLabelStyleInputs {
@@ -146,16 +167,43 @@ function resolveLabelColor({
   return resolved
 }
 
-/** Compile the item label className: the exact Text props DropdownMenuSheetItem renders. */
-export function dropdownMenuSheetItemLabelClassName(inputs: DropdownMenuSheetItemLabelStyleInputs): string {
+function dropdownMenuSheetItemLabelProps(inputs: DropdownMenuSheetItemLabelStyleInputs): TextCompatProps {
   const { variant, destructive, disabled, allowMultiline = false } = inputs
-  return textCompatClassName({
+  return {
     flexShrink: 1,
     ...(allowMultiline ? {} : { numberOfLines: 1 }),
     variant: variant === 'small' ? 'buttonLabel3' : 'buttonLabel2',
     color: resolveLabelColor(inputs),
     '$group-hover': destructive ? undefined : { color: disabled ? '$neutral2' : '$neutral1Hovered' },
-  })
+  }
+}
+
+/** Compile the item label className: the exact Text props DropdownMenuSheetItem renders. */
+export function dropdownMenuSheetItemLabelClassName(inputs: DropdownMenuSheetItemLabelStyleInputs): string {
+  return textCompatClassName(dropdownMenuSheetItemLabelProps(inputs))
+}
+
+/** The label's fixed chrome: the Text frame plus every enumerable label input combination. */
+function dropdownMenuSheetItemLabelFixedClasses(): string[] {
+  const classNames = [...textFixedCompatClasses()]
+  for (const variant of ['small', 'medium'] as const) {
+    for (const disabled of [false, true]) {
+      for (const destructive of [false, true]) {
+        classNames.push(dropdownMenuSheetItemLabelClassName({ variant, disabled, destructive }))
+      }
+    }
+  }
+  return classNames
+}
+
+/**
+ * The item label for rendering (INFRA-3217): a caller `textColor` outside the
+ * pinned theme palette (e.g. `'#ABCDEF'`) rides the inline-value lane instead
+ * of shipping a dead raw class — the last surviving raw path from the round-2
+ * review.
+ */
+export function dropdownMenuSheetItemLabelEmission(inputs: DropdownMenuSheetItemLabelStyleInputs): CompatEmission {
+  return textCompatEmissionWithFixed(dropdownMenuSheetItemLabelProps(inputs), dropdownMenuSheetItemLabelFixedClasses)
 }
 
 /** Compile the subheader className (`body4`, `$neutral2`, single-line). */
@@ -174,4 +222,26 @@ export function resolveMenuColor(value: MenuCompatColorValue): string {
 /** The separator the legacy MenuContent renders before flagged items (`<Separator my="$spacing6" />`). */
 export function menuSeparatorClassName(): string {
   return cn('my-[6px] w-full border-b border-surface3')
+}
+
+/**
+ * Every class the menu chrome compiles to across its input space (variant ×
+ * disabled × destructive) — the menu's contribution to the generated
+ * compat-class safelist.
+ */
+export function menuFixedCompatClasses(): string[] {
+  const classNames: string[] = [
+    menuContentContainerClassName(),
+    dropdownMenuSheetItemSubheaderClassName(),
+    menuSeparatorClassName(),
+  ]
+  for (const variant of ['small', 'medium'] as const) {
+    for (const disabled of [false, true]) {
+      classNames.push(dropdownMenuSheetItemFrameClassName({ variant, disabled }))
+      for (const destructive of [false, true]) {
+        classNames.push(dropdownMenuSheetItemLabelClassName({ variant, disabled, destructive }))
+      }
+    }
+  }
+  return classNames
 }

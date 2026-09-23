@@ -1,4 +1,5 @@
 import { GqlResult } from '@universe/api'
+import { UniverseChainId, areAddressesEqual } from '@universe/chains'
 import { useCallback, useMemo } from 'react'
 import { TokenOption } from 'uniswap/src/components/lists/items/types'
 import { filter } from 'uniswap/src/components/TokenSelector/filter'
@@ -22,9 +23,7 @@ import {
   USYC_ARC,
   WETH_ARC,
 } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useCurrencyInfosWithLoading } from 'uniswap/src/features/tokens/useCurrencyInfo'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { buildCurrencyId, buildNativeCurrencyId } from 'uniswap/src/utils/currencyId'
 
 // X Layer quick-select tokens

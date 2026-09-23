@@ -1,12 +1,11 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, Text } from '@universe/mycelium'
 import { memo, useMemo } from 'react'
-import { Flex, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { getBadgeBorderRadius, getBadgeOuterSize } from 'uniswap/src/components/CurrencyLogo/badgeSizeUtils'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { getNetworkIconListDisplay } from 'uniswap/src/components/network/NetworkIconList/getNetworkIconListDisplay'
 import { OverlapIconWrapper } from 'uniswap/src/components/network/NetworkIconList/OverlapIconWrapper'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 /** Extra size around the icon; clipped by the container so the ring is transparent and matches any background. */
 const RING_RATIO = 1.2

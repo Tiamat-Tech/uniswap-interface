@@ -1,23 +1,29 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, View } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
+import { useContext, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, View } from 'ui/src'
 import { iconSizes } from 'ui/src/theme'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { GroupHoverTransition } from 'uniswap/src/components/GroupHoverTransition'
 import { NetworkIconList } from 'uniswap/src/components/network/NetworkIconList/NetworkIconList'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { useResolveTokenCategories } from 'uniswap/src/data/apiClients/dataApiService/categories/useResolveTokenCategories'
+import { RWAIssuerTag } from 'uniswap/src/features/rwa/RWAIssuerTag'
+import type { RWAIssuer } from 'uniswap/src/features/rwa/types'
+import { selectTokenRowCategoryTag } from 'uniswap/src/features/tokenCategories/selectTokenRowCategoryTag'
+import { TokenCategoryTag } from 'uniswap/src/features/tokenCategories/TokenCategoryTag'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { buildNativeCurrencyId } from 'uniswap/src/utils/currencyId'
 import { shortenAddress } from 'utilities/src/addresses'
 import { EllipsisText } from '~/components/Table/shared/TableText'
+import { TableRowHoverContext } from '~/components/Table/TableRowHoverContext'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 
 const TokenDetailsContainer = styled(Flex, {
-  flex: 1,
-  minWidth: 0,
-  width: '100%',
+  base: 'grow-[1] shrink w-[100%] min-w-[0px]',
 })
 
 const SYMBOL_SLOT_HEIGHT = 20
@@ -31,8 +37,14 @@ interface TokenDescriptionProps {
   logoUrl?: string
   /** Chain IDs for this token sorted by volume (desc) for the table's time period. From multichain list data. */
   chainIdsByVolume?: UniverseChainId[]
-  /** Current explore chain filter from route (e.g. "ethereum"). Passed from table to avoid useParams in every row. */
-  chainFilter?: string | undefined
+  /** Chain the explore route is filtered to, if any. Passed from table to avoid useParams in every row. */
+  chainFilterId?: UniverseChainId | undefined
+  /** BE order; the first one not equal to `scopedCategoryId` becomes the row tag. */
+  categoryIds?: string[]
+  /** Category the hosting table is filtered to, if any; its own tag is suppressed on the row. */
+  scopedCategoryId?: string
+  /** Matched RWA issuer slug; adds the issuer tag after the name. */
+  issuer?: RWAIssuer
 }
 
 export function TokenDescription({
@@ -42,14 +54,25 @@ export function TokenDescription({
   chainId,
   logoUrl,
   chainIdsByVolume = [],
-  chainFilter,
+  chainFilterId,
+  categoryIds,
+  scopedCategoryId,
+  issuer,
 }: TokenDescriptionProps) {
   const { t } = useTranslation()
-  const isMultiNetworkRow = chainIdsByVolume.length > 1
+  const rowHovered = useContext(TableRowHoverContext)
+  const { categories } = useResolveTokenCategories({ categoryIds })
+  const categoryTag = useMemo(
+    () => selectTokenRowCategoryTag({ categoryIds, categories, scopedCategoryId }),
+    [categoryIds, categories, scopedCategoryId],
+  )
+  // A chain-filtered page's row is that chain's deployment only (its address, link and stats all
+  // come from that leg), so it gets the same single-network treatment even for a multichain token.
+  const isMultiNetworkRow = chainFilterId === undefined && chainIdsByVolume.length > 1
   /** Omit chain badge on the logo when volume spans multiple networks — row uses NetworkIconList on hover instead. */
   const logoChainId = isMultiNetworkRow ? undefined : chainId
   const isNative = address === NATIVE_CHAIN_ID
-  const disableHoverTransition = chainIdsByVolume.length === 1 && (isNative || address === ZERO_ADDRESS)
+  const disableHoverTransition = !isMultiNetworkRow && (isNative || address === ZERO_ADDRESS)
 
   // The project logo URL returns the WETH logo for native ETH — use useCurrencyInfo to get the correct logo
   const nativeCurrencyInfo = useCurrencyInfo(
@@ -66,16 +89,29 @@ export function TokenDescription({
           size={iconSizes.icon32}
           symbol={symbol}
           url={resolvedLogoUrl}
-          alwaysShowNetworkLogo={!!chainFilter}
+          alwaysShowNetworkLogo={chainFilterId !== undefined}
         />
       </View>
       <TokenDetailsContainer>
-        <EllipsisText variant="body2" data-testid={TestID.TokenName}>
-          {name}
-        </EllipsisText>
+        <Flex row alignItems="center" gap="$spacing6" minWidth={0}>
+          <EllipsisText variant="body2" flexShrink={1} minWidth={0} data-testid={TestID.TokenName}>
+            {name}
+          </EllipsisText>
+          {issuer && (
+            <Flex testID={TestID.TokenRowIssuerTag}>
+              <RWAIssuerTag issuer={issuer} />
+            </Flex>
+          )}
+          {categoryTag && (
+            <Flex testID={TestID.TokenRowCategoryTag}>
+              <TokenCategoryTag category={categoryTag} />
+            </Flex>
+          )}
+        </Flex>
         <GroupHoverTransition
           height={SYMBOL_SLOT_HEIGHT}
           showTransition={!disableHoverTransition}
+          isHovered={rowHovered}
           defaultContent={
             <Text
               variant="body3"
@@ -88,7 +124,7 @@ export function TokenDescription({
             </Text>
           }
           hoverContent={
-            chainIdsByVolume.length > 1 ? (
+            isMultiNetworkRow ? (
               <Flex row height={SYMBOL_SLOT_HEIGHT} alignItems="center" gap="$gap8" minWidth="100%">
                 <Text variant="body3" color="$neutral2" numberOfLines={1}>
                   {t('explore.tokens.table.networks', { count: chainIdsByVolume.length })}

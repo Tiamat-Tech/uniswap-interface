@@ -1,7 +1,7 @@
 import { TradingApi } from '@universe/api'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Accordion, Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Accordion, Flex, Text } from 'ui/src'
 import { useEnableCustomGasFeeEntry } from 'uniswap/src/features/gas/hooks/useEnableCustomGasFeeEntry'
 import { useIsCustomGasFlowAvailable } from 'uniswap/src/features/gas/hooks/useIsCustomGasFlowAvailable'
 import {
@@ -17,7 +17,12 @@ import { useParsedSwapWarnings } from 'uniswap/src/features/transactions/swap/ho
 import { useSwapFormStore } from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
 import { useSwapTxStore } from 'uniswap/src/features/transactions/swap/stores/swapTxStore/useSwapTxStore'
 import { getSwapFeeUsdFromDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/utils/getSwapFeeUsd'
-import { isMultiChainGasQuote, isUniswapX, isWrap } from 'uniswap/src/features/transactions/swap/utils/routing'
+import {
+  isMultiChainGasQuote,
+  isSwapRouting,
+  isUniswapX,
+  isWrap,
+} from 'uniswap/src/features/transactions/swap/utils/routing'
 import { TransactionDetails } from 'uniswap/src/features/transactions/TransactionDetails/TransactionDetails'
 import { CurrencyField } from 'uniswap/src/types/currency'
 
@@ -77,9 +82,10 @@ export function ExpandableRows(): JSX.Element | null {
 
   return (
     <Accordion.HeightAnimator animation="fast" mt="$spacing8">
-      <Accordion.Content animation="fast" p="$none" exitStyle={{ opacity: 0 }}>
+      <Accordion.Content p="$none">
         <TransactionDetails
           showExpandedChildren
+          isSwap={isSwapRouting(trade.trade)}
           routingType={trade.trade.routing}
           chainId={inputCurrencyChainId}
           gasFee={gasFee}

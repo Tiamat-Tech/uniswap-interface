@@ -1,24 +1,24 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Platform } from '@universe/chains'
 import {
   type Authenticator,
   deleteAuthenticatorWithPasskey,
   disconnectWallet,
   useEmbeddedWalletState,
 } from '@universe/embedded-wallet'
+import { Button, Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { CheckboxCompat as Checkbox } from '@universe/mycelium/checkbox-compat'
+import { FileListLock } from '@universe/mycelium/icons/FileListLock'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
+import { Trash } from '@universe/mycelium/icons/Trash'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Checkbox, Flex, Text, TouchableArea } from 'ui/src'
-import { FileListLock } from 'ui/src/components/icons/FileListLock'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { Trash } from 'ui/src/components/icons/Trash'
-import { iconSizes } from 'ui/src/theme'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import WarningIcon from 'uniswap/src/components/warnings/WarningIcon'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
 import { usePortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -68,6 +68,7 @@ export function RemovePasskeyModal() {
   const { convertFiatAmountFormatted } = useLocalizationContext()
   const [step, setStep] = useState<RemovePasskeyStep>('speedbump')
   const [acknowledged, setAcknowledged] = useState(false)
+  const [backHovered, setBackHovered] = useState(false)
 
   const { walletId } = useEmbeddedWalletState()
   const initialState = useAppSelector(
@@ -78,6 +79,7 @@ export function RemovePasskeyModal() {
   const handleClose = () => {
     setStep('speedbump')
     setAcknowledged(false)
+    setBackHovered(false)
     resetDeleteMutation()
     onClose()
   }
@@ -190,18 +192,12 @@ export function RemovePasskeyModal() {
               </Trace>
               <Flex row width="100%" gap="$gap8">
                 <Trace logPress element={ElementName.Cancel}>
-                  <Button flex={1} py="$padding12" variant="default" emphasis="secondary" onPress={handleClose}>
+                  <Button variant="default" emphasis="secondary" onPress={handleClose}>
                     {t('common.button.cancel')}
                   </Button>
                 </Trace>
                 <Trace logPress element={ElementName.Continue}>
-                  <Button
-                    flex={1}
-                    py="$padding12"
-                    variant="critical"
-                    emphasis="secondary"
-                    onPress={() => setStep('confirm')}
-                  >
+                  <Button variant="critical" emphasis="secondary" onPress={() => setStep('confirm')}>
                     <Text variant="buttonLabel3" color="$statusCritical">
                       {t('common.button.continue')}
                     </Text>
@@ -220,12 +216,25 @@ export function RemovePasskeyModal() {
                   onPress={() => {
                     setStep('speedbump')
                     setAcknowledged(false)
+                    // Also reset here: unmounting the confirm step fires no mouseleave,
+                    // so a stale true would pre-tint the chevron on re-entry.
+                    setBackHovered(false)
                     resetDeleteMutation()
                   }}
                   hoverStyle={{ opacity: 0.7 }}
+                  // Bare-icon child: auto color injection would land `$group-hover` on the
+                  // icon's DOM wrapper — replicate the legacy hover tint manually instead
+                  // (the ModalCloseIconCompat.web pattern).
+                  shouldAutomaticallyInjectColors={false}
+                  onMouseEnter={() => setBackHovered(true)}
+                  onMouseLeave={() => setBackHovered(false)}
                   testID={TestID.DeletePasskeyBack}
                 >
-                  <RotatableChevron direction="left" size="$icon.24" color="$neutral2" />
+                  <RotatableChevron
+                    direction="left"
+                    size="$icon.24"
+                    color={backHovered ? '$neutral2Hovered' : '$neutral2'}
+                  />
                 </TouchableArea>
               </Flex>
               <Flex p="$gap12" borderRadius="$rounded12" backgroundColor="$statusCritical2">
@@ -246,12 +255,12 @@ export function RemovePasskeyModal() {
                   borderWidth={1}
                   borderRadius="$rounded16"
                   borderStyle="solid"
-                  p="$padding4"
+                  p="$spacing4"
                 >
                   <Flex row gap="$gap12" px="$padding8" py="$padding8" alignItems="center">
                     <StatusIcon size={24} showMiniIcons={false} />
                     <AddressDisplay address={evmAddress} />
-                    <Text variant="body3" color="$neutral1" ml="auto" mr="0">
+                    <Text variant="body3" color="$neutral1" ml="auto" mr={0}>
                       {convertFiatAmountFormatted(balanceUSD, NumberType.FiatTokenPrice)}
                     </Text>
                   </Flex>
@@ -304,14 +313,12 @@ export function RemovePasskeyModal() {
               )}
               <Flex row justifyContent="space-between" width="100%" gap="$gap8">
                 <Trace logPress element={ElementName.Cancel}>
-                  <Button flex={1} py="$padding12" variant="default" emphasis="secondary" onPress={handleClose}>
+                  <Button variant="default" emphasis="secondary" onPress={handleClose}>
                     {t('common.button.cancel')}
                   </Button>
                 </Trace>
                 <Trace logPress element={ElementName.DeletePasskey}>
                   <Button
-                    flex={1}
-                    py="$padding12"
                     variant="critical"
                     emphasis="primary"
                     icon={<Passkey color={acknowledged ? '$white' : '$neutral2'} size={16} />}

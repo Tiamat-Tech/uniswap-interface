@@ -3,7 +3,7 @@ import type {
   ExitBidPositionResponse,
 } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/auction_pb'
 import { BidToExit, ChainId } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useExitBidAndClaimTokensMutation } from 'uniswap/src/data/apiClients/dataApiService/auctions/useExitBidAndClaimTokensMutation'
 import { useExitBidPositionMutation } from 'uniswap/src/data/apiClients/dataApiService/auctions/useExitBidPositionMutation'
@@ -106,7 +106,6 @@ export function useWithdrawBidAndClaimTokensFormSubmit({
   const useSimpleExitApi = isPreClaimWindow && !!bidId
   const { evmAccount } = useWallet()
   const trace = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const preparedTransactionRef = useRef<{
     signature: string
     data: PreparedWithdrawBidAndClaimTokensTransaction
@@ -199,8 +198,8 @@ export function useWithdrawBidAndClaimTokensFormSubmit({
       : bidsToProcess.map((b) => `${b.bidId}:${b.isExited}`).join(',')
     const signature = [
       chainId.toString(),
-      accountAddress.toLowerCase(),
-      auctionContractAddress.toLowerCase(),
+      normalizeAddress(accountAddress, AddressStringFormat.Lowercase),
+      normalizeAddress(auctionContractAddress, AddressStringFormat.Lowercase),
       bidsSignature,
     ].join(':')
 
@@ -221,7 +220,7 @@ export function useWithdrawBidAndClaimTokensFormSubmit({
       if (useSimpleExitApi && bidId) {
         const response: ExitBidPositionResponse = await exitBidPositionMutation.mutateAsync({
           bidId,
-          auctionContractAddress: auctionContractAddress.toLowerCase(),
+          auctionContractAddress: normalizeAddress(auctionContractAddress, AddressStringFormat.Lowercase),
           chainId: chainId as ChainId,
           walletAddress: accountAddress,
         })
@@ -243,7 +242,7 @@ export function useWithdrawBidAndClaimTokensFormSubmit({
         // Use the batch exitBidAndClaimTokens API for normal operations
         const response: ExitBidAndClaimTokensResponse = await exitBidAndClaimTokensMutation.mutateAsync({
           bids: bidsToProcess,
-          auctionContractAddress: auctionContractAddress.toLowerCase(),
+          auctionContractAddress: normalizeAddress(auctionContractAddress, AddressStringFormat.Lowercase),
           chainId: chainId as ChainId,
           walletAddress: accountAddress,
         })
@@ -276,7 +275,7 @@ export function useWithdrawBidAndClaimTokensFormSubmit({
 
       const info: ToucanWithdrawBidAndClaimTokensTransactionInfo = {
         type: TransactionType.ToucanWithdrawBidAndClaimTokens,
-        auctionContractAddress: auctionContractAddress.toLowerCase(),
+        auctionContractAddress: normalizeAddress(auctionContractAddress, AddressStringFormat.Lowercase),
         auctionTokenAddress: withdrawalData?.auctionTokenAddress,
         auctionTokenAmountRaw: withdrawalData?.auctionTokenAmountRaw,
         bidTokenAddress: withdrawalData?.bidTokenAddress,
@@ -333,7 +332,6 @@ export function useWithdrawBidAndClaimTokensFormSubmit({
       expectedReceiveAmount: withdrawalData?.expectedReceiveAmount,
       isGraduated,
       isAuctionCompleted,
-      isCentralizedPricesEnabled,
     })
 
     return new Promise<void>((resolve, reject) => {

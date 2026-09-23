@@ -1,6 +1,6 @@
 import { isWebPlatform } from '@universe/environment'
+import { TouchableArea } from '@universe/mycelium'
 import { PropsWithChildren, useMemo } from 'react'
-import { TouchableArea } from 'ui/src'
 import { ContextMenu, MenuOptionItemWithId } from 'uniswap/src/components/menus/ContextMenu'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
 import { CurrencyInfo, TokenList } from 'uniswap/src/features/dataApi/types'

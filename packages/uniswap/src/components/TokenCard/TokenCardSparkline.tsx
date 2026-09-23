@@ -1,6 +1,7 @@
+import { Flex } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useId, useMemo } from 'react'
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg'
-import { Flex, useSporeColors } from 'ui/src'
 import { type ChartPoint, computeChartPaths } from 'uniswap/src/components/charts/computeChartPaths'
 
 const STROKE_WIDTH = 1.5

@@ -1,7 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useActiveAddress } from '~/features/accounts/store/hooks'
 import { useGetSwapDelegationInfo } from '~/hooks/useGetSwapDelegationInfo'
 import { useIsEmbeddedWallet } from '~/hooks/useIsEmbeddedWallet'

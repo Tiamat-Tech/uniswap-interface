@@ -1,5 +1,7 @@
-import { Flex, Tooltip } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
+import { Flex } from '@universe/mycelium'
+// Web-only: the native leg keeps the ui/src import until INFRA-3716 gives mycelium icons a native leg.
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { PnlDefinitionsList } from 'uniswap/src/components/ProfitLoss/PnlDefinitions'
 import { PnlInfoTriggerProps } from 'uniswap/src/components/ProfitLoss/PnlInfoTrigger'
 

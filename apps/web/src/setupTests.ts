@@ -11,6 +11,11 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   }
 }
 
+// Element.getAnimations is not available in jsdom — real unmounts (post-provider removal) reach it
+if (typeof Element.prototype.getAnimations === 'undefined') {
+  Element.prototype.getAnimations = () => []
+}
+
 // Deterministic crypto.randomUUID for snapshot stability
 let _testUuidCounter = 0
 crypto.randomUUID = (() => `test-uuid-${_testUuidCounter++}`) as typeof crypto.randomUUID
@@ -20,7 +25,6 @@ beforeEach(() => {
   crypto.randomUUID = (() => `test-uuid-${_testUuidCounter++}`) as typeof crypto.randomUUID
 })
 // oxlint-disable-next-line
-import './test-utils/mockTamagui' // mock problematic Tamagui components
 import { Readable } from 'stream'
 import { format, TextDecoder, TextEncoder } from 'util'
 import { type createPopper } from '@popperjs/core'
@@ -30,12 +34,12 @@ import {
   type WalletName,
   WalletReadyState,
 } from '@solana/wallet-adapter-base'
-import { useFeatureFlag } from '@universe/gating'
+import type { UniverseChainId } from '@universe/chains'
+import { useFeatureFlag, useStatsigClientStatus } from '@universe/gating'
 import { useWeb3React } from '@web3-react/core'
 import { config as loadEnv } from 'dotenv'
 import { disableNetConnect, restore as restoreNetConnect } from 'nock'
 import React from 'react'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
 import { setupi18n } from 'uniswap/src/i18n/i18n-setup-interface'
 import { mockLocalizationContext } from 'uniswap/src/test/mocks/locale'
 import { toBeVisible } from '~/test-utils/matchers'
@@ -129,7 +133,9 @@ globalThis.origin = 'https://app.uniswap.org'
 {
   window.open = vi.fn()
   window.scrollTo = vi.fn()
-  window.getComputedStyle = vi.fn()
+  // Implementation lives here, not just in the `beforeEach` below, so a test's `vi.restoreAllMocks()`
+  // resets to it rather than to `undefined` — floating-ui destructures the result outside any test.
+  window.getComputedStyle = vi.fn(() => new CSSStyleDeclaration())
 
   if (typeof globalThis.TextEncoder === 'undefined') {
     globalThis.ReadableStream = Readable as unknown as typeof globalThis.ReadableStream
@@ -197,8 +203,6 @@ const IntersectionObserverMock = vi.fn(() => ({
 
 vi.stubGlobal('IntersectionObserver', IntersectionObserverMock)
 
-vi.mock('react-native-svg', () => require('@tamagui/react-native-svg'))
-
 // `resolve.extensions` puts `.web.ts` ahead of `.js`, so importing this package resolves its
 // untransformed TS source (src/module.web.ts) instead of its dist build and throws a SyntaxError,
 // making anything that reaches AmountInput untestable on web. Mirrors the mock the uniswap package
@@ -245,26 +249,6 @@ vi.mock('@uniswap/analytics-events', () => {
     trace: vi.fn(),
   }
 })
-
-vi.mock('@tamagui/animations-moti', () => ({
-  createAnimations: () => ({
-    '100ms': {
-      type: 'timing',
-      duration: 100,
-    },
-    fast: {
-      type: 'timing',
-      duration: 100,
-    },
-    slow: {
-      type: 'timing',
-      duration: 100,
-    },
-  }),
-  MotiView: ({ children }: any) => {
-    return React.createElement(React.Fragment, {}, children)
-  },
-}))
 
 vi.mock('@uniswap/analytics', () => ({
   Trace: ({ children }: any) => {
@@ -412,20 +396,6 @@ vi.mock('@web3-react/core', async () => {
   }
 })
 
-vi.mock('~/state/routing/slice', async () => {
-  const routingSlice = await vi.importActual('~/state/routing/slice')
-  return {
-    ...routingSlice,
-    // Prevents unit tests from logging errors from failed getQuote queries
-    useGetQuoteQuery: () => ({
-      isError: false,
-      data: undefined,
-      error: undefined,
-      currentData: undefined,
-    }),
-  }
-})
-
 /**
  * Fail tests if anything is logged to the console. This keeps the console clean and ensures test output stays readable.
  * If something should log to the console, it should be stubbed and asserted:
@@ -556,12 +526,15 @@ vi.mock('@universe/gating', async (importOriginal) => {
     getDynamicConfigValue: vi.fn((args) => args?.defaultValue),
     getExperimentValueFromLayer: vi.fn(),
     useExperimentValueFromLayer: vi.fn(),
+    useIsTokenCategoriesEnabled: vi.fn(() => false),
+    useIsTokenCategoriesEnabledWithLoading: vi.fn(() => ({ value: false, isLoading: false })),
+    useIsV2EndpointsSearchEnabled: vi.fn(() => false),
     checkTypeGuard: vi.fn(),
-    useStatsigClientStatus: () => ({
+    useStatsigClientStatus: vi.fn(() => ({
       isStatsigLoading: false,
       isStatsigReady: true,
       isStatsigUninitialized: false,
-    }), // Specific custom mock for useStatsigClientStatus
+    })),
   }
 })
 
@@ -604,6 +577,11 @@ beforeEach(() => {
 
   // Mock feature flags
   mocked(useFeatureFlag).mockReturnValue(false)
+  mocked(useStatsigClientStatus).mockReturnValue({
+    isStatsigLoading: false,
+    isStatsigReady: true,
+    isStatsigUninitialized: false,
+  })
 
   // Prevent amplitude debugs from triggering failOnConsole
   console.debug = vi.fn((...args) => {
@@ -626,16 +604,12 @@ expect.extend({
   toBeVisible,
 })
 
-vi.mock('./components/Table/TableSizeProvider', () => ({
+vi.mock('./components/Table/TableSizeProvider', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./components/Table/TableSizeProvider')>()),
   useTableSize: vi.fn(() => ({
     width: 1024,
     height: 768,
     top: 0,
     left: 0,
-    rowContentMinWidthPx: 0,
   })),
-  useTableRowContentMinWidthPx: vi.fn(() => 0),
-  TableSizeProvider: ({ children }: { children: JSX.Element }) => {
-    return React.createElement(React.Fragment, {}, children)
-  },
 }))

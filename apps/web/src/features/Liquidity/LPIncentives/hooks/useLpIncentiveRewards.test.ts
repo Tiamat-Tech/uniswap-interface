@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { GetRewardsResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { useGetPoolsRewards } from 'uniswap/src/data/apiClients/dataApiService/pools/getPoolsRewards'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { SAMPLE_SEED_ADDRESS_1, SAMPLE_SEED_ADDRESS_2 } from 'uniswap/src/test/fixtures/gql/assets/constants'
 import { useLpIncentiveRewards } from '~/features/Liquidity/LPIncentives/hooks/useLpIncentiveRewards'
 import { useLpIncentivesClaimedStore } from '~/features/Liquidity/LPIncentives/lpIncentivesClaimedStore'
@@ -9,6 +9,11 @@ import { mocked } from '~/test-utils/mocked'
 
 vi.mock('uniswap/src/data/apiClients/dataApiService/pools/getPoolsRewards', () => ({
   useGetPoolsRewards: vi.fn(),
+}))
+
+// The chain set comes from enabled-chains state, which this provider-less renderHook can't supply.
+vi.mock('~/features/Liquidity/LPIncentives/hooks/useLpIncentivesChainIds', () => ({
+  useLpIncentivesChainIds: () => [UniverseChainId.Mainnet, UniverseChainId.Base],
 }))
 
 const UNI = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984'

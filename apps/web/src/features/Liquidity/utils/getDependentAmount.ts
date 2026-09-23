@@ -2,6 +2,7 @@ import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import { Pair } from '@uniswap/v2-sdk'
 import { Pool as V3Pool, Position as V3Position } from '@uniswap/v3-sdk'
 import { Pool as V4Pool, Position as V4Position } from '@uniswap/v4-sdk'
+import { getWrappedAmountIfExists, getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import { logger } from 'utilities/src/logger/logger'
 import { PositionField } from '~/types/position'
 
@@ -22,16 +23,17 @@ export function getDependentAmountFromV2Pair({
   token1: Maybe<Currency>
   dependentToken: Maybe<Currency>
 }): CurrencyAmount<Currency> | undefined {
-  const [token0Wrapped, token1Wrapped] = [token0?.wrapped, token1?.wrapped]
-  if (!token0Wrapped || !token1Wrapped || !independentAmount || !pair) {
+  const [token0Wrapped, token1Wrapped] = [getWrappedTokenIfExists(token0), getWrappedTokenIfExists(token1)]
+  const wrappedIndependentAmount = getWrappedAmountIfExists(independentAmount)
+  if (!token0Wrapped || !token1Wrapped || !wrappedIndependentAmount || !pair) {
     return undefined
   }
 
   try {
     const dependentTokenAmount =
       exactField === PositionField.TOKEN0
-        ? pair.priceOf(token0Wrapped).quote(independentAmount.wrapped)
-        : pair.priceOf(token1Wrapped).quote(independentAmount.wrapped)
+        ? pair.priceOf(token0Wrapped).quote(wrappedIndependentAmount)
+        : pair.priceOf(token1Wrapped).quote(wrappedIndependentAmount)
 
     return dependentToken
       ? dependentToken.isNative
@@ -63,7 +65,11 @@ export function getDependentAmountFromV3Position({
     return undefined
   }
 
-  const wrappedIndependentAmount = independentAmount.wrapped
+  const wrappedIndependentAmount = getWrappedAmountIfExists(independentAmount)
+  if (!wrappedIndependentAmount) {
+    return undefined
+  }
+
   const independentTokenIsFirstToken = wrappedIndependentAmount.currency.equals(pool.token0)
 
   try {

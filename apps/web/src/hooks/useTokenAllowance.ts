@@ -1,6 +1,6 @@
 import { CurrencyAmount, MaxUint256, Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { useCallback, useMemo, useRef } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { ApproveTransactionInfo, TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'

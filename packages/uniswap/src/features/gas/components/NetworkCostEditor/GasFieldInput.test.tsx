@@ -1,5 +1,8 @@
 import { fireEvent } from '@testing-library/react-native'
-import { GasFieldInput } from 'uniswap/src/features/gas/components/NetworkCostEditor/GasFieldInput'
+import {
+  GasFieldInput,
+  MAX_GAS_FIELD_INPUT_LENGTH,
+} from 'uniswap/src/features/gas/components/NetworkCostEditor/GasFieldInput'
 import { renderWithProviders } from 'uniswap/src/test/render'
 
 // The Tooltip variant uses Modal on native, which depends on the BottomSheetModal context.
@@ -71,6 +74,18 @@ describe('GasFieldInput', () => {
     fireEvent.changeText(input, '1abc2.3,4')
 
     expect(handleChange).toHaveBeenLastCalledWith('12.3,4')
+  })
+
+  it('truncates input to the max gas field length', () => {
+    const handleChange = vi.fn()
+    const { getByDisplayValue } = renderWithProviders(
+      <GasFieldInput label="Max base fee" value="" unit="GWEI" onChangeValue={handleChange} tooltipKey="maxBaseFee" />,
+    )
+
+    const input = getByDisplayValue('')
+    fireEvent.changeText(input, '1'.repeat(MAX_GAS_FIELD_INPUT_LENGTH + 5))
+
+    expect(handleChange).toHaveBeenLastCalledWith('1'.repeat(MAX_GAS_FIELD_INPUT_LENGTH))
   })
 
   it('renders an error message in place of warning when both are provided', () => {

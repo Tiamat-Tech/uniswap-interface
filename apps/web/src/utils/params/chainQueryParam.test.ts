@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { TdpChainSelectionType } from 'uniswap/src/utils/linking'
 import {
   CHAIN_SEARCH_PARAM,

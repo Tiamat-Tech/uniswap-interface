@@ -54,11 +54,11 @@
   --text-body-1--font-weight: 485;
 
   --text-body-2: 1rem; /* 16px */
-  --text-body-2--line-height: 1.5rem; /* 24px */
+  --text-body-2--line-height: 1.375rem; /* 22px */
   --text-body-2--font-weight: 485;
 
   --text-body-3: 0.875rem; /* 14px */
-  --text-body-3--line-height: 1.25rem; /* 20px */
+  --text-body-3--line-height: 1.125rem; /* 18px */
   --text-body-3--font-weight: 485;
 
   --text-body-4: 0.75rem; /* 12px */
@@ -391,6 +391,8 @@
   --color-uniswapx-violet: #4673fa;
   --color-uniswapx-purple: #7d55fb;
   --color-fiat-onramp-banner: #fb36d0;
+  --color-pools-brand-green-light: #5ac53b;
+  --color-pools-brand-green-dark: #d0ed27;
 
   /* Unicon Avatar Colors - Light Mode */
   --color-unicon-0-light: #f50db4;
@@ -479,6 +481,18 @@
   --icon-size-70: 70px;
   --icon-size-100: 100px;
 
+  /* Image Sizes (ui imageSizes parity; no Tailwind namespace — plain vars, no utilities) */
+  --image-size-12: 12px;
+  --image-size-16: 16px;
+  --image-size-20: 20px;
+  --image-size-24: 24px;
+  --image-size-32: 32px;
+  --image-size-36: 36px;
+  --image-size-40: 40px;
+  --image-size-48: 48px;
+  --image-size-64: 64px;
+  --image-size-100: 100px;
+
   /* Spacing Scale (ui spacing parity) — deliberately NOT --spacing-*: that
      namespace would rebind the Tailwind 4px-grid utilities (p-12 → 12px). */
   --ui-spacing-none: 0px;
@@ -498,6 +512,9 @@
   --ui-spacing-40: 40px;
   --ui-spacing-48: 48px;
   --ui-spacing-60: 60px;
+
+  /* Heights (ui/src/theme/heights.ts parity; no Tailwind namespace — plain vars, no utilities) */
+  --height-interface-nav: 72px;
 
   /* Z-Index Layers (ui zIndexes parity) — the Tailwind z-index namespace, so these
      also create z-<name> utilities; all names are new, z-<number> is unaffected. */
@@ -526,7 +543,7 @@
      precision; letter-spacing keeps the ui percent encoding. The ui family and
      maxFontSizeMultiplier members have no CSS representation — see src/tokens.ts. */
   --typography-heading-1: 52px;
-  --typography-heading-1--line-height: 49.92px;
+  --typography-heading-1--line-height: 50px;
   --typography-heading-1--font-weight: 400;
   --typography-heading-1--letter-spacing: -2%;
 
@@ -536,7 +553,7 @@
   --typography-heading-2--letter-spacing: -1%;
 
   --typography-heading-3: 24px;
-  --typography-heading-3--line-height: 28.799999999999997px;
+  --typography-heading-3--line-height: 28px;
   --typography-heading-3--font-weight: 400;
   --typography-heading-3--letter-spacing: -0.5%;
 
@@ -549,15 +566,15 @@
   --typography-subheading-2--font-weight: 400;
 
   --typography-body-1: 18px;
-  --typography-body-1--line-height: 23.400000000000002px;
+  --typography-body-1--line-height: 24px;
   --typography-body-1--font-weight: 400;
 
   --typography-body-2: 16px;
-  --typography-body-2--line-height: 20.8px;
+  --typography-body-2--line-height: 22px;
   --typography-body-2--font-weight: 400;
 
   --typography-body-3: 14px;
-  --typography-body-3--line-height: 18.2px;
+  --typography-body-3--line-height: 18px;
   --typography-body-3--font-weight: 400;
 
   --typography-body-4: 12px;

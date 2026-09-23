@@ -1,6 +1,6 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import { Auction, Checkpoint, TickDetail } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
+import { EVMUniverseChainId } from '@universe/chains'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import type { ChartMode } from '~/features/Toucan/ToucanChart/renderer'
 
@@ -139,6 +139,29 @@ export enum AuctionDetailsLoadState {
 }
 
 /**
+ * Load state for `GetLatestCheckpoint`, alongside `checkpointData`.
+ *
+ * `checkpointData: null` on its own cannot distinguish "the request is still in the air" from
+ * "the request came back and there was nothing in it" — and those demand opposite treatment when
+ * classifying an ended auction. The line that matters is *settled* vs *in flight*, so it gets its
+ * own field rather than being inferred from the payload.
+ *
+ * Only `Success` is authoritative about absence. `Error` never is: `GetLatestCheckpoint` answers
+ * 404 for an address it cannot resolve to an auction (a token address, say), which says nothing
+ * about whether the auction raised anything.
+ */
+export enum AuctionCheckpointLoadState {
+  /** Nothing requested yet — no chainId/address, so the query's `enabled` gate is holding it. */
+  Idle = 'IDLE',
+  /** In flight, including the bounded retries. */
+  Loading = 'LOADING',
+  /** Resolved. `checkpointData === null` now means the response genuinely carried no checkpoint. */
+  Success = 'SUCCESS',
+  /** Settled as a failure after its retries — transport error, or a 404 from an unresolvable address. */
+  Error = 'ERROR',
+}
+
+/**
  * Computed auction progress information
  * These fields are automatically updated when currentBlockNumber changes
  */
@@ -146,6 +169,18 @@ export interface AuctionProgressData {
   state: AuctionProgressState
   blocksRemaining: number | undefined
   progressPercentage: number | undefined
+  /**
+   * Whether the graduation threshold was met — `undefined` while undecided (checkpoint not
+   * settled, or either side of the comparison missing/malformed). This is the honest arity;
+   * prefer it, or `outcome`, over `isGraduated`.
+   */
+  hasMetThreshold?: boolean
+  /**
+   * Lossy convenience view of `hasMetThreshold`, kept for the existing boolean consumers.
+   * Fails closed: also false while graduation is undecided, so `!isGraduated` does NOT mean
+   * "failed" — it means "not known to have graduated". Never derive user-visible failure copy
+   * from it; branch on `outcome === AuctionOutcome.FAILED` (or read `hasMetThreshold`) instead.
+   */
   isGraduated: boolean
   outcome: AuctionOutcome
 }
@@ -211,6 +246,13 @@ interface AuctionState {
   auctionDetailsLoadState: AuctionDetailsLoadState
   auctionDetailsError: string | null
   checkpointData: PlainMessage<Checkpoint> | null
+  /**
+   * Whether the checkpoint request has settled, and how. Read together with `checkpointData` to
+   * tell an unresolved checkpoint from one that resolved empty — polling stops once the auction
+   * leaves IN_PROGRESS, so a null checkpoint on an ended auction is otherwise permanent and
+   * indistinguishable from a slow first load.
+   */
+  checkpointLoadState: AuctionCheckpointLoadState
   onchainCheckpoint: PlainMessage<Checkpoint> | null // For bid in-range detection only
   // Live total tokens cleared, from GetLatestCheckpointResponse.total_cleared (response-level,
   // always-populated). Checkpoint.totalCleared (proto field 13) is deprecated — don't read it.
@@ -287,6 +329,7 @@ interface AuctionActions {
   setAuctionDetails: (details: AuctionDetails | null) => void
   setAuctionDetailsLoadState: (state: AuctionDetailsLoadState, error?: string | null) => void
   setCheckpointData: (data: PlainMessage<Checkpoint> | null) => void
+  setCheckpointLoadState: (state: AuctionCheckpointLoadState) => void
   setOnchainCheckpoint: (data: PlainMessage<Checkpoint> | null) => void
   setTotalCleared: (totalCleared: string | null) => void
   setSelectedTickPrice: (price: string | null) => void

@@ -1,6 +1,7 @@
 import { CommonActions } from '@react-navigation/core'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, Spacer } from '@universe/mycelium'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView } from 'react-native-gesture-handler'
@@ -12,7 +13,7 @@ import { Screen } from 'src/components/layout/Screen'
 import { useBiometricAppSpeedBump } from 'src/features/biometrics/useBiometricAppSpeedBump'
 import { useLockScreenOnBlur } from 'src/features/lockScreen/hooks/useLockScreenOnBlur'
 import { PrivateKeyDisplay } from 'src/screens/ViewPrivateKeys/PrivateKeyView/PrivateKeyDisplay'
-import { Button, Flex, GeneratedIcon, IconButton, Spacer, Text } from 'ui/src'
+import { Button, GeneratedIcon, IconButton } from 'ui/src'
 import { Eye, Key, Laptop } from 'ui/src/components/icons'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { HiddenWordView } from 'ui/src/components/placeholders/HiddenWordView'
@@ -66,7 +67,7 @@ export function ViewPrivateKeysScreen({ navigation, route }: Props): JSX.Element
     dispatchNavigationAction(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: MobileScreens.Home }],
+        routes: [{ name: MobileScreens.MainTabs, params: { screen: MobileScreens.Home } }],
       }),
     )
   }, [dispatch])

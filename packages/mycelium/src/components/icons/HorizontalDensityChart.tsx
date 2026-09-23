@@ -1,11 +1,12 @@
 import { createIcon } from '../factories/createIcon'
+import { Rect, Svg } from '../factories/svg-elements'
 
 export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIcon({
   name: 'HorizontalDensityChart',
   getIcon: (props) => (
-    <svg viewBox="0 0 124 160" fill="none" {...props}>
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 10)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+    <Svg viewBox="0 0 124 160" fill="none" {...props}>
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 10)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -13,8 +14,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 17.5)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 17.5)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -22,8 +23,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 25)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 25)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -31,8 +32,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 32.5)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 32.5)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -40,8 +41,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 40)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 40)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -49,8 +50,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 47.5)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 47.5)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -58,8 +59,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 55)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 55)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -67,8 +68,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 62.5)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 62.5)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -76,8 +77,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 70)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 70)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -85,8 +86,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 77.5)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 77.5)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -94,8 +95,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 85)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 85)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -103,8 +104,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 92.5)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 92.5)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -112,8 +113,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 100)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 100)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -121,7 +122,7 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -129,7 +130,7 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -137,8 +138,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 115)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 115)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -146,7 +147,7 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -154,7 +155,7 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -162,8 +163,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 130)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 130)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -171,7 +172,7 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -179,7 +180,7 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -187,8 +188,8 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 145)" fill="currentColor" fillOpacity="0.6" />
-      <rect
+      <Rect width="60" height="1" rx="0.5" transform="matrix(1 0 0 -1 84 145)" fill="currentColor" fillOpacity="0.6" />
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -196,7 +197,7 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-      <rect
+      <Rect
         width="60"
         height="1"
         rx="0.5"
@@ -204,7 +205,7 @@ export const [HorizontalDensityChart, AnimatedHorizontalDensityChart] = createIc
         fill="currentColor"
         fillOpacity="0.6"
       />
-    </svg>
+    </Svg>
   ),
   defaultFill: '#5E5E5E',
 })

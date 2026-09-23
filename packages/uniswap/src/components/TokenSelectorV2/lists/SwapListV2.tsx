@@ -1,10 +1,10 @@
+import { UniverseChainId } from '@universe/chains'
 import { type PortfolioBalancesResult } from 'uniswap/src/components/TokenSelector/hooks/usePortfolioBalancesForAddressById'
 import { OnSelectCurrency, OnSelectRwaToken, TokenSelectorVariation } from 'uniswap/src/components/TokenSelector/types'
 import { getSuggestedTilesMaxCount } from 'uniswap/src/components/TokenSelectorV2/constants'
 import { useTokenSectionsForSwapV2 } from 'uniswap/src/components/TokenSelectorV2/hooks/useTokenSectionsForSwapV2'
 import { TokenSelectorV2List } from 'uniswap/src/components/TokenSelectorV2/TokenSelectorV2List'
 import { TradeableAsset } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 export function SwapListV2({
   variation,

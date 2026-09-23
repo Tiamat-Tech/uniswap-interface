@@ -3,7 +3,7 @@ import { ComplianceClientProvider } from '@universe/compliance'
 import { ReactNode } from 'react'
 import { Provider as ReduxProvider } from 'react-redux'
 import { SharedPersistQueryClientProvider } from 'uniswap/src/data/reactQuery/SharedPersistQueryClientProvider'
-import { TamaguiProvider } from 'wallet/src/providers/tamagui-provider'
+import { AppPortalProvider } from 'wallet/src/providers/portal-provider'
 
 interface SharedProviderProps {
   children: ReactNode
@@ -17,7 +17,7 @@ export function SharedWalletProvider({ reduxStore, children }: SharedProviderPro
     <ReduxProvider store={reduxStore}>
       <SharedPersistQueryClientProvider>
         <ComplianceClientProvider>
-          <TamaguiProvider>{children}</TamaguiProvider>
+          <AppPortalProvider>{children}</AppPortalProvider>
         </ComplianceClientProvider>
       </SharedPersistQueryClientProvider>
     </ReduxProvider>

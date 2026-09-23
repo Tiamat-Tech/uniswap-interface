@@ -1,5 +1,5 @@
+import type { UniverseChainId } from '@universe/chains'
 import { useEffect, useMemo, useState } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useUSDCPrice } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import type { RaiseCurrency } from '~/pages/Liquidity/CreateAuction/types'
 import { getRaiseCurrencyAsCurrency } from '~/pages/Liquidity/CreateAuction/utils'

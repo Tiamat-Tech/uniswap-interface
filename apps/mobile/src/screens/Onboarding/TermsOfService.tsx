@@ -1,5 +1,5 @@
+import { Text } from '@universe/mycelium'
 import { Trans } from 'react-i18next'
-import { Text } from 'ui/src'
 import { UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { openUri } from 'uniswap/src/utils/linking'
 

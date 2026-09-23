@@ -1,5 +1,12 @@
+import {
+  Flex,
+  Text,
+  TouchableTextLink,
+  type ColorTokens,
+  type TextCompatProps as TextProps,
+  type TouchableTextLinkProps,
+} from '@universe/mycelium'
 import { Fragment } from 'react'
-import { Flex, Text, TouchableTextLink, type ColorTokens, type TextProps, type TouchableTextLinkProps } from 'ui/src'
 import { DISCLOSURES, type DisclosureLink as DisclosureLinkData } from 'uniswap/src/components/disclosures/disclosures'
 
 type DisclosuresBodyProps = {

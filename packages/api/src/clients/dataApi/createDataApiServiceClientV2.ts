@@ -4,6 +4,8 @@ import { type DataApiService } from '@uniswap/client-data-api/dist/data/v2/api_c
 import type {
   ConvertFiatRequest,
   ConvertFiatResponse,
+  GetCategoryRequest,
+  GetCategoryResponse,
   GetEarnPositionRequest,
   GetEarnPositionResponse,
   GetTokenHistoryOHLCRequest,
@@ -28,14 +30,16 @@ import type {
   GetTokensResponse,
   GetWalletNftsRequest,
   GetWalletNftsResponse,
+  ListCategoriesRequest,
+  ListCategoriesResponse,
   ListEarnPositionsRequest,
   ListEarnPositionsResponse,
   ListEarnVaultsRequest,
   ListEarnVaultsResponse,
-  ListLaunchesRequest,
-  ListLaunchesResponse,
-  ListLaunchpadsRequest,
-  ListLaunchpadsResponse,
+  ListPoolsRequest,
+  ListPoolsResponse,
+  ListTokenGroupsRequest,
+  ListTokenGroupsResponse,
   ListTokensRequest,
   ListTokensResponse,
   ListTransactionsRequest,
@@ -52,10 +56,12 @@ export interface DataApiServiceClientV2 {
   listEarnVaults: (params: PartialMessage<ListEarnVaultsRequest>) => Promise<ListEarnVaultsResponse>
   listEarnPositions: (params: PartialMessage<ListEarnPositionsRequest>) => Promise<ListEarnPositionsResponse>
   getEarnPosition: (params: PartialMessage<GetEarnPositionRequest>) => Promise<GetEarnPositionResponse>
+  getCategory: (params: PartialMessage<GetCategoryRequest>) => Promise<GetCategoryResponse>
+  listCategories: (params: PartialMessage<ListCategoriesRequest>) => Promise<ListCategoriesResponse>
+  listPools: (params: PartialMessage<ListPoolsRequest>) => Promise<ListPoolsResponse>
   listTokens: (params: PartialMessage<ListTokensRequest>) => Promise<ListTokensResponse>
+  listTokenGroups: (params: PartialMessage<ListTokenGroupsRequest>) => Promise<ListTokenGroupsResponse>
   listTransactions: (params: PartialMessage<ListTransactionsRequest>) => Promise<ListTransactionsResponse>
-  listLaunchpads: (params: PartialMessage<ListLaunchpadsRequest>) => Promise<ListLaunchpadsResponse>
-  listLaunches: (params: PartialMessage<ListLaunchesRequest>) => Promise<ListLaunchesResponse>
   getToken: (params: PartialMessage<GetTokenRequest>) => Promise<GetTokenResponse>
   getTokens: (params: PartialMessage<GetTokensRequest>) => Promise<GetTokensResponse>
   getTokenMultiChain: (params: PartialMessage<GetTokenMultiChainRequest>) => Promise<GetTokenMultiChainResponse>
@@ -79,10 +85,12 @@ export function createDataApiServiceClientV2({ rpcClient }: DataApiServiceClient
     listEarnVaults: (params): Promise<ListEarnVaultsResponse> => rpcClient.listEarnVaults(params),
     listEarnPositions: (params): Promise<ListEarnPositionsResponse> => rpcClient.listEarnPositions(params),
     getEarnPosition: (params): Promise<GetEarnPositionResponse> => rpcClient.getEarnPosition(params),
+    getCategory: (params): Promise<GetCategoryResponse> => rpcClient.getCategory(params),
+    listCategories: (params): Promise<ListCategoriesResponse> => rpcClient.listCategories(params),
+    listPools: (params): Promise<ListPoolsResponse> => rpcClient.listPools(params),
     listTokens: (params): Promise<ListTokensResponse> => rpcClient.listTokens(params),
+    listTokenGroups: (params): Promise<ListTokenGroupsResponse> => rpcClient.listTokenGroups(params),
     listTransactions: (params): Promise<ListTransactionsResponse> => rpcClient.listTransactions(params),
-    listLaunchpads: (params): Promise<ListLaunchpadsResponse> => rpcClient.listLaunchpads(params),
-    listLaunches: (params): Promise<ListLaunchesResponse> => rpcClient.listLaunches(params),
     getToken: (params): Promise<GetTokenResponse> => rpcClient.getToken(params),
     getTokens: (params): Promise<GetTokensResponse> => rpcClient.getTokens(params),
     getTokenMultiChain: (params): Promise<GetTokenMultiChainResponse> => rpcClient.getTokenMultiChain(params),

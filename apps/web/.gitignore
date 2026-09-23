@@ -1,7 +1,5 @@
 # See https://help.github.com/ignore-files/ for more about ignoring files.
 
-.tamagui
-
 # generated contract types
 /src/i18n/locales/translations
 /src/i18n/locales/source/en-US_old.json

@@ -1,6 +1,6 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex, Input, Text, TouchableArea } from '@universe/mycelium'
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Flex, Input, Text, TouchableArea } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -13,7 +13,35 @@ import {
   MIN_CUSTOM_PRICE_RANGE_PERCENT_FROM_CLEARING,
   type CustomPriceRangeValue,
 } from '~/pages/Liquidity/CreateAuction/types'
-import { isValidPartialPercentInput, isValidPartialSignedPercentInput } from '~/pages/Liquidity/CreateAuction/utils'
+import {
+  CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS,
+  isValidPartialPercentInput,
+  isValidPartialSignedPercentInput,
+} from '~/pages/Liquidity/CreateAuction/utils'
+
+/**
+ * `Trace logFocus` on a disabled field would report a range edit that cannot happen — the input is
+ * read-only, not removed, so it would otherwise still take focus and fire. Skipping the wrapper
+ * (paired with `tabIndex={-1}`) keeps the remainder row out of both the tab order and the funnel.
+ */
+function MaybeTrace({
+  skip,
+  element,
+  children,
+}: {
+  skip?: boolean
+  element: ElementName
+  children: ReactNode
+}): JSX.Element {
+  if (skip) {
+    return <>{children}</>
+  }
+  return (
+    <Trace logFocus element={element}>
+      {children}
+    </Trace>
+  )
+}
 
 function RangeField({ children, isActive }: { children: ReactNode; isActive?: boolean }) {
   return (
@@ -42,15 +70,25 @@ function RangeField({ children, isActive }: { children: ReactNode; isActive?: bo
 export function LiquidityPercentInput({
   value,
   isActive,
+  disabled,
+  accessibilityLabel,
   onValueChange,
 }: {
   value: number
   isActive: boolean
+  /**
+   * Read-only presentation for the derived full-range remainder row: kept out of the tab order and
+   * unwrapped from Trace, so a field nobody can edit cannot emit range-edit focus analytics.
+   */
+  disabled?: boolean
+  /** Names the field for assistive tech; the remainder row carries no visible label of its own. */
+  accessibilityLabel?: string
   onValueChange: (value: number) => void
 }) {
   const { formatPercent } = useLocalizationContext()
   const formatFinitePercentValue = useCallback(
-    (nextValue: number): string => normalizeSignedInput(formatPercent(nextValue, 4)),
+    (nextValue: number): string =>
+      normalizeSignedInput(formatPercent(nextValue, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS)),
     [formatPercent],
   )
   const [rawInput, setRawInput] = useState(formatFinitePercentValue(value))
@@ -69,9 +107,12 @@ export function LiquidityPercentInput({
 
   return (
     <RangeField isActive={isActive}>
-      <Trace logFocus element={ElementName.AuctionCustomRangeLpPct}>
+      <MaybeTrace skip={disabled} element={ElementName.AuctionCustomRangeLpPct}>
         <Input
           unstyled
+          editable={!disabled}
+          tabIndex={disabled ? -1 : undefined}
+          aria-label={accessibilityLabel}
           value={rawInput}
           onChangeText={(nextValue) => {
             if (!isValidPartialPercentInput(nextValue)) {
@@ -99,14 +140,14 @@ export function LiquidityPercentInput({
           }}
           placeholder="0"
           placeholderTextColor="$neutral3"
-          color="$neutral1"
+          color={disabled ? '$neutral2' : '$neutral1'}
           outlineStyle="none"
           fontSize={14}
           lineHeight={18}
           flex={1}
           minWidth={0}
         />
-      </Trace>
+      </MaybeTrace>
       <Text variant="body3" color="$neutral3" flexShrink={0}>
         %
       </Text>
@@ -118,24 +159,35 @@ export function PriceBoundInput({
   side,
   value,
   isActive,
+  disabled,
+  accessibilityLabel,
   onValueChange,
 }: {
   side: 'min' | 'max'
   value: CustomPriceRangeValue
   isActive: boolean
+  /**
+   * Read-only presentation for the derived full-range remainder row: kept out of the tab order and
+   * unwrapped from Trace, so a field nobody can edit cannot emit range-edit focus analytics.
+   */
+  disabled?: boolean
+  /** Names the field for assistive tech; the remainder row carries no visible label of its own. */
+  accessibilityLabel?: string
   onValueChange: (value: CustomPriceRangeValue) => void
 }) {
   const { formatPercent } = useLocalizationContext()
   const formatFinitePercentValue = useCallback(
-    (nextValue: number): string => normalizeSignedInput(formatPercent(nextValue, 4)),
+    (nextValue: number): string =>
+      normalizeSignedInput(formatPercent(nextValue, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS)),
     [formatPercent],
   )
   const [rawInput, setRawInput] = useState(formatPriceRangeBound(value, formatFinitePercentValue))
   const [isHovered, setIsHovered] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
   const isMinBound = side === 'min'
-  // Only the max bound supports `+∞`; the min bound is always a finite number.
-  const showInfinityButton = !isMinBound && (isHovered || isFocused)
+  // Only the max bound supports `+∞`; the min bound is always a finite number. A disabled row has
+  // nothing to set, so the shortcut never appears there.
+  const showInfinityButton = !isMinBound && !disabled && (isHovered || isFocused)
   const valueOnFocusRef = useRef<CustomPriceRangeValue>(value)
 
   // The clearing price sits at 0%. Each range must straddle it, so the min bound must be ≤ 0
@@ -164,12 +216,15 @@ export function PriceBoundInput({
     >
       <RangeField isActive={isActive}>
         <Flex row flex={1} minWidth={0} alignItems="center" gap="$spacing4">
-          <Trace
-            logFocus
+          <MaybeTrace
+            skip={disabled}
             element={side === 'min' ? ElementName.AuctionCustomRangeMinPrice : ElementName.AuctionCustomRangeMaxPrice}
           >
             <Input
               unstyled
+              editable={!disabled}
+              tabIndex={disabled ? -1 : undefined}
+              aria-label={accessibilityLabel}
               value={rawInput}
               onChangeText={(nextValue) => {
                 const normalized = normalizeSignedInput(nextValue)
@@ -216,14 +271,14 @@ export function PriceBoundInput({
               }}
               placeholder="0"
               placeholderTextColor="$neutral3"
-              color="$neutral1"
+              color={disabled ? '$neutral2' : '$neutral1'}
               outlineStyle="none"
               fontSize={16}
               lineHeight={20}
               flex={1}
               minWidth={0}
             />
-          </Trace>
+          </MaybeTrace>
           {!isMinBound && (
             <TouchableArea
               backgroundColor="$surface3"

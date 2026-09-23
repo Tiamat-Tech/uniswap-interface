@@ -1,7 +1,7 @@
 import { type Currency } from '@uniswap/sdk-core'
-import { type ChainedQuoteResponse } from '@universe/api'
+import { TradingApi, type ChainedQuoteResponse } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import { useCallback, useMemo, useRef } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   EarnEntryPoint,
   EarnSwapUpsellSurface,
@@ -10,6 +10,7 @@ import {
   logEarnSwapUpsellConverted,
   logEarnTransactionEvent,
 } from 'uniswap/src/features/earn/analytics'
+import { EarnPlanPriceChangeError } from 'uniswap/src/features/earn/planExecution'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import type {
   EarnAnalyticsAction,
@@ -22,7 +23,25 @@ import type {
   PlanFinalizedCallbackParams,
 } from 'uniswap/src/features/transactions/swap/plan/types'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
+import { createTransactionId } from 'uniswap/src/utils/createTransactionId'
 import { getCurrencyAddressForAnalytics } from 'uniswap/src/utils/currencyId'
+
+const MAX_ANALYTICS_ERROR_NAME_LENGTH = 128
+const MAX_ANALYTICS_ERROR_MESSAGE_LENGTH = 500
+
+function getBoundedErrorString(value: string | undefined, maxLength: number): string | undefined {
+  if (!value) {
+    return undefined
+  }
+  // Sanitize before bounding: provider messages embed request arguments (viem on later lines,
+  // ethers as inline hex blobs) — keep the first line and elide long hex runs so addresses and
+  // calldata never reach the analytics sink through any error-string field.
+  const sanitized = value.split('\n', 1)[0]?.replace(/0x[0-9a-fA-F]{8,}/g, '0x…')
+  if (!sanitized) {
+    return undefined
+  }
+  return sanitized.length <= maxLength ? sanitized : sanitized.slice(0, maxLength)
+}
 
 function getQuoteGasFeeUsd(quote: ChainedQuoteResponse | undefined): string | undefined {
   // Generated types use gasFeeUSD; live REST chained quotes can return gasFeeUsd.
@@ -44,6 +63,27 @@ function getSwapUpsellSurfaceForEntryPoint(
   return undefined
 }
 
+function getFinalizationFallbackReason({
+  status,
+  stepStatus,
+}: {
+  status: TransactionStatus | undefined
+  stepStatus: TradingApi.PlanStepStatus | undefined
+}): EarnFailureAnalyticsProperties['failure_reason'] {
+  if (stepStatus === TradingApi.PlanStepStatus.STEP_ERROR) {
+    return 'plan_step_failed'
+  }
+  if (status === TransactionStatus.Canceled) {
+    // A canceled plan is not evidence of an on-chain failure. Exclude it from error-rate queries.
+    return 'plan_cancelled'
+  }
+  if (!isFinalizedFailureStatus(status)) {
+    // Undefined or non-terminal: the watch ended without an on-chain verdict.
+    return 'finalization_unresolved'
+  }
+  return 'plan_finalized_failed'
+}
+
 function isFinalizedFailureStatus(status: TransactionStatus | undefined): boolean {
   return (
     status === TransactionStatus.Canceled ||
@@ -54,13 +94,79 @@ function isFinalizedFailureStatus(status: TransactionStatus | undefined): boolea
   )
 }
 
-function getErrorAnalyticsProperties(
-  error: Error | undefined,
-): Pick<EarnTransactionAnalyticsProperties, 'error_message' | 'error_name'> {
-  return {
-    error_message: error?.message,
-    error_name: error?.name,
+type EarnFailureAnalyticsProperties = Pick<
+  EarnTransactionAnalyticsProperties,
+  | 'attempt_id'
+  | 'error_message'
+  | 'error_name'
+  | 'failure_duration_ms'
+  | 'failure_phase'
+  | 'failure_reason'
+  | 'plan_id'
+  | 'step_status'
+>
+
+function getFailureClassification({
+  error,
+  isPreSubmissionFailure,
+  willFinalize,
+}: {
+  error: Error | undefined
+  isPreSubmissionFailure: boolean
+  willFinalize: boolean
+}): {
+  failurePhase: EarnFailureAnalyticsProperties['failure_phase']
+  failureReason: EarnFailureAnalyticsProperties['failure_reason']
+} {
+  if (isPreSubmissionFailure) {
+    return { failurePhase: 'validation', failureReason: 'pre_submission_interrupted' }
   }
+  if (error instanceof EarnPlanPriceChangeError) {
+    return {
+      failurePhase: willFinalize ? 'execution' : 'init',
+      failureReason: 'price_changed',
+    }
+  }
+  if (willFinalize) {
+    return { failurePhase: 'execution', failureReason: 'execution_error' }
+  }
+  return { failurePhase: 'init', failureReason: 'initialization_error' }
+}
+
+interface LogEarnFailureParams {
+  error: Error | undefined
+  context?: PlanFailureCallbackContext
+  attemptId: string
+}
+
+function getFailureAnalyticsProperties({
+  error,
+  attemptedAt,
+  attemptId,
+  failurePhase,
+  failureReason,
+}: {
+  error: Error | undefined
+  attemptedAt: number
+  attemptId: string
+  failurePhase: EarnFailureAnalyticsProperties['failure_phase']
+  failureReason: EarnFailureAnalyticsProperties['failure_reason']
+}): EarnFailureAnalyticsProperties {
+  return {
+    attempt_id: attemptId,
+    error_message: getBoundedErrorString(error?.message, MAX_ANALYTICS_ERROR_MESSAGE_LENGTH),
+    error_name: getBoundedErrorString(error?.name, MAX_ANALYTICS_ERROR_NAME_LENGTH),
+    failure_phase: failurePhase,
+    failure_reason: failureReason,
+    failure_duration_ms: Math.max(0, Date.now() - attemptedAt),
+  }
+}
+
+interface EarnExecutionAttemptState {
+  attemptedAt: number
+  submittedAt: number | null
+  pendingFailure: EarnFailureAnalyticsProperties | null
+  terminalOutcome: 'completed' | 'failed' | null
 }
 
 export function useEarnReviewAnalytics({
@@ -110,9 +216,11 @@ export function useEarnReviewAnalytics({
   vault: EarnVaultInfo
   withdrawMode?: string
 }): {
-  logFailed: (error: Error | undefined, context?: PlanFailureCallbackContext) => void
-  logFinalized: (params: PlanFinalizedCallbackParams) => void
-  logSubmitted: () => void
+  logFailed: ({ error, context, attemptId }: LogEarnFailureParams) => void
+  logFinalized: (params: PlanFinalizedCallbackParams, attemptId: string) => void
+  logReviewReady: () => void
+  logSubmitButtonClicked: () => string
+  logSubmitted: (attemptId: string) => void
   reviewedEventProperties: EarnTransactionAnalyticsProperties
 } {
   const analyticsProperties = useMemo<EarnTransactionAnalyticsProperties>(
@@ -161,71 +269,115 @@ export function useEarnReviewAnalytics({
       withdrawMode,
     ],
   )
-  const finalizedPlanIdsRef = useRef<Set<string>>(new Set())
-  const failedPlanIdsRef = useRef<Set<string>>(new Set())
-  const submittedExecutionRef = useRef(false)
-  const pendingSubmittedFailureRef = useRef<Pick<
-    EarnTransactionAnalyticsProperties,
-    'error_message' | 'error_name'
-  > | null>(null)
+  const attemptsRef = useRef<Map<string, EarnExecutionAttemptState>>(new Map())
+  const hasLoggedReviewReadyRef = useRef(false)
+  const hasLoggedUpsellConversionRef = useRef(false)
 
-  const logSubmitted = useCallback(() => {
-    finalizedPlanIdsRef.current.clear()
-    failedPlanIdsRef.current.clear()
-    submittedExecutionRef.current = true
-    pendingSubmittedFailureRef.current = null
-    logEarnTransactionEvent({ action, status: 'submitted', properties: analyticsProperties })
-
-    if (action !== 'deposit') {
+  const logReviewReady = useCallback((): void => {
+    if (hasLoggedReviewReadyRef.current) {
       return
     }
 
-    const swapUpsellSurface = getSwapUpsellSurfaceForEntryPoint(analyticsEntryPoint)
-    if (!swapUpsellSurface) {
-      return
-    }
+    hasLoggedReviewReadyRef.current = true
+    logEarnTransactionEvent({ action, status: 'review_ready', properties: analyticsProperties })
+  }, [action, analyticsProperties])
 
-    logEarnSwapUpsellConverted({
-      ...analyticsProperties,
-      output_currency_id: sourceUpsellCurrencyId,
-      projected_monthly_earnings_usd:
-        projectedMonthlyEarningsUsd ??
-        getProjectedMonthlyEarningsUsd({
-          amountUsd: swapAmountUsd ?? amountUsd,
-          apyPercent: vault.apyPercent,
-        }),
-      source_upsell_currency_id: sourceUpsellCurrencyId,
-      swap_amount_usd: swapAmountUsd ?? amountUsd,
-      swap_upsell_surface: swapUpsellSurface,
-      transaction_id: originatingTransactionId,
+  const logSubmitButtonClicked = useCallback((): string => {
+    const attemptId = createTransactionId()
+    attemptsRef.current.set(attemptId, {
+      attemptedAt: Date.now(),
+      submittedAt: null,
+      pendingFailure: null,
+      terminalOutcome: null,
     })
-  }, [
-    action,
-    amountUsd,
-    analyticsEntryPoint,
-    analyticsProperties,
-    originatingTransactionId,
-    projectedMonthlyEarningsUsd,
-    sourceUpsellCurrencyId,
-    swapAmountUsd,
-    vault.apyPercent,
-  ])
+    logEarnTransactionEvent({
+      action,
+      status: 'submit_button_clicked',
+      properties: { ...analyticsProperties, attempt_id: attemptId },
+    })
+
+    return attemptId
+  }, [action, analyticsProperties])
+
+  const logSubmitted = useCallback(
+    (attemptId: string): void => {
+      const attempt = attemptsRef.current.get(attemptId)
+      if (!attempt || attempt.terminalOutcome || attempt.submittedAt !== null) {
+        return
+      }
+
+      attempt.submittedAt = Date.now()
+      logEarnTransactionEvent({
+        action,
+        status: 'submitted',
+        properties: { ...analyticsProperties, attempt_id: attemptId },
+      })
+
+      if (action === 'deposit' && !hasLoggedUpsellConversionRef.current) {
+        const swapUpsellSurface = getSwapUpsellSurfaceForEntryPoint(analyticsEntryPoint)
+        if (swapUpsellSurface) {
+          // Retries are new attempts, but one upsell can only convert once.
+          hasLoggedUpsellConversionRef.current = true
+          logEarnSwapUpsellConverted({
+            ...analyticsProperties,
+            output_currency_id: sourceUpsellCurrencyId,
+            projected_monthly_earnings_usd:
+              projectedMonthlyEarningsUsd ??
+              getProjectedMonthlyEarningsUsd({
+                amountUsd: swapAmountUsd ?? amountUsd,
+                apyPercent: vault.apyPercent,
+              }),
+            source_upsell_currency_id: sourceUpsellCurrencyId,
+            swap_amount_usd: swapAmountUsd ?? amountUsd,
+            swap_upsell_surface: swapUpsellSurface,
+            transaction_id: originatingTransactionId,
+          })
+        }
+      }
+    },
+    [
+      action,
+      amountUsd,
+      analyticsEntryPoint,
+      analyticsProperties,
+      originatingTransactionId,
+      projectedMonthlyEarningsUsd,
+      sourceUpsellCurrencyId,
+      swapAmountUsd,
+      vault.apyPercent,
+    ],
+  )
 
   const logFailed = useCallback(
-    (error: Error | undefined, context?: PlanFailureCallbackContext) => {
-      if (!error && !submittedExecutionRef.current) {
+    ({ error, context, attemptId }: LogEarnFailureParams): void => {
+      const attempt = attemptsRef.current.get(attemptId)
+      if (!attempt) {
+        return
+      }
+      if (attempt.terminalOutcome) {
         return
       }
 
-      const errorProperties = getErrorAnalyticsProperties(error)
-      if (submittedExecutionRef.current && context?.willFinalize !== false) {
-        pendingSubmittedFailureRef.current = errorProperties
+      const isPreSubmissionFailure = attempt.submittedAt === null
+      const failureClassification = getFailureClassification({
+        error,
+        isPreSubmissionFailure,
+        willFinalize: context?.willFinalize === true,
+      })
+      const errorProperties = getFailureAnalyticsProperties({
+        error,
+        attemptedAt: attempt.attemptedAt,
+        attemptId,
+        ...failureClassification,
+      })
+      // Park only after submission and only when the saga promises a finalization callback.
+      if (!isPreSubmissionFailure && context?.willFinalize === true) {
+        attempt.pendingFailure = errorProperties
         return
       }
 
-      submittedExecutionRef.current = false
-      pendingSubmittedFailureRef.current = null
-
+      attempt.terminalOutcome = 'failed'
+      attempt.pendingFailure = null
       logEarnTransactionEvent({
         action,
         status: 'failed',
@@ -239,52 +391,50 @@ export function useEarnReviewAnalytics({
   )
 
   const logFinalized = useCallback(
-    (params: PlanFinalizedCallbackParams) => {
-      const { planId, status } = params
-      if (finalizedPlanIdsRef.current.has(planId)) {
+    // Use the callback's own attempt id. A late finalization must not apply to a newer attempt.
+    (params: PlanFinalizedCallbackParams, attemptId: string): void => {
+      const attempt = attemptsRef.current.get(attemptId)
+      if (!attempt || attempt.terminalOutcome) {
         return
       }
 
-      const finalizedProperties = { ...analyticsProperties, plan_id: planId }
+      const { planId, status } = params
+      const finalizedProperties = {
+        ...analyticsProperties,
+        plan_id: planId,
+        attempt_id: attemptId,
+        ...(params.stepStatus ? { step_status: params.stepStatus } : {}),
+      }
+
       if (status === TransactionStatus.Success) {
-        finalizedPlanIdsRef.current.add(planId)
-        submittedExecutionRef.current = false
-        pendingSubmittedFailureRef.current = null
+        attempt.terminalOutcome = 'completed'
+        attempt.pendingFailure = null
         logEarnTransactionEvent({ action, status: 'completed', properties: finalizedProperties })
         return
       }
 
-      if (pendingSubmittedFailureRef.current && !isFinalizedFailureStatus(status)) {
-        failedPlanIdsRef.current.add(planId)
-        submittedExecutionRef.current = false
-        logEarnTransactionEvent({
-          action,
-          status: 'failed',
-          properties: {
-            ...finalizedProperties,
-            ...pendingSubmittedFailureRef.current,
-          },
-        })
-        pendingSubmittedFailureRef.current = null
-        return
-      }
-
-      if (!isFinalizedFailureStatus(status) || failedPlanIdsRef.current.has(planId)) {
-        return
-      }
-
-      finalizedPlanIdsRef.current.add(planId)
-      failedPlanIdsRef.current.add(planId)
-      submittedExecutionRef.current = false
+      // onPlanFinalized is the saga's one verdict for this attempt. A non-terminal status
+      // with no failure evidence still ends the watch, so record the attempt as unresolved
+      // instead of leaving it open forever.
+      const pendingFailure = attempt.pendingFailure
+      attempt.terminalOutcome = 'failed'
+      attempt.pendingFailure = null
+      const failureProperties =
+        pendingFailure ??
+        ({
+          attempt_id: attemptId,
+          failure_phase: 'finalization',
+          failure_reason: getFinalizationFallbackReason({ status, stepStatus: params.stepStatus }),
+          failure_duration_ms: Math.max(0, Date.now() - attempt.attemptedAt),
+        } satisfies EarnFailureAnalyticsProperties)
       logEarnTransactionEvent({
         action,
         status: 'failed',
         properties: {
+          ...failureProperties,
           ...finalizedProperties,
-          ...pendingSubmittedFailureRef.current,
         },
       })
-      pendingSubmittedFailureRef.current = null
     },
     [action, analyticsProperties],
   )
@@ -292,6 +442,8 @@ export function useEarnReviewAnalytics({
   return {
     logFailed,
     logFinalized,
+    logReviewReady,
+    logSubmitButtonClicked,
     logSubmitted,
     reviewedEventProperties: analyticsProperties,
   }

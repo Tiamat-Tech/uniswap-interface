@@ -1,6 +1,7 @@
 import { isMobileWeb } from '@universe/environment'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Image, Text, TouchableArea, useSporeColors } from 'ui/src'
+import { Button, Image, useSporeColors } from 'ui/src'
 import { UNISWAP_LOGO } from 'ui/src/assets'
 import { AppStoreLogo } from 'ui/src/components/icons/AppStoreLogo'
 import { ArrowRight } from 'ui/src/components/icons/ArrowRight'

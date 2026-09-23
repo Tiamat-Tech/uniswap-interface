@@ -50,7 +50,6 @@
       "@universe/hashcash-native": ["./packages/hashcash-native/src/index.ts"],
       "@universe/hashcash-native/*": ["./packages/hashcash-native/*"],
       "@universe/logger/*": ["./packages/logger/*"],
-      "@universe/mycelium/*": ["./packages/mycelium/*"],
       "@universe/notifications/*": ["./packages/notifications/*"],
       "@universe/prices/*": ["./packages/prices/*"],
       "@universe/privacy/*": ["./packages/privacy/*"],
@@ -65,7 +64,8 @@
       "utilities/*": ["./packages/utilities/*"],
       "wallet/*": ["./packages/wallet/*"],
       "@universe/experiments/*": ["./packages/experiments/*"],
-      "@universe/embedded-wallet/*": ["./packages/embedded-wallet/*"]
+      "@universe/embedded-wallet/*": ["./packages/embedded-wallet/*"],
+      "@universe/test/*": ["./packages/test/*"]
     }
   }
 }

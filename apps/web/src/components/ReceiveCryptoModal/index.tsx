@@ -1,6 +1,6 @@
+import { AnimateTransition } from '@universe/mycelium/animate-presence-pager'
 import ms from 'ms'
 import { useEffect, useState } from 'react'
-import { AnimateTransition } from 'ui/src'
 import { GetHelpHeader } from 'uniswap/src/components/dialog/GetHelpHeader'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ReceiveQRCode } from 'uniswap/src/components/ReceiveQRCode/ReceiveQRCode'

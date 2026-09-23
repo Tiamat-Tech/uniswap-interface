@@ -10,7 +10,8 @@ export {
   parseGroupStateSuffix,
   type GroupStateParts,
 } from '../compat'
-export { flexCompatClassName } from './compile'
+export { flexCompatClassName, nativeFlexCompatClassName } from './compile'
+export { flexStyles } from './flex-styles'
 export { FlexCompat } from './FlexCompat'
 export type {
   FlexCompatProps,

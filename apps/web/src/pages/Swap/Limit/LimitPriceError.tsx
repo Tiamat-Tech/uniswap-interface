@@ -1,33 +1,56 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Flex, Text, type FlexCompatProps } from '@universe/mycelium'
+import { AlertTriangle } from '@universe/mycelium/icons/AlertTriangle'
 import type { TFunction } from 'i18next'
 import { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text } from 'ui/src'
-import { AlertTriangle } from 'ui/src/components/icons/AlertTriangle'
 import { LimitPriceErrorType } from '~/features/Swap/CurrencyInputPanel/LimitPriceInputPanel/useCurrentPriceAdjustment'
 import { FadePresence, FadePresenceAnimationType } from '~/theme/components/FadePresence'
 import { transitions } from '~/theme/styles'
 
-const ErrorContainer = styled(Flex, {
-  row: true,
-  alignItems: 'center',
-  width: '100%',
-  gap: '$gap12',
-  p: '$spacing12',
-  borderWidth: 1,
-  borderColor: '$surface3',
-  borderRadius: '$rounded16',
-  mt: '$spacing4',
-})
+const ErrorContainer = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    row
+    alignItems="center"
+    width="100%"
+    gap="$gap12"
+    p="$spacing12"
+    borderWidth={1}
+    borderColor="$surface3"
+    borderRadius="$rounded16"
+    mt="$spacing4"
+    {...props}
+  />
+)
 
-const LogoContainer = styled(Flex, {
-  centered: true,
-  width: 40,
-  height: 40,
-  borderRadius: '$rounded12',
-  backgroundColor: '$statusCritical2',
-  flexShrink: 0,
-})
+const LogoContainer = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    centered
+    width={40}
+    height={40}
+    borderRadius="$rounded12"
+    backgroundColor="$statusCritical2"
+    flexShrink={0}
+    {...props}
+  />
+)
+
+// LimitForm's gate for rendering this banner. It normally accompanies a buildable trade, but a
+// rejected market-price reference must stay explained even when no trade can be built (no wallet
+// connected, prefilled price cleared). Bare `priceError` is deliberately not enough: it is also
+// set transiently while a healthy pair's quotes are still loading, and rendering on it alone
+// would flash the banner on every fresh pair.
+export function shouldShowLimitPriceError({
+  priceError,
+  hasLimitOrderTrade,
+  marketPriceRejected,
+}: {
+  priceError?: LimitPriceErrorType
+  hasLimitOrderTrade: boolean
+  marketPriceRejected: boolean
+}): boolean {
+  return !!priceError && (hasLimitOrderTrade || marketPriceRejected)
+}
 
 interface LimitPriceErrorProps {
   priceError: LimitPriceErrorType
@@ -76,8 +99,8 @@ export function LimitPriceError(props: LimitPriceErrorProps) {
   const { t } = useTranslation()
   return (
     <FadePresence
-      $transitionDuration={transitions.duration.fast}
-      $delay={transitions.duration.fast}
+      transitionDuration={transitions.duration.fast}
+      delay={transitions.duration.fast}
       animationType={FadePresenceAnimationType.FadeAndTranslate}
     >
       <ErrorContainer>

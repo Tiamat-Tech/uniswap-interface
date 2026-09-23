@@ -1,6 +1,6 @@
 import { Currency, Price } from '@uniswap/sdk-core'
-import { Flex } from 'ui/src'
-import { SegmentedControl, SegmentedControlOption } from 'ui/src/components/SegmentedControl/SegmentedControl'
+import { Flex } from '@universe/mycelium'
+import { SegmentedControl, type SegmentedControlOption } from '@universe/mycelium/segmented-control-compat'
 import { DisplayCurrentPrice } from '~/features/Liquidity/DisplayCurrentPrice'
 
 export function D3LiquidityChartHeader({

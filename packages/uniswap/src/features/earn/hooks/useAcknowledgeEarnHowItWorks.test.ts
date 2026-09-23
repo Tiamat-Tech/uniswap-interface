@@ -36,7 +36,7 @@ describe(useAcknowledgeEarnHowItWorks, () => {
     expect(onContinue).toHaveBeenCalledOnce()
   })
 
-  it('does nothing until analytics properties are available', () => {
+  it('persists and continues without emitting while analytics properties are unresolved', () => {
     const onContinue = vi.fn()
     const { result, store } = renderHookWithProviders(() =>
       useAcknowledgeEarnHowItWorks({ analyticsProperties: undefined, onContinue, vaultId }),
@@ -45,8 +45,21 @@ describe(useAcknowledgeEarnHowItWorks, () => {
     act(() => result.current())
 
     expect(mockLogEarnHowItWorksAcknowledged).not.toHaveBeenCalled()
+    expect(store.getState().uniswapBehaviorHistory.earnHowItWorksAcknowledgedByVaultId?.[vaultId]).toBe(true)
+    expect(onContinue).toHaveBeenCalledOnce()
+  })
+
+  it('continues without persisting when no vault id is available', () => {
+    const onContinue = vi.fn()
+    const { result, store } = renderHookWithProviders(() =>
+      useAcknowledgeEarnHowItWorks({ analyticsProperties, onContinue, vaultId: undefined }),
+    )
+
+    act(() => result.current())
+
+    expect(mockLogEarnHowItWorksAcknowledged).toHaveBeenCalledWith(analyticsProperties)
     expect(store.getState().uniswapBehaviorHistory).toEqual(initialUniswapBehaviorHistoryState)
-    expect(onContinue).not.toHaveBeenCalled()
+    expect(onContinue).toHaveBeenCalledOnce()
   })
 
   it('acknowledges a new vault after the hook inputs change', () => {

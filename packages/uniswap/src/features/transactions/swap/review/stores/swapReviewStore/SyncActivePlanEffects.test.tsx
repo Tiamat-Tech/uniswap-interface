@@ -1,8 +1,8 @@
 import { act, render } from '@testing-library/react-native'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import type { PropsWithChildren } from 'react'
 import type { Dispatch } from 'redux'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
 import type { TransactionAndPlanStep } from 'uniswap/src/features/transactions/swap/plan/planStepTransformer'
 import {

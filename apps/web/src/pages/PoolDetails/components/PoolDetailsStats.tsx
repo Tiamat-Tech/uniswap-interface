@@ -1,99 +1,114 @@
-import { Currency, Percent } from '@uniswap/sdk-core'
-import { GraphQLApi, parseRestProtocolVersion } from '@universe/api'
-import { ReactNode, useMemo } from 'react'
+import type { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, type FlexCompatProps, Text, type TextCompatProps, View } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { forwardRef, ReactNode, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { Flex, styled, Text, useMedia, View } from 'ui/src'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
+import { type ParsedToken, isNativeParsedToken, v2UnwrapToken } from 'uniswap/src/features/dataApi/utils/parsedToken'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import type { PositionRewardApr } from 'uniswap/src/features/positions/types'
+import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
+import { currencyId } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
 import { DeltaArrow } from '~/components/DeltaArrow/DeltaArrow'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
 import { LoadingBubble } from '~/components/Tokens/loading'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
-import type { PoolData } from '~/data/pools/usePoolData'
-import { calculate24hLpFeesUsd } from '~/data/pools/useTopPools'
-import { getTokenDetailsURL, unwrapToken } from '~/data/util'
-import { LpIncentivesAprDisplay } from '~/features/Liquidity/LPIncentives/LpIncentivesAprDisplay'
-import { calculateTotalApr } from '~/features/Liquidity/LPIncentives/utils'
+import type { PoolData } from '~/data/pools/poolData'
+import { calculate24hLpFeesUsd } from '~/data/pools/poolStats'
+import { getTokenDetailsURL } from '~/data/util'
+import { RewardAprBadge } from '~/features/Liquidity/LPIncentives/RewardAprBadge'
 import { useCurrency } from '~/hooks/Tokens'
 import { DetailBubble } from '~/pages/PoolDetails/components/shared'
-import { ClickableTamaguiStyle } from '~/theme/components/styles'
 
-const HeaderText = styled(Text, {
-  fontWeight: '$book',
-  fontSize: 24,
-  lineHeight: 36,
-  $xl: {
-    width: '100%',
-  },
+const HeaderText = forwardRef<HTMLElement, TextCompatProps>(function HeaderText({ $xl: xl, ...props }, ref) {
+  // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+  return <Text ref={ref} fontWeight="$book" fontSize={24} lineHeight={36} $xl={{ width: '100%', ...xl }} {...props} />
 })
 
-const StatsWrapper = styled(Flex, {
-  gap: '$gap24',
-  p: '$padding20',
-  borderRadius: '$rounded20',
-  backgroundColor: '$surface2',
-  width: '100%',
-  zIndex: 1,
-  $xl: {
-    flexDirection: 'row',
-    backgroundColor: 'transparent',
-    flexWrap: 'wrap',
-    px: '$none',
-    py: '$padding20',
-    justifyContent: 'space-between',
-    mt: 0,
-  },
+const StatsWrapper = forwardRef<HTMLDivElement, FlexCompatProps>(function StatsWrapper({ $xl: xl, ...props }, ref) {
+  return (
+    <Flex
+      ref={ref}
+      gap="$gap24"
+      p="$padding20"
+      borderRadius="$rounded20"
+      backgroundColor="$surface2"
+      width="100%"
+      zIndex={1}
+      // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+      $xl={{
+        flexDirection: 'row',
+        backgroundColor: 'transparent',
+        flexWrap: 'wrap',
+        px: '$none',
+        py: '$padding20',
+        justifyContent: 'space-between',
+        mt: 0,
+        ...xl,
+      }}
+      {...props}
+    />
+  )
 })
 
-const StatItemColumn = styled(Flex, {
-  gap: '$gap8',
-  flex: 1,
-  flexBasis: 'auto',
-  minWidth: 180,
-  $md: {
-    minWidth: 150,
-  },
-  $xl: {
-    flexBasis: 0,
-  },
+const StatItemColumn = forwardRef<HTMLDivElement, FlexCompatProps>(function StatItemColumn(
+  { $md: md, $xl: xl, ...props },
+  ref,
+) {
+  return (
+    <Flex
+      ref={ref}
+      gap="$gap8"
+      flex={1}
+      flexBasis="auto"
+      minWidth={180}
+      // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+      $md={{ minWidth: 150, ...md }}
+      $xl={{ flexBasis: 0, ...xl }}
+      {...props}
+    />
+  )
 })
 
-const PoolBalanceSymbols = styled(Flex, {
-  row: true,
-  justifyContent: 'space-between',
-  $xl: {
-    flexDirection: 'column',
-  },
+const PoolBalanceSymbols = forwardRef<HTMLDivElement, FlexCompatProps>(function PoolBalanceSymbols(
+  { $xl: xl, ...props },
+  ref,
+) {
+  // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+  return <Flex ref={ref} row justifyContent="space-between" $xl={{ flexDirection: 'column', ...xl }} {...props} />
 })
 
-const PoolBalanceTokenNamesContainer = styled(Flex, {
-  row: true,
-  width: 'max-content',
-  $xl: {
-    width: '100%',
+const PoolBalanceTokenNamesContainer = forwardRef<HTMLDivElement, FlexCompatProps>(
+  function PoolBalanceTokenNamesContainer({ $xl: xl, ...props }, ref) {
+    // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+    return <Flex ref={ref} row width="max-content" $xl={{ width: '100%', ...xl }} {...props} />
   },
+)
+
+const PoolBalanceText = forwardRef<HTMLElement, TextCompatProps>(function PoolBalanceText({ $xl: xl, ...props }, ref) {
+  return (
+    <Text
+      ref={ref}
+      fontWeight="$book"
+      fontSize={16}
+      lineHeight={24}
+      // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+      $xl={{ fontSize: 20, lineHeight: 28, ...xl }}
+      {...props}
+    />
+  )
 })
 
-const PoolBalanceText = styled(Text, {
-  fontWeight: '$book',
-  fontSize: 16,
-  lineHeight: 24,
-  $xl: {
-    fontSize: 20,
-    lineHeight: 28,
-  },
-})
-
+// `transition-opacity`, not `all`: `all` animates theme tokens and flashes on a light/dark toggle.
 const StyledLink = styled(Link, {
-  display: 'flex',
-  alignItems: 'center',
-  color: '$neutral1',
-  ...ClickableTamaguiStyle,
+  platform: 'web',
+  base: 'flex items-center cursor-pointer no-underline transition-opacity duration-100 hover:opacity-80 active:opacity-60',
 })
 
 const BalanceChartSide = ({ percent, color, isLeft }: { percent: number; color: string; isLeft: boolean }) => (
@@ -119,7 +134,7 @@ const StatSectionBubble = () => <LoadingBubble width={180} height={40} />
 
 const StatHeaderBubble = () => <LoadingBubble width={116} height={24} skeletonProps={{ borderRadius: '$rounded8' }} />
 
-type TokenFullData = GraphQLApi.Token & {
+type TokenFullData = ParsedToken & {
   price: number
   tvl: number
   percent: number
@@ -130,15 +145,16 @@ const PoolBalanceTokenNames = ({ token, chainId }: { token: TokenFullData; chain
   const media = useMedia()
   const isLargeScreen = !media.xl
   const { formatNumberOrString } = useLocalizationContext()
-  const unwrappedToken = chainId ? unwrapToken(chainId, token) : token
-  const isNative = unwrappedToken.address === NATIVE_CHAIN_ID
+  const unwrappedToken = chainId ? v2UnwrapToken(chainId, token) : token
+  const isNative = isNativeParsedToken(unwrappedToken)
   const currency = isNative && chainId ? nativeOnChain(chainId) : token.currency
   const { defaultChainId } = useEnabledChains()
+  const currencyInfo = useCurrencyInfo(currencyId(currency))
 
   return (
     <PoolBalanceTokenNamesContainer>
       <Flex row alignItems="center" gap="$spacing4">
-        {!isLargeScreen && <CurrencyLogo currency={currency} size={20} />}
+        {!isLargeScreen && <CurrencyLogo currencyInfo={currencyInfo} size={20} />}
         <PoolBalanceText>
           {formatNumberOrString({
             value: token.tvl,
@@ -165,8 +181,12 @@ interface PoolDetailsStatsProps {
   isReversed?: boolean
   chainId?: number
   loading?: boolean
-  poolApr?: Percent
-  rewardsApr?: number
+  /** Served fee APR in percent units (`PoolSummary.apr`). */
+  poolApr?: number
+  /** The pool's live per-token boosts, as served. Empty = no reward breakdown. */
+  rewards?: PositionRewardApr[]
+  /** Served fee + reward APR (`PoolSummary.total_apr`). */
+  totalApr?: number
   protocolFeePips?: number
 }
 
@@ -178,19 +198,22 @@ export function PoolDetailsStats({
   chainId,
   loading,
   poolApr,
-  rewardsApr,
+  rewards,
+  totalApr,
   protocolFeePips,
 }: PoolDetailsStatsProps) {
   const { t } = useTranslation()
   const media = useMedia()
   const isLargeScreen = !media.xl
 
+  // Absent address = native on the parsed shape; the NATIVE_CHAIN_ID sentinel resolves the native
+  // currency, while an undefined address would skip the lookup entirely.
   const currency0 = useCurrency({
-    address: poolData?.token0.address,
+    address: poolData ? (poolData.token0.address ?? NATIVE_CHAIN_ID) : undefined,
     chainId,
   })
   const currency1 = useCurrency({
-    address: poolData?.token1.address,
+    address: poolData ? (poolData.token1.address ?? NATIVE_CHAIN_ID) : undefined,
     chainId,
   })
 
@@ -237,7 +260,7 @@ export function PoolDetailsStats({
     volume24h: poolData.volumeUSD24H,
     feeTier: poolData.feeTier?.feeAmount,
     isDynamic: poolData.feeTier?.isDynamic,
-    protocolVersion: parseRestProtocolVersion(poolData.protocolVersion),
+    protocolVersion: poolData.protocolVersion,
     protocolFeePips,
   })
 
@@ -259,7 +282,7 @@ export function PoolDetailsStats({
           </Flex>
         )}
       </StatItemColumn>
-      {poolApr && <AprStatItem poolApr={poolApr} rewardsApr={rewardsApr} />}
+      {poolApr !== undefined && <AprStatItem poolApr={poolApr} rewards={rewards} totalApr={totalApr} />}
       {poolData.tvlUSD && (
         <StatItem title={t('common.totalValueLocked')} value={poolData.tvlUSD} delta={poolData.tvlUSDChange} />
       )}
@@ -271,27 +294,37 @@ export function PoolDetailsStats({
   )
 }
 
-const StatsTextContainer = styled(Flex, {
-  row: true,
-  gap: 4,
-  width: '100%',
-  alignItems: 'flex-end',
-  $xl: {
-    flexDirection: 'column',
-    gap: 0,
-    alignItems: 'flex-start',
-  },
+const StatsTextContainer = forwardRef<HTMLDivElement, FlexCompatProps>(function StatsTextContainer(
+  { $xl: xl, ...props },
+  ref,
+) {
+  return (
+    <Flex
+      ref={ref}
+      row
+      gap={4}
+      width="100%"
+      alignItems="flex-end"
+      // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+      $xl={{ flexDirection: 'column', gap: 0, alignItems: 'flex-start', ...xl }}
+      {...props}
+    />
+  )
 })
 
-const StatItemText = styled(Text, {
-  color: '$neutral1',
-  fontSize: 36,
-  fontWeight: '485',
-  lineHeight: 44,
-  $xl: {
-    fontSize: 20,
-    lineHeight: 28,
-  },
+const StatItemText = forwardRef<HTMLElement, TextCompatProps>(function StatItemText({ $xl: xl, ...props }, ref) {
+  return (
+    <Text
+      ref={ref}
+      color="$neutral1"
+      fontSize={36}
+      fontWeight="485"
+      lineHeight={44}
+      // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+      $xl={{ fontSize: 20, lineHeight: 28, ...xl }}
+      {...props}
+    />
+  )
 })
 
 function StatItem({ title, value, delta }: { title: ReactNode; value: number; delta?: number }) {
@@ -306,7 +339,8 @@ function StatItem({ title, value, delta }: { title: ReactNode; value: number; de
         <StatItemText>
           {formatNumberOrString({
             value,
-            type: NumberType.FiatTokenStats,
+            // 0 here is served data, not missing (unknown stats never render) — avoid FiatTokenStats' '-' placeholder
+            type: value === 0 ? NumberType.FiatTokenPrice : NumberType.FiatTokenStats,
           })}
         </StatItemText>
         {!!delta && (
@@ -322,14 +356,25 @@ function StatItem({ title, value, delta }: { title: ReactNode; value: number; de
   )
 }
 
-function AprStatItem({ poolApr, rewardsApr }: { poolApr: Percent; rewardsApr?: number }) {
+function AprStatItem({
+  poolApr,
+  rewards = [],
+  totalApr,
+}: {
+  poolApr: number
+  rewards?: PositionRewardApr[]
+  totalApr?: number
+}) {
   const { t } = useTranslation()
   const { formatPercent } = useLocalizationContext()
 
-  const showAprBreakdown = rewardsApr !== undefined && rewardsApr > 0
-  const totalApr = rewardsApr
-    ? formatPercent(calculateTotalApr(poolApr, rewardsApr).toSignificant(), 2)
-    : formatPercent(poolApr.toSignificant(), 2)
+  // No breakdown without a boost to break out — and no boost the server hasn't named a token for,
+  // which would leave the reward row a label beside nothing while the total above still counts it.
+  const showAprBreakdown = rewards.length > 0
+  // `total_apr` already sums the fee APR with every reward boost, and the proto only leaves it unset
+  // when neither side is known — so a pool with a served `apr` always has one, boosted or not. No
+  // client-side re-add, and no fee-APR fallback that would silently drop a live boost.
+  const displayTotalApr = formatPercent(totalApr, 2)
 
   return (
     <StatItemColumn>
@@ -337,7 +382,7 @@ function AprStatItem({ poolApr, rewardsApr }: { poolApr: Percent; rewardsApr?: n
         {t('pool.totalAPR')}
       </Text>
       <StatsTextContainer>
-        <StatItemText>{totalApr}</StatItemText>
+        <StatItemText>{displayTotalApr}</StatItemText>
       </StatsTextContainer>
       {showAprBreakdown && (
         <Flex mt="$spacing8" gap="$spacing6">
@@ -346,14 +391,14 @@ function AprStatItem({ poolApr, rewardsApr }: { poolApr: Percent; rewardsApr?: n
               {t('pool.apr.base')}
             </Text>
             <Text variant="body3" color="$neutral1">
-              {formatPercent(poolApr.toSignificant())}
+              {formatPercent(poolApr)}
             </Text>
           </Flex>
           <Flex row justifyContent="space-between" alignItems="center" gap="$gap8">
             <Text variant="body3" color="$neutral2">
               {t('pool.apr.reward')}
             </Text>
-            <LpIncentivesAprDisplay lpIncentiveRewardApr={rewardsApr} hideBackground showTokenSymbol />
+            <RewardAprBadge rewards={rewards} hideBackground label="symbol" />
           </Flex>
         </Flex>
       )}

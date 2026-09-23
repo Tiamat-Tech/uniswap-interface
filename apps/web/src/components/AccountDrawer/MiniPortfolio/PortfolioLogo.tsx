@@ -1,13 +1,15 @@
 import { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
+import { ContractInteraction } from '@universe/mycelium/icons/ContractInteraction'
 import React, { memo } from 'react'
-import { Flex } from 'ui/src'
-import { ContractInteraction } from 'ui/src/components/icons/ContractInteraction'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { SplitLogo } from 'uniswap/src/components/CurrencyLogo/SplitLogo'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isTestnetChain } from 'uniswap/src/features/chains/utils'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
+import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
+import { currencyId } from 'uniswap/src/utils/currencyId'
 import { DoubleCurrencyLogo } from '~/components/Logo/DoubleLogo'
 
 interface PortfolioLogoProps {
@@ -28,8 +30,12 @@ export const PortfolioLogo = memo(function PortfolioLogo(props: PortfolioLogoPro
   // But activities that carry raw image URLs instead of a Currency — e.g. a just-launched token that
   // isn't indexed yet — have nothing for CurrencyLogo to resolve, so it would render blank. Let those
   // fall through to getLogo (TokenLogo already applies testnet styling) instead of swallowing them.
-  if (isTestnetChain(props.chainId) && !props.images?.length) {
-    return <CurrencyLogo currency={props.currencies?.[0]} size={props.size} />
+  const showTestnetCurrencyLogo = isTestnetChain(props.chainId) && !props.images?.length
+  // Only the testnet branch consumes this, so skip the token lookup everywhere else.
+  const currencyInfo = useCurrencyInfo(showTestnetCurrencyLogo ? currencyId(props.currencies?.[0]) : undefined)
+
+  if (showTestnetCurrencyLogo) {
+    return <CurrencyLogo currencyInfo={currencyInfo} size={props.size} />
   }
 
   return (

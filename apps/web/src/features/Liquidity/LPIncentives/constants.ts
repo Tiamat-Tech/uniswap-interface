@@ -1,18 +1,21 @@
+import { UniverseChainId } from '@universe/chains'
 import ms from 'ms'
-import { UNI } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
-// Where rewards are denominated and claimed — distinct from the chain whose pools earn them.
+// The chain LP incentives launched on. Only the fallback below reads it — the set of chains rewards
+// are actually read from comes from lp_incentives_chain_ids (see useLpIncentivesChainIds).
 export const LP_INCENTIVES_CHAIN_ID = UniverseChainId.Mainnet
+// Fallback for lp_incentives_chain_ids when the config is absent or names no chain the provider
+// supports (see useLpIncentivesChainIds).
 export const LP_INCENTIVES_CHAIN_IDS = [LP_INCENTIVES_CHAIN_ID]
-export const LP_INCENTIVES_REWARD_TOKEN = UNI[LP_INCENTIVES_CHAIN_ID]
 
-// Chain whose pools are eligible for incentives; used to scope "find eligible pools" links.
-export const LP_INCENTIVES_POOLS_CHAIN_ID = UniverseChainId.Robinhood
-
-// Raw-units threshold (0.001 UNI) below which rewards are treated as dust and the Collect CTA is hidden/disabled.
-// Mainnet claim gas typically exceeds the USD value of sub-millicent UNI amounts.
-export const LP_INCENTIVES_DUST_THRESHOLD = BigInt(10) ** BigInt(LP_INCENTIVES_REWARD_TOKEN.decimals - 3)
+// Chains the app knows that the upstream rewards provider (Merkl) doesn't, checked against
+// https://api.merkl.xyz/v4/chains. GetRewards carries one `chainId` per chain and fails wholesale
+// on any the provider rejects, so a single id from here in lp_incentives_chain_ids would take down
+// every rewards surface rather than just that chain's rows — hence the drop in
+// resolveLpIncentivesChainIds. Testnets are also unsupported, but are excluded by isTestnetChain
+// rather than listed. This mirrors third-party state, so it can only go stale toward dropping a
+// chain that has since become supported; re-check the endpoint before widening the config.
+export const LP_INCENTIVES_UNSUPPORTED_CHAIN_IDS: UniverseChainId[] = [UniverseChainId.Arc, UniverseChainId.Zora]
 
 // USD value below which a per-token reward is treated as dust and hidden from the multi-token
 // rewards modal — claim gas typically exceeds the value of a sub-cent reward.

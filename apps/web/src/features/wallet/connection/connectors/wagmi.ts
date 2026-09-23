@@ -1,6 +1,6 @@
+import { Platform } from '@universe/chains'
 import { isE2eTestEnv } from '@universe/environment'
 import { connect, getConnectors } from '@wagmi/core'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { sleep } from 'utilities/src/time/timing'
 import { wagmiConfig } from '~/connection/wagmiConfig'
 import { ExternalConnector } from '~/features/accounts/store/types'

@@ -1,6 +1,7 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { LabeledCheckboxCompat as LabeledCheckbox } from '@universe/mycelium/checkbox-compat'
 import { ReactNode, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, LabeledCheckbox, Text, TouchableArea } from 'ui/src'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { WarningModal } from 'uniswap/src/components/modals/WarningModal/WarningModal'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'

@@ -1,16 +1,16 @@
 import { Currency } from '@uniswap/sdk-core'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { Dispatch, SetStateAction } from 'react'
+import { Flex, Text } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { Presence } from '@universe/mycelium/presence'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { Dispatch, SetStateAction, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
-import { AnimatePresence, Flex, HeightAnimator, Text, TouchableArea, useMedia } from 'ui/src'
-import { ArrowLeft } from 'ui/src/components/icons/ArrowLeft'
-import { Chevron } from 'ui/src/components/icons/Chevron'
 import { SectionName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
-import { BreadcrumbNavContainer, BreadcrumbNavLink } from '~/components/BreadcrumbNav'
-import type { PoolData } from '~/data/pools/usePoolData'
+import type { PoolData } from '~/data/pools/poolData'
 import { Container, PageLayout } from '~/features/Liquidity/Create/Container'
+import { CreatePositionHeader } from '~/features/Liquidity/Create/CreatePositionHeader'
 import { EditSelectTokensStep } from '~/features/Liquidity/Create/EditStep'
 import { useEntryPointBreadcrumb } from '~/features/Liquidity/Create/hooks/useEntryPointBreadcrumb'
 import { usePoolProgressSteps } from '~/features/Liquidity/Create/hooks/usePoolProgressSteps'
@@ -23,6 +23,7 @@ import {
   PoolProgressIndicatorHeader,
   SIDEBAR_WIDTH,
 } from '~/features/Liquidity/PoolProgressIndicator/PoolProgressIndicator'
+import { ADD_LIQUIDITY_PATH } from '~/pages/AddLiquidity/poolLinkParams'
 import { useCreateLiquidityContext } from '~/pages/CreatePosition/CreateLiquidityContextProvider'
 
 const WIDTH = {
@@ -63,9 +64,9 @@ export function FormStepsWrapper({
       {(showSelectStep || showEditStep) && (
         <Container>
           <HeightAnimator animation="200ms">
-            <AnimatePresence>
+            <Presence>
               {showSelectStep && (
-                <Flex animation="125ms" exitStyle={{ opacity: 0 }}>
+                <Flex className="data-exiting:animate-spore-exit-fade-out opacity-[1]">
                   <Trace logImpression section={selectSectionName}>
                     <SelectTokensStep
                       tokensLocked={isMigration}
@@ -76,19 +77,20 @@ export function FormStepsWrapper({
                   </Trace>
                 </Flex>
               )}
-            </AnimatePresence>
+            </Presence>
             {showEditStep && <EditSelectTokensStep poolData={poolData} />}
           </HeightAnimator>
         </Container>
       )}
 
-      <AnimatePresence>
+      <Presence>
         {(step === PositionFlowStep.PRICE_RANGE || step === PositionFlowStep.DEPOSIT) && (
           <Container
-            // @ts-ignore - ignoring animation prop type issue with tamagui
-            animation={['200ms', { delay: 210 }]}
-            enterStyle={{ y: -10, opacity: 0 }}
-            exitStyle={{ opacity: 0 }}
+            // The 210ms stagger delays only the enter — the data-exiting class zeroes it so the
+            // exit starts immediately. fill-mode `both` holds the hidden enter frame through the
+            // stagger and the faded exit frame until unmount.
+            className="animate-spore-enter-fade-in-down data-exiting:animate-spore-exit-fade-out opacity-[1] [animation-delay:210ms] data-exiting:[animation-delay:0ms]"
+            style={{ animationFillMode: 'both' }}
           >
             {step === PositionFlowStep.PRICE_RANGE && (
               <Trace logImpression section={priceRangeSectionName}>
@@ -103,7 +105,7 @@ export function FormStepsWrapper({
             )}
           </Container>
         )}
-      </AnimatePresence>
+      </Presence>
     </>
   )
 }
@@ -126,15 +128,25 @@ export function FormWrapper({
   const { t } = useTranslation()
   const media = useMedia()
   const navigate = useNavigate()
-  const isAddLiquidityRevamp = useFeatureFlag(FeatureFlags.AddLiquidityRevamp)
-  const { pathname } = useLocation()
-  const showPoolsBreadcrumb = isAddLiquidityRevamp && pathname.startsWith('/positions/add/')
+  const location = useLocation()
+  // `useEntryPointBreadcrumb` already returns the `/positions` fallback when there's no entry point, so
+  // it can be passed straight through (matches AddLiquidity.tsx).
   const entryPointBreadcrumb = useEntryPointBreadcrumb()
-  const leadingBreadcrumb = entryPointBreadcrumb.hasEntryPoint
-    ? entryPointBreadcrumb
-    : { label: t('pool.positions.title'), to: '/positions' }
-  const fallbackTrailingLabel = showPoolsBreadcrumb ? t('position.new') : t('pool.newPosition.title')
-  const isTrailingBreadcrumbEmphasized = entryPointBreadcrumb.hasEntryPoint || showPoolsBreadcrumb
+  // A linkable `/positions/add/new` (bookmark/fresh tab) has no in-app history, so a bare navigate(-1)
+  // would dead-end. `location.state.from` marks an in-app entry — pop to it; otherwise fall back to the
+  // pool browser. Mirrors AddLiquidity.tsx's handleBack for the sibling surface.
+  const handleBack = useCallback(() => {
+    if (location.state && (location.state as { from?: string }).from) {
+      navigate(-1)
+    } else {
+      navigate(ADD_LIQUIDITY_PATH)
+    }
+  }, [navigate, location.state])
+  // Migration supplies its own title and breadcrumb, so these fallbacks only ever describe the
+  // create-pool leg, which is entered via "Create pool".
+  const fallbackTitle = t('addLiquidity.createPool')
+  const fallbackTrailingLabel = t('addLiquidity.createPool')
+  const isTrailingBreadcrumbEmphasized = entryPointBreadcrumb.hasEntryPoint || !isMigration
   const trailingBreadcrumb = currentBreadcrumb ?? (
     // Entry-point breadcrumbs use the active color because they describe the current create-position flow.
     <Text color={isTrailingBreadcrumbEmphasized ? '$neutral1' : '$neutral2'}>{title || fallbackTrailingLabel}</Text>
@@ -144,37 +156,23 @@ export function FormWrapper({
 
   return (
     <PageLayout mt="$spacing24">
-      <BreadcrumbNavContainer aria-label="breadcrumb-nav">
-        <BreadcrumbNavLink to={leadingBreadcrumb.to}>
-          {leadingBreadcrumb.label} <Chevron size="$icon.16" color="$neutral2" rotate="180deg" />
-        </BreadcrumbNavLink>
-        {trailingBreadcrumb}
-      </BreadcrumbNavContainer>
-      <Flex
-        row
-        alignSelf="flex-end"
-        alignItems="center"
-        gap="$gap20"
-        width="100%"
-        justifyContent="space-between"
-        mr="auto"
-        mb={media.xl ? '$spacing16' : '$spacing32'}
-        $md={{ flexDirection: 'column', alignItems: 'stretch' }}
-      >
-        <Flex row alignItems="center" gap="$spacing8">
-          {showPoolsBreadcrumb && (
-            <TouchableArea onPress={() => navigate(-1)}>
-              <ArrowLeft size="$icon.24" color="$neutral1" />
-            </TouchableArea>
-          )}
-          <Text variant="heading2">{title || t('position.new')}</Text>
-        </Flex>
-        {toolbar}
-      </Flex>
+      <CreatePositionHeader
+        leadingBreadcrumb={entryPointBreadcrumb}
+        trailingBreadcrumb={trailingBreadcrumb}
+        onBack={isMigration ? undefined : handleBack}
+        title={title || fallbackTitle}
+        actions={toolbar}
+      />
       {!sidebar && media.xl && <PoolProgressIndicatorHeader steps={poolProgressSteps} />}
       <Flex row gap="$spacing20" justifyContent="space-between" width="100%">
         {!media.xl && (sidebar ?? <PoolProgressIndicator steps={poolProgressSteps} />)}
-        <Flex gap="$spacing24" flex={1} maxWidth={WIDTH.positionCard} mb="$spacing28" $xl={{ maxWidth: '100%' }}>
+        <Flex
+          gap="$spacing24"
+          flex={1}
+          maxWidth={isMigration ? WIDTH.positionCard : undefined}
+          mb="$spacing28"
+          $xl={{ maxWidth: '100%' }}
+        >
           {children}
         </Flex>
       </Flex>

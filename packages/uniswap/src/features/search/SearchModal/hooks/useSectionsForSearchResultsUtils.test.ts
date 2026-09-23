@@ -1,11 +1,17 @@
-import { SearchModalOption, OnchainItemListOptionType } from 'uniswap/src/components/lists/items/types'
+import {
+  type CategoryOption,
+  OnchainItemListOptionType,
+  SearchModalOption,
+} from 'uniswap/src/components/lists/items/types'
 import { OnchainItemSection, OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
 import {
   getAllSections,
   getSearchResultsForActiveTab,
   SearchResultsForActiveTabParams,
+  withCategoryOptions,
 } from 'uniswap/src/features/search/SearchModal/hooks/useSectionsForSearchResultsUtils'
 import { SearchTab } from 'uniswap/src/features/search/SearchModal/types'
+import { TokenCategoryClass } from 'uniswap/src/features/tokenCategories/types'
 
 const mockRefetch = vi.fn()
 
@@ -22,6 +28,13 @@ function createAuctionOption(): SearchModalOption {
     currencyInfo: null,
     committedVolumeUsd: 100,
     isVerified: true,
+  }
+}
+
+function createCategoryOption(id: string, name: string): CategoryOption {
+  return {
+    type: OnchainItemListOptionType.Category,
+    category: { id, name, description: '', categoryClass: TokenCategoryClass.Sector, topTokens: [] },
   }
 }
 
@@ -48,11 +61,12 @@ function createSearchResultParams(
     refetchSearchAuctions: mockRefetch,
     refetchSearchPools: mockRefetch,
     refetchSearchTokens: mockRefetch,
-    searchAuctionsError: undefined,
+    searchAuctionsError: null,
     searchAuctionsLoading: false,
-    searchPoolsError: undefined,
+    searchCategoriesLoading: false,
+    searchPoolsError: null,
     searchPoolsLoading: false,
-    searchTokensError: undefined,
+    searchTokensError: null,
     searchTokensLoading: false,
     tokenOptionsLength: 0,
     tokenSearchResultsSection: undefined,
@@ -161,7 +175,7 @@ describe('useSectionsForSearchResultsUtils', () => {
 
       expect(result).toEqual({
         data: [auctionSection],
-        loading: true,
+        isLoading: true,
         error,
         refetch: mockRefetch,
       })
@@ -177,8 +191,55 @@ describe('useSectionsForSearchResultsUtils', () => {
         }),
       )
 
-      expect(result.loading).toBe(false)
-      expect(result.error).toBeUndefined()
+      expect(result.isLoading).toBe(false)
+      expect(result.error).toBeNull()
     })
+  })
+})
+
+describe('withCategoryOptions', () => {
+  const tokenOptions = [createAuctionOption()]
+  const stablecoins = createCategoryOption('stablecoins', 'Stablecoins')
+  const defi = createCategoryOption('defi', 'DeFi')
+  const aiAgents = createCategoryOption('ai-agents', 'AI Agents')
+
+  it('leads with name matches and trails with member-only matches, keeping BE order in each bucket', () => {
+    const result = withCategoryOptions({
+      activeTab: SearchTab.All,
+      categoryOptions: [defi, stablecoins, aiAgents],
+      options: tokenOptions,
+      searchFilter: 'stable',
+    })
+    expect(result).toEqual([stablecoins, ...tokenOptions, defi, aiAgents])
+  })
+
+  it('matches the category id slug as well as the display name', () => {
+    const result = withCategoryOptions({
+      activeTab: SearchTab.All,
+      categoryOptions: [aiAgents],
+      options: tokenOptions,
+      searchFilter: 'AI-AGENTS',
+    })
+    expect(result).toEqual([aiAgents, ...tokenOptions])
+  })
+
+  it('leaves the Tokens tab untouched', () => {
+    const result = withCategoryOptions({
+      activeTab: SearchTab.Tokens,
+      categoryOptions: [defi],
+      options: tokenOptions,
+      searchFilter: 'defi',
+    })
+    expect(result).toBe(tokenOptions)
+  })
+
+  it('returns the same options when there are no category rows', () => {
+    const result = withCategoryOptions({
+      activeTab: SearchTab.All,
+      categoryOptions: [],
+      options: tokenOptions,
+      searchFilter: 'defi',
+    })
+    expect(result).toBe(tokenOptions)
   })
 })

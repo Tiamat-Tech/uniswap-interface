@@ -1,13 +1,12 @@
+import { sanitizeAddressText } from '@universe/chains'
+import { iconSizes, type ModifierPressProps, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { type ModifierPressProps, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { OptionItemProps } from 'uniswap/src/components/lists/items/OptionItem'
 import { ENSAddressOption } from 'uniswap/src/components/lists/items/types'
 import { WalletBaseOptionItem } from 'uniswap/src/components/lists/items/wallets/WalletBaseOptionItem'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
 import { useENSName } from 'uniswap/src/features/ens/api'
 import { getCompletedENSName } from 'uniswap/src/features/ens/useENS'
-import { sanitizeAddressText } from 'uniswap/src/utils/addresses'
 import { shortenAddress } from 'utilities/src/addresses'
 
 type ENSAddressOptionItemProps = ModifierPressProps & {

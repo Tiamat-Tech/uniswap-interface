@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { ALL_CHAIN_IDS } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { DEFAULT_CHAINED_ACTIONS_UNSUPPORTED_CHAIN_IDS } from 'uniswap/src/features/transactions/swap/utils/chainedActions'
 
 describe('DEFAULT_CHAINED_ACTIONS_UNSUPPORTED_CHAIN_IDS', () => {

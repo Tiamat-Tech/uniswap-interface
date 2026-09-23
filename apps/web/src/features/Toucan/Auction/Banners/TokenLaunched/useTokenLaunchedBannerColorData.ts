@@ -1,5 +1,5 @@
+import { opacifyRaw } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
-import { opacifyRaw } from 'ui/src/theme/color/utils'
 
 const BANNER_ACCENT_OPACITY = 15
 

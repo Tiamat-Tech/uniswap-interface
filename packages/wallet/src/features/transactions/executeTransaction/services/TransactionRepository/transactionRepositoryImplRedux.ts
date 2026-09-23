@@ -1,8 +1,8 @@
+import { UniverseChainId } from '@universe/chains'
 /* oxlint-disable @jambit/typed-redux-saga/use-typed-effects -- typed-redux-saga doesn't export these correctly */
 import { BigNumber } from 'ethers'
 import type { PutEffect, SelectEffect } from 'redux-saga/effects'
 import { put, type SagaGenerator, select } from 'typed-redux-saga'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { AddressTransactionsSelector } from 'uniswap/src/features/transactions/selectors'
 import { transactionActions } from 'uniswap/src/features/transactions/slice'
 import { isClassic } from 'uniswap/src/features/transactions/swap/utils/routing'

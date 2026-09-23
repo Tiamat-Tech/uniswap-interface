@@ -4,9 +4,11 @@ import { PoolInfoRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidit
 import { PoolParameters } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
 import { Currency } from '@uniswap/sdk-core'
 import { useEffect, useMemo } from 'react'
+import { PollingInterval } from 'uniswap/src/constants/misc'
 import { liquidityQueries } from 'uniswap/src/data/apiClients/liquidityService/liquidityQueries'
-import { getSDKPoolFromPoolInformation } from 'uniswap/src/features/positions/parseRestPosition'
+import { getSDKPoolFromPoolInformation } from 'uniswap/src/features/positions/getSDKPoolFromPoolInformation'
 import { DYNAMIC_FEE_DATA } from 'uniswap/src/features/positions/types'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import { logger } from 'utilities/src/logger/logger'
 import {
   CreatePositionInfo,
@@ -118,6 +120,11 @@ export function useDerivedPositionInfo(
         }),
       }),
       enabled: validCurrencyInput && protocol !== undefined && isFeeValid && !isChainUnsupported,
+      // Keep an existing pool's current price/tick fresh so the chart's price line tracks the market.
+      // The range itself never re-anchors off this poll — syncCurrentTickFromParent bails for existing
+      // pools. Only polls once a pool exists — a not-yet-created pool returns no pools, so the interval
+      // resolves to false and no polling happens while creating.
+      refetchInterval: (query) => (query.state.data?.pools.length ? PollingInterval.Fast : false),
     }),
   )
 
@@ -139,6 +146,13 @@ export function useDerivedPositionInfo(
   // Don't declare "new pool" while the lookup key may still change to the adapter pair.
   const creatingPoolOrPair = poolDataIsFetched && !poolOrPair && !isChainUnsupported && !isLookupAddressLoading
 
+  // Zero active liquidity doesn't say the pool holds no positions — only that none straddle the
+  // current tick, which is what decides whether there is a distribution to chart there. Compared
+  // against the raw served string rather than the SDK pool's `liquidity`, because the field is
+  // optional on the wire and the SDK conversion defaults it to '0': reading it here keeps "the server
+  // didn't say" distinct from "the pool is genuinely empty".
+  const poolHasNoActiveLiquidity = poolOrPair?.poolLiquidity === '0'
+
   return useMemo(() => {
     if (protocolVersion === ProtocolVersion.UNSPECIFIED) {
       return {
@@ -154,8 +168,8 @@ export function useDerivedPositionInfo(
     if (protocolVersion === ProtocolVersion.V2) {
       const pair = getSDKPoolFromPoolInformation({
         poolOrPair,
-        token0: sortedCurrencies.TOKEN0?.wrapped,
-        token1: sortedCurrencies.TOKEN1?.wrapped,
+        token0: getWrappedTokenIfExists(sortedCurrencies.TOKEN0),
+        token1: getWrappedTokenIfExists(sortedCurrencies.TOKEN1),
         protocolVersion,
       })
 
@@ -163,14 +177,15 @@ export function useDerivedPositionInfo(
         currencies: {
           display: sortedCurrencies,
           sdk: {
-            [PositionField.TOKEN0]: sortedCurrencies.TOKEN0?.wrapped,
-            [PositionField.TOKEN1]: sortedCurrencies.TOKEN1?.wrapped,
+            [PositionField.TOKEN0]: getWrappedTokenIfExists(sortedCurrencies.TOKEN0),
+            [PositionField.TOKEN1]: getWrappedTokenIfExists(sortedCurrencies.TOKEN1),
           },
         },
         protocolVersion,
         pair,
         protocolFee: poolOrPair?.protocolFee,
         creatingPoolOrPair,
+        poolHasNoActiveLiquidity,
         poolOrPairLoading: poolIsLoading,
         refetchPoolData,
       } satisfies CreateV2PositionInfo
@@ -179,8 +194,8 @@ export function useDerivedPositionInfo(
     if (protocolVersion === ProtocolVersion.V3) {
       const v3Pool = getSDKPoolFromPoolInformation({
         poolOrPair,
-        token0: sortedCurrencies.TOKEN0?.wrapped,
-        token1: sortedCurrencies.TOKEN1?.wrapped,
+        token0: getWrappedTokenIfExists(sortedCurrencies.TOKEN0),
+        token1: getWrappedTokenIfExists(sortedCurrencies.TOKEN1),
         protocolVersion,
       })
 
@@ -188,14 +203,15 @@ export function useDerivedPositionInfo(
         currencies: {
           display: sortedCurrencies,
           sdk: {
-            [PositionField.TOKEN0]: sortedCurrencies.TOKEN0?.wrapped,
-            [PositionField.TOKEN1]: sortedCurrencies.TOKEN1?.wrapped,
+            [PositionField.TOKEN0]: getWrappedTokenIfExists(sortedCurrencies.TOKEN0),
+            [PositionField.TOKEN1]: getWrappedTokenIfExists(sortedCurrencies.TOKEN1),
           },
         },
         protocolVersion,
         pool: v3Pool,
         protocolFee: poolOrPair?.protocolFee,
         creatingPoolOrPair,
+        poolHasNoActiveLiquidity,
         poolOrPairLoading: poolIsLoading,
         poolId: poolOrPair?.poolReferenceIdentifier,
         refetchPoolData,
@@ -219,9 +235,18 @@ export function useDerivedPositionInfo(
       pool: v4Pool,
       protocolFee: poolOrPair?.protocolFee,
       creatingPoolOrPair,
+      poolHasNoActiveLiquidity,
       poolOrPairLoading: poolIsLoading,
       poolId: poolOrPair?.poolReferenceIdentifier,
       refetchPoolData,
     } satisfies CreateV4PositionInfo
-  }, [protocolVersion, poolOrPair, creatingPoolOrPair, poolIsLoading, refetchPoolData, sortedCurrencies])
+  }, [
+    protocolVersion,
+    poolOrPair,
+    creatingPoolOrPair,
+    poolHasNoActiveLiquidity,
+    poolIsLoading,
+    refetchPoolData,
+    sortedCurrencies,
+  ])
 }

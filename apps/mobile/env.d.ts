@@ -7,6 +7,7 @@ declare global {
       ONESIGNAL_APP_ID?: string
       DATADOG_E2E_CLIENT_TOKEN?: string
       DATADOG_E2E_PROJECT_ID?: string
+      STORYBOOK_ENABLED?: string
     }
   }
 }

@@ -1,4 +1,4 @@
-import { opacifyRaw } from 'ui/src/theme/color/utils'
+import { opacifyRaw } from '@universe/mycelium/theme-hooks-compat'
 
 /** Opacity (0–100) applied to decimal digits when fading a custom base color. */
 export const CUSTOM_COLOR_FADED_DECIMAL_OPACITY = 60

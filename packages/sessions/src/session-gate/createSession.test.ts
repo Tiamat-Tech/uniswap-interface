@@ -4,14 +4,15 @@ import type { Session, SessionAdapter } from '@universe/sessions/src/session-gat
 import { describe, expect, it, vi } from 'vitest'
 
 type Status = ReturnType<SessionAdapter['getStatus']>
-type AdapterBehavior = Partial<SessionAdapter> & { status?: Status; hasData?: boolean }
+/** `status`/`hasData` are value shorthands for the adapter's `getStatus`/`hasData` getters. */
+type AdapterBehavior = Omit<Partial<SessionAdapter>, 'hasData'> & { status?: Status; hasData?: boolean }
 
 function fakeAdapter(behavior: AdapterBehavior = {}): SessionAdapter {
   return {
     fetchSession: behavior.fetchSession ?? (() => Promise.resolve()),
     refetchSession: behavior.refetchSession ?? (() => Promise.resolve()),
     getStatus: behavior.getStatus ?? (() => behavior.status ?? 'idle'),
-    hasData: behavior.hasData != null ? () => behavior.hasData ?? false : () => false,
+    hasData: () => behavior.hasData ?? false,
     subscribe: behavior.subscribe ?? (() => () => {}),
   }
 }

@@ -1,7 +1,6 @@
 import { Token } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
 import { OnchainItemListOptionType } from 'uniswap/src/components/lists/items/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { ProtectionResult } from 'uniswap/src/features/dataApi/safety'
 import { CurrencyInfo, TokenList } from 'uniswap/src/features/dataApi/types'
 import { renderHook, waitFor } from 'uniswap/src/test/test-utils'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
@@ -29,7 +28,7 @@ function makeCurrencyInfo({ token }: { token: Token }): CurrencyInfo {
     logoUrl: null,
     safetyInfo: {
       tokenList: TokenList.Default,
-      protectionResult: GraphQLApi.ProtectionResult.Benign,
+      protectionResult: ProtectionResult.Benign,
       blockaidFees: { buyFeePercent: 0, sellFeePercent: 0 },
     },
   }
@@ -425,6 +424,7 @@ function setupDefaultMocks({
     )
 }
 
+import { UniverseChainId } from '@universe/chains'
 // --- Import the hook under test AFTER mocks are set up ---
 // (Dynamic import isn't needed since vi.mock hoists automatically)
 import { useCommonTokensOptions } from 'uniswap/src/components/TokenSelector/hooks/useCommonTokensOptions'

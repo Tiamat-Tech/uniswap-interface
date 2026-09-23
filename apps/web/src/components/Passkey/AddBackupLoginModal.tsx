@@ -1,6 +1,6 @@
 import { isMobileWeb } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { ConfirmPasscodeExtra, SuccessStep } from '~/components/Passkey/AddBackupLoginFinalSteps'

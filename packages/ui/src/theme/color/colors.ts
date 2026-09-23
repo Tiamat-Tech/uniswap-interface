@@ -317,6 +317,14 @@ export const colorsLight = {
   surface4: sporeLight.surface4,
   surface5: sporeLight.surface5,
   surface5Hovered: sporeLight.surface5Hovered,
+
+  // Contrast tokens: the opposite theme's base values, for content that must
+  // render inverted against the active theme (e.g. Coachmark, whose portalled
+  // popup escapes any ancestor theme scope). Minimal set — add more only when
+  // a consumer needs them.
+  neutral1Contrast: sporeDark.neutral1,
+  surface1Contrast: sporeDark.surface1,
+  surface3Contrast: sporeDark.surface3,
   accent1: sporeLight.accent1,
   accent1Hovered: sporeLight.accent1Hovered,
   accent2: sporeLight.accent2,
@@ -384,6 +392,7 @@ export const colorsLight = {
   chain_10143: networkColors.monad.light,
 
   pinkThemed: colors.pinkLight,
+  poolsBrandGreen: '#5AC53B',
 }
 
 export type ColorKeys = keyof typeof colorsLight
@@ -413,6 +422,11 @@ export const colorsDark = {
   neutral2Hovered: sporeDark.neutral2Hovered,
   neutral3: sporeDark.neutral3,
   neutral3Hovered: sporeDark.neutral3Hovered,
+
+  // Contrast tokens — see colorsLight.
+  neutral1Contrast: sporeLight.neutral1,
+  surface1Contrast: sporeLight.surface1,
+  surface3Contrast: sporeLight.surface3,
 
   accent1: sporeDark.accent1,
   accent1Hovered: sporeDark.accent1Hovered,
@@ -481,4 +495,5 @@ export const colorsDark = {
   chain_10143: networkColors.monad.dark,
 
   pinkThemed: colors.pinkDark,
+  poolsBrandGreen: '#D0ED27',
 }

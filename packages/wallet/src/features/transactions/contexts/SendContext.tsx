@@ -1,6 +1,7 @@
 import { TransactionRequest } from '@ethersproject/providers'
 import { Currency } from '@uniswap/sdk-core'
 import { GasFeeResult } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { providers } from 'ethers'
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +9,7 @@ import { ParsedWarnings, WarningAction } from 'uniswap/src/components/modals/War
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import { AssetType } from 'uniswap/src/entities/assets'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { DEFAULT_GAS_URGENCY } from 'uniswap/src/features/gas/consts'
 import { useTransactionGasFee, useTransactionGasWarning } from 'uniswap/src/features/gas/hooks'
 import { useMaxAmountSpend } from 'uniswap/src/features/gas/hooks/useMaxAmountSpend'
 import { useIsPermissionedSendBlocked } from 'uniswap/src/features/permissionedTokens/useIsPermissionedSendBlocked'
@@ -118,6 +119,7 @@ export function SendContextProvider({
     tx: txRequest ?? undefined,
     skip: warnings.some((warning) => warning.action === WarningAction.DisableReview),
     shouldUsePreviousValueDuringLoading: true,
+    urgency: DEFAULT_GAS_URGENCY,
   })
   const txRequestWithGasSettings = useMemo(
     (): providers.TransactionRequest => ({ ...txRequest, ...gasFee.params }),

@@ -1,10 +1,10 @@
 import { isAndroid } from '@universe/environment'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
+import { Caret } from '@universe/mycelium/icons/Caret'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React, { useEffect, useState } from 'react'
-import type { StyleProp, ViewStyle } from 'react-native'
 import Animated, {
   cancelAnimation,
-  runOnJS,
   SharedValue,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -12,19 +12,20 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 import { usePriceChart } from 'src/components/charts/PriceChartContext'
 import { AnimatedDecimalNumber } from 'src/components/PriceExplorer/AnimatedDecimalNumber'
 import { useLineChartFiatDelta } from 'src/components/PriceExplorer/useFiatDelta'
 import { useLineChartPrice, useLineChartRelativeChange } from 'src/components/PriceExplorer/usePrice'
 import { AnimatedText } from 'src/components/text/AnimatedText'
 import { numberToPercentWorklet } from 'src/utils/reanimated'
-import { Flex, Text, useSporeColors } from 'ui/src'
-import { AnimatedCaretChange } from 'ui/src/components/icons'
 import { RelativeChange } from 'uniswap/src/components/RelativeChange/RelativeChange'
 import { FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
 import { useAppFiatCurrency, useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+
+type CaretTone = 'flat' | 'up' | 'down'
 
 export function PriceText({ maxWidth }: { loading: boolean; maxWidth?: number }): JSX.Element {
   const price = useLineChartPrice()
@@ -56,18 +57,27 @@ export function PriceText({ maxWidth }: { loading: boolean; maxWidth?: number })
 export function RelativeChangeText({
   loading,
   spotRelativeChange,
+  spotRelativeChangeIdle,
   startingPrice,
   shouldTreatAsStablecoin = false,
 }: {
   loading: boolean
   /** Price change for selected duration (used when not scrubbing chart) */
   spotRelativeChange?: SharedValue<number | undefined>
+  /**
+   * Plain JS mirror of `spotRelativeChange`, computed in the same render as `startingPrice` /
+   * the fiat delta. Used (instead of bridging `spotRelativeChange` back from the UI thread) so
+   * the idle fiat-amount-and-percent pair always update together on the same render — bridging
+   * via `useAnimatedReaction` + `scheduleOnRN` adds an extra async hop that can leave the percent
+   * lagging a frame or more behind the (synchronously computed) fiat amount, which is visible as
+   * the amount updating immediately on a duration switch while the percent briefly — or, if
+   * another update lands before the bridge fires, indefinitely — goes missing. See CONS-2883.
+   */
+  spotRelativeChangeIdle?: number
   startingPrice?: number
   shouldTreatAsStablecoin?: boolean
 }): JSX.Element {
-  const colors = useSporeColors()
   const { isActive } = usePriceChart()
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
 
   // Bridge Reanimated isActive to React state so we can conditionally render AnimatedNumber
   const [isChartScrubbing, setIsChartScrubbing] = useState(false)
@@ -75,21 +85,9 @@ export function RelativeChangeText({
     () => isActive.value,
     (current, previous) => {
       if (current !== previous) {
-        runOnJS(setIsChartScrubbing)(current)
+        scheduleOnRN(setIsChartScrubbing, current)
       }
     },
-  )
-
-  // Bridge spotRelativeChange to React state for AnimatedNumber's numericValue
-  const [idleChangePercent, setIdleChangePercent] = useState<number | undefined>(undefined)
-  useAnimatedReaction(
-    () => spotRelativeChange?.value,
-    (current, previous) => {
-      if (current !== previous && current !== undefined) {
-        runOnJS(setIdleChangePercent)(current)
-      }
-    },
-    [spotRelativeChange],
   )
 
   // Calculate relative change from chart data (used when scrubbing)
@@ -111,6 +109,26 @@ export function RelativeChangeText({
       : calculatedRelativeChange.value.value
   })
 
+  // Bridge the calculated caret tone to the JS thread only on change.
+  const [caretTone, setCaretTone] = useState<CaretTone>('flat')
+  useAnimatedReaction(
+    () => {
+      const absRelativeChange = Math.round(Math.abs(relativeChange.value) * 100)
+      if (absRelativeChange === 0) {
+        return 'flat'
+      }
+      return relativeChange.value > 0 ? 'up' : 'down'
+    },
+    (current, previous) => {
+      if (current !== previous) {
+        scheduleOnRN(setCaretTone, current)
+      }
+    },
+  )
+
+  const caretColor = caretTone === 'flat' ? '$neutral3' : caretTone === 'up' ? '$statusSuccess' : '$statusCritical'
+  const caretDirection = caretTone === 'up' ? 'n' : 's'
+
   const relativeChangeFormatted = useDerivedValue(() => {
     if (shouldUseSpotData.value) {
       return spotRelativeChange?.value
@@ -119,25 +137,6 @@ export function RelativeChangeText({
     }
     return calculatedRelativeChange.formatted.value
   })
-
-  const changeColor = useDerivedValue(() => {
-    // Round the range to 2 decimal places to check if is equal to 0
-    const absRelativeChange = Math.round(Math.abs(relativeChange.value) * 100)
-    if (absRelativeChange === 0) {
-      return colors.neutral3.val
-    }
-    return relativeChange.value > 0 ? colors.statusSuccess.val : colors.statusCritical.val
-  })
-
-  // reanimated 4 returns an AnimatedStyleHandle, accepted by the animated icon at runtime.
-  const caretStyle = useAnimatedStyle(() => ({
-    color: changeColor.value,
-    transform: [
-      { rotate: relativeChange.value >= 0 ? '180deg' : '0deg' },
-      // fix vertical centering
-      { translateY: relativeChange.value >= 0 ? -1 : 1 },
-    ],
-  })) as unknown as StyleProp<ViewStyle>
 
   // Combine fiat delta and percentage in a derived value
   const combinedText = useDerivedValue(() => {
@@ -148,7 +147,30 @@ export function RelativeChangeText({
     return relativeChangeFormatted.value
   })
 
-  const showAnimatedNumber = isDataLivelinessEnabled && !isChartScrubbing && !loading && idleChangePercent !== undefined
+  // Bridge the worklet-computed string to plain React state so it renders through a normal
+  // <Text> re-render, instead of imperatively setting it on a native TextInput via
+  // `useAnimatedProps` (the AnimatedText/ReText pattern used below prior to this fix). That
+  // imperative path bypasses RN's shadow-tree text measurement, so a change to a *longer* string
+  // doesn't reliably trigger the surrounding flex container to re-measure/re-layout its width --
+  // the container can stay sized to the previous, shorter string and the new text gets clipped at
+  // that stale boundary. This matches a known, unresolved upstream RN issue on the New
+  // Architecture (facebook/react-native#53125, "TextInput calculates incorrect width on dynamic
+  // value change") and reproduces identically for both a duration switch (which can transiently
+  // fall back to this branch while `spotRelativeChangeIdle` is undefined) and chart scrubbing
+  // (which uses this branch for its whole duration). A plain React-state-driven <Text> always
+  // gets a real measure+layout pass on every content change, so it cannot exhibit this clip. See
+  // CONS-2883.
+  const [combinedTextValue, setCombinedTextValue] = useState(() => combinedText.value)
+  useAnimatedReaction(
+    () => combinedText.value,
+    (current, previous) => {
+      if (current !== previous) {
+        scheduleOnRN(setCombinedTextValue, current)
+      }
+    },
+  )
+
+  const showAnimatedNumber = !isChartScrubbing && !loading && spotRelativeChangeIdle !== undefined
 
   // Shared value for fade-in animation; always start hidden since the component always mounts with loading=true
   const contentOpacity = useSharedValue(0)
@@ -187,14 +209,16 @@ export function RelativeChangeText({
           <RelativeChange
             shouldAnimate
             absoluteChange={fiatDelta.idleNumericDelta}
-            change={idleChangePercent}
+            change={spotRelativeChangeIdle}
             color="$neutral2"
             variant="body1"
           />
         ) : (
           <Flex row alignItems="center" gap="$spacing2">
-            <AnimatedCaretChange size="$icon.16" strokeWidth={2} style={caretStyle} />
-            <AnimatedText testID="relative-change-text" text={combinedText} variant="body1" color="$neutral2" />
+            <Caret color={caretColor} direction={caretDirection} size="$icon.16" />
+            <Text testID="relative-change-text" variant="body1" color="$neutral2">
+              {combinedTextValue}
+            </Text>
           </Flex>
         )}
       </Animated.View>

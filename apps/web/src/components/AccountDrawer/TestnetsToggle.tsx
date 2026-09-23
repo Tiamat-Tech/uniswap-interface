@@ -1,7 +1,7 @@
+import { Flex } from '@universe/mycelium'
+import { Wrench } from '@universe/mycelium/icons/Wrench'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Flex } from 'ui/src'
-import { Wrench } from 'ui/src/components/icons/Wrench'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { setIsTestnetModeEnabled } from 'uniswap/src/features/settings/slice'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -17,7 +17,7 @@ export function TestnetsToggle() {
   return (
     <SettingsToggle
       icon={
-        <Flex centered width="$icon.24" height="$icon.24">
+        <Flex centered width="$spacing24" height="$spacing24">
           <Wrench size="$icon.18" color="$neutral2" />
         </Flex>
       }

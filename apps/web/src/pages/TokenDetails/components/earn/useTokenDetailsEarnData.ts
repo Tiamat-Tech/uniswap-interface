@@ -1,9 +1,9 @@
+import { Platform } from '@universe/chains'
 import { useMemo } from 'react'
 import {
   type TokenDetailsEarnData,
   useTokenDetailsEarnData as useSharedTokenDetailsEarnData,
 } from 'uniswap/src/features/earn/hooks/useTokenDetailsEarnData'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { currencyId } from 'uniswap/src/utils/currencyId'
 import { useActiveAddress } from '~/features/accounts/store/hooks'
 import { useTDPMultichainTokensForEarn } from '~/pages/TokenDetails/components/earn/useTDPMultichainTokensForEarn'

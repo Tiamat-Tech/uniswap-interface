@@ -1,5 +1,6 @@
+import { Flex } from '@universe/mycelium'
 import { ComponentProps, forwardRef, PropsWithChildren } from 'react'
-import { Flex, useShadowPropsShort } from 'ui/src'
+import { useShadowPropsShort } from 'ui/src'
 
 type TooltipContainerProps = PropsWithChildren<ComponentProps<typeof Flex>>
 
@@ -8,6 +9,9 @@ export const TooltipContainer = forwardRef<HTMLDivElement, TooltipContainerProps
   ref,
 ) {
   const shadowProps = useShadowPropsShort()
+  // On web the hook returns only { '$platform-web': { boxShadow } }; the full return type also
+  // carries the native shadow* branch, whose Tamagui-typed shadowColor the compat Flex rejects.
+  const boxShadow = shadowProps['$platform-web']?.boxShadow
 
   return (
     <Flex
@@ -18,7 +22,7 @@ export const TooltipContainer = forwardRef<HTMLDivElement, TooltipContainerProps
       borderWidth="$spacing1"
       borderColor="$surface3"
       borderRadius="$rounded6"
-      {...shadowProps}
+      $platform-web={{ boxShadow }}
       {...props}
     >
       {children}

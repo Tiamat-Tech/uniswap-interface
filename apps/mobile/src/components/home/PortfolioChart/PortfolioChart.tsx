@@ -1,4 +1,6 @@
 import { ChartPeriod } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { Flex, Separator, Text, TouchableArea } from '@universe/mycelium'
+import { opacify, useDeviceDimensions, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { LinearGradient } from 'expo-linear-gradient'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -6,9 +8,6 @@ import { I18nManager, StyleSheet } from 'react-native'
 import { DotGrid } from 'src/components/charts/DotGrid'
 import { type ChartData, SparklineChart } from 'src/components/charts/SparklineChart'
 import { Loader } from 'src/components/loading/loaders'
-import { Flex, Separator, Text, TouchableArea, useSporeColors } from 'ui/src'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
-import { opacify } from 'ui/src/theme'
 import {
   CHART_PERIOD_OPTIONS,
   chartPeriodToElementName,

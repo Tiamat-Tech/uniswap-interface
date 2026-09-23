@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { useState } from 'react'
-import { Flex } from 'ui/src'
 import {
   TransactionModalContextProvider,
   TransactionScreen,
@@ -22,6 +22,7 @@ export function TransactionModal({
   passkeyAuthStatus,
   modalName,
   swapFlowTimer,
+  tdpCurrency,
 }: TransactionModalProps): JSX.Element {
   const [screen, setScreen] = useState<TransactionScreen>(TransactionScreen.Form)
 
@@ -34,6 +35,7 @@ export function TransactionModal({
         screen={screen}
         passkeyAuthStatus={passkeyAuthStatus}
         setScreen={setScreen}
+        tdpCurrency={tdpCurrency}
         swapRedirectCallback={swapRedirectCallback}
         onClose={onClose}
         onCurrencyChange={onCurrencyChange}

@@ -1,8 +1,10 @@
 import { isWebPlatform } from '@universe/environment'
+import { Button, Flex, getTokenValue, Text } from '@universe/mycelium'
+import { ArrowRight } from '@universe/mycelium/icons/ArrowRight'
+import { ArrowRightDashed } from '@universe/mycelium/icons/ArrowRightDashed'
 import { Fragment, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, getTokenValue, Text, VerticalDottedLineSeparator } from 'ui/src'
-import { ArrowRight, ArrowRightDashed } from 'ui/src/components/icons'
+import { VerticalDottedLineSeparator } from 'ui/src'
 import { getVisiblePlanSteps } from 'uniswap/src/components/activity/details/plan/getVisiblePlanSteps'
 import { PLAN_STEP_ITEM_WIDTH, PlanStepItem } from 'uniswap/src/components/activity/details/plan/PlanStepItem'
 import { ResumePlanButton } from 'uniswap/src/components/activity/details/plan/ResumePlanButton'
@@ -26,14 +28,12 @@ interface PlanDetailsViewProps {
   status: TransactionStatus
   closePlanView: () => void
   onClose: () => void
-  isEarnActivityDisplayEnabled?: boolean
 }
 
 export function PlanDetailsView(props: PlanDetailsViewProps): JSX.Element | null {
-  const { onClose, typeInfo, closePlanView, status, isEarnActivityDisplayEnabled = true } = props
+  const { onClose, typeInfo, closePlanView, status } = props
   const { t } = useTranslation()
-  const isEarnPlan = typeInfo.earnAction !== undefined
-  const canResumePlan = useCanResumePlan(typeInfo, status) && (!isEarnPlan || isEarnActivityDisplayEnabled)
+  const canResumePlan = useCanResumePlan(typeInfo, status)
 
   return (
     <Flex
@@ -54,11 +54,7 @@ export function PlanDetailsView(props: PlanDetailsViewProps): JSX.Element | null
         </Flex>
         {canResumePlan && (
           <Flex row>
-            <ResumePlanButton
-              typeInfo={typeInfo}
-              isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-              onSuccess={onClose}
-            />
+            <ResumePlanButton typeInfo={typeInfo} onSuccess={onClose} />
           </Flex>
         )}
       </Flex>
@@ -142,11 +138,7 @@ function PlanDetailsHeaderIcon({
   )
 }
 
-function PlanDetailsStatus({
-  typeInfo,
-  status,
-  isEarnActivityDisplayEnabled = true,
-}: Pick<PlanDetailsViewProps, 'typeInfo' | 'status' | 'isEarnActivityDisplayEnabled'>): JSX.Element {
+function PlanDetailsStatus({ typeInfo, status }: Pick<PlanDetailsViewProps, 'typeInfo' | 'status'>): JSX.Element {
   const { t } = useTranslation()
   const intermediaryState = useIntermediaryPlanState({ typeInfo, status })
   const descriptor = useIntermediaryPlanStateDescriptor({
@@ -161,7 +153,6 @@ function PlanDetailsStatus({
         {getTransactionSummaryTitle({
           tx: { typeInfo, status },
           t,
-          isEarnActivityDisplayEnabled,
         })}
       </Text>
       <Text variant="body3" color="$neutral2">

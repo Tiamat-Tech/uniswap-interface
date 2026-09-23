@@ -1,36 +1,21 @@
-import type { FlashListRef } from '@shopify/flash-list'
-import { isAndroid } from '@universe/environment'
+import { Flex, type UniversalListRef, type UniversalListStyle } from '@universe/mycelium'
 import React, { forwardRef, memo, useCallback, useMemo } from 'react'
-import { RefreshControl } from 'react-native'
 import { useAdaptiveFooter } from 'src/components/home/hooks'
-import { TAB_BAR_HEIGHT, TabProps } from 'src/components/layout/TabHelpers'
-import { Flex, useSporeColors } from 'ui/src'
+import { TabProps } from 'src/components/layout/TabHelpers'
 import { NftsList } from 'uniswap/src/components/nfts/NftsList'
 import { NftViewWithContextMenu } from 'uniswap/src/components/nfts/NftViewWithContextMenu'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { useNavigateToNftExplorerLink } from 'uniswap/src/features/nfts/hooks/useNavigateToNftExplorerLink'
 import { NFTItem } from 'uniswap/src/features/nfts/types'
-import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { getOpenseaLink, openUri } from 'uniswap/src/utils/linking'
 import { useAccounts } from 'wallet/src/features/wallet/hooks'
 
 export const NftsTab = memo(
-  forwardRef<FlashListRef<unknown>, TabProps>(function NftsTabInner(
-    {
-      owner,
-      containerProps,
-      scrollHandler,
-      isExternalProfile = false,
-      refreshing,
-      onRefresh,
-      headerHeight = 0,
-      renderedInModal = false,
-    },
+  forwardRef<UniversalListRef, TabProps>(function NftsTabInner(
+    { owner, containerProps, isExternalProfile = false, refreshing, onRefresh, renderedInModal = false },
     ref,
   ) {
-    const colors = useSporeColors()
-    const insets = useAppInsets()
     const accounts = useAccounts()
     const { defaultChainId } = useEnabledChains()
     const navigateToNftExplorerLink = useNavigateToNftExplorerLink()
@@ -41,7 +26,7 @@ export const NftsTab = memo(
 
     // `useAccounts()` returns a new object reference on every Redux dispatch even when
     // the address set is unchanged. Memoizing on the joined keys keeps `walletAddresses`
-    // referentially stable so `renderNFTItem` doesn't churn the FlashList every render.
+    // referentially stable so `renderNFTItem` does not churn the list every render.
     const accountsKey = Object.keys(accounts).sort().join(',')
     // oxlint-disable-next-line react/exhaustive-deps -- intentionally keying on accountsKey to skip identity-only changes to accounts
     const walletAddresses = useMemo(() => Object.keys(accounts).sort(), [accountsKey])
@@ -78,35 +63,27 @@ export const NftsTab = memo(
       [owner, walletAddresses, defaultChainId, navigateToNftExplorerLink],
     )
 
-    const refreshControl = useMemo(() => {
-      return (
-        <RefreshControl
-          progressViewOffset={insets.top + (isAndroid && headerHeight ? headerHeight + TAB_BAR_HEIGHT : 0)}
-          refreshing={refreshing ?? false}
-          tintColor={colors.neutral3.get()}
-          onRefresh={onRefresh}
-        />
-      )
-    }, [refreshing, headerHeight, onRefresh, colors.neutral3, insets.top])
+    const contentContainerStyle = useMemo<UniversalListStyle>(
+      () => ({ style: containerProps?.contentContainerStyle }),
+      [containerProps?.contentContainerStyle],
+    )
 
     return (
       <Flex grow px="$spacing12" testID={TestID.NFTsTab}>
         <NftsList
           ref={ref}
+          contentContainerStyle={contentContainerStyle}
           ListFooterComponent={isExternalProfile ? null : adaptiveFooter}
           emptyStateStyle={containerProps?.emptyComponentStyle}
           errorStateStyle={containerProps?.emptyComponentStyle}
           footerHeight={footerHeight}
           isExternalProfile={isExternalProfile}
           owner={owner}
-          refreshControl={refreshControl}
           refreshing={refreshing}
           renderNFTItem={renderNFTItem}
           renderedInModal={renderedInModal}
           onContentSizeChange={onContentSizeChange}
           onRefresh={onRefresh}
-          onScroll={scrollHandler}
-          {...containerProps}
         />
       </Flex>
     )

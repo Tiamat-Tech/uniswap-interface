@@ -1,5 +1,5 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 
 export function PositionFeesUnavailable(): JSX.Element {
   const { t } = useTranslation()

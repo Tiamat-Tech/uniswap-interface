@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { SharedEventName } from '@uniswap/analytics-events'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, spacing, Text, TouchableArea } from '@universe/mycelium'
 import { getIsNotificationServiceLocalOverrideEnabled } from '@universe/notifications'
 import React, { memo, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,6 +10,7 @@ import { ActivityTab } from 'src/app/components/tabs/ActivityTab'
 import { NftsTab } from 'src/app/components/tabs/NftsTab'
 import { PoolsTab } from 'src/app/components/tabs/PoolsTab'
 import { useSmartWalletNudges } from 'src/app/context/SmartWalletNudgesContext'
+import { AnimatedTab } from 'src/app/features/home/AnimatedTab'
 import { HomeIntroCardStack } from 'src/app/features/home/introCards/HomeIntroCardStack'
 import { PortfolioActionButtons } from 'src/app/features/home/PortfolioActionButtons'
 import { PortfolioHeader } from 'src/app/features/home/PortfolioHeader'
@@ -20,9 +22,8 @@ import { useOptimizedSearchParams } from 'src/app/hooks/useOptimizedSearchParams
 import { HomeQueryParams, HomeTabs } from 'src/app/navigation/constants'
 import { navigate } from 'src/app/navigation/state'
 import { ExtensionNotificationServiceManager } from 'src/notification-service/ExtensionNotificationServiceManager'
-import { Coachmark, Flex, Loader, styled, Text, TouchableArea } from 'ui/src'
+import { Coachmark, Loader } from 'ui/src'
 import { SMART_WALLET_UPGRADE_VIDEO } from 'ui/src/assets'
-import { spacing } from 'ui/src/theme'
 import { NFT_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/dataApiService/nfts/queries'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { usePortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/balancesRest'
@@ -306,7 +307,12 @@ export const HomeScreen = memo(function HomeScreenInner(): JSX.Element {
                         hideRight={selectedTab !== HomeTabs.Activity}
                         isActive={selectedTab === HomeTabs.Activity}
                       >
-                        <ActivityTab address={address} skip={selectedTab !== HomeTabs.Activity} />
+                        {/* The portfolio outage takes precedence; this only lets ActivityTab show its banner for its own relevant error. */}
+                        <ActivityTab
+                          address={address}
+                          skip={selectedTab !== HomeTabs.Activity}
+                          canShowOutageBanner={!portfolioError}
+                        />
                       </AnimatedTab>
                     </>
                   ) : (
@@ -368,41 +374,6 @@ const TabButton = ({
     </TouchableArea>
   )
 }
-
-const AnimatedTab = styled(Flex, {
-  animation: 'quicker',
-  width: '100%',
-  mr: '-100%',
-  x: 0,
-  opacity: 1,
-
-  variants: {
-    isActive: {
-      true: {},
-      false: {
-        pointerEvents: 'none',
-        display: 'none',
-      },
-    },
-
-    hideLeft: {
-      true: {
-        opacity: 0,
-        // if this number is larger than the horizontal padding of the screen, it
-        // will make a horizontal scroll bar appear when using a mouse on macOS
-        x: -10,
-        pointerEvents: 'none',
-      },
-    },
-    hideRight: {
-      true: {
-        opacity: 0,
-        x: 10,
-        pointerEvents: 'none',
-      },
-    },
-  } as const,
-})
 
 // useNavigate/useSearchParams re-renders on every page change, so we avoid them here:
 // https://github.com/remix-run/react-router/issues/7634#issuecomment-1306650156

@@ -4,9 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { PositionInfo } from 'uniswap/src/features/positions/types'
 import { HeaderCell } from '~/components/Table/styled'
 import { LiquidityPositionDropdownMenu } from '~/features/Liquidity/LiquidityPositionDropdownMenu'
-import { PoolBalanceCell } from '~/pages/Portfolio/Overview/MiniPoolsTable/columns/Balance'
 import { ColumnHeader } from '~/pages/Portfolio/Overview/MiniPoolsTable/columns/ColumnHeader'
-import { PoolFeesCell } from '~/pages/Portfolio/Overview/MiniPoolsTable/columns/Fees'
+import { PoolFiatValueCell } from '~/pages/Portfolio/Overview/MiniPoolsTable/columns/FiatValue'
 import { PoolInfoCell } from '~/pages/Portfolio/Overview/MiniPoolsTable/columns/Info'
 import { PositionCell } from '~/pages/Portfolio/Overview/MiniPoolsTable/columns/PositionCell'
 import { PoolStatusCell } from '~/pages/Portfolio/Overview/MiniPoolsTable/columns/Status'
@@ -48,18 +47,22 @@ export const useMiniPoolsTableColumns = ({ isLoading, readOnly }: { isLoading: b
         id: 'fees',
         header: () => <ColumnHeader label={t('common.fees')} />,
         cell: (info) => (
-          <PositionCell info={info} render={(position) => <PoolFeesCell position={position} />} loading={isLoading} />
+          <PositionCell
+            info={info}
+            render={(position) => <PoolFiatValueCell value={position.uncollectedFeesUsd} />}
+            loading={isLoading}
+          />
         ),
       }),
 
-      // Fourth Column - Balance
+      // Fourth Column - Value
       columnHelper.display({
         id: 'balance',
-        header: () => <ColumnHeader label={t('portfolio.overview.pools.column.balance')} />,
+        header: () => <ColumnHeader label={t('common.value')} />,
         cell: (info) => (
           <PositionCell
             info={info}
-            render={(position) => <PoolBalanceCell position={position} />}
+            render={(position) => <PoolFiatValueCell value={position.totalValueUsd} />}
             loading={isLoading}
           />
         ),

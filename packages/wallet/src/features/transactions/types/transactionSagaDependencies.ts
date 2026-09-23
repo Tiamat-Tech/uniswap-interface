@@ -1,7 +1,6 @@
 import type { TransactionRequest } from '@ethersproject/providers'
-import type { ViemClientManager } from '@universe/chains'
+import type { ViemClientManager, UniverseChainId } from '@universe/chains'
 import type { SignerMnemonicAccountMeta } from 'uniswap/src/features/accounts/types'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import type { makeSelectAddressTransactions } from 'uniswap/src/features/transactions/selectors'
 import type { transactionActions } from 'uniswap/src/features/transactions/slice'

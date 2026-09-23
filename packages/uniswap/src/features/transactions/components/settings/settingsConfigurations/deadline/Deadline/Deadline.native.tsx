@@ -1,4 +1,4 @@
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
+import { Platform } from '@universe/chains'
 import { DeadlineControl } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/DeadlineControl'
 import { DeadlineScreen } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/DeadlineScreen'
 import { DeadlineWarning } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/DeadlineWarning'

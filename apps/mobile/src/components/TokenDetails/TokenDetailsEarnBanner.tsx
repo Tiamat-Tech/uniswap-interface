@@ -1,6 +1,6 @@
+import { SpinningLoader } from '@universe/mycelium'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { useAppStackNavigation } from 'src/app/navigation/types'
-import { SpinningLoader } from 'ui/src'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { TokenDetailsEarnBanner as SharedTokenDetailsEarnBanner } from 'uniswap/src/components/tokenDetails/TokenDetailsEarnBanner'
 import { EarnAnalyticsSurface, EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
@@ -11,6 +11,7 @@ import { shouldShowTokenDetailsEarnBanner } from 'uniswap/src/features/earn/toke
 import { EarnAction } from 'uniswap/src/features/earn/types'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useWalletNavigation } from 'wallet/src/contexts/WalletNavigationContext'
+import { useIsViewOnlyWallet } from 'wallet/src/features/wallet/hooks'
 
 type TokenDetailsEarnBannerProps = {
   activeAddress: Address | undefined
@@ -29,6 +30,7 @@ export const TokenDetailsEarnBanner = memo(function TokenDetailsEarnBannerInner(
 }: TokenDetailsEarnBannerProps): JSX.Element | null {
   const navigation = useAppStackNavigation()
   const { navigateToEarnVault } = useWalletNavigation()
+  const isViewOnlyWallet = useIsViewOnlyWallet()
   const [pendingPress, setPendingPress] = useState<PendingPress | null>(null)
 
   const { balanceUsd, earnVault, isLoggedIn, projectedAnnualEarningsUsd, tokenSymbol } = earnData
@@ -51,7 +53,8 @@ export const TokenDetailsEarnBanner = memo(function TokenDetailsEarnBannerInner(
   } = useEarnDepositSources({
     vault: earnVault,
     walletAddress: activeAddress,
-    isOpen: isBannerVisible,
+    // View-only wallets route straight to the vault overview, so the lookup is unused.
+    isOpen: isBannerVisible && !isViewOnlyWallet,
     minimumBalanceDataUpdatedAtMs,
   })
   const isBalanceLookupPending = pendingPressMatchesCurrent && !balanceLookupSettled && !balanceLookupErrored
@@ -62,6 +65,16 @@ export const TokenDetailsEarnBanner = memo(function TokenDetailsEarnBannerInner(
     }
 
     if (!isLoggedIn) {
+      return
+    }
+
+    // View-only wallets stop at the vault overview. Must return before the settled guard
+    // below: their sources lookup is disabled (isOpen above), so it never settles.
+    if (isViewOnlyWallet) {
+      navigateToEarnVault({
+        analyticsEntryPoint: EarnEntryPoint.TokenDetailsEarnBanner,
+        vault: earnVault,
+      })
       return
     }
 
@@ -89,6 +102,7 @@ export const TokenDetailsEarnBanner = memo(function TokenDetailsEarnBannerInner(
     earnVault,
     hasSupportedBalanceForUnderlying,
     isLoggedIn,
+    isViewOnlyWallet,
     minimumBalanceDataUpdatedAtMs,
     navigateToEarnVault,
     navigation,
@@ -100,6 +114,12 @@ export const TokenDetailsEarnBanner = memo(function TokenDetailsEarnBannerInner(
       return
     }
 
+    // No balance refresh needed for view-only — go straight to the vault overview.
+    if (isViewOnlyWallet) {
+      openEarnEntryPoint()
+      return
+    }
+
     if (isLoggedIn && earnVault) {
       setPendingPress({ requestedAtMs: Date.now(), vaultId: earnVault.id, walletAddress: activeAddress })
       refetchBalanceLookup()
@@ -107,7 +127,15 @@ export const TokenDetailsEarnBanner = memo(function TokenDetailsEarnBannerInner(
     }
 
     openEarnEntryPoint()
-  }, [activeAddress, earnVault, isLoggedIn, openEarnEntryPoint, pendingPressMatchesCurrent, refetchBalanceLookup])
+  }, [
+    activeAddress,
+    earnVault,
+    isLoggedIn,
+    isViewOnlyWallet,
+    openEarnEntryPoint,
+    pendingPressMatchesCurrent,
+    refetchBalanceLookup,
+  ])
 
   useEffect(() => {
     if ((!balanceLookupSettled && !balanceLookupErrored) || !pendingPressMatchesCurrent) {

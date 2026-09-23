@@ -1,8 +1,8 @@
+import { ColorTokens } from '@universe/mycelium'
 import { Group } from '@visx/group'
 import { AreaClosed, LinePath } from '@visx/shape'
 import { CurveFactory, ScaleLinear } from 'd3'
 import React, { ReactNode, useId } from 'react'
-import { ColorTokens } from 'ui/src'
 
 interface LineChartProps<T> {
   data: T[]

@@ -1,10 +1,11 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, useMedia } from 'ui/src'
 import { useNetworkSelectorOptions } from 'uniswap/src/components/network/NetworkFilterV2/useNetworkSelectorOptions'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { usePortfolioData } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { DataApiOutageBanner } from 'uniswap/src/features/dataApi/outage/DataApiOutageBanner'
 import type { DataApiOutageState } from 'uniswap/src/features/dataApi/types'
@@ -137,7 +138,7 @@ export function PortfolioHeader({ enableScrollCompact = false, isCompact: isComp
 
   return (
     <Flex
-      data-testid={TestID.PortfolioHeader}
+      testID={TestID.PortfolioHeader}
       backgroundColor="$surface1"
       mt="$spacing8"
       pt="$spacing16"

@@ -1,6 +1,6 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { CrosshairMode, createChart, type IChartApi, type UTCTimestamp } from 'lightweight-charts'
 import { useEffect, useRef, useState } from 'react'
-import { useSporeColors } from 'ui/src'
 import { formatShortDateTime } from '~/features/Toucan/Auction/utils/formatting'
 
 export const AUCTION_CHART_HEIGHT = 200
@@ -29,7 +29,11 @@ export function useAuctionChart({ enabled = true }: { enabled?: boolean } = {}) 
     const newChart = createChart(container, {
       width: container.clientWidth,
       height: AUCTION_CHART_HEIGHT,
+      // v5 lifts a hovered series above its pane siblings by default — keep
+      // v4's draw order (QA can deliberately opt in later).
+      hoveredSeriesOnTop: false,
       layout: {
+        attributionLogo: false,
         background: { color: 'transparent' },
         textColor: colors.neutral2.val,
         fontSize: 11,

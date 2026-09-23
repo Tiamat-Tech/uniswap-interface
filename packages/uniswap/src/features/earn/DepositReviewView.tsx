@@ -1,15 +1,15 @@
 import { type Currency, type CurrencyAmount } from '@uniswap/sdk-core'
 import { type ChainedQuoteResponse, TradingApi } from '@universe/api'
+import { type UniverseChainId, Platform } from '@universe/chains'
 import { isMobileApp } from '@universe/environment'
-import { useCallback, useMemo, useState } from 'react'
+import { Flex, iconSizes, ModalCloseIcon, Text, TouchableArea } from '@universe/mycelium'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, ModalCloseIcon, Text, TouchableArea, useIsShortMobileDevice } from 'ui/src'
+import { useIsShortMobileDevice } from 'ui/src'
 import { BackArrow } from 'ui/src/components/icons/BackArrow'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { useTradingApiEarnQuoteQuery } from 'uniswap/src/data/apiClients/tradingApi/useTradingApiEarnQuoteQuery'
 import { useActiveAccount } from 'uniswap/src/features/accounts/store/hooks'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EarnAnalyticsSurface, EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import { getEarnDepositPreviewCreditAmount } from 'uniswap/src/features/earn/chainedDisplayAmounts'
 import { EARN_REVIEW_AMOUNT_LINE_HEIGHT } from 'uniswap/src/features/earn/constants'
@@ -44,7 +44,6 @@ import {
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { useLocalFiatToUSDConverter } from 'uniswap/src/features/fiatCurrency/useLocalFiatToUSDConverter'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { EarnEventName } from 'uniswap/src/features/telemetry/constants/features'
 import { Trace } from 'uniswap/src/features/telemetry/Trace'
 import type {
@@ -67,6 +66,7 @@ import { useStore } from 'zustand'
 const DEFAULT_EARN_ANALYTICS_SURFACE = isMobileApp ? EarnAnalyticsSurface.Mobile : EarnAnalyticsSurface.Web
 
 export interface ExecuteEarnDepositParams {
+  attemptId: string
   earnIntent: TradingApi.EarnIntent
   inputCurrency: Currency
   inputAmount: CurrencyAmount<Currency>
@@ -261,26 +261,27 @@ export function DepositReviewView({
 
   const currentBalanceUsd = position?.depositedUsd ?? 0
   const balanceAfterUsd = currentBalanceUsd + effectiveDepositUsd
-  const { logFailed, logFinalized, logSubmitted, reviewedEventProperties } = useEarnReviewAnalytics({
-    action: 'deposit',
-    amountUsd: parsedAmountUsd,
-    analyticsEntryPoint,
-    analyticsSurface,
-    destinationChainId: vault.chainId,
-    destinationTokenAddress: vault.vaultAddress,
-    destinationTokenSymbol: vaultShareCurrency?.symbol,
-    originatingTransactionId,
-    position,
-    projectedMonthlyEarningsUsd,
-    quote: chainedQuote,
-    sourceChainId: quoteSourceChainId,
-    sourceCurrency: currency,
-    sourceUpsellCurrencyId,
-    swapAmountUsd,
-    tokenAmount: tokenAmountValue ?? undefined,
-    underlyingTokenSymbol: vaultUnderlyingCurrencyInfo?.currency.symbol,
-    vault,
-  })
+  const { logFailed, logFinalized, logReviewReady, logSubmitButtonClicked, logSubmitted, reviewedEventProperties } =
+    useEarnReviewAnalytics({
+      action: 'deposit',
+      amountUsd: parsedAmountUsd,
+      analyticsEntryPoint,
+      analyticsSurface,
+      destinationChainId: vault.chainId,
+      destinationTokenAddress: vault.vaultAddress,
+      destinationTokenSymbol: vaultShareCurrency?.symbol,
+      originatingTransactionId,
+      position,
+      projectedMonthlyEarningsUsd,
+      quote: chainedQuote,
+      sourceChainId: quoteSourceChainId,
+      sourceCurrency: currency,
+      sourceUpsellCurrencyId,
+      swapAmountUsd,
+      tokenAmount: tokenAmountValue ?? undefined,
+      underlyingTokenSymbol: vaultUnderlyingCurrencyInfo?.currency.symbol,
+      vault,
+    })
 
   const hasBlockingError = getEarnReviewHasBlockingError({ hasQuoteError, insufficientGasWarning })
   const executionErrorMessage = getEarnExecutionErrorMessage({
@@ -299,7 +300,14 @@ export function DepositReviewView({
     hasExecuteHandler: !!onExecuteDeposit,
   })
 
+  useEffect(() => {
+    if (!ctaDisabled) {
+      logReviewReady()
+    }
+  }, [ctaDisabled, logReviewReady])
+
   const handleDepositPress = useCallback(() => {
+    const attemptId = logSubmitButtonClicked()
     clearExecutionState()
     const executionParams = getPreparedDepositExecutionParams({
       currency,
@@ -310,20 +318,27 @@ export function DepositReviewView({
       vaultShareCurrency,
     })
     if (!executionParams) {
+      logFailed({ error: undefined, attemptId })
       return
     }
     startSubmitting()
     executionParams.onExecuteDeposit({
+      attemptId,
       earnIntent: executionParams.earnIntent,
       inputCurrency: executionParams.currency,
       inputAmount: executionParams.inputCurrencyAmount,
       outputCurrency: executionParams.vaultShareCurrency,
       quote: executionParams.quote,
       onSuccess: handleSuccess,
-      onFailure: createEarnPlanFailureCallback({ handleFailure, logFailed }),
-      onSubmitted: logSubmitted,
+      onFailure: createEarnPlanFailureCallback({
+        handleFailure,
+        logFailed: (error, context) => logFailed({ error, context, attemptId }),
+      }),
+      onSubmitted: () => {
+        logSubmitted(attemptId)
+      },
       onPlanFinalized: (params) => {
-        logFinalized(params)
+        logFinalized(params, attemptId)
         onPlanFinalized?.(params)
       },
     })
@@ -336,6 +351,7 @@ export function DepositReviewView({
     inputCurrencyAmount,
     logFailed,
     logFinalized,
+    logSubmitButtonClicked,
     logSubmitted,
     onExecuteDeposit,
     onPlanFinalized,

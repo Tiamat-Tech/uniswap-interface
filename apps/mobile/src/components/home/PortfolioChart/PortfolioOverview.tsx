@@ -1,14 +1,14 @@
 import { SharedEventName } from '@uniswap/analytics-events'
 import { ChartPeriod } from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, spacing, TouchableArea } from '@universe/mycelium'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { navigate } from 'src/app/navigation/rootNavigation'
 import { PortfolioChart } from 'src/components/home/PortfolioChart/PortfolioChart'
 import { usePortfolioChartData } from 'src/components/home/PortfolioChart/usePortfolioChartData'
-import { Coachmark, Flex, TouchableArea } from 'ui/src'
+import { Coachmark } from 'ui/src'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { spacing } from 'ui/src/theme'
+import { AccountType } from 'uniswap/src/features/accounts/types'
 import { usePortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { PortfolioBalance } from 'uniswap/src/features/portfolio/PortfolioBalance/PortfolioBalance'
 import { usePoolsBalanceCoachmarkVisibility } from 'uniswap/src/features/portfolio/PortfolioBalance/usePoolsBalanceCoachmarkVisibility'
@@ -19,6 +19,7 @@ import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
 import { noop } from 'utilities/src/react/noop'
+import { useActiveAccountWithThrow } from 'wallet/src/features/wallet/hooks'
 
 interface PortfolioChartSectionProps {
   evmAddress: string
@@ -28,12 +29,11 @@ interface PortfolioChartSectionProps {
 export function PortfolioOverview({ evmAddress, chainIds }: PortfolioChartSectionProps): JSX.Element {
   const { t } = useTranslation()
   const chartPeriod = ChartPeriod.DAY
-  // The Home heartbeat coordinator only takes over balance refreshing when this flag is on —
-  // otherwise PortfolioBalance must keep its own poll running, or balances would never refresh.
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-
+  const activeAccount = useActiveAccountWithThrow()
+  const isSignerAccount = activeAccount.type === AccountType.SignerMnemonic
   const { shouldShow: shouldShowPoolsCoachmark, dismiss: dismissPoolsCoachmark } = usePoolsBalanceCoachmarkVisibility({
-    evmAddress,
+    // View-only wallets never get the coachmark; omitting the address also skips the zero-balance auto-dismiss.
+    evmAddress: isSignerAccount ? evmAddress : undefined,
   })
 
   const {
@@ -107,9 +107,8 @@ export function PortfolioOverview({ evmAddress, chainIds }: PortfolioChartSectio
                 onDismiss={dismissPoolsCoachmark}
               >
                 <PortfolioBalance
-                  // Disabled because the Home heartbeat coordinator polls balances at the same
-                  // cadence as the rest of the page instead.
-                  disablePolling={isDataLivelinessEnabled}
+                  // The Home heartbeat coordinator refreshes balances on its 60s full tick instead.
+                  disablePolling
                   evmOwner={evmAddress}
                   endText={chartNavigationIcon}
                   chartPeriod={chartPeriod}
@@ -139,8 +138,8 @@ export function PortfolioOverview({ evmAddress, chainIds }: PortfolioChartSectio
           testID={TestID.PoolsBalanceCoachmark}
           onDismiss={dismissPoolsCoachmark}
         >
-          {/* Disabled because the Home heartbeat coordinator polls balances at the same cadence as the rest of the page instead. */}
-          <PortfolioBalance disablePolling={isDataLivelinessEnabled} evmOwner={evmAddress} />
+          {/* The Home heartbeat coordinator refreshes balances on its 60s full tick instead. */}
+          <PortfolioBalance disablePolling evmOwner={evmAddress} />
         </Coachmark>
       )}
     </Flex>

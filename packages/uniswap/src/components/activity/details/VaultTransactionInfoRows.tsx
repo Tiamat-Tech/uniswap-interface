@@ -1,5 +1,5 @@
+import { Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Text } from 'ui/src'
 import { ExternalLink } from 'ui/src/components/icons/ExternalLink'
 import { InfoRow } from 'uniswap/src/components/activity/details/InfoRow'
 import { InfoRowActionButton } from 'uniswap/src/components/activity/details/InfoRowActionButton'

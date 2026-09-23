@@ -1,4 +1,5 @@
-import { RPCType, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { RPCType } from 'uniswap/src/features/chains/types'
 import type { UniRpcConfig } from 'uniswap/src/features/providers/getUniRpcConfig'
 import { createRpcConfigResolver } from 'uniswap/src/features/providers/resolveRpcConfig'
 import type { RpcConfig } from 'uniswap/src/features/providers/rpcUrlSelector'
@@ -57,13 +58,26 @@ describe('createRpcConfigResolver', () => {
     expect(selectLegacyRpcUrl).not.toHaveBeenCalled()
   })
 
-  it('skips UniRPC for RPCType.Private and falls back to legacy', () => {
+  it('routes RPCType.Private through UniRPC with the swap-protection header', () => {
     const { resolve, resolveUniRpcConfig, selectLegacyRpcUrl } = buildResolver()
 
     const result = resolve({ chainId: UniverseChainId.Mainnet, rpcType: RPCType.Private })
 
+    expect(result).toEqual({
+      rpcUrl: UNIRPC_CONFIG.rpcUrl,
+      isUniRpc: true,
+      headers: { ...UNIRPC_CONFIG.headers, 'x-uni-swap-protection': 'true' },
+    })
+    expect(resolveUniRpcConfig).toHaveBeenCalledWith({ chainId: UniverseChainId.Mainnet })
+    expect(selectLegacyRpcUrl).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the legacy private (Flashbots/MEV-blocker) path when UniRPC is unavailable', () => {
+    const { resolve, selectLegacyRpcUrl } = buildResolver({ uniRpc: null })
+
+    const result = resolve({ chainId: UniverseChainId.Mainnet, rpcType: RPCType.Private })
+
     expect(result).toEqual(LEGACY_PRIVATE)
-    expect(resolveUniRpcConfig).not.toHaveBeenCalled()
     expect(selectLegacyRpcUrl).toHaveBeenCalledWith(UniverseChainId.Mainnet, RPCType.Private)
   })
 
@@ -81,12 +95,13 @@ describe('createRpcConfigResolver', () => {
   })
 
   it('flags UniRPC configs with isUniRpc: true; legacy configs do not get the flag', () => {
-    const { resolve } = buildResolver()
-
-    const uniRpcResult = resolve({ chainId: UniverseChainId.Mainnet, rpcType: RPCType.Public })
+    const uniRpcResult = buildResolver().resolve({ chainId: UniverseChainId.Mainnet, rpcType: RPCType.Public })
     expect(uniRpcResult?.isUniRpc).toBe(true)
 
-    const legacyResult = resolve({ chainId: UniverseChainId.Mainnet, rpcType: RPCType.Private })
+    const legacyResult = buildResolver({ uniRpc: null }).resolve({
+      chainId: UniverseChainId.Mainnet,
+      rpcType: RPCType.Private,
+    })
     expect(legacyResult?.isUniRpc).toBeUndefined()
   })
 
@@ -102,12 +117,12 @@ describe('createRpcConfigResolver', () => {
   })
 
   it('passes the chainId through unchanged for both UniRPC and legacy paths', () => {
-    const { resolve, resolveUniRpcConfig, selectLegacyRpcUrl } = buildResolver()
-
+    const { resolve, resolveUniRpcConfig } = buildResolver()
     resolve({ chainId: UniverseChainId.ArbitrumOne, rpcType: RPCType.Public })
     expect(resolveUniRpcConfig).toHaveBeenLastCalledWith({ chainId: UniverseChainId.ArbitrumOne })
 
-    resolve({ chainId: UniverseChainId.Optimism, rpcType: RPCType.Private })
+    const { resolve: resolveLegacy, selectLegacyRpcUrl } = buildResolver({ uniRpc: null })
+    resolveLegacy({ chainId: UniverseChainId.Optimism, rpcType: RPCType.Private })
     expect(selectLegacyRpcUrl).toHaveBeenLastCalledWith(UniverseChainId.Optimism, RPCType.Private)
   })
 })

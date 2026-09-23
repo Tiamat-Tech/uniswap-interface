@@ -1,36 +1,21 @@
+import type { Query } from '@tanstack/react-query'
 import { renderHook, act } from '@testing-library/react'
-import { useFeatureFlag } from '@universe/gating'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { useInterval } from '~/lib/hooks/useInterval'
-import { useExploreHeartbeatCoordinator } from '~/pages/Explore/hooks/useExploreHeartbeatCoordinator'
+import {
+  isShallowInfiniteQuery,
+  useExploreHeartbeatCoordinator,
+} from '~/pages/Explore/hooks/useExploreHeartbeatCoordinator'
 import { ExploreTab } from '~/types/explore'
 
 const mockQueryClientRefetchQueries = vi.fn().mockResolvedValue(undefined)
-const mockApolloRefetchQueries = vi.fn().mockResolvedValue(undefined)
-
-vi.mock('@universe/gating', async (importOriginal) => {
-  return {
-    ...(await importOriginal<typeof import('@universe/gating')>()),
-    useFeatureFlag: vi.fn(),
-  }
-})
-
-const mockUseFeatureFlag = vi.mocked(useFeatureFlag)
 
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   return {
     ...actual,
     useQueryClient: () => ({ refetchQueries: mockQueryClientRefetchQueries }),
-  }
-})
-
-vi.mock('@apollo/client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@apollo/client')>()
-  return {
-    ...actual,
-    useApolloClient: () => ({ refetchQueries: mockApolloRefetchQueries }),
   }
 })
 
@@ -51,7 +36,6 @@ function makeParams(overrides?: Partial<Parameters<typeof useExploreHeartbeatCoo
 describe('useExploreHeartbeatCoordinator', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseFeatureFlag.mockReturnValue(false)
     Object.defineProperty(document, 'visibilityState', {
       configurable: true,
       get: () => 'visible',
@@ -103,13 +87,13 @@ describe('useExploreHeartbeatCoordinator', () => {
       expect.objectContaining({ queryKey: [ReactQueryCacheKey.ExploreStatsService] }),
     )
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: [ReactQueryCacheKey.TopTokens] }),
+      expect.objectContaining({ queryKey: [ReactQueryCacheKey.TopTokens], predicate: isShallowInfiniteQuery }),
+      { cancelRefetch: false },
     )
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(2)
-    expect(mockApolloRefetchQueries).not.toHaveBeenCalled()
   })
 
-  it('refetches top pools on the Pools tab', async () => {
+  it('refetches top pools on the Pools tab without cancelling in-flight fetches', async () => {
     renderHook(() => useExploreHeartbeatCoordinator(makeParams({ tab: ExploreTab.Pools })))
 
     const [callback] = mockUseInterval.mock.calls[0]!
@@ -118,12 +102,35 @@ describe('useExploreHeartbeatCoordinator', () => {
     })
 
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: [ReactQueryCacheKey.DataApiService, 'listTopPools'] }),
+      expect.objectContaining({
+        queryKey: [ReactQueryCacheKey.DataApiService, 'listPools'],
+        predicate: isShallowInfiniteQuery,
+      }),
+      { cancelRefetch: false },
     )
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(2)
   })
 
-  it('refetches transactions on the Transactions tab', async () => {
+  describe('isShallowInfiniteQuery', () => {
+    function makeQuery(data: unknown): Query {
+      return { state: { data } } as Query
+    }
+
+    it('excludes deeply-paginated infinite queries from heartbeat refetches', () => {
+      expect(isShallowInfiniteQuery(makeQuery({ pages: new Array(6), pageParams: new Array(6) }))).toBe(false)
+    })
+
+    it('includes shallow infinite queries', () => {
+      expect(isShallowInfiniteQuery(makeQuery({ pages: new Array(5), pageParams: new Array(5) }))).toBe(true)
+      expect(isShallowInfiniteQuery(makeQuery({ pages: [], pageParams: [] }))).toBe(true)
+    })
+
+    it('includes queries with no data yet', () => {
+      expect(isShallowInfiniteQuery(makeQuery(undefined))).toBe(true)
+    })
+  })
+
+  it('refetches transactions on the Transactions tab without cancelling in-flight fetches', async () => {
     renderHook(() => useExploreHeartbeatCoordinator(makeParams({ tab: ExploreTab.Transactions })))
 
     const [callback] = mockUseInterval.mock.calls[0]!
@@ -131,8 +138,16 @@ describe('useExploreHeartbeatCoordinator', () => {
       await callback()
     })
 
-    expect(mockApolloRefetchQueries).toHaveBeenCalledOnce()
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(1)
+    expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: [ReactQueryCacheKey.DataApiService, 'listTransactions'],
+        predicate: isShallowInfiniteQuery,
+      }),
+      { cancelRefetch: false },
+    )
+    // Stats + listTransactions only: the tab has a single data source, so a second transactions
+    // refetch here would mean a stale one survived alongside it.
+    expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(2)
   })
 
   it('only refetches stats on the Toucan tab', async () => {
@@ -144,6 +159,5 @@ describe('useExploreHeartbeatCoordinator', () => {
     })
 
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(1)
-    expect(mockApolloRefetchQueries).not.toHaveBeenCalled()
   })
 })

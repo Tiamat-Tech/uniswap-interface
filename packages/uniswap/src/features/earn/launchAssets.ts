@@ -1,9 +1,8 @@
 import type { Currency } from '@uniswap/sdk-core'
 import { Token, WETH9 } from '@uniswap/sdk-core'
+import { UniverseChainId, areEvmAddressesEqual } from '@universe/chains'
 import { nativeOnChain, USDC_MAINNET, USDT } from 'uniswap/src/constants/tokens'
 import { DEFAULT_NATIVE_ADDRESS_LEGACY } from 'uniswap/src/features/chains/evm/defaults'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { areEvmAddressesEqual } from 'uniswap/src/utils/addresses'
 import { buildCurrencyId, isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 
 // Launch asset allowlist; vault addresses still come from Data API.

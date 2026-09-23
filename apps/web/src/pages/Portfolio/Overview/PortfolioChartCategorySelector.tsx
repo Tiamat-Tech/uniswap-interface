@@ -1,7 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { SingleSelectContextMenu, type SingleSelectOption } from 'uniswap/src/components/menus/SingleSelectContextMenu'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { PortfolioChartCategory } from '~/pages/Portfolio/Overview/hooks/usePortfolioChartSeries'
@@ -58,7 +58,7 @@ export function PortfolioChartCategorySelector({
           <Text variant="buttonLabel4" color="$neutral1" numberOfLines={1} flexShrink={0}>
             {labelByValue[value]}
           </Text>
-          <RotatableChevron animation="200ms" direction={isOpen ? 'up' : 'down'} size="$icon.16" color="$neutral2" />
+          <RotatableChevron direction={isOpen ? 'up' : 'down'} size="$icon.16" color="$neutral2" />
         </Flex>
       )}
     </SingleSelectContextMenu>

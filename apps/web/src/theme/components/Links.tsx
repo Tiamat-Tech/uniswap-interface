@@ -1,5 +1,6 @@
-import React, { useCallback } from 'react'
-import { Anchor, type GetProps, styled } from 'ui/src'
+import { Anchor, type AnchorProps } from '@universe/mycelium'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
+import { useCallback } from 'react'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { anonymizeLink } from '~/utils/anonymizeLink'
@@ -10,28 +11,25 @@ function outboundLink({ label }: { label: string }) {
   })
 }
 
-const StyledLink = styled(Anchor, {
-  cursor: 'pointer',
-  textDecorationLine: 'none',
-  color: '$accent1',
-  fontWeight: '$medium',
-  '$platform-web': {
-    textDecoration: 'none',
-    transitionProperty: 'opacity',
-    transitionDuration: '125ms',
-    textDecorationLine: 'none',
-  },
-  hoverStyle: {
-    opacity: 0.6,
-  },
-  pressStyle: {
-    opacity: 0.4,
-  },
-  animation: 'fast',
-  animateOnly: ['opacity'],
-})
+function StyledLink({ hoverStyle, pressStyle, style, ...props }: AnchorProps): JSX.Element {
+  return (
+    <Anchor
+      cursor="pointer"
+      textDecorationLine="none"
+      color="$accent1"
+      fontWeight="$medium"
+      hoverStyle={{ opacity: 0.6, ...hoverStyle }}
+      pressStyle={{ opacity: 0.4, ...pressStyle }}
+      // Hand-written, not `animation`/`animateOnly`: those are on the compat type surface but emit
+      // no transition, so reaching for them typechecks and silently drops the fade. Scoped to
+      // opacity — an unscoped transition animates theme-token colors on light/dark toggle.
+      style={{ transition: `opacity ${SPORE_ANIMATION_CURVE_CSS.fast}`, ...style }}
+      {...props}
+    />
+  )
+}
 
-type StyledLinkProps = GetProps<typeof StyledLink>
+type StyledLinkProps = AnchorProps
 type LinkPressEvent = Parameters<NonNullable<StyledLinkProps['onPress']>>[0]
 
 function hasGetModifierState(

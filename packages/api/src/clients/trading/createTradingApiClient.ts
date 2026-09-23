@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines */
 import type { FetchClient } from '@universe/api/src/clients/base/types'
 import { createFetcher } from '@universe/api/src/clients/base/utils'
 import type {
@@ -29,7 +30,12 @@ import type {
   WalletCheckDelegationResponseBody,
   WalletEncode7702RequestBody,
 } from '@universe/api/src/clients/trading/__generated__'
-import { CreatePlanRequest, PlanResponse, RoutingPreference } from '@universe/api/src/clients/trading/__generated__'
+import {
+  CreatePlanRequest,
+  PlanResponse,
+  PlanStatus,
+  RoutingPreference,
+} from '@universe/api/src/clients/trading/__generated__'
 import type {
   CheckPermissionsRequest,
   CheckPermissionsResponse,
@@ -163,6 +169,7 @@ export interface PlanEndpoints {
   updateExistingPlan: (params: UpdatePlanRequestWithPlanId) => Promise<PlanResponse>
   getExistingPlan: (params: ExistingPlanRequest) => Promise<PlanResponse>
   refreshExistingPlan: (params: ExistingPlanRequest) => Promise<PlanResponse>
+  cancelExistingPlan: (params: ExistingPlanRequest) => Promise<PlanResponse>
 }
 
 type IndicativeQuoteBase = Pick<
@@ -459,6 +466,21 @@ export function createTradingApiClient(ctx: TradingClientContext): TradingApiCli
     }),
   })
 
+  // Cancel is a status-only PATCH; there is no dedicated cancel route. Kept separate from
+  // updateExistingPlan because that method's transformRequest forwards only `steps`.
+  const cancelExistingPlan = createFetcher<ExistingPlanRequest, PlanResponse>({
+    client,
+    url: getApiPath(TRADING_API_PATHS.plan),
+    method: 'patch',
+    transformRequest: async ({ params, url }) => ({
+      headers: await getFeatureFlagHeaders(TRADING_API_PATHS.plan),
+      url: `${url}/${params.planId}`,
+      params: {
+        status: PlanStatus.CANCELLED,
+      },
+    }),
+  })
+
   return {
     fetchQuote,
     fetchIndicativeQuote,
@@ -482,5 +504,6 @@ export function createTradingApiClient(ctx: TradingClientContext): TradingApiCli
     updateExistingPlan,
     getExistingPlan,
     refreshExistingPlan,
+    cancelExistingPlan,
   }
 }

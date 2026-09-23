@@ -1,6 +1,6 @@
+import type { ColorTokens } from '@universe/mycelium'
+import type { UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
-import type { ColorTokens } from 'ui/src'
-import type { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
 import { getFadedDecimalColor } from 'uniswap/src/components/AnimatedNumber/utils/getCharDisplayColor'
 import { resolveAnimatedNumberColor } from 'uniswap/src/components/AnimatedNumber/utils/resolveAnimatedNumberColor'
 

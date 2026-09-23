@@ -1,8 +1,8 @@
+import { Anchor, Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { ExternalLink } from '@universe/mycelium/icons/ExternalLink'
+import { UserLock } from '@universe/mycelium/icons/UserLock'
+import { X } from '@universe/mycelium/icons/X'
 import { Trans, useTranslation } from 'react-i18next'
-import { Anchor, Button, Flex, Text, TouchableArea } from 'ui/src'
-import { ExternalLink } from 'ui/src/components/icons/ExternalLink'
-import { UserLock } from 'ui/src/components/icons/UserLock'
-import { X } from 'ui/src/components/icons/X'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
@@ -91,7 +91,7 @@ export function KycInterstitialModal({
                   termsLink: (
                     <Anchor
                       fontSize="$micro"
-                      lineHeight="$spacing12"
+                      lineHeight={12}
                       textDecorationLine="none"
                       color="$neutral2"
                       href={providerTermsUrl}
@@ -101,7 +101,7 @@ export function KycInterstitialModal({
                   privacyLink: (
                     <Anchor
                       fontSize="$micro"
-                      lineHeight="$spacing12"
+                      lineHeight={12}
                       textDecorationLine="none"
                       color="$neutral2"
                       href={providerPrivacyUrl}

@@ -1,6 +1,6 @@
 import { CurrencyAmount, type Token, TradeType } from '@uniswap/sdk-core'
 import { type ClassicQuoteResponse, TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { type DerivedSwapInfo } from 'uniswap/src/features/transactions/swap/types/derivedSwapInfo'
 import {
   ApprovalAction,

@@ -1,13 +1,18 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { ColorTokens, Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { ColorTokens, Flex, Text } from 'ui/src'
 import { Caret } from 'ui/src/components/icons/Caret'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { getValueSignInfo } from 'uniswap/src/components/ProfitLoss/constants'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
+import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { formatNumberWithSubscript } from 'utilities/src/format/subscriptNotation'
 import { NumberType } from 'utilities/src/format/types'
 import { usePrevious } from 'utilities/src/react/hooks'
+
+// PortfolioBalance rounds to two decimals, so sub-cent average costs read as $0.00. Subscript
+// notation is safe inside AnimatedNumber: it only rolls ASCII digits, so ₄ renders as plain text.
+const SUBSCRIPT_FIAT_THRESHOLD = 0.01
 
 interface ProfitLossRowProps {
   label: string
@@ -26,9 +31,9 @@ export function ProfitLossRow({
   isLoading,
   labelColor = '$neutral1',
 }: ProfitLossRowProps): JSX.Element {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const { t } = useTranslation()
-  const { formatNumberOrString, formatPercent } = useLocalizationContext()
+  const { formatNumberOrString, formatPercent, addFiatSymbolToNumber } = useLocalizationContext()
+  const locale = useCurrentLocale()
   const currency = useAppFiatCurrencyInfo()
 
   // Track last known values so AnimatedNumber handles transitions instead of reverting to a skeleton.
@@ -41,13 +46,22 @@ export function ProfitLossRow({
 
   const { hasReasonableValue, isPositive, arrowColor } = getValueSignInfo(displayValue)
 
-  const formattedValue = hasReasonableValue
-    ? formatNumberOrString({
-        value: Math.abs(displayValue ?? 0),
-        type: NumberType.PortfolioBalance,
-        currencyCode: currency.code,
-      })
-    : undefined
+  const absValue = Math.abs(displayValue ?? 0)
+  const useSubscript = absValue > 0 && absValue < SUBSCRIPT_FIAT_THRESHOLD
+
+  const formattedValue = !hasReasonableValue
+    ? undefined
+    : useSubscript
+      ? addFiatSymbolToNumber({
+          value: formatNumberWithSubscript({ value: absValue, locale }),
+          currencyCode: currency.code,
+          currencySymbol: currency.symbol,
+        })
+      : formatNumberOrString({
+          value: absValue,
+          type: NumberType.PortfolioBalance,
+          currencyCode: currency.code,
+        })
 
   const formattedPercent =
     hasReasonableValue && displayPercent !== undefined ? formatPercent(Math.abs(displayPercent)) : undefined
@@ -62,12 +76,7 @@ export function ProfitLossRow({
       ) : formattedValue !== undefined ? (
         <Flex row shrink alignItems="center" gap="$spacing4">
           {showArrow && arrowColor && <Caret color={arrowColor} direction={isPositive ? 'n' : 's'} size="$icon.16" />}
-          <AnimatedNumber
-            numericValue={displayValue}
-            value={formattedValue}
-            textVariant="$body3"
-            disableAnimations={!isDataLivelinessEnabled}
-          />
+          <AnimatedNumber numericValue={displayValue} value={formattedValue} textVariant="$body3" />
           {formattedPercent && (
             <Text variant="body3" color="$neutral2">
               ({formattedPercent})

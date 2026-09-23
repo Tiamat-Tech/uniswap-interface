@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { SynchronizedHeartbeatsConfigKey } from '@universe/gating'
+import { WALLET_POSITIONS_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/liquidityService/queryKeys'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { useHeartbeatCoordinator } from '~/lib/hooks/useHeartbeatCoordinator'
 import { usePortfolioAddresses } from '~/pages/Portfolio/hooks/usePortfolioAddresses'
@@ -51,7 +52,7 @@ export function usePortfolioHeartbeatCoordinator({ tab, poolsEnabled }: UsePortf
           queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.ListTransactions], type: 'active' }),
         )
         if (poolsEnabled) {
-          tasks.push(queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.ListPositions], type: 'active' }))
+          tasks.push(queryClient.refetchQueries({ queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX, type: 'active' }))
         }
         break
       case PortfolioTab.Tokens:
@@ -65,7 +66,7 @@ export function usePortfolioHeartbeatCoordinator({ tab, poolsEnabled }: UsePortf
         if (poolsEnabled) {
           tasks.push(
             queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.GetWalletBalances], type: 'active' }),
-            queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.ListPositions], type: 'active' }),
+            queryClient.refetchQueries({ queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX, type: 'active' }),
           )
         }
         break

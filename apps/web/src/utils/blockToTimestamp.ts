@@ -1,5 +1,5 @@
+import { EVMUniverseChainId } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import { AVERAGE_L2_BLOCK_TIME_MS } from 'uniswap/src/features/transactions/hooks/usePollingIntervalByChain'
 
 /**

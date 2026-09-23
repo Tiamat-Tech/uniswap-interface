@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { GetBidsByWalletRequest } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
+import { EVMUniverseChainId, Platform, AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { auctionQueries } from 'uniswap/src/data/apiClients/dataApiService/auctions/auctionQueries'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { isFinalizedTxStatus } from 'uniswap/src/features/transactions/types/utils'
 import { logger } from 'utilities/src/logger/logger'
@@ -91,11 +90,16 @@ export function useLoadUserBids({ auctionAddress, chainId }: UseLoadUserBidsPara
   const activeWalletAddress = useActiveAddress(Platform.EVM)
 
   // Normalize wallet address for consistency
-  const normalizedWalletId = activeWalletAddress?.toLowerCase()
+  const normalizedWalletId = activeWalletAddress
+    ? normalizeAddress(activeWalletAddress, AddressStringFormat.Lowercase)
+    : undefined
 
   // Generate composite key to detect wallet or auction changes
   const bidsKey = useMemo(
-    () => (normalizedWalletId && auctionAddress ? `${normalizedWalletId}::${auctionAddress.toLowerCase()}` : undefined),
+    () =>
+      normalizedWalletId && auctionAddress
+        ? `${normalizedWalletId}::${normalizeAddress(auctionAddress, AddressStringFormat.Lowercase)}`
+        : undefined,
     [normalizedWalletId, auctionAddress],
   )
 
@@ -124,7 +128,7 @@ export function useLoadUserBids({ auctionAddress, chainId }: UseLoadUserBidsPara
 
     return new GetBidsByWalletRequest({
       walletId: normalizedWalletId,
-      auctionAddress: auctionAddress.toLowerCase(),
+      auctionAddress: normalizeAddress(auctionAddress, AddressStringFormat.Lowercase),
       chainId,
     })
   }, [auctionAddress, chainId, normalizedWalletId])

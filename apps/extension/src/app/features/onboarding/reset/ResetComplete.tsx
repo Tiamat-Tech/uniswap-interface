@@ -1,11 +1,12 @@
+import { Flex, Text } from '@universe/mycelium'
+import { Check } from '@universe/mycelium/icons/Check'
+import { GraduationCap } from '@universe/mycelium/icons/GraduationCap'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { OpenSidebarButton } from 'src/app/components/buttons/OpenSidebarButton'
 import { useFinishExtensionOnboarding } from 'src/app/features/onboarding/hooks/useFinishExtensionOnboarding'
 import { useOpenSidebar } from 'src/app/features/onboarding/hooks/useOpenSidebar'
 import { terminateStoreSynchronization } from 'src/store/storeSynchronization'
-import { Flex, Text } from 'ui/src'
-import { Check, GraduationCap } from 'ui/src/components/icons'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 
 export function ResetComplete(): JSX.Element {

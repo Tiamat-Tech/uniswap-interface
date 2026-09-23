@@ -1,7 +1,8 @@
 import { isMobileWeb } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
 import { useAtom } from 'jotai'
 import { useEffect, useMemo } from 'react'
-import { Flex, RemoveScroll } from 'ui/src'
+import { RemoveScroll } from 'ui/src'
 import { zIndexes } from 'ui/src/theme'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { DefaultMenu } from '~/components/AccountDrawer/DefaultMenu'
@@ -31,6 +32,9 @@ function Drawer({ children }: { children: JSX.Element | JSX.Element[] }): JSX.El
       right="$spacing12"
       top={headerHeight}
       zIndex={zIndexes.sidebar}
+      // Closed, this container is empty but still 368px wide at z-index sidebar, so on narrow viewports it
+      // spans the page and swallows taps on whatever sits under the top strip (e.g. breadcrumb links).
+      pointerEvents={accountDrawer.isOpen ? 'auto' : 'none'}
     >
       <AdaptiveDropdown
         dropdownTestId={TestID.AccountDrawer}

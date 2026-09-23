@@ -1,3 +1,4 @@
+import { getValidAddress } from '@universe/chains'
 import { BigNumber, providers } from 'ethers'
 import { call, put, select } from 'typed-redux-saga'
 import { AccountType } from 'uniswap/src/features/accounts/types'
@@ -13,7 +14,6 @@ import {
   TransactionStatus,
 } from 'uniswap/src/features/transactions/types/transactionDetails'
 import i18n from 'uniswap/src/i18n'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { createTransactionId } from 'uniswap/src/utils/createTransactionId'
 import { logger } from 'utilities/src/logger/logger'
 import {

@@ -1,11 +1,10 @@
-import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import {
   OnchainItemListOptionType,
   type RwaTokenOption,
   type TokenOption,
 } from 'uniswap/src/components/lists/items/types'
-import { isStocksRowItem, key, shouldShowCategoryTag } from 'uniswap/src/components/TokenSelector/TokenSelectorList'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { isStocksRowItem, key } from 'uniswap/src/components/TokenSelector/TokenSelectorList'
 
 const rwaA: RwaTokenOption = {
   type: OnchainItemListOptionType.Rwa,
@@ -58,22 +57,6 @@ describe('TokenSelectorList helpers', () => {
 
     it('returns an empty string for an empty list option without throwing', () => {
       expect(key([])).toBe('')
-    })
-  })
-
-  describe('shouldShowCategoryTag', () => {
-    it('shows the tag for a classified RWA with no balance', () => {
-      expect(shouldShowCategoryTag({ rwaCategory: RwaCategory.STOCKS, hasBalance: false })).toBe(true)
-      expect(shouldShowCategoryTag({ rwaCategory: RwaCategory.ETFS, hasBalance: false })).toBe(true)
-    })
-
-    it('hides the tag when the user holds a balance (balance overrides)', () => {
-      expect(shouldShowCategoryTag({ rwaCategory: RwaCategory.STOCKS, hasBalance: true })).toBe(false)
-    })
-
-    it('hides the tag for a non-RWA / unspecified token', () => {
-      expect(shouldShowCategoryTag({ rwaCategory: undefined, hasBalance: false })).toBe(false)
-      expect(shouldShowCategoryTag({ rwaCategory: RwaCategory.UNSPECIFIED, hasBalance: false })).toBe(false)
     })
   })
 })

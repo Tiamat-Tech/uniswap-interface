@@ -1,5 +1,5 @@
 import { permit2Address } from '@uniswap/permit2-sdk'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { isPermit2, isUniswapXSwapRequest } from 'wallet/src/components/dappRequests/types/Permit2Types'
 
 const MAINNET_V2_DUTCH_REACTOR = '0x00000011F84B9aa48e5f8aA8B9897600006289Be'

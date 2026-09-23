@@ -1,8 +1,9 @@
+import { Platform } from '@universe/chains'
 import { isWebPlatform } from '@universe/environment'
+import { Flex, Switch, Text } from '@universe/mycelium'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Switch, Text } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import { InfoTooltip } from 'uniswap/src/components/tooltip/InfoTooltip'
 import { useActiveAccount } from 'uniswap/src/features/accounts/store/hooks'
 import {
@@ -17,7 +18,6 @@ import { useEarnMinDepositUsd, useEarnSwapToggleMonthlyEarningsThresholdUsd } fr
 import { EarnPositionStatus, useEarnPosition } from 'uniswap/src/features/earn/hooks/useEarnPosition'
 import { hasConfirmedEarnPositionRawBalance } from 'uniswap/src/features/earn/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useSwapEarnIntent } from 'uniswap/src/features/transactions/swap/hooks/useSwapEarnIntent'
 import {
   useSwapFormStore,

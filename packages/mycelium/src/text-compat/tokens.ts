@@ -6,7 +6,9 @@
  * computed-style harness in `labs/workbench/scripts/verify-text-parity.mts`
  * is the drift guard.
  */
+import type { OpaqueColorValue } from 'react-native'
 import { arbitrary } from '../compat/style-classes'
+import { resolveColorOrWarn, type TamaguiVariable } from '../compat/tokens'
 import { THEME_COLOR_TOKENS, type ThemeColorToken } from './theme-tokens.generated'
 
 export { lookupToken, RADIUS_TOKEN_PX, SPACE_TOKEN_PX } from '../compat/tokens'
@@ -30,19 +32,24 @@ const THEME_COLOR_TOKEN_SET: ReadonlySet<string> = new Set(THEME_COLOR_TOKENS)
  * `.dark` ancestor class), anything else passes through as raw CSS color.
  * Unknown `$` tokens throw instead of guessing.
  */
-export function colorCssExpression(value: string): string {
-  const name = value.startsWith('$') ? value.slice(1) : value
+export function colorCssExpression(value: string | TamaguiVariable | OpaqueColorValue): string {
+  // `resolveColorOrWarn` also covers a legacy `OpaqueColorValue` (INFRA-3804):
+  // this always compiles to a CSS expression on both platforms (no native
+  // style-object passthrough exists here), so a dropped value degrades to
+  // transparent instead of crashing — no real call site passes one today.
+  const resolved = resolveColorOrWarn(value) ?? 'transparent'
+  const name = resolved.startsWith('$') ? resolved.slice(1) : resolved
   if (THEME_COLOR_TOKEN_SET.has(name)) {
     return `var(--stext-${name})`
   }
-  if (value.startsWith('$')) {
-    throw new Error(`TextCompat: color token "${value}" has no pinned spore counterpart`)
+  if (resolved.startsWith('$')) {
+    throw new Error(`TextCompat: color token "${resolved}" has no pinned spore counterpart`)
   }
-  return value
+  return resolved
 }
 
 /** `[color:…]`-style arbitrary property for a theme token or raw color. */
-export function colorPropertyClass(cssProp: string, value: string): string {
+export function colorPropertyClass(cssProp: string, value: string | TamaguiVariable | OpaqueColorValue): string {
   return `[${cssProp}:${arbitrary(colorCssExpression(value))}]`
 }
 

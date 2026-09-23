@@ -1,6 +1,6 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex, type FlexCompatProps as FlexProps, type ModifierPressProps, TouchableArea } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Flex, type FlexProps, type ModifierPressProps, TouchableArea } from 'ui/src'
 import type { FocusedRowControl } from 'uniswap/src/components/lists/items/OptionItem'
 import { EXPANDABLE_ASSET_ISSUER_ROW_MIN_HEIGHT_PX } from 'uniswap/src/features/expandableAsset/expandableAssetLayout'
 import { KeyAction } from 'utilities/src/device/keyboard/types'
@@ -67,6 +67,12 @@ export function ExpandableSearchRow({
         onMouseLeave: (): void => setFocusedRowIndex(undefined),
       }
     : { hoverStyle: { backgroundColor: '$surface1Hovered' } }
+  // The expanded header takes no highlight — the `$surface2` shell already reads as distinct — so both highlight
+  // sources are dropped: `backgroundColor` on the keyboard-nav path, `hoverStyle` otherwise. The mouse handlers stay:
+  // they also own the list's focus index, so dropping them would drift arrow-key focus while the cursor rests here.
+  const expandedHeaderStyleProps: FlexProps = keyboardNavEnabled
+    ? { onMouseEnter: focusedStyleProps.onMouseEnter, onMouseLeave: focusedStyleProps.onMouseLeave }
+    : {}
   const toggleA11yProps = {
     accessibilityRole: 'button' as const,
     testID,
@@ -122,8 +128,15 @@ export function ExpandableSearchRow({
       >
         <TouchableArea pressStyle={{ scale: 1 }} onPress={onToggle} {...toggleA11yProps}>
           {/* Natural-height header (matches the collapsed row's content row) so the identity doesn't shift when
-              the panel reveals below it. `borderRadius` keeps the focus highlight rounded like the collapsed row. */}
-          <Flex row alignItems="center" gap="$spacing8" borderRadius="$rounded12" width="100%" {...focusedStyleProps}>
+              the panel reveals below it. Carries no hover/focus highlight — see `expandedHeaderStyleProps`. */}
+          <Flex
+            row
+            alignItems="center"
+            gap="$spacing8"
+            borderRadius="$rounded12"
+            width="100%"
+            {...expandedHeaderStyleProps}
+          >
             {header}
           </Flex>
         </TouchableArea>

@@ -23,7 +23,7 @@ const fakeChain = { id: 1 } as unknown as Chain
 
 /** Build a fake base Transport with a configurable `request` function. */
 function fakeBaseTransport(request: EIP1193RequestFn): Transport {
-  return ((_config) => ({
+  return ((_config: unknown) => ({
     request,
     config: { key: 'fake', name: 'fake', request, type: 'http' as const, retryCount: 0, timeout: 1_000 },
     value: undefined,
@@ -71,7 +71,9 @@ describe('createSessionGatedTransport', () => {
     let calls = 0
     const inner = vi.fn(async () => {
       calls++
-      if (calls === 1) throw unauthorizedError
+      if (calls === 1) {
+        throw unauthorizedError
+      }
       return 'ok'
     })
     const wrapped = createSessionGatedTransport({
@@ -98,7 +100,9 @@ describe('createSessionGatedTransport', () => {
     let calls = 0
     const inner = vi.fn(async () => {
       calls++
-      if (calls === 1) throw forbiddenError
+      if (calls === 1) {
+        throw forbiddenError
+      }
       return 'ok'
     })
     const wrapped = createSessionGatedTransport({

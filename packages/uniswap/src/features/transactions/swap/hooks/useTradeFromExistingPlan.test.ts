@@ -1,6 +1,6 @@
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { transformPlanResponseToChainedQuote } from 'uniswap/src/features/transactions/swap/hooks/useTradeFromExistingPlan'
 import { type ValidatedTradeInput } from 'uniswap/src/features/transactions/swap/services/tradeService/transformations/buildQuoteRequest'
 import { createChainedActionTrade } from 'uniswap/src/features/transactions/swap/types/trade'

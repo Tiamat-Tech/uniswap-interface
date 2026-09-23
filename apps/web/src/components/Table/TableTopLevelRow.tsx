@@ -1,6 +1,6 @@
 import { Row, RowData } from '@tanstack/react-table'
+import { Flex } from '@universe/mycelium'
 import { memo } from 'react'
-import { Flex } from 'ui/src'
 import type { RenderUnifiedExpandableRow } from '~/components/Table/types'
 
 export type TableTopLevelRowProps<T extends RowData> = {

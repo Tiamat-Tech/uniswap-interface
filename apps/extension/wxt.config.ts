@@ -73,7 +73,7 @@ const publicAssetsVariant = getPublicAssetsVariant()
 
 const BASE_NAME = 'Uniswap Extension'
 const BASE_DESCRIPTION = "The Uniswap Extension is a self-custody crypto wallet that's built for swapping."
-const BASE_VERSION = '1.80.0'
+const BASE_VERSION = '1.84.0'
 
 const BUILD_NUM = parseInt(process.env.BUILD_NUM || '0')
 const EXTENSION_VERSION = `${BASE_VERSION}.${BUILD_NUM}`
@@ -135,6 +135,31 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
 
   hooks: {
+    // Drop dev-only entrypoints from non-development builds. tailwindDevTest is the
+    // exit test proving Tailwind stylesheet delivery into the isolated-world
+    // content-script context; it must never ship in production output.
+    // This hook strips the entrypoint by WXT mode; validateBuildOutput.ts asserts
+    // the prod output as the backstop.
+    'entrypoints:found': (wxt, infos) => {
+      if (wxt.config.mode === 'development') {
+        return
+      }
+      // Keep in sync with DEV_ONLY_ENTRYPOINTS in scripts/validateBuildOutput.ts.
+      const devOnlyEntrypoints = ['tailwindDevTest']
+      for (const name of devOnlyEntrypoints) {
+        const index = infos.findIndex((info) => info.name === name)
+        if (index === -1) {
+          // WXT derives entrypoint names from directory names, so a rename would
+          // silently stop matching here and ship the dev entrypoint. Fail loudly.
+          throw new Error(
+            `entrypoints:found: dev-only entrypoint "${name}" not found in build. ` +
+              'If it was renamed or removed, update devOnlyEntrypoints in wxt.config.ts ' +
+              'and DEV_ONLY_ENTRYPOINTS in scripts/validateBuildOutput.ts.',
+          )
+        }
+        infos.splice(index, 1)
+      }
+    },
     // Hook for dynamic asset copying based on build variant.
     // All assets in `src/publicAssetsByEnv/<variant>` will be copied to `assets/<name>` at build time.
     'build:publicAssets': (_wxt, files) => {
@@ -350,6 +375,10 @@ export default defineConfig({
 
     // External package aliases from web config
     const overrides = {
+      // Package-exports subpaths that getTsconfigAliases() can't map (the tsconfig
+      // alias is a bare prefix with no exports resolution — same gotcha as
+      // src/app/tailwind.css). Must precede the spread below so they win the prefix match.
+      '@universe/mycelium/components': path.resolve(__dirname, '../../packages/mycelium/src/components/index.ts'),
       buffer: 'buffer',
       // External package aliases
       'react-native': 'react-native-web',
@@ -375,8 +404,16 @@ export default defineConfig({
       define: defines,
 
       resolve: {
-        extensions: ['.web.tsx', '.web.ts', '.web.js', '.tsx', '.ts', '.js'],
-        preserveSymlinks: true,
+        // .mjs before .js (matching Vite's defaults and apps/web): @rn-primitives/* barrels
+        // re-export through an extensionless path (`export * from './checkbox'`) and ship paired
+        // .web.mjs (ESM) / .web.js (CJS) legs — resolving the CJS leg drops the named exports.
+        extensions: ['.web.tsx', '.web.ts', '.web.mjs', '.web.js', '.tsx', '.ts', '.mjs', '.js'],
+        // Must stay false. With symlinks preserved, workspace packages resolve to their
+        // node_modules path, so Vite classifies them as deps and pre-bundles them into
+        // .vite/deps — a snapshot it never re-checks, making source edits invisible until
+        // the cache is wiped. Bites the exports-map packages (mycelium, @universe/tailwind),
+        // which getTsconfigAliases() deliberately leaves to node_modules resolution.
+        preserveSymlinks: false,
         modules: [path.resolve(__dirname, 'node_modules')],
         dedupe: [
           '@uniswap/sdk-core',
@@ -404,11 +441,17 @@ export default defineConfig({
           name: 'transform-react-native-jsx',
           async transform(code, id) {
             // Transform JSX in react-native libraries that ship JSX in .js files
-            const needsJsxTransform = ['node_modules/expo-blur', 'node_modules/react-native-reanimated'].some((path) =>
-              id.includes(path),
-            )
+            const needsJsxTransform = [
+              'node_modules/expo-blur',
+              'node_modules/react-native-reanimated',
+              'node_modules/@rn-primitives', // tsup dist ships raw JSX in .js/.mjs
+            ].some((path) => id.includes(path))
 
-            if (!needsJsxTransform || !id.endsWith('.js')) {
+            // Match on the path only: dev-server ids carry a query (`?v=<hash>`) that
+            // would otherwise defeat the extension check and leave the JSX untransformed.
+            const filePath = id.split('?')[0] ?? ''
+
+            if (!needsJsxTransform || !/\.(js|mjs)$/.test(filePath)) {
               return null
             }
 
@@ -426,15 +469,6 @@ export default defineConfig({
           // ignores tsconfig files in Nx generator template directories
           skip: (dir) => dir.includes('files'),
         }),
-        // TODO(INFRA-299): enable tamagui in production once building works
-        // !isPreparePhase && isProduction
-        //   ? tamaguiPlugin({
-        //       config: '../../packages/ui/src/tamagui.config.ts',
-        //       components: ['ui', 'uniswap', 'utilities'],
-        //       optimize: true,
-        //       importsWhitelist: ['constants.js'],
-        //     })
-        //   : undefined,
         svgr({
           svgrOptions: {
             icon: false,
@@ -512,8 +546,6 @@ export default defineConfig({
           'expo-blur',
           'expo-modules-core',
           'react-native-web',
-          'tamagui',
-          '@tamagui/web',
           'ui',
           '@uniswap/sdk-core',
           '@uniswap/v2-sdk',
@@ -538,14 +570,27 @@ export default defineConfig({
           'elliptic',
           'bn.js',
         ],
-        exclude: ['expo-clipboard', 'vite-plugin-node-polyfills'],
+        // @rn-primitives ships raw JSX in its `.mjs` dist. Rolldown's dep optimizer parses
+        // `.mjs` with JSX disabled and doesn't run the `transform-react-native-jsx` plugin,
+        // so prebundling them fails the whole optimize pass (blank UI pages in dev).
+        exclude: [
+          'expo-clipboard',
+          'vite-plugin-node-polyfills',
+          '@rn-primitives/portal',
+          '@rn-primitives/checkbox',
+          '@rn-primitives/slot',
+          '@rn-primitives/hooks',
+        ],
         esbuildOptions: {
           // Prefer .web.* extensions so react-native packages resolve to their web variants
           // (e.g. react-native-svg/ReactNativeSVG.web.js instead of ReactNativeSVG.js which
           // imports Fabric/codegen internals that don't exist on web).
-          resolveExtensions: ['.web.tsx', '.web.ts', '.web.js', '.tsx', '.ts', '.js'],
+          // .mjs before .js: @rn-primitives/* ship sibling .web.mjs (ESM) and .web.js (CJS) legs;
+          // resolving the CJS leg from their ESM entry drops all static named exports in the optimizer.
+          resolveExtensions: ['.web.tsx', '.web.ts', '.web.mjs', '.web.js', '.tsx', '.ts', '.mjs', '.js'],
           loader: {
             '.js': 'jsx',
+            '.mjs': 'jsx',
             '.ts': 'ts',
             '.tsx': 'tsx',
           },

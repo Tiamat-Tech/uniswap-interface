@@ -1,12 +1,10 @@
 /* Tailwind v4 + shared Universe design tokens for the extension UI pages. */
 /*
- * The explicit `.css` extension / full path is required here: WXT's getTsconfigAliases()
- * turns the `@universe/tailwind/*` tsconfig path into a hard Vite alias
- * (@universe/tailwind -> packages/tailwind) with no extension resolution or
- * package-exports mapping, so a bare "@universe/tailwind/tailwind" resolves to
- * an extensionless path and @tailwindcss/vite fails with ENOENT. The full path
- * resolves to the real file. (web/dev-portal use vite-tsconfig-paths, which
- * extension-resolves, so they import it without the suffix.)
+ * @universe/tailwind declares a package.json `exports` map, so WXT's
+ * getTsconfigAliases() skips aliasing it and Vite resolves it via node_modules
+ * + `exports`. Every specifier below must therefore be a declared export
+ * subpath ("./tailwind.css", "./fonts", "./fonts/*") — package-root file paths
+ * that bypass the map won't resolve.
  */
 /*
  * Import Tailwind without preflight: its base resets (e.g. `img, svg { display: block }`)
@@ -18,9 +16,24 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "@universe/tailwind/tailwind.css";
+/* Shared @source registration for @universe/mycelium (see tailwindSources.css). */
+@import "./tailwindSources.css";
+/*
+ * Mycelium compat side-car stylesheets: define the --stext- and --sbtn- custom
+ * properties and the keyframes that the safelist's compat classes and compat
+ * components dereference at runtime. The @source above only makes Tailwind EMIT
+ * those classes; without these definitions the emitted rules resolve to nothing
+ * and compat-styled text ships silently unstyled. Declared export subpaths —
+ * do NOT swap for @universe/mycelium/tailwind, whose @universe/tailwind/tailwind
+ * import cannot resolve here. Gated by scripts/checkCompatCss.ts and
+ * compat-emission.test.ts.
+ */
+@import "@universe/mycelium/text-compat.css";
+@import "@universe/mycelium/shimmer.css";
+@import "@universe/mycelium/button-compat.css";
 /* Licensed "Basel Grotesk" faces (weights 485/535) — the family the shared base
  * layer and font-basel utilities resolve to. */
-@import "@universe/tailwind/css/fonts.css";
+@import "@universe/tailwind/fonts";
 
 /*
  * Tamagui text (ui/src/theme/fonts.ts, web branch) requests family "Basel" at

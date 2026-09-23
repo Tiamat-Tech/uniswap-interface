@@ -3,6 +3,7 @@ import { useHomeScreenHeartbeatCoordinator } from 'src/screens/HomeScreen/portfo
 import { HomeTab } from 'src/screens/HomeScreen/portfolio/types'
 import { useHeartbeatCoordinator } from 'src/utils/useHeartbeatCoordinator'
 import { NFT_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/dataApiService/nfts/queries'
+import { WALLET_POSITIONS_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/liquidityService/queryKeys'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
 const mockQueryClientRefetchQueries = vi.fn().mockResolvedValue(undefined)
@@ -23,16 +24,16 @@ describe('useHomeScreenHeartbeatCoordinator', () => {
     mockQueryClientRefetchQueries.mockReset().mockResolvedValue(undefined)
   })
 
-  it('passes enabled through to the shared coordinator', () => {
-    renderHook(() => useHomeScreenHeartbeatCoordinator({ enabled: true, activeTab: HomeTab.Tokens }))
+  it('passes refresh callbacks through to the shared coordinator', () => {
+    renderHook(() => useHomeScreenHeartbeatCoordinator({ activeTab: HomeTab.Tokens }))
 
     expect(mockUseHeartbeatCoordinator).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: true, refresh: expect.any(Function), priceRefresh: expect.any(Function) }),
+      expect.objectContaining({ refresh: expect.any(Function), priceRefresh: expect.any(Function) }),
     )
   })
 
-  it('refetches balances, the Tokens tab list, and the portfolio chart, but not positions, on refresh when Tokens is active', async () => {
-    renderHook(() => useHomeScreenHeartbeatCoordinator({ enabled: true, activeTab: HomeTab.Tokens }))
+  it('refetches balances and the Tokens tab list, but not the chart or positions, on refresh when Tokens is active', async () => {
+    renderHook(() => useHomeScreenHeartbeatCoordinator({ activeTab: HomeTab.Tokens }))
 
     const { refresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
     await refresh()
@@ -43,41 +44,46 @@ describe('useHomeScreenHeartbeatCoordinator', () => {
     })
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
       queryKey: [ReactQueryCacheKey.GetPortfolio],
-      type: 'active',
-    })
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
-      queryKey: [ReactQueryCacheKey.GetPortfolioChart],
       type: 'active',
     })
     expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: [ReactQueryCacheKey.ListPositions] }),
+      expect.objectContaining({ queryKey: [ReactQueryCacheKey.GetPortfolioChart] }),
+    )
+    expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX }),
     )
   })
 
-  it('refetches the Tokens tab list on priceRefresh when Tokens is active', async () => {
-    renderHook(() => useHomeScreenHeartbeatCoordinator({ enabled: true, activeTab: HomeTab.Tokens }))
+  it('refetches only the Tokens tab list on priceRefresh when Tokens is active', async () => {
+    renderHook(() => useHomeScreenHeartbeatCoordinator({ activeTab: HomeTab.Tokens }))
 
     const { priceRefresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
-    await priceRefresh()
+    await priceRefresh?.()
 
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
-      queryKey: [ReactQueryCacheKey.GetWalletBalances],
-      type: 'active',
-    })
+    expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(1)
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
       queryKey: [ReactQueryCacheKey.GetPortfolio],
       type: 'active',
     })
   })
 
+  it('refetches nothing on priceRefresh when Tokens is not active', async () => {
+    renderHook(() => useHomeScreenHeartbeatCoordinator({ activeTab: HomeTab.Pools }))
+
+    const { priceRefresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
+    await priceRefresh?.()
+
+    expect(mockQueryClientRefetchQueries).not.toHaveBeenCalled()
+  })
+
   it('also refetches positions on refresh when Pools is active, but not the Tokens tab list', async () => {
-    renderHook(() => useHomeScreenHeartbeatCoordinator({ enabled: true, activeTab: HomeTab.Pools }))
+    renderHook(() => useHomeScreenHeartbeatCoordinator({ activeTab: HomeTab.Pools }))
 
     const { refresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
     await refresh()
 
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
-      queryKey: [ReactQueryCacheKey.ListPositions],
+      queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX,
       type: 'active',
     })
     expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(
@@ -85,38 +91,28 @@ describe('useHomeScreenHeartbeatCoordinator', () => {
     )
   })
 
-  it('only refetches balances on priceRefresh when Pools is active', async () => {
-    renderHook(() => useHomeScreenHeartbeatCoordinator({ enabled: true, activeTab: HomeTab.Pools }))
-
-    const { priceRefresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
-    await priceRefresh()
-
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(1)
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
-      queryKey: [ReactQueryCacheKey.GetWalletBalances],
-      type: 'active',
-    })
-  })
-
   it('refetches NFTs on refresh when NFTs is active, but not positions or the Tokens tab list', async () => {
-    renderHook(() => useHomeScreenHeartbeatCoordinator({ enabled: true, activeTab: HomeTab.NFTs }))
+    renderHook(() => useHomeScreenHeartbeatCoordinator({ activeTab: HomeTab.NFTs }))
 
     const { refresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
     await refresh()
 
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({ queryKey: NFT_QUERY_KEY_PREFIX, type: 'active' })
     expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: [ReactQueryCacheKey.ListPositions] }),
+      expect.objectContaining({ queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX }),
     )
     expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: [ReactQueryCacheKey.GetPortfolio] }),
     )
   })
 
-  it('does not refetch NFTs when a different tab is active', async () => {
-    renderHook(() => useHomeScreenHeartbeatCoordinator({ enabled: true, activeTab: HomeTab.Tokens }))
+  it('does not refetch NFTs on priceRefresh or while another tab is active', async () => {
+    renderHook(() => useHomeScreenHeartbeatCoordinator({ activeTab: HomeTab.NFTs }))
+    const { priceRefresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
+    await priceRefresh?.()
 
-    const { refresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
+    renderHook(() => useHomeScreenHeartbeatCoordinator({ activeTab: HomeTab.Tokens }))
+    const { refresh } = mockUseHeartbeatCoordinator.mock.calls[1]![0]
     await refresh()
 
     expect(mockQueryClientRefetchQueries).not.toHaveBeenCalledWith(

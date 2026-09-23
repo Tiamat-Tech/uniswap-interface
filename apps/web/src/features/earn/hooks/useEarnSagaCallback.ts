@@ -1,5 +1,6 @@
 import { type Currency } from '@uniswap/sdk-core'
 import type { ChainedQuoteResponse, TradingApi } from '@universe/api'
+import { Platform } from '@universe/chains'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
@@ -9,7 +10,6 @@ import {
   buildEarnSwapTxContext,
   EarnPlanPriceChangeError,
 } from 'uniswap/src/features/earn/planExecution'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { planActions } from 'uniswap/src/features/transactions/swap/plan/planSaga'
 import {
   type PlanFailureCallback,
@@ -31,6 +31,7 @@ import {
 } from '~/state/sagas/transactions/utils'
 
 export interface EarnCallbackParams {
+  attemptId: string
   earnIntent: TradingApi.EarnIntent
   inputCurrency: Currency
   outputCurrency: Currency
@@ -55,7 +56,7 @@ export function useEarnSagaCallback(): EarnSagaCallback {
 
   return useCallback(
     (params: EarnCallbackParams) => {
-      const { earnIntent, inputCurrency, outputCurrency, quote, onSuccess, onFailure } = params
+      const { attemptId, earnIntent, inputCurrency, outputCurrency, quote, onSuccess, onFailure } = params
 
       if (!evmAccount) {
         onFailure(new Error('No connected EVM account'))
@@ -75,7 +76,7 @@ export function useEarnSagaCallback(): EarnSagaCallback {
         return
       }
       const swapTxContext = buildEarnSwapTxContext(trade)
-      const analytics = buildEarnPlanAnalytics(trade)
+      const analytics = buildEarnPlanAnalytics(trade, attemptId)
       const activePlanState = activePlanStore.getState()
       const interruptedPlanId = activePlanState.activePlan?.planId
 

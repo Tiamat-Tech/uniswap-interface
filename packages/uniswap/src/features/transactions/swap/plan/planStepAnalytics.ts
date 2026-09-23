@@ -1,4 +1,4 @@
-import { InterfaceEventName, SwapEventName } from 'uniswap/src/features/telemetry/constants'
+import { InterfaceEventName, SwapEventName, WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
 import { TransactionAndPlanStep } from 'uniswap/src/features/transactions/swap/plan/planStepTransformer'
@@ -59,6 +59,40 @@ export function logPlanSwapStepFailed(params: {
     transactionOriginType: TransactionOriginType.Internal,
     ...(orderHash ? { order_hash: orderHash } : {}),
   })
+}
+
+export function logPlanSwapStepSubmitted(params: {
+  analyticsWithPlanStepContext: PlanSagaAnalytics
+  hash: string
+  chainId: number | undefined
+}): void {
+  const { analyticsWithPlanStepContext, hash, chainId } = params
+
+  if (!chainId) {
+    logger.error(new Error('Missing chainId for plan step submission analytics'), {
+      tags: { file: 'planStepAnalytics', function: 'logPlanSwapStepSubmitted' },
+      extra: {
+        planId: analyticsWithPlanStepContext.plan_id,
+        stepIndex: analyticsWithPlanStepContext.step_index,
+        hash,
+      },
+    })
+    return
+  }
+
+  try {
+    sendAnalyticsEvent(WalletEventName.SwapSubmitted, {
+      ...analyticsWithPlanStepContext,
+      transaction_hash: hash,
+      chain_id: chainId,
+    })
+  } catch (error) {
+    logger.warn('planStepAnalytics', 'logPlanSwapStepSubmitted', 'Failed to log provider submission analytics', {
+      error,
+      planId: analyticsWithPlanStepContext.plan_id,
+      stepIndex: analyticsWithPlanStepContext.step_index,
+    })
+  }
 }
 
 export function logUniswapXPlanOrderSubmitted(params: { analyticsWithPlanStepContext: PlanSagaAnalytics }): void {

@@ -1,4 +1,6 @@
+import { opacify } from '@universe/mycelium/theme-hooks-compat'
 import {
+  AreaSeries,
   createChart,
   type IChartApi,
   type ISeriesApi,
@@ -7,7 +9,6 @@ import {
   type MouseEventParams,
   type Time,
 } from 'lightweight-charts'
-import { opacify } from 'ui/src/theme'
 import { createClearingPriceChartOptions } from '~/features/Toucan/ToucanChart/clearingPrice/controller/chartOptions'
 import type { ClearingPriceChartControllerCreateParams } from '~/features/Toucan/ToucanChart/clearingPrice/types'
 
@@ -49,7 +50,7 @@ export function initClearingPriceChart(params: {
   )
 
   const lineColor = createParams.tokenColor || createParams.colors.accent1.val
-  const series = chart.addAreaSeries({
+  const series = chart.addSeries(AreaSeries, {
     priceScaleId: 'left',
     // Apply step line type immediately to prevent smooth curve on initial render
     lineType: LineType.WithSteps,
@@ -62,7 +63,7 @@ export function initClearingPriceChart(params: {
     crosshairMarkerRadius: 0,
   })
 
-  const preBidSeries = chart.addAreaSeries({
+  const preBidSeries = chart.addSeries(AreaSeries, {
     priceScaleId: 'left',
     lineType: LineType.WithSteps,
     lineWidth: 2,

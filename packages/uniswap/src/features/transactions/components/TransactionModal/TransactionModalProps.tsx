@@ -14,6 +14,7 @@ export type TransactionModalProps = PropsWithChildren<{
   walletNeedsRestore?: TransactionModalContextState['walletNeedsRestore']
   authTrigger?: TransactionModalContextState['authTrigger']
   passkeyAuthStatus?: TransactionModalContextState['passkeyAuthStatus']
+  tdpCurrency?: TransactionModalContextState['tdpCurrency']
   /**
    * When set (swap flow), wraps modal children so `useSwapFlowTimer()` works inside the
    * bottom-sheet portal. Must live inside `TransactionModal` — a provider above the sheet loses context.

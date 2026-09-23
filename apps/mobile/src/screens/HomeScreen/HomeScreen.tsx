@@ -1,9 +1,8 @@
 import { useStartProfiler } from '@shopify/react-native-performance'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { navigate } from 'src/app/navigation/rootNavigation'
-import { AppStackScreenProp } from 'src/app/navigation/types'
+import type { TabsScreenProp } from 'src/app/navigation/types'
 import { useTokenDetailsNavigation } from 'src/components/TokenDetails/hooks'
 import { useBiometricAppSettings } from 'src/features/biometrics/useBiometricAppSettings'
 import { useBiometricPrompt } from 'src/features/biometricsSettings/hooks'
@@ -36,10 +35,6 @@ function HomeScreen({
   const dispatch = useDispatch()
   const { requiredForTransactions: requiresBiometrics } = useBiometricAppSettings()
   const { trigger } = useBiometricPrompt()
-  // The Home heartbeat coordinator only takes over the Tokens tab list refreshing when this
-  // flag is on — otherwise the list must keep its own poll running, or it would never refresh.
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-
   const tokenDetailsNavigation = useTokenDetailsNavigation()
   const startProfilerTimer = useStartProfiler()
 
@@ -86,7 +81,8 @@ function HomeScreen({
   return (
     <HomeScreenPortfolioScrollProvider>
       <TokenBalanceListContextProvider
-        disablePolling={isDataLivelinessEnabled}
+        // The Home heartbeat coordinator refreshes the list on its own tick (30s while the Tokens tab is active).
+        disablePolling
         isExternalProfile={false}
         evmOwner={activeAccount.address}
         onPressToken={onPressToken}
@@ -101,7 +97,7 @@ function HomeScreen({
  * Adding `key` forces a full re-render and re-mount when switching accounts
  * to avoid issues with wrong cached data being shown in some memoized components that are already mounted.
  */
-export function WrappedHomeScreen(_props: AppStackScreenProp<MobileScreens.Home>): JSX.Element {
+export function WrappedHomeScreen(_props: TabsScreenProp<MobileScreens.Home>): JSX.Element {
   const activeAccount = useActiveAccountWithThrow()
 
   const [isLayoutReady, setIsLayoutReady] = useState(false)

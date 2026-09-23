@@ -1,6 +1,7 @@
+import { Flex, zIndexes, UniversalImage, UniversalImageResizeMode } from '@universe/mycelium'
+import { useColorSchemeFromSeed, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useState } from 'react'
-import { Flex, Loader, UniversalImage, UniversalImageResizeMode, useColorSchemeFromSeed, useSporeColors } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
+import { Loader } from 'ui/src'
 import { getBadgeBorderRadius } from 'uniswap/src/components/CurrencyLogo/badgeSizeUtils'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 

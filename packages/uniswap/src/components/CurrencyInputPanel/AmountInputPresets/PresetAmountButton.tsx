@@ -2,7 +2,7 @@ import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import JSBI from 'jsbi'
 import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, TouchableAreaEvent } from 'ui/src'
+import { Button } from 'ui/src'
 import { ButtonProps } from 'ui/src/components/buttons/Button/types'
 import type {
   PresetPercentage,
@@ -18,6 +18,8 @@ import { TransactionType } from 'uniswap/src/features/transactions/types/transac
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { CurrencyField } from 'uniswap/src/types/currency'
 import { useEvent } from 'utilities/src/react/hooks'
+
+type ButtonPressEvent = Parameters<NonNullable<ButtonProps['onPress']>>[0]
 
 /**
  * Returns the currency amount for the specified percentage of the passed in raw value.
@@ -106,7 +108,7 @@ export function PresetAmountButton({
   const presetValueAmountRef = useRef(presetValueAmount)
   presetValueAmountRef.current = presetValueAmount
 
-  const onPress = useEvent((event: TouchableAreaEvent): void => {
+  const onPress = useEvent((event: ButtonPressEvent): void => {
     event.stopPropagation()
 
     if (presetValueAmountRef.current) {
@@ -117,7 +119,7 @@ export function PresetAmountButton({
     }
   })
 
-  const onDisabledPress = useEvent((event: TouchableAreaEvent): void => {
+  const onDisabledPress = useEvent((event: ButtonPressEvent): void => {
     event.stopPropagation()
     if (isNativeAsset) {
       setIsShowingMaxNativeBalanceModal(true)
@@ -161,8 +163,8 @@ const PresetButtonContent = memo(function PresetButtonContentInner({
 }: {
   percentage: PresetPercentage
   disabled: boolean
-  onPress: (event: TouchableAreaEvent) => void
-  onDisabledPress: (event: TouchableAreaEvent) => void
+  onPress: NonNullable<ButtonProps['onPress']>
+  onDisabledPress: NonNullable<ButtonProps['onDisabledPress']>
   currencyField: CurrencyField
   isShowingMaxNativeBalanceModal: boolean
   isNativeAsset: boolean

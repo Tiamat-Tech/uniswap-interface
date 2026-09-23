@@ -1,17 +1,30 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { OnchainItemListOptionType } from 'uniswap/src/components/lists/items/types'
-import type { ListRwasAssetSource } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
+import type { IssuerToken, ListRwasAssetSource, Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
 import {
   buildRwaCollectionOption,
   buildRwaFromListRwasAsset,
   buildRwaSearchIndex,
   findRwaForToken,
   getRwaCollectionKey,
+  aggregateRwaCollectionStats,
+  getRwaCollectionSearchStats,
 } from 'uniswap/src/features/search/SearchModal/stocks/rwaSearchGrouping'
 import { logger } from 'utilities/src/logger/logger'
 
 const MAINNET = 1
 const BNB = 56
+
+const ISSUER_BASE: IssuerToken = {
+  symbol: 'TSLAX',
+  name: 'Tesla',
+  logoUrl: '',
+  issuer: 'xstocks',
+  priceUsd: 0,
+  volume24hUsd: 0,
+  sparkline1d: { points: [] },
+  chainTokens: [{ chainId: MAINNET, address: '0xCCccCCccCCccCCccCCccCCccCCccCCccCCccCCcc' }],
+}
 
 const TSLA: ListRwasAssetSource = {
   symbol: 'TSLA',
@@ -180,5 +193,74 @@ describe('buildRwaFromListRwasAsset empty issuer (commodity)', () => {
         tags: { file: 'resolveRwaIssuerDisplay.ts', function: 'resolveRwaIssuerDisplay' },
       }),
     )
+  })
+})
+
+describe('aggregateRwaCollectionStats', () => {
+  it('takes price + change from the lowest-priced entry, ignoring entries without a price', () => {
+    expect(
+      aggregateRwaCollectionStats([
+        { pricePercentChange1d: 9 },
+        { priceUsd: 250, pricePercentChange1d: 1 },
+        { priceUsd: 248.42, pricePercentChange1d: -2 },
+      ]),
+    ).toEqual({ priceUsd: 248.42, pricePercentChange1d: -2 })
+  })
+
+  it('sums 1d volume across entries, ignoring entries without one', () => {
+    expect(
+      aggregateRwaCollectionStats([{ priceUsd: 250, volume1dUsd: 100 }, { priceUsd: 248.42 }, { volume1dUsd: 50 }]),
+    ).toEqual({ priceUsd: 248.42, volume1dUsd: 150 })
+  })
+
+  it('is undefined when no entry carries a price or volume', () => {
+    expect(aggregateRwaCollectionStats([{ pricePercentChange1d: 9 }])).toBeUndefined()
+    expect(aggregateRwaCollectionStats([])).toBeUndefined()
+  })
+
+  it('treats zero price and zero volume as missing, so they never win the floor or pad the sum', () => {
+    expect(
+      aggregateRwaCollectionStats([
+        { priceUsd: 0, pricePercentChange1d: 0, volume1dUsd: 0 },
+        { priceUsd: 248.42, pricePercentChange1d: -2, volume1dUsd: 50 },
+      ]),
+    ).toEqual({ priceUsd: 248.42, pricePercentChange1d: -2, volume1dUsd: 50 })
+    expect(aggregateRwaCollectionStats([{ priceUsd: 0, volume1dUsd: 0 }])).toBeUndefined()
+  })
+})
+
+describe('getRwaCollectionSearchStats', () => {
+  it('uses the lowest issuer price + that issuer’s 24h change, and the summed volume, on a ranked Rwa', () => {
+    const rwa: Rwa = {
+      symbol: 'TSLA',
+      name: 'Tesla',
+      logoUrl: '',
+      priceUsd: 249,
+      volume24hUsd: 0,
+      sparkline1d: { points: [] },
+      issuerTokens: [
+        { ...ISSUER_BASE, issuer: 'xstocks', priceUsd: 250, priceChange24hPct: 1.2, volume24hUsd: 100 },
+        { ...ISSUER_BASE, issuer: 'ondo', priceUsd: 248.42, priceChange24hPct: -0.5, volume24hUsd: 50 },
+      ],
+    }
+    expect(getRwaCollectionSearchStats(rwa)).toEqual({
+      priceUsd: 248.42,
+      pricePercentChange1d: -0.5,
+      volume1dUsd: 150,
+    })
+  })
+
+  it('is undefined for a ListRwas-built Rwa (zeroed prices)', () => {
+    const { rwas } = buildRwaSearchIndex([TSLA])
+    expect(getRwaCollectionSearchStats(rwas[0]!)).toBeUndefined()
+  })
+
+  it('threads searchStats onto the built collection option', () => {
+    const { rwas } = buildRwaSearchIndex([TSLA])
+    const searchStats = { priceUsd: 1 }
+    expect(buildRwaCollectionOption({ rwa: rwas[0]!, showCategoryTag: true, searchStats }).searchStats).toBe(
+      searchStats,
+    )
+    expect(buildRwaCollectionOption({ rwa: rwas[0]!, showCategoryTag: true })).not.toHaveProperty('searchStats')
   })
 })

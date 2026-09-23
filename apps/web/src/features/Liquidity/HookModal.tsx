@@ -1,11 +1,13 @@
+import { Button, Flex, Separator, Text, TouchableArea } from '@universe/mycelium'
+import { CheckboxCompat as Checkbox } from '@universe/mycelium/checkbox-compat'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { ContractInteraction } from '@universe/mycelium/icons/ContractInteraction'
+import { DocumentList } from '@universe/mycelium/icons/DocumentList'
+import { Page } from '@universe/mycelium/icons/Page'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Checkbox, Flex, HeightAnimator, Separator, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { ContractInteraction } from 'ui/src/components/icons/ContractInteraction'
-import { DocumentList } from 'ui/src/components/icons/DocumentList'
-import { Page } from 'ui/src/components/icons/Page'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
 import { GetHelpHeader } from 'uniswap/src/components/dialog/GetHelpHeader'
 import { Modal } from 'uniswap/src/components/modals/Modal'
@@ -214,7 +216,7 @@ export function HookModal({
                 size="small"
                 variant="branded"
                 onPress={handleContinue}
-                data-testid={TestID.HookModalContinueButton}
+                testID={TestID.HookModalContinueButton}
               >
                 {t('common.button.continue')}
               </Button>

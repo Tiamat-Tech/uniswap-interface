@@ -1,6 +1,6 @@
+import { Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
 import { ReviewButton } from 'src/app/features/send/SendFormScreen/ReviewButton'
-import { Flex } from 'ui/src'
 import { WarningLabel } from 'uniswap/src/components/modals/WarningModal/types'
 import { PermissionedTokenTooltip } from 'uniswap/src/features/permissionedTokens/PermissionedTokenTooltip'
 import { BlockedAddressWarning } from 'uniswap/src/features/transactions/modals/BlockedAddressWarning'

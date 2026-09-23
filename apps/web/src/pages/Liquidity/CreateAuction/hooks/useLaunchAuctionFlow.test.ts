@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { AuctionEventName } from 'uniswap/src/features/telemetry/constants'
 import type { TransactionStep } from 'uniswap/src/features/transactions/steps/types'
 import {
@@ -11,11 +11,15 @@ import type { ValidatedTransactionRequest } from 'uniswap/src/features/transacti
 import type { EVMAccountDetails } from 'uniswap/src/features/wallet/types/AccountDetails'
 import { logger } from 'utilities/src/logger/logger'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { POPUP_MEDIUM_DISMISS_MS } from '~/components/Popups/constants'
 import { LaunchProgressStep } from '~/pages/Liquidity/CreateAuction/components/LaunchAuctionProgressIndicator'
 import type { CreateAuctionSubmitResult } from '~/pages/Liquidity/CreateAuction/hooks/useCreateAuctionSubmit'
 import { useLaunchAuctionFlow } from '~/pages/Liquidity/CreateAuction/hooks/useLaunchAuctionFlow'
+import { popupRegistry } from '~/state/popups/registry'
+import { PopupType } from '~/state/popups/types'
 
 const WALLET = '0xF570F45f598fD48AF83FABD692629a2caFe899ec'
+const AUCTION_ADDRESS = '0x1111111111111111111111111111111111111111'
 
 // The params the saga-dispatch hook is called with, captured so tests can drive the
 // setCurrentStep / onSuccess / onFailure callbacks the way the saga would.
@@ -43,6 +47,10 @@ vi.mock('react-router', async (importOriginal) => ({
 vi.mock('react-i18next', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-i18next')>()),
   useTranslation: () => ({ t: (key: string) => key }),
+}))
+
+vi.mock('~/state/popups/registry', () => ({
+  popupRegistry: { addPopup: vi.fn() },
 }))
 
 const mockIsSigner = vi.fn((..._args: unknown[]) => true)
@@ -98,7 +106,7 @@ function submitResult(transactions: ValidatedTransactionRequest[]): CreateAuctio
   return {
     transactions,
     predictedTokenAddress: '0xToken',
-    predictedAuctionAddress: '0xAuction',
+    predictedAuctionAddress: AUCTION_ADDRESS,
     atomicallyBundleable: false,
     requestId: 'req-1',
   }
@@ -108,7 +116,7 @@ function setup(
   launchSubmitOverride: Partial<{ onLaunch: () => Promise<CreateAuctionSubmitResult | undefined>; error?: Error }> = {},
   tokenMetadata: Partial<Pick<AuctionLaunchTransactionInfo, 'tokenName' | 'tokenSymbol' | 'tokenLogoUrl'>> = {},
   extra: Partial<
-    Pick<Parameters<typeof useLaunchAuctionFlow>[0], 'getCreateFailedProperties' | 'getFailedDiagnostics'>
+    Pick<Parameters<typeof useLaunchAuctionFlow>[0], 'chainId' | 'getCreateFailedProperties' | 'getFailedDiagnostics'>
   > = {},
 ) {
   const onLaunch = vi.fn<() => Promise<CreateAuctionSubmitResult | undefined>>().mockResolvedValue(undefined)
@@ -130,6 +138,8 @@ beforeEach(() => {
   lastSubmit = undefined
   mockSubmitLaunchTransactions.mockClear()
   mockNavigate.mockClear()
+  vi.mocked(popupRegistry.addPopup).mockClear()
+  vi.mocked(logger.warn).mockClear()
   mockIsSigner.mockReturnValue(true)
   mockDidUserReject.mockReturnValue(false)
   mockSendAnalyticsEvent.mockClear()
@@ -371,18 +381,81 @@ describe('useLaunchAuctionFlow', () => {
 
     act(() => lastSubmit?.onSuccess('0xlaunch'))
 
-    expect(result.current.launchSuccess).toEqual({ hash: '0xlaunch', auctionAddress: '0xAuction' })
+    expect(result.current.launchSuccess).toEqual({ hash: '0xlaunch', auctionAddress: AUCTION_ADDRESS })
     expect(result.current.isSuccessModalOpen).toBe(true)
     expect(result.current.isReviewModalVisible).toBe(false)
 
     act(() => result.current.handleViewAuction())
-    expect(mockNavigate).toHaveBeenCalledWith('/explore/auctions/ethereum/0xAuction')
+    expect(mockNavigate).toHaveBeenCalledWith(`/explore/auctions/ethereum/${AUCTION_ADDRESS}`)
 
     // The launch is already confirmed, so dismissing the modal also goes straight to the auction.
     mockNavigate.mockClear()
     act(() => result.current.handleCloseSuccessModal())
     expect(result.current.isSuccessModalOpen).toBe(false)
-    expect(mockNavigate).toHaveBeenCalledWith('/explore/auctions/ethereum/0xAuction')
+    expect(mockNavigate).toHaveBeenCalledWith(`/explore/auctions/ethereum/${AUCTION_ADDRESS}`)
+    expect(logger.warn).not.toHaveBeenCalled()
+    expect(popupRegistry.addPopup).not.toHaveBeenCalled()
+  })
+
+  it('shows an error without navigating when the auction chain is unsupported', async () => {
+    const { result } = setup(
+      { onLaunch: vi.fn().mockResolvedValue(submitResult([tx()])) },
+      {},
+      { chainId: 0 as UniverseChainId },
+    )
+
+    await openAndPrepare(result)
+    await act(async () => {
+      await result.current.handleLaunchToken()
+    })
+    act(() => lastSubmit?.onSuccess('0xlaunch'))
+    act(() => result.current.handleViewAuction())
+
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(logger.warn).toHaveBeenCalledWith(
+      'useNavigateToAuctionDetails',
+      'navigateToAuctionDetails',
+      expect.any(String),
+      {
+        chainId: 0,
+        auctionAddress: AUCTION_ADDRESS,
+      },
+    )
+    expect(popupRegistry.addPopup).toHaveBeenCalledWith(
+      { type: PopupType.Error, error: 'notification.auction.open.failed' },
+      'auction-navigation-error',
+      POPUP_MEDIUM_DISMISS_MS,
+    )
+  })
+
+  it('shows an error without navigating when the auction address is invalid', async () => {
+    const auctionAddress = '0xAuction'
+    const { result } = setup({
+      onLaunch: vi.fn().mockResolvedValue({ ...submitResult([tx()]), predictedAuctionAddress: auctionAddress }),
+    })
+
+    await openAndPrepare(result)
+    await act(async () => {
+      await result.current.handleLaunchToken()
+    })
+    act(() => lastSubmit?.onSuccess('0xlaunch'))
+    act(() => result.current.handleViewAuction())
+
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(logger.warn).toHaveBeenCalledWith(
+      'useNavigateToAuctionDetails',
+      'navigateToAuctionDetails',
+      expect.any(String),
+      {
+        chainId: UniverseChainId.Mainnet,
+        auctionAddress,
+      },
+    )
+    expect(popupRegistry.addPopup).toHaveBeenCalledWith(
+      { type: PopupType.Error, error: 'notification.auction.open.failed' },
+      'auction-navigation-error',
+      POPUP_MEDIUM_DISMISS_MS,
+    )
   })
 
   it('defers navigation when the launch is still pending on dismiss, then redirects once it confirms', async () => {
@@ -404,7 +477,7 @@ describe('useLaunchAuctionFlow', () => {
     // Once the launch confirms, the watcher redirects to the auction details page.
     mockUseTransaction.mockReturnValue({ status: TransactionStatus.Success })
     rerender()
-    expect(mockNavigate).toHaveBeenCalledWith('/explore/auctions/ethereum/0xAuction')
+    expect(mockNavigate).toHaveBeenCalledWith(`/explore/auctions/ethereum/${AUCTION_ADDRESS}`)
   })
 
   describe('launchTxHash (explorer link)', () => {
@@ -465,7 +538,7 @@ describe('useLaunchAuctionFlow', () => {
     })
   })
 
-  it('maps the active transaction to the correct progress step by reference (existing-token path)', async () => {
+  it('maps the active transaction to the correct progress step by reference or content (existing-token path)', async () => {
     const approveTx = tx({ to: '0xtoken' })
     const launchTx = tx({ to: '0xlauncher' })
     const { result } = setup({ onLaunch: vi.fn().mockResolvedValue(submitResult([approveTx, launchTx])) })
@@ -493,6 +566,16 @@ describe('useLaunchAuctionFlow', () => {
     )
     expect(result.current.currentProgressStepIndex).toBe(1)
     expect(result.current.currentStepPending).toBe(true)
+
+    // The saga submits a copy with gas-service params merged in, so reference equality fails —
+    // the index must still resolve via the content (to + data) match.
+    act(() =>
+      lastSubmit?.setCurrentStep({
+        step: { txRequest: { ...launchTx, gasLimit: '500000' } } as unknown as TransactionStep,
+        accepted: true,
+      }),
+    )
+    expect(result.current.currentProgressStepIndex).toBe(1)
   })
 
   it('surfaces the submit hook error through the error modal until dismissed', () => {

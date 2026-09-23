@@ -27,7 +27,8 @@ export function useLineChartPrice(currentSpot?: SharedValue<number>): ValueAndFo
       return undefined
     }
     return data[Math.min(currentIndex.value, data.length - 1)]?.value
-  })
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- isActive and currentIndex are Reanimated shared values tracked automatically
+  }, [data])
 
   useAnimatedReaction(
     () => {
@@ -50,7 +51,8 @@ export function useLineChartPrice(currentSpot?: SharedValue<number>): ValueAndFo
     shouldAnimate.value = true
     // show spot price when chart not scrubbing, or if not available, show the last price in the chart
     return currentSpot?.value ?? data[data.length - 1]?.value ?? 0
-  })
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- activeCursorPrice, shouldAnimate, and currentSpot are Reanimated shared values tracked automatically
+  }, [data])
   const priceFormatted = useDerivedValue(() => {
     const { symbol, code } = currencyInfo
     return numberToLocaleStringWorklet({
@@ -101,7 +103,8 @@ export function useLineChartRelativeChange(): ValueAndFormatted {
     const change = ((closePrice - openPrice) / openPrice) * 100
 
     return change
-  })
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- isActive and currentIndex are Reanimated shared values tracked automatically
+  }, [data])
 
   const relativeChangeFormatted = useDerivedValue(() => {
     return numberToPercentWorklet(relativeChange.value, { precision: 2, absolute: true })

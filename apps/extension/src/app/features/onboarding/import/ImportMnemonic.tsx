@@ -1,4 +1,8 @@
 import { wordlists } from '@ethersproject/wordlists'
+import { Button, Flex, fonts, iconSizes, Input, inputStyles, Text } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { FileListLock } from '@universe/mycelium/icons/FileListLock'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -13,9 +17,6 @@ import { useOnboardingSteps } from 'src/app/features/onboarding/OnboardingSteps'
 import { SyncFromPhoneButton } from 'src/app/features/onboarding/SyncFromPhoneButton'
 import { TopLevelRoutes } from 'src/app/navigation/constants'
 import { navigate } from 'src/app/navigation/state'
-import { Button, Flex, HeightAnimator, Input, inputStyles, Square, Text } from 'ui/src'
-import { FileListLock, RotatableChevron } from 'ui/src/components/icons'
-import { fonts, iconSizes } from 'ui/src/theme'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { ExtensionOnboardingFlow, ExtensionOnboardingScreens } from 'uniswap/src/types/screens/extension'
 import { useDebounce } from 'utilities/src/time/timing'
@@ -183,14 +184,15 @@ export function ImportMnemonic(): JSX.Element {
       <Flex gap="$spacing16">
         <OnboardingScreen
           Icon={
-            <Square
+            <Flex
+              centered
               backgroundColor="$surface2"
               borderRadius="$rounded12"
               height={iconSizes.icon48}
               width={iconSizes.icon48}
             >
               <FileListLock color="$neutral1" size="$icon.24" />
-            </Square>
+            </Flex>
           }
           belowFrameContent={
             isResetting ? (

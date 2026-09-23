@@ -1,14 +1,15 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { styled, type StyledComponent } from '@universe/mycelium/styled'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, TouchableArea } from 'ui/src'
 
-export const NewBadge = styled(Text, {
-  variant: 'body4',
-  color: '$accent1',
-  backgroundColor: '$accent2',
-  px: '$spacing6',
-  py: '$spacing2',
-  borderRadius: '$rounded8',
+const NEW_BADGE_VARIANTS = {} as const
+
+// Empty variants table + explicit annotation: the inferred styled() type isn't
+// portable under declaration emit (TS2883). Typography = the legacy `variant: 'body4'` preset, inlined.
+export const NewBadge: StyledComponent<typeof Text, typeof NEW_BADGE_VARIANTS> = styled(Text, {
+  variants: NEW_BADGE_VARIANTS,
+  base: '[font-family:var(--stext-font-book)] text-[12px] [line-height:16px] [font-weight:485] [color:var(--stext-accent1)] px-[6px] py-[2px] [background-color:var(--stext-accent2)] rounded-[8px]',
 })
 
 /** Shelf section header: title (plus optional badge/adornment) on the left, "View all" on the right. */

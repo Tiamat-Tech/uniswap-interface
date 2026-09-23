@@ -1,7 +1,7 @@
 import { FieldFunctionOptions, InMemoryCache } from '@apollo/client'
 import { Reference, relayStylePagination, StoreObject } from '@apollo/client/utilities'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { isTestEnv } from '@universe/environment'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
 
 export function setupSharedApolloCache(): InMemoryCache {
   return new InMemoryCache({

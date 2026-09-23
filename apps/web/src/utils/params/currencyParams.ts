@@ -1,6 +1,5 @@
+import { type Platform, getValidAddress } from '@universe/chains'
 import type { ParsedQs } from 'qs'
-import type { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 
 /** Validates and normalizes a currency address (or ETH / native sentinel) from a query param. */

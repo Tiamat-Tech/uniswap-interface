@@ -1,4 +1,5 @@
 import { isWebApp } from '@universe/environment'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import {
   ForwardedRef,
   forwardRef,
@@ -9,7 +10,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { AdaptiveWebPopoverContent, Popover, RemoveScroll, useMedia } from 'ui/src'
+import { AdaptiveWebPopoverContent, Popover, RemoveScroll } from 'ui/src'
 import { ContextMenuHandle, ContextMenuProps } from 'uniswap/src/components/menus/ContextMenu'
 import { MENU_CONTENT_SHEET_CONTAINER_STYLES, MenuContent } from 'uniswap/src/components/menus/ContextMenuContent'
 import { useContextMenuTracking } from 'uniswap/src/components/menus/hooks/useContextMenuTracking'

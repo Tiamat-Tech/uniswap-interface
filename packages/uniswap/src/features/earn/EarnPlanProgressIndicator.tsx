@@ -1,6 +1,5 @@
 import { TradingApi } from '@universe/api'
 import { useMemo } from 'react'
-import type { AppTFunction } from 'ui/src/i18n/types'
 import { ProgressIndicator } from 'uniswap/src/components/ConfirmSwapModal/ProgressIndicator'
 import { isEarnPlanStepType } from 'uniswap/src/components/ConfirmSwapModal/steps/EarnPlanStepRowStatus'
 import { TransactionStepType, type TransactionStep } from 'uniswap/src/features/transactions/steps/types'
@@ -10,6 +9,7 @@ import {
   activePlanStore,
   type ActivePlanData,
 } from 'uniswap/src/features/transactions/swap/review/stores/activePlan/activePlanStore'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 import { useStore } from 'zustand'
 
 export interface EarnPlanProgressState {

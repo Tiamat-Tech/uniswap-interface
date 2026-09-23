@@ -1,7 +1,8 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { runSaga, stdChannel } from 'redux-saga'
 import { UNI, USDC_MAINNET, WBTC } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import { HandledTransactionInterrupt } from 'uniswap/src/features/transactions/errors'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
 import type { FetchAndTransformPlanResult } from 'uniswap/src/features/transactions/swap/plan/planSagaUtils'
@@ -36,7 +37,13 @@ const EARN_INTENT: TradingApi.EarnQuoteIntent = {
 let initializePlanResult: InitializePlanResult
 let watchPlanStepResult: WatchPlanStepResult
 let watchPlanStepError: Error | undefined
+let watchPlanStepShouldWait = false
+let releaseWatchPlanStep: () => void = () => {}
 
+const { mockRetryWithBackoff, mockSendAnalyticsEvent } = vi.hoisted(() => ({
+  mockRetryWithBackoff: vi.fn(({ fn }: { fn: () => Promise<unknown> }) => fn()),
+  mockSendAnalyticsEvent: vi.fn(),
+}))
 const mockResetActivePlan = vi.fn()
 const mockMarkPlanPriceChangeInterrupted = vi.fn()
 const mockIsPlanBackgrounded = vi.fn().mockReturnValue(false)
@@ -54,6 +61,10 @@ const mockWatchPlanStep = vi.fn()
 const mockUpdateExistingPlan = vi.fn().mockResolvedValue(undefined)
 
 // ── Module mocks ────────────────────────────────────────────────────────
+vi.mock('uniswap/src/features/telemetry/send', () => ({
+  sendAnalyticsEvent: mockSendAnalyticsEvent,
+}))
+
 vi.mock('uniswap/src/features/transactions/swap/plan/planSagaUtils', async (importOriginal) => {
   const actual: Record<string, unknown> = await importOriginal()
   return {
@@ -82,9 +93,13 @@ vi.mock('uniswap/src/features/transactions/swap/plan/planSagaUtils', async (impo
 })
 
 vi.mock('uniswap/src/features/transactions/swap/plan/watchPlanStepSaga', () => ({
-  // oxlint-disable-next-line require-yield -- saga mock — runSaga requires generator functions
   watchPlanStep: vi.fn().mockImplementation(function* (params) {
     mockWatchPlanStep(params)
+    if (watchPlanStepShouldWait) {
+      yield new Promise<void>((resolve) => {
+        releaseWatchPlanStep = resolve
+      })
+    }
     if (watchPlanStepError) {
       throw watchPlanStepError
     }
@@ -92,18 +107,17 @@ vi.mock('uniswap/src/features/transactions/swap/plan/watchPlanStepSaga', () => (
   }),
 }))
 
-vi.mock('uniswap/src/features/transactions/swap/plan/planStepAnalytics', () => ({
-  TRADE_STEP_TYPES: new Set<TransactionStepType>([
-    TransactionStepType.SwapTransaction,
-    TransactionStepType.SwapTransactionWalletCall,
-    TransactionStepType.UniswapXPlanSignature,
-  ]),
-  logPlanStepTradeAnalytics: (...args: unknown[]): unknown => mockLogPlanStepTradeAnalytics(...args),
-  logUniswapXPlanOrderSubmitted: (...args: unknown[]): unknown => mockLogUniswapXPlanOrderSubmitted(...args),
-}))
+vi.mock('uniswap/src/features/transactions/swap/plan/planStepAnalytics', async (importOriginal) => {
+  const actual: Record<string, unknown> = await importOriginal()
+  return {
+    ...actual,
+    logPlanStepTradeAnalytics: (...args: unknown[]): unknown => mockLogPlanStepTradeAnalytics(...args),
+    logUniswapXPlanOrderSubmitted: (...args: unknown[]): unknown => mockLogUniswapXPlanOrderSubmitted(...args),
+  }
+})
 
 vi.mock('utilities/src/async/retryWithBackoff', () => ({
-  retryWithBackoff: vi.fn().mockImplementation(({ fn }) => fn()),
+  retryWithBackoff: mockRetryWithBackoff,
   BackoffStrategy: { None: 'none' },
 }))
 
@@ -521,6 +535,234 @@ describe('plan saga — price change interrupts', () => {
       expect(mockLockPlanForExecution).toHaveBeenCalledWith('test-plan')
       expect(mockUnlockPlanExecution).toHaveBeenCalledWith('test-plan')
       expect(onFailure).toHaveBeenCalled()
+    })
+  })
+
+  describe('provider submission analytics', () => {
+    it('records the transaction hash and plan context before persisting the proof', async () => {
+      const originalTrade = createChainedTrade(OUTPUT_AMOUNT, EARN_INTENT)
+      const { params } = createPlanParams(originalTrade)
+      params['analytics'] = {
+        earn_action: TradingApi.EarnAction.DEPOSIT,
+        earn_vault_address: EARN_VAULT_ADDRESS,
+      }
+      const step = createTransactionAndPlanStep({
+        tokenInChainId: TradingApi.ChainId._8453,
+      })
+
+      initializePlanResult = {
+        planId: 'test-plan',
+        response: createPlanResponse(OUTPUT_AMOUNT, [step], { earnIntent: EARN_INTENT }),
+        wasPlanResumed: false,
+        steps: [step],
+        currentStepIndex: 0,
+        currentStep: step,
+        inputChainId: UniverseChainId.Mainnet,
+      }
+
+      await runPlanSaga(params)
+
+      expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(
+        WalletEventName.SwapSubmitted,
+        expect.objectContaining({
+          transaction_hash: '0xhash',
+          plan_id: 'test-plan',
+          step_index: 0,
+          is_final_step: true,
+          chain_id: UniverseChainId.Base,
+          earn_action: TradingApi.EarnAction.DEPOSIT,
+          earn_vault_address: EARN_VAULT_ADDRESS,
+        }),
+      )
+      expect(mockSendAnalyticsEvent.mock.invocationCallOrder[0]!).toBeLessThan(
+        mockUpdateExistingPlan.mock.invocationCallOrder[0]!,
+      )
+    })
+
+    it('keeps the provider-submission event when proof persistence fails', async () => {
+      const originalTrade = createChainedTrade(OUTPUT_AMOUNT, EARN_INTENT)
+      const { params, onFailure } = createPlanParams(originalTrade)
+      const step = createTransactionAndPlanStep()
+      mockUpdateExistingPlan.mockRejectedValueOnce(new Error('proof patch failed'))
+
+      initializePlanResult = {
+        planId: 'test-plan',
+        response: createPlanResponse(OUTPUT_AMOUNT, [step], { earnIntent: EARN_INTENT }),
+        wasPlanResumed: false,
+        steps: [step],
+        currentStepIndex: 0,
+        currentStep: step,
+        inputChainId: UniverseChainId.Mainnet,
+      }
+
+      await runPlanSaga(params)
+
+      expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(
+        WalletEventName.SwapSubmitted,
+        expect.objectContaining({
+          transaction_hash: '0xhash',
+          plan_id: 'test-plan',
+          step_index: 0,
+        }),
+      )
+      expect(onFailure).toHaveBeenCalledWith(undefined, undefined, { willFinalize: true })
+    })
+
+    it('records provider submission once while proof persistence retries', async () => {
+      const originalTrade = createChainedTrade(OUTPUT_AMOUNT, EARN_INTENT)
+      const { params } = createPlanParams(originalTrade)
+      const step = createTransactionAndPlanStep()
+      mockUpdateExistingPlan
+        .mockRejectedValueOnce(new Error('proof patch failed once'))
+        .mockRejectedValueOnce(new Error('proof patch failed twice'))
+        .mockResolvedValueOnce(undefined)
+      mockRetryWithBackoff.mockImplementationOnce(async ({ fn }: { fn: () => Promise<unknown> }) => {
+        let lastError: unknown
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            return await fn()
+          } catch (error) {
+            lastError = error
+          }
+        }
+        throw lastError
+      })
+
+      initializePlanResult = {
+        planId: 'test-plan',
+        response: createPlanResponse(OUTPUT_AMOUNT, [step], { earnIntent: EARN_INTENT }),
+        wasPlanResumed: false,
+        steps: [step],
+        currentStepIndex: 0,
+        currentStep: step,
+        inputChainId: UniverseChainId.Mainnet,
+      }
+
+      await runPlanSaga(params)
+
+      expect(mockUpdateExistingPlan).toHaveBeenCalledTimes(3)
+      expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
+      expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(
+        WalletEventName.SwapSubmitted,
+        expect.objectContaining({ transaction_hash: '0xhash', plan_id: 'test-plan' }),
+      )
+    })
+
+    it('persists the proof when provider-submission analytics fails', async () => {
+      const originalTrade = createChainedTrade(OUTPUT_AMOUNT, EARN_INTENT)
+      const { params } = createPlanParams(originalTrade)
+      const step = createTransactionAndPlanStep()
+      mockSendAnalyticsEvent.mockImplementationOnce(() => {
+        throw new Error('analytics unavailable')
+      })
+
+      initializePlanResult = {
+        planId: 'test-plan',
+        response: createPlanResponse(OUTPUT_AMOUNT, [step], { earnIntent: EARN_INTENT }),
+        wasPlanResumed: false,
+        steps: [step],
+        currentStepIndex: 0,
+        currentStep: step,
+        inputChainId: UniverseChainId.Mainnet,
+      }
+
+      await runPlanSaga(params)
+
+      expect(mockUpdateExistingPlan).toHaveBeenCalledWith({
+        planId: 'test-plan',
+        steps: [{ stepIndex: 0, proof: { txHash: '0xhash', signature: undefined } }],
+      })
+    })
+
+    it('records wallet-call transaction hashes but excludes approval hashes', async () => {
+      const originalTrade = createChainedTrade(OUTPUT_AMOUNT, EARN_INTENT)
+      const walletCallParams = createPlanParams(originalTrade).params
+      const walletCallStep = {
+        ...createTransactionAndPlanStep(),
+        type: TransactionStepType.SwapTransactionWalletCall,
+      } as TransactionAndPlanStep
+
+      initializePlanResult = {
+        planId: 'test-plan',
+        response: createPlanResponse(OUTPUT_AMOUNT, [walletCallStep], { earnIntent: EARN_INTENT }),
+        wasPlanResumed: false,
+        steps: [walletCallStep],
+        currentStepIndex: 0,
+        currentStep: walletCallStep,
+        inputChainId: UniverseChainId.Mainnet,
+      }
+
+      await runPlanSaga(walletCallParams)
+
+      expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(
+        WalletEventName.SwapSubmitted,
+        expect.objectContaining({
+          transaction_hash: '0xhash',
+          step_type: TransactionStepType.SwapTransactionWalletCall,
+        }),
+      )
+
+      mockSendAnalyticsEvent.mockClear()
+      mockUpdateExistingPlan.mockRejectedValueOnce(new Error('stop after approval'))
+      const approvalParams = createPlanParams(originalTrade).params
+      const approvalStep = {
+        ...createTransactionAndPlanStep(),
+        type: TransactionStepType.TokenApprovalTransaction,
+      } as TransactionAndPlanStep
+      initializePlanResult = {
+        planId: 'test-plan',
+        response: createPlanResponse(OUTPUT_AMOUNT, [approvalStep], { earnIntent: EARN_INTENT }),
+        wasPlanResumed: false,
+        steps: [approvalStep],
+        currentStepIndex: 0,
+        currentStep: approvalStep,
+        inputChainId: UniverseChainId.Mainnet,
+      }
+
+      await runPlanSaga(approvalParams)
+
+      expect(mockSendAnalyticsEvent).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('MARGIN_* plan step types', () => {
+    it('does not throw computing routing for a MARGIN_* step and completes normally', async () => {
+      const originalTrade = createChainedTrade(OUTPUT_AMOUNT)
+      const { params, onSuccess, onFailure } = createPlanParams(originalTrade)
+
+      const step = createTransactionAndPlanStep({ stepType: TradingApi.PlanStepType.MARGIN_OPEN })
+
+      initializePlanResult = {
+        planId: 'test-plan',
+        response: createPlanResponse(OUTPUT_AMOUNT, [
+          createMockPlanStep({ stepType: TradingApi.PlanStepType.MARGIN_OPEN }),
+        ]),
+        wasPlanResumed: false,
+        steps: [step],
+        currentStepIndex: 0,
+        currentStep: step,
+        inputChainId: UniverseChainId.Mainnet,
+      }
+
+      watchPlanStepResult = {
+        steps: [
+          createTransactionAndPlanStep({
+            stepType: TradingApi.PlanStepType.MARGIN_OPEN,
+            status: TradingApi.PlanStepStatus.COMPLETE,
+          }),
+        ],
+        planResponse: createPlanResponse(OUTPUT_AMOUNT, [
+          createMockPlanStep({
+            stepType: TradingApi.PlanStepType.MARGIN_OPEN,
+            status: TradingApi.PlanStepStatus.COMPLETE,
+          }),
+        ]),
+      }
+
+      await runPlanSaga(params)
+
+      expect(onSuccess).toHaveBeenCalled()
+      expect(onFailure).not.toHaveBeenCalled()
     })
   })
 
@@ -1006,6 +1248,59 @@ describe('plan saga — price change interrupts', () => {
           stepStatus: TradingApi.PlanStepStatus.COMPLETE,
         }),
       )
+    })
+
+    it('returns before last-step polling finishes so the serial worker can accept another plan', async () => {
+      const originalTrade = createChainedTrade(OUTPUT_AMOUNT)
+      const { params, onPlanFinalized, onSuccess } = createPlanParams(originalTrade)
+      const actionableSwapStep = createTransactionAndPlanStep({
+        stepIndex: 0,
+        status: TradingApi.PlanStepStatus.AWAITING_ACTION,
+      })
+      const completedSwapStep = createTransactionAndPlanStep({
+        stepIndex: 0,
+        status: TradingApi.PlanStepStatus.COMPLETE,
+      })
+
+      initializePlanResult = {
+        planId: 'test-plan',
+        response: createPlanResponse(OUTPUT_AMOUNT, [actionableSwapStep]),
+        wasPlanResumed: false,
+        steps: [actionableSwapStep],
+        currentStepIndex: 0,
+        currentStep: actionableSwapStep,
+        inputChainId: UniverseChainId.Mainnet,
+      }
+      watchPlanStepResult = {
+        steps: [completedSwapStep],
+        planResponse: createPlanResponse(OUTPUT_AMOUNT, [completedSwapStep]),
+      }
+      // Mirror production: after backgroundPlan runs, the root saga's finally block does not
+      // emit a duplicate finalization callback.
+      mockIsPlanBackgrounded.mockImplementation((planId: unknown) =>
+        mockBackgroundPlan.mock.calls.some(([backgroundedId]) => backgroundedId === planId),
+      )
+      watchPlanStepShouldWait = true
+
+      try {
+        await runPlanSaga(params)
+
+        expect(onSuccess).toHaveBeenCalled()
+        expect(onPlanFinalized).not.toHaveBeenCalled()
+
+        releaseWatchPlanStep()
+        await new Promise((resolve) => setTimeout(resolve, 0))
+
+        expect(onPlanFinalized).toHaveBeenCalledWith(
+          expect.objectContaining({
+            planId: 'test-plan',
+            status: TransactionStatus.Success,
+            stepStatus: TradingApi.PlanStepStatus.COMPLETE,
+          }),
+        )
+      } finally {
+        watchPlanStepShouldWait = false
+      }
     })
 
     it('keeps the plan Pending (not Failed) when last-step polling exhausts before confirmation', async () => {

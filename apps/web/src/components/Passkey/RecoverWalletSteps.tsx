@@ -1,10 +1,10 @@
 import { BackupMethodSummary, IconBox } from '@universe/embedded-wallet'
+import { Button, Flex, ModalCloseIcon, Text, TouchableArea } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { Person } from '@universe/mycelium/icons/Person'
+import { Shield } from '@universe/mycelium/icons/Shield'
+import { WalletFilled } from '@universe/mycelium/icons/WalletFilled'
 import type { TFunction } from 'i18next'
-import { Anchor, Button, Flex, ModalCloseIcon, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { Person } from 'ui/src/components/icons/Person'
-import { Shield } from 'ui/src/components/icons/Shield'
-import { WalletFilled } from 'ui/src/components/icons/WalletFilled'
 import { AddressDisplay } from 'uniswap/src/components/accounts/AddressDisplay'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -38,7 +38,7 @@ export function AddPasskeyStep({
   return (
     <Trace logImpression modal={ModalName.RecoverWallet}>
       <Flex height={28} />
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         {isRotation && walletAddress ? (
           // Give AddressDisplay a definite full width so the wallet name + unitag icon stay on one
           // line (a shrink-to-content parent collapses to the name word and wraps the icon below).
@@ -126,7 +126,7 @@ export function RotationIntroStep({
       <Flex width="100%" alignItems="flex-end">
         <ModalCloseIcon size="$icon.20" onClose={handleClose} />
       </Flex>
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         <IconBox>
           <Shield size="$icon.24" color="$neutral1" />
         </IconBox>
@@ -137,11 +137,17 @@ export function RotationIntroStep({
           <Text variant="body2" textAlign="center" color="$neutral2">
             {t('account.passkey.recovery.updatePasscode.description')}
           </Text>
-          <Anchor href={UniswapHelpUrls.articles.passkeysInfo} target="_blank" textDecorationLine="none">
+          <Text
+            tag="a"
+            href={UniswapHelpUrls.articles.passkeysInfo}
+            target="_blank"
+            rel="noopener noreferrer"
+            textDecorationLine="none"
+          >
             <Text variant="buttonLabel3" color="$neutral1">
               {t('account.passkey.reconnect.learnMore')}
             </Text>
-          </Anchor>
+          </Text>
         </Flex>
       </Flex>
 
@@ -192,7 +198,7 @@ export function RotationExpiredStep({
       <Flex width="100%" alignItems="flex-end">
         <ModalCloseIcon size="$icon.20" onClose={handleClose} />
       </Flex>
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         <IconBox background="$statusWarning2">
           <AlertTriangleFilled size="$icon.24" color="$statusWarning" />
         </IconBox>

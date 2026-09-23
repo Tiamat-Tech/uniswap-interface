@@ -1,6 +1,6 @@
+import { Platform } from '@universe/chains'
 import { HexString } from '@universe/encoding'
 import { AccountType } from 'uniswap/src/features/accounts/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import type { WalletService } from 'uniswap/src/features/wallet/services/IWalletService'
 import { WalletMeta } from 'uniswap/src/features/wallet/types/WalletMeta'
 import { logger } from 'utilities/src/logger/logger'

@@ -1,5 +1,5 @@
-import { Flex, ModalCloseIcon, Text, TouchableArea } from 'ui/src'
-import { BackArrow } from 'ui/src/components/icons/BackArrow'
+import { Flex, ModalCloseIcon, Text, TouchableArea } from '@universe/mycelium'
+import { BackArrow } from '@universe/mycelium/icons/BackArrow'
 
 interface EarnAmountViewHeaderProps {
   title: string

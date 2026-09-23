@@ -1,7 +1,7 @@
 import { ListRankedRwasResponse, RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { mapRankedRwa, mapRankedRwaList } from 'uniswap/src/data/apiClients/dataApiService/rwa/mapRankedRwa'
 import { makeRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/rankedRwaTestHelpers'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 describe('mapRankedRwa', () => {
   it('maps ranked RWA fields and issuer chain tokens', () => {

@@ -1,9 +1,9 @@
+import { Flex, TouchableArea } from '@universe/mycelium'
+import { spacing } from '@universe/mycelium/tokens'
 import { memo, useCallback, type ReactNode } from 'react'
 import type { ViewStyle } from 'react-native'
 import { TabLabel, TAB_STYLES } from 'src/components/layout/TabHelpers'
 import type { HomeRoute } from 'src/screens/HomeScreen/portfolio/types'
-import { Flex, TouchableArea } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 
 interface HomeScreenPortfolioStickyTabBarProps {
   routes: HomeRoute[]
@@ -24,7 +24,7 @@ export const HomeScreenPortfolioStickyTabBar = memo(function HomeScreenPortfolio
       row
       alignItems="center"
       backgroundColor="$surface1"
-      borderBottomColor="$surface3"
+      borderColor="$surface3"
       borderBottomWidth={1}
       px="$spacing12"
       style={TAB_STYLES.tabBar as ViewStyle}

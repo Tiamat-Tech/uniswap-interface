@@ -1,4 +1,5 @@
 import { ChainId } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useCallback, useRef, useState } from 'react'
 import { useSubmitBidMutation } from 'uniswap/src/data/apiClients/dataApiService/auctions/useSubmitBidMutation'
 import { logger } from 'utilities/src/logger/logger'
@@ -122,7 +123,7 @@ export function useBidSimulation({
         maxPrice: preparedBid.info.maxPriceQ96,
         amount: preparedBid.info.amountRaw,
         walletAddress: accountAddress,
-        auctionContractAddress: auctionContractAddress.toLowerCase(),
+        auctionContractAddress: normalizeAddress(auctionContractAddress, AddressStringFormat.Lowercase),
         chainId: chainId as ChainId,
         // TODO | Toucan -- determine why this is returning error with true set
         simulateTransaction: false,

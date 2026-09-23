@@ -66,6 +66,41 @@ describe('createFetchClient session-id header', () => {
   })
 })
 
+describe('createFetchClient abort propagation', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  // The Blockaid scan timeout gate classifies a failure as `timeout` (permanent, acknowledgement-gated)
+  // only when the rejection surfaces as an AbortError (name preserved). The client must propagate an
+  // aborted fetch unwrapped: re-wrapping it as a FetchError would silently downgrade every scan timeout
+  // to an ungated transient caution, reopening the attacker-inducible-timeout bypass.
+  it('propagates an aborted fetch as an AbortError, not a wrapped FetchError', async () => {
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      return new Promise((_resolve, reject) => {
+        const abort = (): void => reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' }))
+        if (init?.signal?.aborted) {
+          abort()
+          return
+        }
+        init?.signal?.addEventListener('abort', abort)
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const client = createFetchClient({
+      baseUrl: 'https://example.com',
+      getSessionService: (): SessionService => ({ getSessionState: async () => null }) as unknown as SessionService,
+    })
+
+    const controller = new AbortController()
+    const pending = client.post('/scan', { body: '{}', signal: controller.signal })
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+})
+
 describe('createFetchClient onResponse', () => {
   afterEach(() => {
     vi.unstubAllGlobals()

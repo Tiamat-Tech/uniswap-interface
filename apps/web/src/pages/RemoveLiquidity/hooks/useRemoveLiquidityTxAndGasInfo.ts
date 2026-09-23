@@ -13,10 +13,13 @@ import { getIsPermissioned } from 'uniswap/src/features/positions/utils'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { useTransactionSettingsStore } from 'uniswap/src/features/transactions/components/settings/stores/transactionSettingsStore/useTransactionSettingsStore'
+import { useLogLiquidityTxError } from 'uniswap/src/features/transactions/liquidity/useLogLiquidityTxError'
 import { getErrorMessageToDisplay, parseErrorMessageTitle } from 'uniswap/src/features/transactions/liquidity/utils'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import { logger } from 'utilities/src/logger/logger'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
+import { LP_GAS_URGENCY } from '~/features/Liquidity/constants'
 import { getTokenOrZeroAddress } from '~/features/Liquidity/utils/currency'
 import { getProtocols } from '~/features/Liquidity/utils/protocolVersion'
 import { useRemoveLiquidityModalContext } from '~/pages/RemoveLiquidity/RemoveLiquidityModalContext'
@@ -43,11 +46,11 @@ function buildCheckApprovalLPRequest({
         chainId: positionInfo.liquidityToken?.chainId,
         lpTokens: [
           new LPToken({
-            tokenAddress: positionInfo.currency0Amount.currency.wrapped.address,
+            tokenAddress: getWrappedTokenIfExists(positionInfo.currency0Amount.currency)?.address,
             amount: '0', // the amounts here don't matter since the approval is based on the positionToken
           }),
           new LPToken({
-            tokenAddress: positionInfo.currency1Amount.currency.wrapped.address,
+            tokenAddress: getWrappedTokenIfExists(positionInfo.currency1Amount.currency)?.address,
             amount: '0',
           }),
         ],
@@ -95,19 +98,24 @@ export function useRemoveLiquidityTxAndGasInfo({ account }: { account?: string }
     positionTokenAddress: positionInfo?.liquidityToken?.address,
   })
 
-  if (approvalError) {
-    logger.info(
-      'RemoveLiquidityTxAndGasInfo',
-      'RemoveLiquidityTxAndGasInfo',
-      parseErrorMessageTitle(approvalError, {
-        defaultTitle: 'unkown CheckLpApprovalQuery',
-      }),
-      {
-        error: JSON.stringify(approvalError),
-        v2LpTokenApprovalQueryParams: JSON.stringify(approvalQueryParams),
-      },
-    )
-  }
+  const approvalErrorMessage = approvalError
+    ? parseErrorMessageTitle(approvalError, { defaultTitle: 'unknown CheckLpApprovalQuery' })
+    : undefined
+
+  useEffect(() => {
+    if (!approvalErrorMessage) {
+      return
+    }
+
+    logger.info('RemoveLiquidityTxAndGasInfo', 'RemoveLiquidityTxAndGasInfo', approvalErrorMessage, {
+      error: JSON.stringify(approvalError),
+      v2LpTokenApprovalQueryParams: JSON.stringify(approvalQueryParams),
+    })
+    // Keyed on the parsed message alone, as in `useLogLiquidityTxError`: the error object and the
+    // query params are rebuilt on every render, so depending on them would restore the per-render
+    // logging — and both `JSON.stringify` calls — that this replaces.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- dedupe is keyed on the message only
+  }, [approvalErrorMessage])
 
   const v2ApprovalGasFeeUSD =
     useUSDCurrencyAmountOfGasFee(
@@ -173,26 +181,24 @@ export function useRemoveLiquidityTxAndGasInfo({ account }: { account?: string }
     setTransactionError(getErrorMessageToDisplay({ approvalError, calldataError }))
   }, [calldataError, decreaseCalldataQueryParams, approvalError])
 
-  if (calldataError) {
-    const message = parseErrorMessageTitle(calldataError, {
-      defaultTitle: 'DecreaseLpPositionCalldataQuery',
-    })
-    logger.error(message, {
-      tags: {
-        file: 'RemoveLiquidityTxAndGasInfo',
-        function: 'useEffect',
-      },
-    })
-    sendAnalyticsEvent(InterfaceEventName.DecreaseLiquidityFailed, {
-      message,
-      // oxlint-disable-next-line typescript/no-misused-spread -- biome-parity: oxlint is stricter here
-      ...decreaseCalldataQueryParams,
-    })
-  }
+  useLogLiquidityTxError({
+    error: calldataError,
+    defaultTitle: 'DecreaseLpPositionCalldataQuery',
+    file: 'RemoveLiquidityTxAndGasInfo',
+    functionName: 'liquidityQueries.decreasePosition',
+    onError: (message) => {
+      sendAnalyticsEvent(InterfaceEventName.DecreaseLiquidityFailed, {
+        message,
+        // oxlint-disable-next-line typescript/no-misused-spread -- biome-parity: oxlint is stricter here
+        ...decreaseCalldataQueryParams,
+      })
+    },
+  })
 
   const { displayValue: estimatedGasFee } = useTransactionGasFee({
     tx: decreaseCalldata?.decrease,
     skip: !!decreaseCalldata?.gasFee,
+    urgency: LP_GAS_URGENCY,
   })
   const decreaseGasFeeUsd =
     useUSDCurrencyAmountOfGasFee(

@@ -1,6 +1,6 @@
-import { pickPrimaryChainToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/pickPrimaryChainToken'
+import type { UniverseChainId } from '@universe/chains'
+import { pickDisplayChainToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/pickPrimaryChainToken'
 import type { ChainToken, IssuerToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
 
 export type ResolvedPrimaryChain = {
@@ -11,11 +11,13 @@ export type ResolvedPrimaryChain = {
 export function resolvePrimaryChain({
   issuer,
   enabledChainIds,
+  chainFilter,
 }: {
   issuer: IssuerToken
   enabledChainIds: readonly UniverseChainId[]
+  chainFilter?: UniverseChainId
 }): ResolvedPrimaryChain | undefined {
-  const chainToken = pickPrimaryChainToken(issuer.chainTokens, enabledChainIds)
+  const chainToken = pickDisplayChainToken({ chainTokens: issuer.chainTokens, enabledChainIds, chainFilter })
   const chainId = chainToken && toSupportedChainId(chainToken.chainId)
   return chainToken && chainId ? { chainToken, chainId } : undefined
 }

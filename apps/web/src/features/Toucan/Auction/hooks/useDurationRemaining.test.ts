@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDurationRemaining } from '~/features/Toucan/Auction/hooks/useDurationRemaining'
 import { renderHook } from '~/test-utils/render'

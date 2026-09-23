@@ -1,5 +1,9 @@
-import { OnchainItemListOptionType, SearchModalOption } from 'uniswap/src/components/lists/items/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import {
+  OnchainItemListOptionType,
+  SearchModalListOption,
+  SearchModalOption,
+} from 'uniswap/src/components/lists/items/types'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
 import { getRwaCollectionKey } from 'uniswap/src/features/search/SearchModal/stocks/rwaSearchGrouping'
 import { isAddressTokenSearchQuery } from 'uniswap/src/features/search/utils'
@@ -37,6 +41,18 @@ export function toggleKeyInList(list: string[], itemKey: string): string[] {
   return list.includes(itemKey) ? list.filter((existing) => existing !== itemKey) : [...list, itemKey]
 }
 
+/** Only the recents section emits an array row, so one stable key suffices. */
+export const RECENT_SEARCH_PILL_ROW_KEY = 'recent-search-pill-row'
+
+/**
+ * Row key for the search modal list. The pill row's key is stable rather than derived from its members: a member
+ * key would remount the row (resetting its scroll offset) on every history write, while the changed members already
+ * re-render it through props.
+ */
+export function searchModalListOptionKey(item: SearchModalListOption): string {
+  return Array.isArray(item) ? RECENT_SEARCH_PILL_ROW_KEY : searchModalOptionKey(item)
+}
+
 // oxlint-disable-next-line typescript/consistent-return
 export function searchModalOptionKey(item: SearchModalOption): string {
   switch (item.type) {
@@ -46,10 +62,19 @@ export function searchModalOptionKey(item: SearchModalOption): string {
       return `token-${item.currencyInfo.currency.chainId}-${item.currencyInfo.currencyId}`
     case OnchainItemListOptionType.EarnVault:
       return `earn-vault-${item.vault.id}`
-    case OnchainItemListOptionType.MultichainToken:
-      return `multichain-${item.multichainResult.id}`
+    case OnchainItemListOptionType.MultichainToken: {
+      // History dedupes on id + tdpChainFilter, so the same token can recur filtered and unfiltered.
+      const chainSuffix = item.tdpChainFilter != null ? `-${item.tdpChainFilter}` : ''
+      const multichainId = item.multichainResult.id
+      if (multichainId.trim()) {
+        return `multichain-${multichainId}${chainSuffix}`
+      }
+      return `multichain-fallback-${item.primaryCurrencyInfo.currency.chainId}-${item.primaryCurrencyInfo.currencyId}${chainSuffix}`
+    }
     case OnchainItemListOptionType.RwaCollection:
       return getRwaCollectionKey({ rwa: item.rwa })
+    case OnchainItemListOptionType.Category:
+      return `category-${item.category.id}`
     case OnchainItemListOptionType.WalletByAddress:
       return `wallet-${item.address}`
     case OnchainItemListOptionType.ENSAddress:

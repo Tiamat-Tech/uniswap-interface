@@ -1,4 +1,4 @@
-import { Text, TouchableArea } from 'ui/src'
+import { Text, TouchableArea } from '@universe/mycelium'
 
 interface PercentButtonProps {
   label: string

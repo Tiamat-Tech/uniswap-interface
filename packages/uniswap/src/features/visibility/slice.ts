@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import { getUniquePositionId } from 'uniswap/src/features/visibility/utils'
 import { type CurrencyId } from 'uniswap/src/types/currency'
 

@@ -39,7 +39,7 @@ vi.mock('~/state/hooks', () => ({
   useAppSelector: vi.fn(),
 }))
 
-vi.mock('ui/src/components/icons/IcloudPasswordLogo', () => ({
+vi.mock('@universe/mycelium/icons/IcloudPasswordLogo', () => ({
   IcloudPasswordLogo: () => <span data-testid="icloud-password-logo" />,
 }))
 
@@ -239,6 +239,33 @@ describe('PasskeyMenu', () => {
         }),
       }),
     )
+  })
+
+  it('renders the overflow popover content with the legacy 4px padding', async () => {
+    vi.mocked(useEmbeddedWalletState).mockReturnValue({
+      walletId: 'test-wallet-id',
+    } as ReturnType<typeof useEmbeddedWalletState>)
+    setupLoadedMock()
+
+    render(<PasskeyMenu onClose={vi.fn()} />)
+    await screen.findByText('iCloud')
+
+    const overflowButtons = screen.getAllByTestId(TestID.DeletePasskey)
+    fireEvent.click(overflowButtons[0])
+    await screen.findByText('Remove')
+
+    // Guards the p-vs-padding frame-default coupling: the compat popup frame's
+    // own Tamagui-parity default is 8px keyed as `p`, and a call-site override
+    // only replaces it under the SAME key — a `padding` longhand silently loses
+    // the class merge and ships 8px (caught by human QA on the INFRA-3115
+    // before/after evidence; see the comment in OverflowMenu.tsx). If this
+    // fails with p-[8px] present, the call site's padding key stopped
+    // colliding with the frame default.
+    const popup = document.querySelector('[data-slot="adaptive-popover-popup"]')
+    expect(popup).not.toBeNull()
+    const popupClass = popup?.getAttribute('class') ?? ''
+    expect(popupClass).toContain('p-[4px]')
+    expect(popupClass).not.toContain('p-[8px]')
   })
 
   it('shows recovery method with correct label and identifier', async () => {

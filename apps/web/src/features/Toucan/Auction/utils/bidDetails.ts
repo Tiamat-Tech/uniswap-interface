@@ -1,6 +1,6 @@
 import { toSubscript } from 'utilities/src/format/toSubscript'
 import { formatUnits } from '~/chains'
-import { AuctionBidStatus, AuctionProgressState, UserBid } from '~/features/Toucan/Auction/store/types'
+import { AuctionBidStatus, AuctionOutcome, UserBid } from '~/features/Toucan/Auction/store/types'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Unified Bid State System
@@ -11,7 +11,8 @@ import { AuctionBidStatus, AuctionProgressState, UserBid } from '~/features/Touc
 // - AuctionBidStatus.Submitted → active bid (inRange/outOfRange/complete)
 // - AuctionBidStatus.Claimed   → 'withdrawn' (user withdrew their tokens)
 // - AuctionBidStatus.Exited    → 'refunded' (user got their unused budget back)
-// - Auction failed to graduate → 'fundsAvailable' (user can withdraw everything)
+// - AuctionOutcome.FAILED      → 'fundsAvailable' (user can withdraw everything)
+// - AuctionOutcome.UNKNOWN     → 'pending' (outcome undecided; assert nothing about the funds)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -19,7 +20,7 @@ import { AuctionBidStatus, AuctionProgressState, UserBid } from '~/features/Touc
  * Used for icons, colors, and status indicators across Bid.tsx and BidDetailsModal.
  */
 export type BidDisplayState =
-  | 'pending' // Optimistic bid, showing spinner
+  | 'pending' // Optimistic bid, or outcome not yet known - showing spinner
   | 'fundsAvailable' // Auction failed to graduate - all funds can be withdrawn
   | 'withdrawn' // AuctionBidStatus.Claimed - tokens have been withdrawn
   | 'refundedInRange' // AuctionBidStatus.Exited - budget refunded, was in range
@@ -32,7 +33,8 @@ export type BidDisplayState =
  * Granular description state for modal description text.
  * More specific than BidDisplayState to handle all copy permutations.
  */
-type BidDescriptionState =
+export type BidDescriptionState =
+  | 'awaitingOutcome' // Outcome not yet known - render no description rather than a wrong one
   | 'overNotGraduated'
   | 'overNotGraduatedExited'
   | 'completeInProgress'
@@ -60,9 +62,7 @@ interface BidDisplayInfo {
   descriptionState: BidDescriptionState
   /** Whether bid is 100% filled - used for checkmark icon */
   isComplete: boolean
-  /** Whether auction is still in progress */
-  isAuctionInProgress: boolean
-  /** Whether auction has ended */
+  /** Whether the auction is over, derived from `outcome` — never from progress state */
   isAuctionEnded: boolean
 }
 
@@ -70,8 +70,17 @@ interface GetBidDisplayInfoParams {
   bidStatus: AuctionBidStatus
   isInRange: boolean
   isFullyFilled: boolean
-  auctionProgressState: AuctionProgressState
-  isGraduated: boolean
+  /**
+   * Whether the auction is currently running. Deliberately a boolean rather than the progress
+   * state: ended-ness comes from `outcome`, so the only thing left to know is live-vs-not, and a
+   * boolean cannot be handed an ENDED that silently reads as "not in progress".
+   */
+  isAuctionInProgress: boolean
+  /**
+   * Tri-state outcome, not a boolean: GRADUATED and FAILED are the only values that may drive copy
+   * about the bidder's funds. UNKNOWN means the page cannot tell yet.
+   */
+  outcome: AuctionOutcome
   isInPreClaimWindow?: boolean
 }
 
@@ -83,20 +92,20 @@ export function getBidDisplayInfo({
   bidStatus,
   isInRange,
   isFullyFilled,
-  auctionProgressState,
-  isGraduated,
+  isAuctionInProgress,
+  outcome,
   isInPreClaimWindow = false,
 }: GetBidDisplayInfoParams): BidDisplayInfo {
-  const isAuctionEnded = auctionProgressState === AuctionProgressState.ENDED
-  const isAuctionInProgress = auctionProgressState === AuctionProgressState.IN_PROGRESS
+  // GRADUATED and FAILED only exist once the auction is over, so deriving ended-ness from `outcome`
+  // means a caller cannot pass an ended state alongside an undecided outcome.
+  const isAuctionEnded = outcome === AuctionOutcome.GRADUATED || outcome === AuctionOutcome.FAILED
 
   // Compute primary display state
   const displayState = computeDisplayState({
     bidStatus,
     isInRange,
     isFullyFilled,
-    isAuctionEnded,
-    isGraduated,
+    outcome,
   })
 
   // Compute granular description state
@@ -104,9 +113,8 @@ export function getBidDisplayInfo({
     bidStatus,
     isInRange,
     isFullyFilled,
-    isAuctionEnded,
     isAuctionInProgress,
-    isGraduated,
+    outcome,
     isInPreClaimWindow,
   })
 
@@ -114,7 +122,6 @@ export function getBidDisplayInfo({
     displayState,
     descriptionState,
     isComplete: isFullyFilled,
-    isAuctionInProgress,
     isAuctionEnded,
   }
 }
@@ -123,20 +130,24 @@ function computeDisplayState({
   bidStatus,
   isInRange,
   isFullyFilled,
-  isAuctionEnded,
-  isGraduated,
+  outcome,
 }: {
   bidStatus: AuctionBidStatus
   isInRange: boolean
   isFullyFilled: boolean
-  isAuctionEnded: boolean
-  isGraduated: boolean
+  outcome: AuctionOutcome
 }): BidDisplayState {
   const isExited = bidStatus === AuctionBidStatus.Exited
   const isClaimed = bidStatus === AuctionBidStatus.Claimed
 
+  // Outcome undecided: a graduated auction also reads as "not graduated" here, so anything we say
+  // about the funds has a 50% chance of being a lie. Fall back to the spinner treatment.
+  if (outcome === AuctionOutcome.UNKNOWN) {
+    return 'pending'
+  }
+
   // Auction failed to graduate - all funds available
-  if (isAuctionEnded && !isGraduated) {
+  if (outcome === AuctionOutcome.FAILED) {
     return isExited ? 'withdrawn' : 'fundsAvailable'
   }
 
@@ -164,22 +175,26 @@ function computeDescriptionState({
   bidStatus,
   isInRange,
   isFullyFilled,
-  isAuctionEnded,
   isAuctionInProgress,
-  isGraduated,
+  outcome,
   isInPreClaimWindow,
 }: {
   bidStatus: AuctionBidStatus
   isInRange: boolean
   isFullyFilled: boolean
-  isAuctionEnded: boolean
   isAuctionInProgress: boolean
-  isGraduated: boolean
+  outcome: AuctionOutcome
   isInPreClaimWindow: boolean
 }): BidDescriptionState {
   const isExited = bidStatus === AuctionBidStatus.Exited
   const isClaimed = bidStatus === AuctionBidStatus.Claimed
-  if (isAuctionEnded && !isGraduated) {
+
+  // See computeDisplayState: undecided outcome must not produce "the auction didn't launch" copy.
+  if (outcome === AuctionOutcome.UNKNOWN) {
+    return 'awaitingOutcome'
+  }
+
+  if (outcome === AuctionOutcome.FAILED) {
     return isExited ? 'overNotGraduatedExited' : 'overNotGraduated'
   }
 
@@ -194,7 +209,7 @@ function computeDescriptionState({
   }
 
   // Handle pre-claim window (after auction ends, before claim period starts)
-  if (isAuctionEnded && isGraduated && isInPreClaimWindow) {
+  if (outcome === AuctionOutcome.GRADUATED && isInPreClaimWindow) {
     if (isFullyFilled) {
       return 'completePreClaim'
     }

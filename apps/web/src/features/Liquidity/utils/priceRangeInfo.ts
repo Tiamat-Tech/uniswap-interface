@@ -12,8 +12,8 @@ import {
 import { priceToClosestTick as priceToClosestV4Tick, Pool as V4Pool } from '@uniswap/v4-sdk'
 import JSBI from 'jsbi'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
-import { DYNAMIC_FEE_AMOUNT } from 'uniswap/src/constants/pools'
 import type { FeeData } from 'uniswap/src/features/positions/types'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import {
   CreatePositionInfo,
   CreateV2PositionInfo,
@@ -128,16 +128,13 @@ function createMockV3Pool({
   price?: Price<Currency, Currency>
   invalidPrice?: boolean
 }) {
-  if (!baseToken || !quoteToken || !price || invalidPrice) {
+  const wrappedBase = getWrappedTokenIfExists(price?.baseCurrency)
+  const wrappedQuote = getWrappedTokenIfExists(price?.quoteCurrency)
+  if (!baseToken || !quoteToken || !price || invalidPrice || !wrappedBase || !wrappedQuote) {
     return undefined
   }
 
-  const wrappedPrice = new Price(
-    price.baseCurrency.wrapped,
-    price.quoteCurrency.wrapped,
-    price.denominator,
-    price.numerator,
-  )
+  const wrappedPrice = new Price(wrappedBase, wrappedQuote, price.denominator, price.numerator)
 
   const currentTick = priceToClosestV3Tick(wrappedPrice)
   const currentSqrt = TickMath.getSqrtRatioAtTick(currentTick)
@@ -167,15 +164,10 @@ function createMockV4Pool({
 
   const currentTick = priceToClosestV4Tick(price)
   const currentSqrt = TickMath.getSqrtRatioAtTick(currentTick)
-  // Defense in depth: the v4-sdk Pool constructor only accepts the DYNAMIC_FEE_AMOUNT sentinel
-  // or values < 1_000_000, so any dynamic-fee pool whose feeAmount is still a raw, un-normalized
-  // value (e.g. the protocol's 1_000_000 max-fee constant) would trip its fee invariant and throw.
-  // Normalize here too, in case a future producer of `fee` forgets to do it upstream.
-  const feeAmount = fee.isDynamic ? DYNAMIC_FEE_AMOUNT : fee.feeAmount
   const pool = new V4Pool(
     baseToken,
     quoteToken,
-    feeAmount,
+    fee.feeAmount,
     fee.tickSpacing,
     hook ?? ZERO_ADDRESS,
     currentSqrt,
@@ -186,10 +178,12 @@ function createMockV4Pool({
 }
 
 function createMockPair(price?: Price<Currency, Currency>) {
-  if (price) {
+  const wrappedQuote = getWrappedTokenIfExists(price?.quoteCurrency)
+  const wrappedBase = getWrappedTokenIfExists(price?.baseCurrency)
+  if (price && wrappedQuote && wrappedBase) {
     return new Pair(
-      CurrencyAmount.fromRawAmount(price.quoteCurrency.wrapped, price.numerator),
-      CurrencyAmount.fromRawAmount(price.baseCurrency.wrapped, price.denominator),
+      CurrencyAmount.fromRawAmount(wrappedQuote, price.numerator),
+      CurrencyAmount.fromRawAmount(wrappedBase, price.denominator),
     )
   } else {
     return undefined

@@ -7,13 +7,12 @@ import {
   V3DutchOrderBuilder,
 } from '@uniswap/uniswapx-sdk'
 import { SharedQueryClient } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { getValidAddress } from '@universe/chains'
 import { useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getDisplayedPriceSource } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 import { InterfaceEventName, SwapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { getCurrencyAddressForAnalytics } from 'uniswap/src/utils/currencyId'
 import { logger } from 'utilities/src/logger/logger'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
@@ -176,7 +175,6 @@ export function useUniswapXSwapCallback({
 
   const analyticsContext = useTrace()
   const portfolioBalanceUsd = useTotalBalancesUsdForAnalytics()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
 
   return useCallback(async () => {
     // oxlint-disable-next-line no-shadow
@@ -198,8 +196,6 @@ export function useUniswapXSwapCallback({
     }
 
     const priceSource = getDisplayedPriceSource({
-      isCentralizedPricesEnabled,
-      surface: 'usdc',
       chainId: trade.inputAmount.currency.chainId,
       address: getCurrencyAddressForAnalytics(trade.inputAmount.currency),
       queryClient: SharedQueryClient,
@@ -365,14 +361,5 @@ export function useUniswapXSwapCallback({
         throw new Error(swapErrorToUserReadableMessage(t, error))
       }
     }
-  }, [
-    trade,
-    chainId,
-    allowedSlippage,
-    fiatValues,
-    portfolioBalanceUsd,
-    analyticsContext,
-    t,
-    isCentralizedPricesEnabled,
-  ])
+  }, [trade, chainId, allowedSlippage, fiatValues, portfolioBalanceUsd, analyticsContext, t])
 }

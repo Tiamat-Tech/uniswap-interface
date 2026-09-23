@@ -1,19 +1,14 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import { isTouchable } from '@universe/environment'
+import { Flex, Text, type TextProps, TouchableArea } from '@universe/mycelium'
+import type { ColorTokens } from '@universe/mycelium'
+import { AnimatableCopyIconCompat } from '@universe/mycelium/animatable-copy-icon-compat'
+import { type SporeColor, useShadowPropsMedium, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { PropsWithChildren, ReactNode, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import {
-  AnimatableCopyIcon,
-  ColorTokens,
-  Flex,
-  isTouchable,
-  Popover,
-  Text,
-  TextProps,
-  TouchableArea,
-  useShadowPropsMedium,
-  useSporeColors,
-} from 'ui/src'
+import { Popover } from 'ui/src'
+import type { PopoverContentProps } from 'ui/src/components/popover/types'
 import { zIndexes } from 'ui/src/theme'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType, CopyNotificationType } from 'uniswap/src/features/notifications/slice/types'
@@ -51,7 +46,13 @@ export function CopyToClipboard({ toCopy, children }: PropsWithChildren<{ toCopy
         enterStyle={{ scale: 0.95, opacity: 0 }}
         exitStyle={{ scale: 0.95, opacity: 0 }}
         animateOnly={['transform', 'opacity']}
-        {...shadowProps}
+        // `useShadowPropsMedium`'s `$platform-web` types as the full mycelium compat style
+        // surface (a superset of plain CSSProperties, the type Popover's own `$platform-web`
+        // expects); the hook only ever sets `boxShadow`, a value both sides accept identically.
+        {...(shadowProps as Pick<
+          PopoverContentProps,
+          'shadowColor' | 'shadowOffset' | 'shadowRadius' | '$platform-web'
+        >)}
       >
         <Popover.Arrow
           size="$spacing12"
@@ -82,6 +83,8 @@ interface CopyHelperProps {
   onCopy?: () => void
   copyNotificationType?: CopyNotificationType
   analyticsElement?: ElementName
+  /** Accessible name. Only used in the icon-only case, where there is no visible text to name the button. */
+  ariaLabel?: string
 }
 
 export function CopyHelper({
@@ -101,8 +104,13 @@ export function CopyHelper({
   onCopy,
   copyNotificationType,
   analyticsElement,
+  ariaLabel,
 }: CopyHelperProps): JSX.Element {
   const { t } = useTranslation()
+  const colors = useSporeColors()
+  // The spore map is keyed by the $-prefixed token itself; the partial widening turns an
+  // unknown token into undefined (-> CSS inheritance) instead of a throw.
+  const sporeColors = colors as Partial<Record<string, SporeColor>>
   const dispatch = useDispatch()
   const [isCopied, setCopied] = useCopyClipboard(1000)
 
@@ -135,24 +143,28 @@ export function CopyHelper({
     alwaysShowIcon ||
     Boolean(iconPosition === 'left' || isHover || externalHover || isTouchable || isCopied)
   const offset = !isIconOnly && showIcon ? gap + iconSize : 0
+  // With children the visible text already names the button; icon-only would otherwise announce unlabeled.
+  const accessibleName = isIconOnly ? (ariaLabel ?? t('common.button.copy')) : undefined
 
   return (
     <TouchableArea
       disabled={disabled}
       testID={testID}
+      aria-label={accessibleName}
+      accessibilityLabel={accessibleName}
       flexDirection="row"
       gap={gap}
       alignItems="center"
       position="relative"
-      $platform-web={{
-        color: color ?? 'inherit',
+      style={{
+        color: color !== undefined ? (sporeColors[color]?.val ?? 'inherit') : 'inherit',
       }}
       onPress={disabled ? undefined : copy}
       onMouseEnter={onHover}
       onMouseLeave={offHover}
     >
       {iconPosition === 'left' && showIcon && (
-        <AnimatableCopyIcon
+        <AnimatableCopyIconCompat
           hideIcon={!showIcon}
           isCopied={isCopied}
           size={iconSize}
@@ -162,12 +174,8 @@ export function CopyHelper({
       )}
       {!isIconOnly && (
         <Flex
-          $platform-web={{
-            maxWidth: `calc(100% - ${offset}px)`,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
+          className="overflow-hidden text-ellipsis whitespace-nowrap"
+          style={{ maxWidth: `calc(100% - ${offset}px)` }}
         >
           {isCopied && iconPosition === 'left' ? (
             <Text variant="body3" color="$neutral3" {...textProps}>
@@ -179,7 +187,7 @@ export function CopyHelper({
         </Flex>
       )}
       {iconPosition === 'right' && !disabled && (
-        <AnimatableCopyIcon
+        <AnimatableCopyIconCompat
           hideIcon={!showIcon}
           isCopied={isCopied}
           size={iconSize}

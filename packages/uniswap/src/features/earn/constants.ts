@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { isMobileApp } from '@universe/environment'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainedActionsSupportedChainIds } from 'uniswap/src/features/transactions/swap/utils/chainedActions'
 
 export const EARN_SUPPORTED_CHAIN_IDS = [UniverseChainId.Mainnet]

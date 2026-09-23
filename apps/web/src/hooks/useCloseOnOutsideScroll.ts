@@ -1,10 +1,10 @@
-import type { Dispatch, RefObject, SetStateAction } from 'react'
+import type { RefObject } from 'react'
 import { useEffect } from 'react'
 
 interface UseCloseOnOutsideScrollParams {
   contentRef: RefObject<HTMLElement | null>
   isOpen: boolean
-  setIsOpen: Dispatch<SetStateAction<boolean>>
+  onClose: () => void
 }
 
 /**
@@ -13,7 +13,7 @@ interface UseCloseOnOutsideScrollParams {
  * must use `capture: true` to observe scroll events at all (scroll doesn't bubble), which also
  * surfaces descendant scrolls — `contentRef` filters those back out.
  */
-export function useCloseOnOutsideScroll({ contentRef, isOpen, setIsOpen }: UseCloseOnOutsideScrollParams): void {
+export function useCloseOnOutsideScroll({ contentRef, isOpen, onClose }: UseCloseOnOutsideScrollParams): void {
   useEffect(() => {
     if (!isOpen) {
       return undefined
@@ -22,9 +22,9 @@ export function useCloseOnOutsideScroll({ contentRef, isOpen, setIsOpen }: UseCl
       if (event.target instanceof Node && contentRef.current?.contains(event.target)) {
         return
       }
-      setIsOpen(false)
+      onClose()
     }
     window.addEventListener('scroll', handleScroll, { passive: true, capture: true })
     return (): void => window.removeEventListener('scroll', handleScroll, { capture: true })
-  }, [isOpen, setIsOpen, contentRef])
+  }, [isOpen, onClose, contentRef])
 }

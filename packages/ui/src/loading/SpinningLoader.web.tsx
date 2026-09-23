@@ -1,5 +1,5 @@
+import type { CSSProperties } from 'react'
 import { CircleSpinner, EmptySpinner } from 'ui/src/components/icons'
-import { Flex } from 'ui/src/components/layout'
 import { SpinningLoaderProps } from 'ui/src/loading/types'
 import { useInjectSingleStylesheet } from 'utilities/src/react/useInjectSingleStylesheet'
 
@@ -20,6 +20,22 @@ const SPINNING_LOADER_CSS = `
   }
 `
 
+/**
+ * The layout-consequential declarations the replaced Tamagui Flex hosts carried (its
+ * react-native-web-derived view reset), pinned by SpinningLoader.parity.web.test.tsx.
+ */
+const FLEX_RESET: CSSProperties = {
+  alignItems: 'stretch',
+  boxSizing: 'border-box',
+  display: 'flex',
+  flexBasis: 'auto',
+  flexDirection: 'column',
+  flexShrink: 0,
+  minHeight: 0,
+  minWidth: 0,
+  position: 'relative',
+}
+
 export function SpinningLoader({ size = 20, disabled, color, unstyled }: SpinningLoaderProps): JSX.Element {
   useInjectSingleStylesheet({ id: CSS_RULE_ID, css: SPINNING_LOADER_CSS, active: !disabled })
 
@@ -29,19 +45,35 @@ export function SpinningLoader({ size = 20, disabled, color, unstyled }: Spinnin
 
   if (unstyled) {
     return (
-      <Flex className="RotateElement">
+      // oxlint-disable-next-line react/forbid-elements -- rebuilt lane: plain div hosts, no Tamagui Flex
+      <div className="RotateElement" style={FLEX_RESET}>
         <CircleSpinner color={color} size={size} />
-      </Flex>
+      </div>
     )
   }
 
   return (
-    <Flex alignItems="center" height={size} justifyContent="center" marginEnd={2} marginStart={2} width={size}>
-      <Flex height={size} minHeight={8} minWidth={8} p={1.66667} position="relative" width={size}>
-        <Flex className="RotateElement" position="absolute">
+    // oxlint-disable-next-line react/forbid-elements -- rebuilt lane: plain div hosts, no Tamagui Flex
+    <div
+      style={{
+        ...FLEX_RESET,
+        alignItems: 'center',
+        height: size,
+        justifyContent: 'center',
+        // The legacy host set the logical marginStart/marginEnd pair; both sides are 2 so the
+        // physical properties are direction-independent here.
+        marginLeft: 2,
+        marginRight: 2,
+        width: size,
+      }}
+    >
+      {/* oxlint-disable-next-line react/forbid-elements -- rebuilt lane: plain div hosts, no Tamagui Flex */}
+      <div style={{ ...FLEX_RESET, height: size, minHeight: 8, minWidth: 8, padding: 1.66667, width: size }}>
+        {/* oxlint-disable-next-line react/forbid-elements -- rebuilt lane: plain div hosts, no Tamagui Flex */}
+        <div className="RotateElement" style={{ ...FLEX_RESET, position: 'absolute' }}>
           <CircleSpinner color={color} size={size} />
-        </Flex>
-      </Flex>
-    </Flex>
+        </div>
+      </div>
+    </div>
   )
 }

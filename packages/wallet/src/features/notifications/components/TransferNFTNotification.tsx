@@ -1,5 +1,5 @@
 import { isAndroid } from '@universe/environment'
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import { Unitag } from 'ui/src/components/icons'
 import { LogoWithTxStatus } from 'uniswap/src/components/CurrencyLogo/LogoWithTxStatus'
 import { NotificationToast } from 'uniswap/src/components/notifications/NotificationToast'

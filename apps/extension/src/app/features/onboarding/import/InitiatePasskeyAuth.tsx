@@ -1,4 +1,7 @@
 import { EXTENSION_PASSKEY_AUTH_PATH, useEmbeddedWalletBaseUrl } from '@universe/embedded-wallet'
+import { Button, Flex, IconButton, SpinningLoader, Text } from '@universe/mycelium'
+import { UniswapLogo } from '@universe/mycelium/icons/UniswapLogo'
+import { X } from '@universe/mycelium/icons/X'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useLocation } from 'react-router'
@@ -11,9 +14,6 @@ import { useOnboardingSteps } from 'src/app/features/onboarding/OnboardingStepsC
 import { OnboardingRoutes, TopLevelRoutes } from 'src/app/navigation/constants'
 import { navigate } from 'src/app/navigation/state'
 import { bringWindowToFront, closeWindow, openPopupWindow } from 'src/app/navigation/utils'
-import { Button, Flex, IconButton, SpinningLoader, Text } from 'ui/src'
-import { X } from 'ui/src/components/icons'
-import { UniswapLogo } from 'ui/src/components/icons/UniswapLogo'
 import { parseMessage } from 'uniswap/src/extension/messagePassing/platform'
 import {
   ExtensionToInterfaceRequestType,

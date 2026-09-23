@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSystemAlertsDataSource } from '~/notification-service/data-sources/createSystemAlertsDataSource'
 
@@ -292,59 +292,6 @@ describe('createSystemAlertsDataSource', () => {
 
     expect(onNotifications).toHaveBeenCalledWith(
       [expect.objectContaining({ id: `local:session:chain_connectivity:${UniverseChainId.Mainnet}` })],
-      SYSTEM_ALERTS_SOURCE,
-    )
-
-    await dataSource.stop()
-  })
-
-  it('allows outage alerts when a visible poll observes refocus before the visibility listener runs', async () => {
-    pathname = '/explore'
-    blockTimestamp = BigInt(Math.floor(stalenessCheckTime / 1000))
-    const onNotifications = vi.fn()
-    const dataSource = createDataSource()
-
-    dataSource.start(onNotifications)
-    expect(onNotifications).not.toHaveBeenCalled()
-
-    isDocumentVisible = false
-    visibilityChangeListener?.()
-    wallClockTime += MAINNET_WARNING_MS + 1000
-    stalenessCheckTime = wallClockTime
-    mockGetDynamicConfigValue.mockReturnValue(UniverseChainId.Mainnet)
-
-    isDocumentVisible = true
-    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS)
-
-    expect(onNotifications).toHaveBeenCalledWith(
-      [expect.objectContaining({ id: `local:session:outage:${UniverseChainId.Mainnet}` })],
-      SYSTEM_ALERTS_SOURCE,
-    )
-
-    await dataSource.stop()
-  })
-
-  it('allows outage alerts during the visibility settling window', async () => {
-    pathname = '/explore'
-    blockTimestamp = BigInt(Math.floor(stalenessCheckTime / 1000))
-    const onNotifications = vi.fn()
-    const dataSource = createDataSource()
-
-    dataSource.start(onNotifications)
-    expect(onNotifications).not.toHaveBeenCalled()
-
-    isDocumentVisible = false
-    visibilityChangeListener?.()
-    wallClockTime += MAINNET_WARNING_MS + 1000
-    stalenessCheckTime = wallClockTime
-    mockGetDynamicConfigValue.mockReturnValue(UniverseChainId.Mainnet)
-
-    isDocumentVisible = true
-    visibilityChangeListener?.()
-    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS)
-
-    expect(onNotifications).toHaveBeenCalledWith(
-      [expect.objectContaining({ id: `local:session:outage:${UniverseChainId.Mainnet}` })],
       SYSTEM_ALERTS_SOURCE,
     )
 

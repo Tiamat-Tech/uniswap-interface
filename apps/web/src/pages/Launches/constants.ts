@@ -1,10 +1,6 @@
-import { opacifyRaw } from 'ui/src/theme'
+import { opacifyRaw } from '@universe/mycelium/theme-hooks-compat'
 
-export const POOLS_URL = 'https://pools.trade'
-
-/** Pools brand green — the hero's "Pools" callout and the trending-card accent glow share it. */
-export const POOLS_BRAND_GREEN_LIGHT = '#5AC53B'
-export const POOLS_BRAND_GREEN_DARK = '#D0ED27'
+export const POOLS_URL = 'https://pools.xyz'
 
 /** Teaser banner frame — exact brand values from the design, not theme surfaces. */
 export const POOLS_TEASER_BACKGROUND_LIGHT = 'linear-gradient(90deg, #D0ED27 0%, #CCED27 100%)'

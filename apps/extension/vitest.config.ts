@@ -1,5 +1,6 @@
 import path from 'path'
 import react from '@vitejs/plugin-react'
+import { withRnPrimitives } from 'vitest-presets/vitest/rn-primitives.js'
 import vitestPreset from 'vitest-presets/vitest/vitest-preset.js'
 import { defineConfig } from 'vitest/config'
 
@@ -8,7 +9,7 @@ import { defineConfig } from 'vitest/config'
 // config/vitest-presets/vitest/globals.js.
 process.env.APP_ID = 'extension'
 
-export default defineConfig({
+const config = defineConfig({
   ...vitestPreset,
   plugins: [react()],
   test: {
@@ -84,29 +85,6 @@ export default defineConfig({
 
       // React Native aliases for testing
       { find: 'react-native', replacement: 'react-native-web' },
-      // Exact-match tamagui entry points to their CJS builds (subpath imports like
-      // @tamagui/core/reset.css must keep resolving normally)
-      {
-        find: /^@tamagui\/core$/,
-        replacement: path.resolve(__dirname, '../../node_modules/@tamagui/core/dist/cjs/index.cjs'),
-      },
-      {
-        find: /^@tamagui\/web$/,
-        replacement: path.resolve(__dirname, '../../node_modules/@tamagui/web/dist/cjs/index.cjs'),
-      },
-      {
-        find: /^@tamagui\/use-direction$/,
-        replacement: path.resolve(__dirname, '../../node_modules/@tamagui/use-direction/dist/cjs/index.cjs'),
-      },
-      {
-        find: /^@tamagui\/use-callback-ref$/,
-        replacement: path.resolve(__dirname, '../../node_modules/@tamagui/use-callback-ref/dist/cjs/index.cjs'),
-      },
-      {
-        find: /^tamagui\/linear-gradient$/,
-        replacement: path.resolve(__dirname, '../../node_modules/tamagui/dist/cjs/linear-gradient.cjs'),
-      },
-      { find: /^tamagui$/, replacement: path.resolve(__dirname, '../../node_modules/tamagui/dist/cjs/index.cjs') },
     ],
   },
   optimizeDeps: {
@@ -114,3 +92,5 @@ export default defineConfig({
     include: ['react-native-web'],
   },
 })
+
+export default withRnPrimitives(config, 'web')

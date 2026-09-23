@@ -1,39 +1,39 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { TransactionEventType } from '@uniswap/client-data-api/dist/data/v2/types_pb'
-import { GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { isSVMChain, UniverseChainId, areAddressesEqual, normalizeTokenAddressForCache } from '@universe/chains'
 import { useCallback, useMemo, useRef } from 'react'
+import { WRAPPED_NATIVE_CURRENCY } from 'uniswap/src/constants/tokens'
 import {
   getListTransactionsQueryOptions,
   type ListTransactionsTokenScope,
 } from 'uniswap/src/data/apiClients/dataApiService/transactions/queries'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { fromGraphQLChain, toGraphQLChain } from 'uniswap/src/features/chains/utils'
-import { isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
-import i18n from 'uniswap/src/i18n'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
-import { connectErrorToApolloError, uniswapTransactionToPoolTx } from '~/appGraphql/data/v2/uniswapTransactionAdapters'
-import { useInfiniteLoadMore } from '~/features/Explore/state/hooks/useInfiniteLoadMore'
+import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
+import type { ParsedToken } from 'uniswap/src/features/dataApi/utils/parsedToken'
+import { isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
+import { logger } from 'utilities/src/logger/logger'
+import { parseUniswapTransaction, type PoolTransaction } from '~/data/transactions/poolTransaction'
+import { useInfiniteLoadMore } from '~/hooks/useInfiniteLoadMore'
+
+const TRANSACTIONS_PAGE_SIZE = 25
 
 export enum TokenTransactionType {
   BUY = 'Buy',
   SELL = 'Sell',
 }
 
-export const getTokenTransactionTypeTranslation = (type: TokenTransactionType): string => {
-  switch (type) {
-    case TokenTransactionType.BUY:
-      return i18n.t('common.buy.label')
-    case TokenTransactionType.SELL:
-      return i18n.t('common.sell.label')
-    default:
-      return ''
-  }
+type TokenTransaction = PoolTransaction & {
+  direction: TokenTransactionType
+  /** Which leg was sold, as classified alongside `direction` — consumers must not re-derive it. */
+  token0IsBeingSold: boolean
 }
 
-const TokenTransactionDefaultQuerySize = 25
+type UseTokenTransactionsResult = {
+  transactions: TokenTransaction[]
+  isLoading: boolean
+  loadMore: ({ onComplete }: { onComplete?: () => void }) => void
+  error: Error | null
+}
 
 export function useTokenTransactions({
   address,
@@ -41,17 +41,15 @@ export function useTokenTransactions({
   filter = [TokenTransactionType.BUY, TokenTransactionType.SELL],
   multichain,
   multichainId,
+  multichainAddresses,
 }: {
   address: string
   chainId: UniverseChainId
   filter?: TokenTransactionType[]
   multichain?: boolean
-  /** Multichain identity for the multichain view (v2 only — BE resolves every chain + native/wrapped; legacy GQL resolves multichain server-side). */
   multichainId?: string
-}) {
-  const skipV3V4Solana = isSVMChain(chainId) // Solana token txs data are surfaced via Gql Token.V2Transactions
-  const v2Enabled = useFeatureFlag(FeatureFlags.V2EndpointsTransactions) && !isSVMChain(chainId)
-
+  multichainAddresses?: Record<string, string>
+}): UseTokenTransactionsResult {
   const { chains: enabledChains } = useEnabledChains()
 
   // Multichain view scopes by the token's multichain id and lets the BE resolve every chain +
@@ -65,235 +63,135 @@ export function useTokenTransactions({
     ? { case: 'multichainId', value: multichainId ?? '' }
     : { case: 'tokensOnChain', value: { tokens: [{ chainId, address: normalizeTokenAddressForCache(address) }] } }
 
-  const {
-    data: v2Data,
-    isLoading: v2Loading,
-    error: v2Error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteQuery(
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery(
     getListTransactionsQueryOptions({
       chainIds: v2ChainIds,
       tokenScope: v2TokenScope,
       // TDP only shows swaps; static filter, so it's safe server-side (no query-key churn).
       eventTypes: [TransactionEventType.SWAP],
-      pageSize: TokenTransactionDefaultQuerySize,
-      enabled: v2Enabled,
+      pageSize: TRANSACTIONS_PAGE_SIZE,
     }),
   )
 
-  const v2Transactions = useMemo(
+  const transactions = useMemo(
     () =>
-      (v2Data?.pages ?? [])
+      (data?.pages ?? [])
         .flatMap((page) => page.transactions)
-        .map((tx, index) => uniswapTransactionToPoolTx(tx, index))
-        .filter((tx): tx is GraphQLApi.PoolTxFragment => tx !== undefined),
-    [v2Data?.pages],
+        .map((tx, index) => parseUniswapTransaction(tx, index))
+        .filter((tx): tx is PoolTransaction => tx !== undefined),
+    [data?.pages],
   )
 
-  const v2LoadMore = useInfiniteLoadMore({
+  const loadMore = useInfiniteLoadMore({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    dataLength: v2Transactions.length,
   })
 
-  const {
-    data: dataV4,
-    loading: loadingV4,
-    fetchMore: fetchMoreV4,
-    error: errorV4,
-  } = GraphQLApi.useV4TokenTransactionsQuery({
-    variables: {
-      address: normalizeTokenAddressForCache(address),
-      chain: toGraphQLChain(chainId),
-      first: TokenTransactionDefaultQuerySize,
-      multichain,
-    },
-    skip: skipV3V4Solana || v2Enabled,
-  })
-  const {
-    data: dataV3,
-    loading: loadingV3,
-    fetchMore: fetchMoreV3,
-    error: errorV3,
-  } = GraphQLApi.useV3TokenTransactionsQuery({
-    variables: {
-      address: normalizeTokenAddressForCache(address),
-      chain: toGraphQLChain(chainId),
-      first: TokenTransactionDefaultQuerySize,
-      multichain,
-    },
-    skip: skipV3V4Solana || v2Enabled,
-  })
-  const {
-    data: dataV2,
-    loading: loadingV2,
-    error: errorV2,
-    fetchMore: fetchMoreV2,
-  } = GraphQLApi.useV2TokenTransactionsQuery({
-    variables: {
-      address: normalizeTokenAddressForCache(address),
-      first: TokenTransactionDefaultQuerySize,
-      chain: toGraphQLChain(chainId),
-      multichain,
-    },
-    skip: v2Enabled,
-  })
-  const loadingMoreV4 = useRef(false)
-  const loadingMoreV3 = useRef(false)
-  const loadingMoreV2 = useRef(false)
-  const querySizeRef = useRef(TokenTransactionDefaultQuerySize)
-  const loadMore = useCallback(
-    ({ onComplete }: { onComplete?: () => void }) => {
-      if (loadingMoreV4.current || loadingMoreV3.current || loadingMoreV2.current) {
-        return
+  // The multichain view returns rows from every chain, so the reference token must be matched
+  // per-chain.
+  const referenceAddressByChain = useMemo(() => {
+    const map = new Map<UniverseChainId, string>()
+    const addEntry = (entryChainId: UniverseChainId, deploymentAddress: string) => {
+      const comparableAddress = toComparableAddress(entryChainId, deploymentAddress)
+      if (comparableAddress) {
+        map.set(entryChainId, comparableAddress)
       }
-      loadingMoreV4.current = true
-      loadingMoreV3.current = true
-      loadingMoreV2.current = true
-      querySizeRef.current += TokenTransactionDefaultQuerySize
-      fetchMoreV4({
-        variables: {
-          cursor: dataV4?.token?.v4Transactions?.[dataV4.token.v4Transactions.length - 1]?.timestamp,
-        },
-        updateQuery: (prev, { fetchMoreResult }) => {
-          if (!loadingMoreV3.current && !loadingMoreV2.current) {
-            onComplete?.()
-          }
-          const mergedData = {
-            token: {
-              ...prev.token,
-              id: prev.token?.id ?? '',
-              chain: prev.token?.chain ?? GraphQLApi.Chain.Ethereum,
-              v4Transactions: [...(prev.token?.v4Transactions ?? []), ...(fetchMoreResult.token?.v4Transactions ?? [])],
-            },
-          }
-          loadingMoreV4.current = false
-          return mergedData
-        },
-      })
-      fetchMoreV3({
-        variables: {
-          cursor: dataV3?.token?.v3Transactions?.[dataV3.token.v3Transactions.length - 1]?.timestamp,
-        },
-        updateQuery: (prev, { fetchMoreResult }) => {
-          if (!loadingMoreV2.current && !loadingMoreV4.current) {
-            onComplete?.()
-          }
-          const mergedData = {
-            token: {
-              ...prev.token,
-              id: prev.token?.id ?? '',
-              chain: prev.token?.chain ?? GraphQLApi.Chain.Ethereum,
-              v3Transactions: [...(prev.token?.v3Transactions ?? []), ...(fetchMoreResult.token?.v3Transactions ?? [])],
-            },
-          }
-          loadingMoreV3.current = false
-          return mergedData
-        },
-      })
-      fetchMoreV2({
-        variables: {
-          cursor: dataV2?.token?.v2Transactions?.[dataV2.token.v2Transactions.length - 1]?.timestamp,
-        },
-        updateQuery: (prev, { fetchMoreResult }) => {
-          if (!loadingMoreV3.current && !loadingMoreV4.current) {
-            onComplete?.()
-          }
-          const mergedData = {
-            token: {
-              ...prev.token,
-              id: prev.token?.id ?? '',
-              chain: prev.token?.chain ?? GraphQLApi.Chain.Ethereum,
-              v2Transactions: [...(prev.token?.v2Transactions ?? []), ...(fetchMoreResult.token?.v2Transactions ?? [])],
-            },
-          }
-          loadingMoreV2.current = false
-          return mergedData
-        },
-      })
-    },
-    [
-      dataV2?.token?.v2Transactions,
-      dataV3?.token?.v3Transactions,
-      dataV4?.token?.v4Transactions,
-      fetchMoreV2,
-      fetchMoreV3,
-      fetchMoreV4,
-    ],
-  )
-
-  const filterTransaction = useCallback(
-    (tx: GraphQLApi.PoolTxFragment | undefined) => {
-      if (!tx) {
-        return false
-      }
-      const tokenBeingSold = parseFloat(tx.token0Quantity) > 0 ? tx.token0 : tx.token1
-      const isSell = areAddressesEqual({
-        addressInput1: {
-          address: tokenBeingSold.address,
-          chainId: fromGraphQLChain(tokenBeingSold.chain) ?? chainId,
-        },
-        addressInput2: { address, chainId },
-      })
-      return (
-        tx.type === GraphQLApi.PoolTransactionType.Swap &&
-        filter.includes(isSell ? TokenTransactionType.SELL : TokenTransactionType.BUY)
-      )
-    },
-    [address, chainId, filter],
-  )
-
-  const transactions = useMemo(() => {
-    if (v2Enabled) {
-      // Server-sorted and swap-only already; filterTransaction applies the client Buy/Sell filter.
-      return v2Transactions.filter(filterTransaction)
     }
-    return [
-      ...(dataV4?.token?.v4Transactions ?? []),
-      ...(dataV3?.token?.v3Transactions ?? []),
-      ...(dataV2?.token?.v2Transactions ?? []),
-    ]
-      .filter(filterTransaction)
-      .sort((a, b): number => (a?.timestamp && b?.timestamp ? b.timestamp - a.timestamp : 1))
-      .slice(0, querySizeRef.current)
-  }, [
-    v2Enabled,
-    v2Transactions,
-    dataV2?.token?.v2Transactions,
-    dataV3?.token?.v3Transactions,
-    dataV4?.token?.v4Transactions,
-    filterTransaction,
-  ])
+    for (const [key, deploymentAddress] of Object.entries(multichainAddresses ?? {})) {
+      const addressChainId = Number(key)
+      if (isUniverseChainId(addressChainId)) {
+        addEntry(addressChainId, deploymentAddress)
+      }
+    }
+    addEntry(chainId, address)
+    return map
+  }, [address, chainId, multichainAddresses])
 
-  // The table's full-error state keys off all three version errors; surface the single v2 error as all of them.
-  // Memoized so a persistent v2 error doesn't mint a new ApolloError each render and churn the returned object.
-  const wrappedV2Error = useMemo(() => connectErrorToApolloError(v2Error), [v2Error])
+  // Re-classification replays the whole accumulated list, so warn once per leg-chain pair, not per row.
+  const warnedUnmatchedChainPairsRef = useRef(new Set<string>())
+
+  // Single source of truth for a row's direction — the table renders the same value the filter
+  // matched on, so the two can never disagree (mismatches previously left Sell-only filters empty,
+  // auto-paginating forever). Rows where neither leg matches the reference (chain missing from the
+  // map) are dropped rather than mislabeled.
+  const classifyDirection = useCallback(
+    ({
+      tx,
+      token0IsBeingSold,
+    }: {
+      tx: PoolTransaction
+      token0IsBeingSold: boolean
+    }): TokenTransactionType | undefined => {
+      const soldLeg = token0IsBeingSold ? tx.token0 : tx.token1
+      const boughtLeg = token0IsBeingSold ? tx.token1 : tx.token0
+      const legMatchesReference = (leg: ParsedToken): boolean => {
+        const legChainId = leg.chainId
+        const referenceAddress = referenceAddressByChain.get(legChainId)
+        const legAddress = toComparableAddress(legChainId, leg.address)
+        return (
+          Boolean(referenceAddress && legAddress) &&
+          areAddressesEqual({
+            addressInput1: { address: legAddress, chainId: legChainId },
+            addressInput2: { address: referenceAddress, chainId: legChainId },
+          })
+        )
+      }
+      if (legMatchesReference(soldLeg)) {
+        return TokenTransactionType.SELL
+      }
+      if (legMatchesReference(boughtLeg)) {
+        return TokenTransactionType.BUY
+      }
+      const chainPairKey = `${soldLeg.chainId}:${boughtLeg.chainId}`
+      if (!warnedUnmatchedChainPairsRef.current.has(chainPairKey)) {
+        warnedUnmatchedChainPairsRef.current.add(chainPairKey)
+        logger.warn(
+          'useTokenTransactions',
+          'classifyDirection',
+          `Dropping transactions with legs on ${soldLeg.chainId}/${boughtLeg.chainId}: neither leg matches the reference token — multichain addresses may under-cover the chains the endpoint returns`,
+        )
+      }
+      return undefined
+    },
+    [referenceAddressByChain],
+  )
+
+  const filterAndClassify = useCallback(
+    (txs: readonly PoolTransaction[]): TokenTransaction[] =>
+      txs.flatMap((tx) => {
+        if (tx.eventType !== TransactionEventType.SWAP) {
+          return []
+        }
+        const token0IsBeingSold = parseFloat(tx.token0Quantity) > 0
+        const direction = classifyDirection({ tx, token0IsBeingSold })
+        return direction && filter.includes(direction) ? [{ ...tx, direction, token0IsBeingSold }] : []
+      }),
+    [classifyDirection, filter],
+  )
+
+  const filteredTransactions = useMemo(() => {
+    // Server-sorted and swap-only already; filterAndClassify applies the client Buy/Sell filter.
+    return filterAndClassify(transactions)
+  }, [transactions, filterAndClassify])
 
   return useMemo(
     () => ({
-      transactions: transactions as GraphQLApi.PoolTransaction[],
-      loading: v2Enabled ? v2Loading : loadingV4 || loadingV3 || loadingV2,
-      loadMore: v2Enabled ? v2LoadMore : loadMore,
-      errorV2: v2Enabled ? wrappedV2Error : errorV2,
-      errorV3: v2Enabled ? wrappedV2Error : errorV3,
-      errorV4: v2Enabled ? wrappedV2Error : errorV4,
-    }),
-    [
-      transactions,
-      loadingV4,
-      loadingV3,
-      loadingV2,
+      transactions: filteredTransactions,
+      isLoading,
       loadMore,
-      errorV2,
-      errorV3,
-      errorV4,
-      v2Enabled,
-      v2Loading,
-      v2LoadMore,
-      wrappedV2Error,
-    ],
+      error,
+    }),
+    [isLoading, loadMore, error, filteredTransactions],
   )
+}
+
+// Swap legs trade as the wrapped token, so native (sentinel or absent address) compares as wrapped.
+// Chains without wrapped-native metadata fall back to the raw address — both sides of a comparison
+// go through this helper, so any deterministic mapping still matches.
+function toComparableAddress(tokenChainId: UniverseChainId, tokenAddress: string | undefined): string | undefined {
+  if (!tokenAddress || isNativeCurrencyAddress(tokenChainId, tokenAddress)) {
+    return WRAPPED_NATIVE_CURRENCY[tokenChainId]?.address ?? tokenAddress
+  }
+  return tokenAddress
 }

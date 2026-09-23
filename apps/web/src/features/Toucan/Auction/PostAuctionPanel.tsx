@@ -1,12 +1,14 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import { AuctionGraduated } from '~/features/Toucan/Auction/Bids/AuctionGraduated'
 import { CreatorSweepCard } from '~/features/Toucan/Auction/CreatorActions/CreatorSweepCard'
 import { MigrateCard } from '~/features/Toucan/Auction/CreatorActions/MigrateCard'
 import { useBidFormState } from '~/features/Toucan/Auction/hooks/useBidFormState'
+import { NowTradingCard } from '~/features/Toucan/Auction/NowTradingCard'
 
 /**
  * The panel shown once the auction has ended, in the desktop right panel and (on mobile/tablet)
  * above the chart. It renders ONLY when there is real content for this viewer:
+ * - the now-trading card (the token has a pool; TokenProvenance flag), or
  * - the graduated success card (a bidder with bids in a graduated auction), or
  * - a creator action card — sweep-unsold-tokens, or the (permissionless) migrate CTA.
  *
@@ -21,6 +23,7 @@ export function PostAuctionPanel(): JSX.Element {
 
   return (
     <Flex gap="$spacing24">
+      <NowTradingCard />
       {showAuctionGraduated && <AuctionGraduated />}
       <CreatorSweepCard />
       <MigrateCard />

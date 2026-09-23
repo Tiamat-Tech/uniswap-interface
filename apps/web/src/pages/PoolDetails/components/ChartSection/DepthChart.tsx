@@ -1,12 +1,12 @@
 import { ProtocolVersion as RestProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import { FeeAmount } from '@uniswap/v3-sdk'
+import { UniverseChainId } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, useSporeColors } from 'ui/src'
 import { BIPS_BASE } from 'uniswap/src/constants/misc'
-import { useGetPool } from 'uniswap/src/data/apiClients/dataApiService/pools/getPools'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getStablecoinsForChain, isUniverseChainId } from 'uniswap/src/features/chains/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
@@ -20,6 +20,7 @@ import { ChartType } from '~/components/Charts/utils'
 import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
 import { LoadingChart } from '~/features/Explore/chart/LoadingChart'
 import { useLiquidityBarData } from '~/features/Liquidity/charts/LiquidityChart'
+import { V2Reserves } from '~/features/Liquidity/utils/v2SyntheticTicks'
 import { ChartPriceText, PriceDisplayContainer } from '~/pages/PoolDetails/components/ChartSection/ChartPriceDisplay'
 import {
   buildDepthData,
@@ -38,6 +39,7 @@ import {
   DepthTooltipBody,
   TooltipShell,
 } from '~/pages/PoolDetails/components/ChartSection/DepthChartTooltip'
+import { usePdpPool } from '~/pages/PoolDetails/components/ChartSection/usePdpPool'
 import { unwrappedToken } from '~/utils/unwrappedToken'
 
 export type { DepthChartZoomActions } from '~/pages/PoolDetails/components/ChartSection/DepthChartModel'
@@ -61,6 +63,7 @@ export function DepthChart({
   poolId,
   onZoomActionsReady,
   priceEntries,
+  v2Reserves,
 }: {
   tokenA: Currency
   tokenB: Currency
@@ -73,6 +76,7 @@ export function DepthChart({
   poolId?: string
   onZoomActionsReady?: (actions: DepthChartZoomActions) => void
   priceEntries?: PriceChartData[]
+  v2Reserves?: V2Reserves
 }) {
   const { t } = useTranslation()
   const colors = useSporeColors()
@@ -85,7 +89,10 @@ export function DepthChart({
   const [mirrorState, setMirrorState] = useState<TooltipUpdate | null>(null)
   const [gapState, setGapState] = useState<{ sell: TooltipUpdate; buy: TooltipUpdate } | null>(null)
 
-  const { data: poolData } = useGetPool({ chainId, poolId, protocolVersion: version }, Boolean(poolId))
+  // A v2 pair has no tick spacing on chain; `usePoolActiveLiquidity` supplies the synthetic one from
+  // the reserves, so there is no pool row worth fetching here.
+  const isV2 = version === RestProtocolVersion.V2
+  const { pool } = usePdpPool({ poolId, chainId, enabled: !isV2 })
 
   const sdkCurrencies = useMemo(() => ({ TOKEN0: tokenA, TOKEN1: tokenB }), [tokenA, tokenB])
 
@@ -97,7 +104,11 @@ export function DepthChart({
     version,
     hooks,
     poolId,
-    tickSpacing: poolData?.pool?.tickSpacing,
+    // Undefined on v2 by construction (`pool` is skipped above), which is what lets the single
+    // `buildV2SyntheticPool` default govern the spacing. Don't add a fee-tier fallback here — that
+    // would pin this chart to TICK_SPACINGS[3000] while the Liquidity chart follows the constant.
+    tickSpacing: pool?.tickSpacing,
+    v2Reserves,
   })
 
   const { sellData, buyData, midPrice } = useMemo(() => {

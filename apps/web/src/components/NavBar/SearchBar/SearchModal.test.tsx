@@ -1,6 +1,15 @@
 import type { PropsWithChildren } from 'react'
 import { SearchModal } from '~/components/NavBar/SearchBar/SearchModal'
+import { mockMediaSize } from '~/test-utils/mockMediaSize'
 import { render, screen } from '~/test-utils/render'
+
+vi.mock('@universe/mycelium/theme-hooks-compat', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@universe/mycelium/theme-hooks-compat')>()
+  return {
+    ...actual,
+    useMedia: vi.fn(),
+  }
+})
 
 vi.mock('uniswap/src/components/modals/Modal', () => ({
   Modal: ({ children }: PropsWithChildren) => children,
@@ -27,12 +36,31 @@ vi.mock('~/hooks/useModalState', () => ({
 }))
 
 describe('SearchModal', () => {
-  it.each([
-    { isAuctionSearchEnabled: true, placeholder: 'Search tokens, pools, wallets and auctions' },
-    { isAuctionSearchEnabled: false, placeholder: 'Search tokens, pools, and wallets' },
-  ])('renders the provided placeholder: $placeholder', ({ isAuctionSearchEnabled, placeholder }) => {
-    render(<SearchModal isAuctionSearchEnabled={isAuctionSearchEnabled} placeholder={placeholder} />)
+  beforeEach(() => {
+    mockMediaSize('xxxl')
+  })
 
-    expect(screen.getByPlaceholderText(placeholder)).toBeInTheDocument()
+  it.each([
+    { isEnabled: true, expectedTabs: ['All', 'Tokens', 'Pools', 'Auctions', 'Wallets'] },
+    { isEnabled: false, expectedTabs: ['All', 'Tokens', 'Pools', 'Wallets'] },
+  ])(
+    'renders the search field and ordered tabs when auction search enabled is $isEnabled',
+    ({ isEnabled, expectedTabs }) => {
+      render(<SearchModal isAuctionSearchEnabled={isEnabled} />)
+
+      expect(screen.getByPlaceholderText('Search by name, symbol, or address')).toBeInTheDocument()
+      expect(screen.getAllByText(/^(All|Tokens|Pools|Auctions|Wallets)$/).map((tab) => tab.textContent)).toEqual(
+        expectedTabs,
+      )
+    },
+  )
+
+  it('uses the short placeholder on small viewports, where the long copy clips', () => {
+    mockMediaSize('sm')
+
+    render(<SearchModal isAuctionSearchEnabled={false} />)
+
+    expect(screen.getByPlaceholderText('Search Uniswap')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Search by name, symbol, or address')).not.toBeInTheDocument()
   })
 })

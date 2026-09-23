@@ -1,14 +1,14 @@
 import { type TransactionRequest } from '@ethersproject/providers'
 import type { GasFeeResult, TradingApi } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { Flex } from 'ui/src'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { Flex } from '@universe/mycelium'
 import type { GasFeeOverrides } from 'uniswap/src/features/gas/types'
 import { DappNetworkCostRow } from 'wallet/src/components/dappRequests/DappNetworkCostRow'
 import { DappWalletLineItem } from 'wallet/src/components/dappRequests/DappWalletLineItem'
 import { TransactionWarningBanner } from 'wallet/src/components/dappRequests/TransactionWarningBanner'
 import { UnverifiedSiteBanner } from 'wallet/src/components/dappRequests/UnverifiedSiteBanner'
-import type { TransactionRiskLevel } from 'wallet/src/features/dappRequests/types'
+import type { TransactionErrorType, TransactionRiskLevel } from 'wallet/src/features/dappRequests/types'
 import {
   isGasBearingMethod,
   NetworkFeeFooter,
@@ -37,6 +37,8 @@ interface DappRequestFooterProps {
   gasOverrides?: GasFeeOverrides
   onChangeGasOverrides?: (overrides: GasFeeOverrides | undefined) => void
   sponsorMetadata?: TradingApi.SponsorMetadata
+  /** When set, renders the acknowledgeable "couldn't verify" caution instead of a risk verdict. */
+  scanFailureError?: TransactionErrorType
 }
 
 /**
@@ -57,6 +59,7 @@ export function DappRequestFooter({
   gasOverrides,
   onChangeGasOverrides,
   sponsorMetadata,
+  scanFailureError,
 }: DappRequestFooterProps): JSX.Element {
   const isGasFeeOverridesEnabled = useFeatureFlag(FeatureFlags.GasFeeOverrides)
   // Sponsored userOps have no editable gas — the paymaster pays — so force the
@@ -66,8 +69,13 @@ export function DappRequestFooter({
 
   return (
     <>
-      {/* Warning Banner (only shown if there's a risk) */}
-      <TransactionWarningBanner riskLevel={riskLevel} confirmedRisk={confirmedRisk} onConfirmRisk={onConfirmRisk} />
+      {/* Warning Banner (shown for a risk verdict or an acknowledgeable scan failure) */}
+      <TransactionWarningBanner
+        riskLevel={riskLevel}
+        confirmedRisk={confirmedRisk}
+        scanFailureError={scanFailureError}
+        onConfirmRisk={onConfirmRisk}
+      />
 
       {/* Network Cost — gas-overrides Network cost row replaces the legacy
           fee footer when the urgency UI is on. */}

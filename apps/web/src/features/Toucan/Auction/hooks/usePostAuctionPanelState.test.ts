@@ -4,16 +4,30 @@ import { getCreatorSweepDisplay } from '~/features/Toucan/Auction/CreatorActions
 import { getMigrateCtaState } from '~/features/Toucan/Auction/CreatorActions/getMigrateCtaState'
 import { usePostAuctionPanelState } from '~/features/Toucan/Auction/hooks/usePostAuctionPanelState'
 import { AuctionOutcome } from '~/features/Toucan/Auction/store/types'
+import {
+  type AuctionDisplayState,
+  AuctionDisplayPhase,
+  AuctionDisplayResult,
+  PoolAvailability,
+} from '~/features/Toucan/Auction/utils/resolveAuctionDisplayState'
 
 const mockBidFormState = { showAuctionGraduated: false }
 const mockCreatorInfo = { isConnectedTokensRecipient: false }
 const mockSweepState = { hasSwept: false as boolean | undefined, remainingSupplyRaw: undefined as bigint | undefined }
 const mockStoreState = {
-  auctionDetails: { totalSupply: '1000' } as Record<string, unknown> | null,
+  auctionDetails: {
+    totalSupply: '1000',
+    chainId: 1,
+    tokenAddress: '0x0000000000000000000000000000000000000001',
+  } as Record<string, unknown> | null,
   currentBlockNumber: 200 as number | undefined,
 }
 let mockOutcome = AuctionOutcome.GRADUATED
+let mockDisplayState: AuctionDisplayState | undefined
 
+vi.mock('~/features/Toucan/Auction/hooks/useAuctionDisplayState', () => ({
+  useAuctionDisplayState: () => mockDisplayState,
+}))
 vi.mock('~/features/Toucan/Auction/hooks/useBidFormState', () => ({
   useBidFormState: () => mockBidFormState,
 }))
@@ -40,9 +54,14 @@ describe('usePostAuctionPanelState', () => {
     mockCreatorInfo.isConnectedTokensRecipient = false
     mockSweepState.hasSwept = false
     mockSweepState.remainingSupplyRaw = undefined
-    mockStoreState.auctionDetails = { totalSupply: '1000' }
+    mockStoreState.auctionDetails = {
+      totalSupply: '1000',
+      chainId: 1,
+      tokenAddress: '0x0000000000000000000000000000000000000001',
+    }
     mockStoreState.currentBlockNumber = 200
     mockOutcome = AuctionOutcome.GRADUATED
+    mockDisplayState = undefined
     // Default: no post-auction content for this viewer.
     vi.mocked(getCreatorSweepDisplay).mockReturnValue(null)
     vi.mocked(getMigrateCtaState).mockReturnValue({ visible: false, enabled: false, showComplete: false })
@@ -72,6 +91,19 @@ describe('usePostAuctionPanelState', () => {
 
   it('ended + graduated success card: has panel content but no creator/migrate action', () => {
     mockBidFormState.showAuctionGraduated = true
+
+    const { result } = renderHook(() => usePostAuctionPanelState())
+
+    expect(result.current).toEqual({ postAuctionActionVisible: false, hasPanelContent: true })
+  })
+
+  it('ended + pool available: the now-trading card counts as panel content', () => {
+    mockDisplayState = {
+      phase: AuctionDisplayPhase.Ended,
+      result: AuctionDisplayResult.Successful,
+      poolAvailability: PoolAvailability.HasPool,
+      shouldShowSwap: true,
+    }
 
     const { result } = renderHook(() => usePostAuctionPanelState())
 

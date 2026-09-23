@@ -3,6 +3,7 @@ import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes
 import { IncreasePositionRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/api_pb'
 import { LPAction, LPToken } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
 import type { Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { UniverseChainId, Platform } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import {
   createContext,
@@ -20,11 +21,9 @@ import { liquidityQueries } from 'uniswap/src/data/apiClients/liquidityService/l
 import { useCheckLPApprovalQuery } from 'uniswap/src/data/apiClients/liquidityService/useCheckLPApprovalQuery'
 import { getTradeSettingsDeadline } from 'uniswap/src/data/apiClients/tradingApi/utils/getTradeSettingsDeadline'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useTransactionGasFee, useUSDCurrencyAmountOfGasFee } from 'uniswap/src/features/gas/hooks'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { getIsPermissioned } from 'uniswap/src/features/positions/utils'
 import { DelegatedState } from 'uniswap/src/features/smartWallet/delegation/types'
 import { InterfaceEventName, ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -35,13 +34,14 @@ import {
   type IncreasePositionTxAndGasInfo,
   LiquidityTransactionType,
 } from 'uniswap/src/features/transactions/liquidity/types'
-import { getErrorMessageToDisplay, parseErrorMessageTitle } from 'uniswap/src/features/transactions/liquidity/utils'
+import { useLogLiquidityTxError } from 'uniswap/src/features/transactions/liquidity/useLogLiquidityTxError'
+import { getErrorMessageToDisplay } from 'uniswap/src/features/transactions/liquidity/utils'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
 import { PermitMethod } from 'uniswap/src/features/transactions/swap/types/permitMethod'
 import { validatePermit, validateTransactionRequest } from 'uniswap/src/features/transactions/swap/utils/trade'
 import { currencyId } from 'uniswap/src/utils/currencyId'
-import { logger } from 'utilities/src/logger/logger'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
+import { LP_GAS_URGENCY } from '~/features/Liquidity/constants'
 import { useDynamicNativeSlippage } from '~/features/Liquidity/Create/hooks/useLPSlippageValues'
 import { useIsLiquidityApprovalSimulationEnabled } from '~/features/Liquidity/hooks/preEstimatedLiquidityGasUtils'
 import { useIncreasePositionDependentAmountFallback } from '~/features/Liquidity/hooks/useDependentAmountFallback'
@@ -116,19 +116,13 @@ export function IncreaseLiquidityTxContextProvider({ children }: PropsWithChildr
     isQueryEnabled: !!increaseLiquidityApprovalParams && !error,
   })
 
-  if (approvalError) {
-    const message = parseErrorMessageTitle(approvalError, { defaultTitle: 'unknown CheckLpApprovalQuery' })
-    logger.error(message, {
-      tags: {
-        file: 'IncreaseLiquidityTxContext',
-        function: 'useEffect',
-      },
-      extra: {
-        canBatchTransactions: canBatchTransactions ?? false,
-        delegatedAddress,
-      },
-    })
-  }
+  useLogLiquidityTxError({
+    error: approvalError,
+    defaultTitle: 'unknown CheckLpApprovalQuery',
+    file: 'IncreaseLiquidityTxContext',
+    functionName: 'useCheckLPApprovalQuery',
+    extra: { canBatchTransactions: canBatchTransactions ?? false, delegatedAddress },
+  })
 
   const {
     token0Approval,
@@ -279,27 +273,22 @@ export function IncreaseLiquidityTxContextProvider({ children }: PropsWithChildr
     isSlippageDirty,
   })
 
-  if (calldataError) {
-    const message = parseErrorMessageTitle(calldataError, { defaultTitle: 'unknown IncreaseLpPositionCalldataQuery' })
-    logger.error(message, {
-      tags: {
-        file: 'IncreaseLiquidityTxContext',
-        function: 'useEffect',
-      },
-      extra: {
-        canBatchTransactions: canBatchTransactions ?? false,
-        delegatedAddress,
-      },
-    })
-
-    if (increaseCalldataQueryParams) {
-      sendAnalyticsEvent(InterfaceEventName.IncreaseLiquidityFailed, {
-        message,
-        // oxlint-disable-next-line typescript/no-misused-spread -- biome-parity: oxlint is stricter here
-        ...increaseCalldataQueryParams,
-      })
-    }
-  }
+  useLogLiquidityTxError({
+    error: calldataError,
+    defaultTitle: 'unknown IncreaseLpPositionCalldataQuery',
+    file: 'IncreaseLiquidityTxContext',
+    functionName: 'liquidityQueries.increasePosition',
+    extra: { canBatchTransactions: canBatchTransactions ?? false, delegatedAddress },
+    onError: (message) => {
+      if (increaseCalldataQueryParams) {
+        sendAnalyticsEvent(InterfaceEventName.IncreaseLiquidityFailed, {
+          message,
+          // oxlint-disable-next-line typescript/no-misused-spread -- biome-parity: oxlint is stricter here
+          ...increaseCalldataQueryParams,
+        })
+      }
+    },
+  })
 
   const fallbackDependentAmount = useIncreasePositionDependentAmountFallback({
     queryParams: increaseCalldataQueryParams,
@@ -318,7 +307,11 @@ export function IncreaseLiquidityTxContextProvider({ children }: PropsWithChildr
   // Use pre-estimated gas fee as fallback until real estimate is available
   const effectiveGasFee = actualGasFee ?? preEstimatedGasFee
 
-  const { displayValue: calculatedGasFee } = useTransactionGasFee({ tx: increase, skip: !!effectiveGasFee })
+  const { displayValue: calculatedGasFee } = useTransactionGasFee({
+    tx: increase,
+    skip: !!effectiveGasFee,
+    urgency: LP_GAS_URGENCY,
+  })
   const increaseGasFeeUsd = useUSDCurrencyAmountOfGasFee(
     toSupportedChainId(increaseCalldata?.increase?.chainId) ?? undefined,
     effectiveGasFee || calculatedGasFee,

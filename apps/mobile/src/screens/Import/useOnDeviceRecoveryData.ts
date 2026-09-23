@@ -1,3 +1,4 @@
+import { Platform, areAddressesEqual } from '@universe/chains'
 import { useEffect, useMemo, useState } from 'react'
 import { useWalletBalancesIncludeCategories } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
 import {
@@ -8,8 +9,6 @@ import {
 import { useUnitagsAddressQuery } from 'uniswap/src/data/apiClients/unitagsApi/useUnitagsAddressQuery'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { useRestPortfolioValueModifiers } from 'uniswap/src/features/dataApi/balances/useRestPortfolioValueModifier'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { logger } from 'utilities/src/logger/logger'
 import { NUMBER_OF_WALLETS_TO_GENERATE } from 'wallet/src/features/onboarding/constants'
 import {
@@ -47,7 +46,7 @@ function useStoredAddressesForMnemonic(mnemonicId: string | undefined): {
             logger.error(`Failed to generate address for mnemonicId: ${mnemonicId}`, {
               tags: { file: 'useOnDeviceRecoveryData', function: 'getAddresses' },
             })
-            return undefined
+            return Promise.resolve(undefined)
           }
         }),
       )

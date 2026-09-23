@@ -1,18 +1,13 @@
+import '~/pages/Swap/Limit/RouterLabel/UniswapXRouterLabel.css'
+import { Flex, type FlexCompatProps as FlexProps } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import { useRef } from 'react'
-import { Flex, FlexProps } from 'ui/src'
 import { uuid } from 'utilities/src/primitives/uuid'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 
-// Gradient with a fallback to solid color.
-const Gradient = deprecatedStyled.div`
-  color: #4673fa;
-
-  @supports (-webkit-background-clip: text) and (-webkit-text-fill-color: transparent) {
-    background-image: linear-gradient(91.39deg, #4673fa -101.76%, #9646fa 101.76%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-`
+const Gradient = styled('div', {
+  platform: 'web',
+  base: 'uniswapx-router-label-gradient',
+})
 
 export { Gradient as UniswapXGradient }
 

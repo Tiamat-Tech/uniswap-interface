@@ -1,12 +1,14 @@
 import type { GetWalletsBalancesResponse, WalletBalance } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import type { DataApiServiceClient } from '@universe/api/src/clients/dataApi/createDataApiServiceClient'
+import { createMockDataApiServiceClient } from '@universe/api/src/clients/dataApi/createMockDataApiServiceClient'
 import { getGetWalletsBalancesQueryOptions } from '@universe/api/src/clients/dataApi/getGetWalletsBalancesQueryOptions'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { hashKey } from 'utilities/src/reactQuery/hashKey'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('getGetWalletsBalancesQueryOptions', () => {
   let mockClient: DataApiServiceClient
+  let getWalletsBalances: Mock<DataApiServiceClient['getWalletsBalances']>
 
   const createMockResponse = (balances: unknown[] = []): GetWalletsBalancesResponse =>
     ({ balances }) as unknown as GetWalletsBalancesResponse
@@ -15,13 +17,8 @@ describe('getGetWalletsBalancesQueryOptions', () => {
     options.queryFn?.({ queryKey: options.queryKey } as unknown as Parameters<NonNullable<typeof options.queryFn>>[0])
 
   beforeEach(() => {
-    mockClient = {
-      getPortfolio: vi.fn(),
-      getWalletBalances: vi.fn(),
-      getWalletsBalances: vi.fn().mockResolvedValue(createMockResponse()),
-      listTokens: vi.fn(),
-      listTopPools: vi.fn(),
-    }
+    getWalletsBalances = vi.fn<DataApiServiceClient['getWalletsBalances']>().mockResolvedValue(createMockResponse())
+    mockClient = createMockDataApiServiceClient({ getWalletsBalances })
   })
 
   describe('queryKey', () => {
@@ -81,7 +78,7 @@ describe('getGetWalletsBalancesQueryOptions', () => {
       const options = getGetWalletsBalancesQueryOptions(mockClient, {})
       const result = await runQueryFn(options)
       expect(result).toBeUndefined()
-      expect(mockClient.getWalletsBalances).not.toHaveBeenCalled()
+      expect(getWalletsBalances).not.toHaveBeenCalled()
     })
 
     it('returns undefined and skips the client when wallets is empty (BE rejects empty batches)', async () => {
@@ -90,7 +87,7 @@ describe('getGetWalletsBalancesQueryOptions', () => {
       })
       const result = await runQueryFn(options)
       expect(result).toBeUndefined()
-      expect(mockClient.getWalletsBalances).not.toHaveBeenCalled()
+      expect(getWalletsBalances).not.toHaveBeenCalled()
     })
 
     it('calls client.getWalletsBalances with transformed input (walletAccounts) and returns response', async () => {
@@ -98,11 +95,11 @@ describe('getGetWalletsBalancesQueryOptions', () => {
         input: { wallets: [{ evmAddress: '0x123' }, { svmAddress: 'svm-addr' }], chainIds: [1] },
       })
       const result = await runQueryFn(options)
-      expect(mockClient.getWalletsBalances).toHaveBeenCalledTimes(1)
-      const callArg = (mockClient.getWalletsBalances as ReturnType<typeof vi.fn>).mock.calls[0][0]
-      expect(callArg.walletAccounts).toHaveLength(2)
-      expect(callArg.walletAccounts[0].platformAddresses[0]).toMatchObject({ address: '0x123' })
-      expect(callArg.walletAccounts[1].platformAddresses[0]).toMatchObject({ address: 'svm-addr' })
+      expect(getWalletsBalances).toHaveBeenCalledTimes(1)
+      const callArg = getWalletsBalances.mock.calls[0]?.[0]
+      expect(callArg?.walletAccounts).toHaveLength(2)
+      expect(callArg?.walletAccounts?.[0]?.platformAddresses?.[0]).toMatchObject({ address: '0x123' })
+      expect(callArg?.walletAccounts?.[1]?.platformAddresses?.[0]).toMatchObject({ address: 'svm-addr' })
       expect(callArg).toMatchObject({ chainIds: [1] })
       expect(result).toEqual({ balances: [] })
     })
@@ -113,17 +110,18 @@ describe('getGetWalletsBalancesQueryOptions', () => {
         input: { wallets: [{ evmAddress: '0xabc' }], chainIds: [1], modifiers, includeCategories: [1] },
       })
       await runQueryFn(options)
-      const callArg = (mockClient.getWalletsBalances as ReturnType<typeof vi.fn>).mock.calls[0][0]
-      expect(callArg.modifiers).toEqual(modifiers)
-      expect(callArg.includeCategories).toEqual([1])
+      const callArg = getWalletsBalances.mock.calls[0]?.[0]
+      expect(callArg?.modifiers).toEqual(modifiers)
+      expect(callArg?.includeCategories).toEqual([1])
     })
 
     it('chunks more than 20 wallets into multiple requests and merges balances in request order', async () => {
       const wallets = Array.from({ length: 25 }, (_, i) => ({ evmAddress: `0x${i}` }))
-      const mockedGetWalletsBalances = mockClient.getWalletsBalances as ReturnType<typeof vi.fn>
-      mockedGetWalletsBalances.mockImplementation(({ walletAccounts }: { walletAccounts: unknown[] }) =>
+      getWalletsBalances.mockImplementation(({ walletAccounts }) =>
         Promise.resolve(
-          createMockResponse(walletAccounts.map((walletAccount) => ({ walletAccount }) as unknown as WalletBalance)),
+          createMockResponse(
+            (walletAccounts ?? []).map((walletAccount) => ({ walletAccount }) as unknown as WalletBalance),
+          ),
         ),
       )
 
@@ -134,11 +132,11 @@ describe('getGetWalletsBalancesQueryOptions', () => {
         balances: { walletAccount: { platformAddresses: { address: string }[] } }[]
       }
 
-      expect(mockedGetWalletsBalances).toHaveBeenCalledTimes(2)
-      expect(mockedGetWalletsBalances.mock.calls[0][0].walletAccounts).toHaveLength(20)
-      expect(mockedGetWalletsBalances.mock.calls[1][0].walletAccounts).toHaveLength(5)
+      expect(getWalletsBalances).toHaveBeenCalledTimes(2)
+      expect(getWalletsBalances.mock.calls[0]?.[0]?.walletAccounts).toHaveLength(20)
+      expect(getWalletsBalances.mock.calls[1]?.[0]?.walletAccounts).toHaveLength(5)
       expect(result.balances).toHaveLength(25)
-      expect(result.balances.map((b) => b.walletAccount.platformAddresses[0].address)).toEqual(
+      expect(result.balances.map((b) => b.walletAccount.platformAddresses[0]?.address)).toEqual(
         wallets.map((w) => w.evmAddress),
       )
     })

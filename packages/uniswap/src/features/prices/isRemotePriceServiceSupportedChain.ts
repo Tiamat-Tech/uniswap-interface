@@ -1,5 +1,5 @@
+import { isSVMChain } from '@universe/chains'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
-import { isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
 
 /**
  * The remote price service is the source of truth for every known non-Solana

@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import ms from 'ms'
 import { ForApiClient } from 'uniswap/src/data/apiClients/forApi/ForApiClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { FiatOnRampEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'

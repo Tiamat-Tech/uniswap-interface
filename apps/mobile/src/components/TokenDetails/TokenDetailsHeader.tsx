@@ -1,22 +1,19 @@
-import { FeatureFlags } from '@universe/gating'
+import { chainIdToPlatform } from '@universe/chains'
+import { Flex, FlexLoader, flexStyles, iconSizes, Shine, Text, TouchableArea } from '@universe/mycelium'
+import { CopyAlt } from '@universe/mycelium/icons/CopyAlt'
+import { Lock } from '@universe/mycelium/icons/Lock'
 import React, { memo } from 'react'
 import { useSelector } from 'react-redux'
 import { RWAIssuerHeaderDetails } from 'src/components/TokenDetails/rwa/RWAIssuerHeaderDetails'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
-import { useFeatureFlaggedProjectTokens } from 'src/components/TokenDetails/useFeatureFlaggedProjectTokens'
-import { useGatedTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
-import { EM_DASH, Flex, FlexLoader, flexStyles, Shine, Text, TouchableArea } from 'ui/src'
-import { CopyAlt } from 'ui/src/components/icons'
-import { Lock } from 'ui/src/components/icons/Lock'
-import { iconSizes } from 'ui/src/theme'
+import { useTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
+import { EM_DASH } from 'ui/src'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
-import { useTokenBasicInfoPartsFragment, useTokenBasicProjectPartsFragment } from 'uniswap/src/data/graphql/fragments'
 import { selectHasViewedContractAddressExplainer } from 'uniswap/src/features/behaviorHistory/selectors'
-import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useTokenMetadata } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
-import { isMultichainProjectTokens } from 'uniswap/src/features/dataApi/tokenProjects/utils/isMultichainProjectTokens'
 import { getRWAHeaderIdentity } from 'uniswap/src/features/rwa/getRWAHeaderIdentity'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+import { isDefaultNativeAddress } from 'uniswap/src/utils/currencyId'
 
 export const TokenDetailsHeader = memo(function TokenDetailsHeaderInner(): JSX.Element {
   const {
@@ -27,58 +24,45 @@ export const TokenDetailsHeader = memo(function TokenDetailsHeaderInner(): JSX.E
     copyAddressToClipboard,
     isPermissioned,
     isAllowlisted,
+    address,
+    chainId,
+    hasMultichainAddresses,
   } = useTokenDetailsContext()
   // Lock next to the ticker is the allowlisted "you're verified" reward, mirroring web TDP.
   // Never shown to a non-allowlisted wallet.
   const showPermissionedLock = isPermissioned && isAllowlisted
   const hasViewedContractAddressExplainer = useSelector(selectHasViewedContractAddressExplainer)
 
-  const rwaMatch = useGatedTokenDetailsRWAMatch(FeatureFlags.RWATdp)
-  const token = useTokenBasicInfoPartsFragment({ currencyId }).data
-  const project = useTokenBasicProjectPartsFragment({ currencyId }).data.project
-  const metadata = useTokenMetadata(currencyId, {
-    legacyToken: { name: token.name, symbol: token.symbol, project: { logoUrl: project?.logoUrl } },
-  })
-  const projectTokensLoaded = project?.tokens !== undefined
-  // Gate out unlaunched chains (e.g. Arc/Robinhood) so they don't drive multichain UI on the header.
-  const featureFlaggedProjectTokens = useFeatureFlaggedProjectTokens(project?.tokens)
-  const projectIsMultichain = projectTokensLoaded && isMultichainProjectTokens(featureFlaggedProjectTokens)
-  const isMultichainToken = initialIsMultichainAsset || projectIsMultichain
-  // need to wait for the project tokens to load before we can open the multichain address sheet
-  const canOpenMultichainAddressSheet = projectIsMultichain
-  // when the caller hinted this is a multichain asset, defer rendering the per-deployment name/symbol
-  // until the project fragment confirms — otherwise we briefly show the chain-specific name (e.g. "USDC.e")
-  // before swapping to the canonical project name.
-  const shouldWaitForProject = initialIsMultichainAsset && !projectTokensLoaded
-  const shouldShowNameSkeleton = shouldWaitForProject || metadata.isLoading
+  const rwaMatch = useTokenDetailsRWAMatch()
+  const metadata = useTokenMetadata(currencyId)
+
+  const isMultichainToken = initialIsMultichainAsset || hasMultichainAddresses
   const { name: tokenName, logoUrl } = getRWAHeaderIdentity({
     rwaMatch,
     fallbackName: metadata.name ?? undefined,
     logoUrl: metadata.logoUrl ?? undefined,
   })
 
-  const handleCopyAddress = async (): Promise<void> => {
-    if (!token.address) {
-      return
-    }
+  const hasNonNativeAddress = !!address && !isDefaultNativeAddress({ address, platform: chainIdToPlatform(chainId) })
 
+  const handleCopyAddress = async (): Promise<void> => {
     if (!hasViewedContractAddressExplainer) {
       openContractAddressExplainerModal()
       return
     }
 
-    if (canOpenMultichainAddressSheet) {
+    if (hasMultichainAddresses) {
       openMultichainAddressSheet()
       return
     }
 
-    await copyAddressToClipboard(token.address)
+    await copyAddressToClipboard(address)
   }
 
   return (
     <Flex row alignItems="flex-start" gap="$spacing12" mx="$spacing16">
       <TokenLogo
-        chainId={fromGraphQLChain(token.chain) ?? undefined}
+        chainId={chainId}
         hideNetworkLogo={isMultichainToken || !!rwaMatch}
         name={tokenName ?? undefined}
         symbol={rwaMatch?.asset.symbol ?? metadata.symbol ?? undefined}
@@ -87,7 +71,7 @@ export const TokenDetailsHeader = memo(function TokenDetailsHeaderInner(): JSX.E
       />
 
       <Flex shrink flex={1}>
-        {shouldShowNameSkeleton ? (
+        {metadata.isLoading ? (
           <Shine>
             <Flex gap="$spacing8" py="$spacing4">
               <FlexLoader height={20} width={120} borderRadius="$rounded4" />
@@ -113,7 +97,7 @@ export const TokenDetailsHeader = memo(function TokenDetailsHeaderInner(): JSX.E
                 </>
               ) : null}
               <TouchableArea
-                disabled={!token.address}
+                disabled={!hasNonNativeAddress}
                 flexDirection="row"
                 gap="$spacing4"
                 style={flexStyles.shrink}
@@ -130,7 +114,7 @@ export const TokenDetailsHeader = memo(function TokenDetailsHeaderInner(): JSX.E
                   {metadata.symbol?.toUpperCase() || EM_DASH}
                 </Text>
                 {showPermissionedLock && <Lock color="$neutral2" size="$icon.16" alignSelf="center" flexShrink={0} />}
-                {token.address && <CopyAlt color="$neutral3" size="$icon.16" alignSelf="center" />}
+                {hasNonNativeAddress && <CopyAlt color="$neutral3" size="$icon.16" alignSelf="center" />}
               </TouchableArea>
             </Flex>
           </>

@@ -1,6 +1,5 @@
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { TOKEN_SELECTOR_V2_CONTROL_HEIGHT } from 'uniswap/src/components/TokenSelectorV2/constants'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
 import type { AddressGroup } from 'uniswap/src/features/accounts/store/types/AccountsState'

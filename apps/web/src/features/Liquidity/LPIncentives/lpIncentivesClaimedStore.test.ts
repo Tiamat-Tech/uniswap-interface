@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { AddressStringFormat, normalizeAddress, UniverseChainId } from '@universe/chains'
 import { SAMPLE_SEED_ADDRESS_1, SAMPLE_SEED_ADDRESS_2 } from 'uniswap/src/test/fixtures/gql/assets/constants'
 import { LP_INCENTIVES_CLAIM_STALENESS_MS } from '~/features/Liquidity/LPIncentives/constants'
 import {
@@ -48,7 +48,11 @@ describe('lpIncentivesClaimedStore', () => {
 
     const { claimedAt } = useLpIncentivesClaimedStore.getState()
     expect(claimedAt[key(SAMPLE_SEED_ADDRESS_1, UniverseChainId.Base)]).toBe(now)
-    expect(claimedAt[`${SAMPLE_SEED_ADDRESS_1.toLowerCase()}:${UniverseChainId.Base}:${UNI_LOWERCASE}`]).toBe(now)
+    expect(
+      claimedAt[
+        `${normalizeAddress(SAMPLE_SEED_ADDRESS_1, AddressStringFormat.Lowercase)}:${UniverseChainId.Base}:${UNI_LOWERCASE}`
+      ],
+    ).toBe(now)
   })
 
   // Regression: an unscoped chain:token key let one wallet's claim suppress the same reward token

@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import { PermissionedTokenWarningCard } from 'uniswap/src/features/permissionedTokens/PermissionedTokenWarningCard'
 import { useActiveSwapPermissionedState } from 'uniswap/src/features/permissionedTokens/useActiveSwapPermissionedState'
 

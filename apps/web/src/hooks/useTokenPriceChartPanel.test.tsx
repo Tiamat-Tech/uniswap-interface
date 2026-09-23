@@ -1,10 +1,8 @@
 import { GraphQLApi } from '@universe/api'
-import { useFeatureFlag } from '@universe/gating'
 import { UTCTimestamp } from 'lightweight-charts'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import { USDC_MAINNET } from 'uniswap/src/constants/tokens'
 import { useTokenSpotPrice } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
-import { usePreferProjectMarketDataForCurrency } from 'uniswap/src/features/rwa/usePreferProjectMarketData'
 import type { PriceChartData } from '~/components/Charts/PriceChart'
 import { ChartType, DataQuality, PriceChartType, type ChartQueryResult } from '~/components/Charts/utils'
 import { TimePeriod } from '~/data/util'
@@ -21,10 +19,6 @@ vi.mock('~/hooks/useTokenPriceChartData', async (importOriginal) => {
   }
 })
 
-vi.mock('uniswap/src/features/rwa/usePreferProjectMarketData', () => ({
-  usePreferProjectMarketDataForCurrency: vi.fn(() => false),
-}))
-
 vi.mock('uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData', async (importOriginal) => {
   const actual = await importOriginal<typeof import('uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData')>()
   return {
@@ -36,8 +30,6 @@ vi.mock('uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData', async (
 
 const mockUseTokenPriceChartData = vi.mocked(useTokenPriceChartData)
 const mockUseTokenSpotPrice = vi.mocked(useTokenSpotPrice)
-const mockUsePreferProjectMarketDataForCurrency = vi.mocked(usePreferProjectMarketDataForCurrency)
-const mockUseFeatureFlag = vi.mocked(useFeatureFlag)
 
 type PriceChartQueryMock = ChartQueryResult<PriceChartData, ChartType.PRICE> & {
   disableCandlestickUI: boolean
@@ -74,7 +66,6 @@ describe('useTokenPriceChartPanel', () => {
     vi.clearAllMocks()
     mockUseTokenPriceChartData.mockReturnValue(basePriceQuery)
     mockUseTokenSpotPrice.mockReturnValue(undefined)
-    mockUsePreferProjectMarketDataForCurrency.mockReturnValue(false)
   })
 
   it('syncs disableCandlestickUI to the store in layout effect', () => {
@@ -135,7 +126,7 @@ describe('useTokenPriceChartPanel', () => {
     expect(result.current.showInvalidSkeleton).toBe(true)
   })
 
-  it('keeps project market data preference off when the token is not a tokenized security', () => {
+  it('polls the REST spot price and forwards the aggregate-view flag', () => {
     renderHook(() =>
       useTokenPriceChartPanel({
         variables: { ...variables, multichain: true },
@@ -147,94 +138,53 @@ describe('useTokenPriceChartPanel', () => {
     )
 
     expect(mockUseTokenSpotPrice).toHaveBeenCalledWith(expect.any(String), {
-      preferProjectMarketData: false,
       isMultichainAggregateView: true,
-      multichainId: undefined,
       refetchInterval: PollingInterval.KindaFast,
       skip: false,
     })
     expect(mockUseTokenPriceChartData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        currentPriceOverride: undefined,
-        preferProjectMarketData: false,
-      }),
+      expect.objectContaining({ currentPriceOverride: undefined }),
     )
   })
 
-  it('uses the REST spot price directly on the all-networks view when V2 tokens are enabled', () => {
-    // V2 REST has no cross-chain aggregate price endpoint, so the per-chain REST price is
-    // authoritative even on the aggregate view instead of falling back to legacy GraphQL/CoinGecko.
-    mockUseFeatureFlag.mockReturnValue(true)
-    mockUseTokenSpotPrice.mockReturnValue(123)
-
-    renderHook(() =>
-      useTokenPriceChartPanel({
-        variables: { ...variables, multichain: true },
-        priceChartType: PriceChartType.LINE,
-        setDisableCandlestickUI: vi.fn(),
-        timePeriod: TimePeriod.WEEK,
-        currency: USDC_MAINNET,
-      }),
-    )
-
-    expect(mockUseTokenPriceChartData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        currentPriceOverride: 123,
-      }),
-    )
-  })
-
-  it('prefers project market data when the RWA preference hook opts in', () => {
-    // Represents rwa_coingecko_data being enabled and the current TDP token matching the RWA whitelist.
-    mockUsePreferProjectMarketDataForCurrency.mockReturnValue(true)
-    mockUseTokenSpotPrice.mockReturnValue(123)
-
-    renderHook(() =>
-      useTokenPriceChartPanel({
-        variables: { ...variables, multichain: true },
-        priceChartType: PriceChartType.LINE,
-        setDisableCandlestickUI: vi.fn(),
-        timePeriod: TimePeriod.WEEK,
-        currency: USDC_MAINNET,
-      }),
-    )
-
-    expect(mockUseTokenSpotPrice).toHaveBeenCalledWith(expect.any(String), {
-      preferProjectMarketData: true,
-      isMultichainAggregateView: true,
-      multichainId: undefined,
-      refetchInterval: PollingInterval.KindaFast,
-      skip: false,
-    })
-    expect(mockUseTokenPriceChartData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        currentPriceOverride: 123,
-        preferProjectMarketData: true,
-      }),
-    )
-  })
-
-  it('uses an explicit preferProjectMarketData override when provided', () => {
-    mockUsePreferProjectMarketDataForCurrency.mockReturnValue(false)
-    mockUseTokenSpotPrice.mockReturnValue(123)
-
+  it('drops its own price polling when the caller owns the cadence', () => {
     renderHook(() =>
       useTokenPriceChartPanel({
         variables,
         priceChartType: PriceChartType.LINE,
         timePeriod: TimePeriod.WEEK,
         currency: USDC_MAINNET,
-        preferProjectMarketData: true,
+        disablePricePolling: true,
       }),
     )
 
-    expect(mockUseTokenSpotPrice).toHaveBeenCalledWith(expect.any(String), {
-      preferProjectMarketData: true,
-      isMultichainAggregateView: false,
-      multichainId: undefined,
-      refetchInterval: PollingInterval.KindaFast,
-      skip: false,
-    })
+    expect(mockUseTokenSpotPrice).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ refetchInterval: undefined }),
+    )
+    expect(mockUseTokenPriceChartData).toHaveBeenCalledWith(expect.objectContaining({ disablePricePolling: true }))
+  })
+
+  it('uses the REST spot price directly on the all-networks view', () => {
+    // REST has no cross-chain aggregate price endpoint, so the per-chain REST price is
+    // authoritative even on the aggregate view.
+    mockUseTokenSpotPrice.mockReturnValue(123)
+
+    renderHook(() =>
+      useTokenPriceChartPanel({
+        variables: { ...variables, multichain: true },
+        priceChartType: PriceChartType.LINE,
+        setDisableCandlestickUI: vi.fn(),
+        timePeriod: TimePeriod.WEEK,
+        currency: USDC_MAINNET,
+      }),
+    )
+
+    expect(mockUseTokenPriceChartData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentPriceOverride: 123,
+      }),
+    )
   })
 
   it('passes skip through to useTokenSpotPrice and useTokenPriceChartData', () => {

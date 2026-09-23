@@ -1,18 +1,31 @@
 import type { ReactNode } from 'react'
 import { TokenDetailsEarnSection } from 'src/components/TokenDetails/TokenDetailsEarnSection'
 import { render, screen } from 'src/test/test-utils'
+import { EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import { useEarnPosition } from 'uniswap/src/features/earn/hooks/useEarnPosition'
 import type { TokenDetailsEarnData } from 'uniswap/src/features/earn/hooks/useTokenDetailsEarnData'
-import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
+import { EarnAction, type EarnPositionInfo, type EarnVaultInfo } from 'uniswap/src/features/earn/types'
 
 const sharedSectionMock = vi.hoisted(() => vi.fn())
+const accountMock = vi.hoisted(() => ({ isViewOnly: false }))
+const mockNavigate = vi.fn()
+const mockNavigateToEarnVault = vi.fn()
 
 vi.mock('src/app/navigation/types', () => ({
-  useAppStackNavigation: () => ({ navigate: vi.fn() }),
+  useAppStackNavigation: () => ({ navigate: mockNavigate }),
+}))
+
+vi.mock('wallet/src/contexts/WalletNavigationContext', () => ({
+  WalletNavigationProvider: ({ children }: { children: ReactNode }): ReactNode => children,
+  useWalletNavigation: () => ({ navigateToEarnVault: mockNavigateToEarnVault }),
+}))
+
+vi.mock('wallet/src/features/wallet/hooks', () => ({
+  useIsViewOnlyWallet: (): boolean => accountMock.isViewOnly,
 }))
 
 vi.mock('uniswap/src/components/tokenDetails/TokenDetailsEarnSection', async () => {
-  const { Text } = await vi.importActual<typeof import('ui/src')>('ui/src')
+  const { Text } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
   return {
     TokenDetailsEarnSection: (props: {
       children?: ReactNode
@@ -69,6 +82,9 @@ const earnData = {
 describe(TokenDetailsEarnSection, (): void => {
   beforeEach((): void => {
     sharedSectionMock.mockClear()
+    mockNavigate.mockClear()
+    mockNavigateToEarnVault.mockClear()
+    accountMock.isViewOnly = false
   })
 
   it('hides a stale prefetched position after an authoritative empty response', (): void => {
@@ -105,5 +121,48 @@ describe(TokenDetailsEarnSection, (): void => {
     expect(sharedSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({ earnPosition: prefetchedPosition, rewardsUnavailable: true }),
     )
+  })
+
+  it('routes a signer wallet deposit press directly into the deposit action', (): void => {
+    useEarnPositionMock.mockReturnValue({
+      position: detailedPosition,
+      isError: false,
+    } as ReturnType<typeof useEarnPosition>)
+
+    render(<TokenDetailsEarnSection activeAddress="0x1" earnData={earnData} />)
+
+    const sectionProps = sharedSectionMock.mock.calls[0]?.[0] as {
+      onDepositPress: (pressVault: EarnVaultInfo, pressPosition: EarnPositionInfo) => void
+    }
+    sectionProps.onDepositPress(vault, detailedPosition)
+
+    expect(mockNavigateToEarnVault).toHaveBeenCalledWith({
+      analyticsEntryPoint: EarnEntryPoint.TokenDetailsEarnSection,
+      vault,
+      position: detailedPosition,
+      initialAction: EarnAction.Deposit,
+    })
+  })
+
+  it('routes a view-only wallet deposit press to the vault overview without the deposit action', (): void => {
+    accountMock.isViewOnly = true
+    useEarnPositionMock.mockReturnValue({
+      position: detailedPosition,
+      isError: false,
+    } as ReturnType<typeof useEarnPosition>)
+
+    render(<TokenDetailsEarnSection activeAddress="0x1" earnData={earnData} />)
+
+    const sectionProps = sharedSectionMock.mock.calls[0]?.[0] as {
+      onDepositPress: (pressVault: EarnVaultInfo, pressPosition: EarnPositionInfo) => void
+    }
+    sectionProps.onDepositPress(vault, detailedPosition)
+
+    expect(mockNavigateToEarnVault).toHaveBeenCalledWith({
+      analyticsEntryPoint: EarnEntryPoint.TokenDetailsEarnSection,
+      vault,
+      position: detailedPosition,
+    })
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 })

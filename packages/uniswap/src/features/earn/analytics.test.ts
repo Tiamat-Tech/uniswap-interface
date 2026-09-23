@@ -107,7 +107,13 @@ describe('Earn analytics', () => {
     expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(EarnEventName.EarnHowItWorksAcknowledged, properties)
   })
 
-  it('logs action-specific transaction events', () => {
+  it.each([
+    ['withdraw', 'submitted', EarnEventName.EarnWithdrawSubmitted],
+    ['deposit', 'review_ready', EarnEventName.EarnDepositReviewReady],
+    ['withdraw', 'review_ready', EarnEventName.EarnWithdrawReviewReady],
+    ['deposit', 'submit_button_clicked', EarnEventName.EarnDepositSubmitButtonClicked],
+    ['withdraw', 'submit_button_clicked', EarnEventName.EarnWithdrawSubmitButtonClicked],
+  ] as const)('logs the %s %s event', (action, status, eventName) => {
     const properties = {
       ...getEarnVaultAnalyticsProperties({
         entryPoint: EarnEntryPoint.TokenDetailsEarnSection,
@@ -115,13 +121,13 @@ describe('Earn analytics', () => {
         surface: EarnAnalyticsSurface.Mobile,
         vault: VAULT,
       }),
-      action: 'withdraw' as const,
+      action,
       amount_usd: 10,
     }
 
-    logEarnTransactionEvent({ action: 'withdraw', status: 'submitted', properties })
+    logEarnTransactionEvent({ action, status, properties })
 
-    expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(EarnEventName.EarnWithdrawSubmitted, properties)
+    expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(eventName, properties)
   })
 
   it('logs swap upsell interactions with toggle state', () => {

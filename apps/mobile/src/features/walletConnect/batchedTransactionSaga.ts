@@ -1,4 +1,5 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId, Platform, areEvmAddressesEqual } from '@universe/chains'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
 import { getInternalError, getSdkError } from '@walletconnect/utils'
 import { navigate } from 'src/app/navigation/rootNavigation'
@@ -11,8 +12,6 @@ import {
 import { call, put, select } from 'typed-redux-saga'
 import { checkWalletDelegation, TradingApiClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
 import { AccountType } from 'uniswap/src/features/accounts/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { getEnabledChainIdsSaga } from 'uniswap/src/features/settings/saga'
 import { transformTradingApiUserOpToRpcUserOp } from 'uniswap/src/features/smartWallet/userOp/transformTradingApiUserOp'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -297,7 +296,7 @@ export function* handleGetCapabilities({
     return
   }
 
-  if (requestedAccount.toLowerCase() !== accountAddress.toLowerCase()) {
+  if (!areEvmAddressesEqual(requestedAccount, accountAddress)) {
     yield* respondWithError({ topic, requestId, error: getSdkError('UNAUTHORIZED_METHOD') })
     return
   }

@@ -1,9 +1,9 @@
 import { renderHook } from '@testing-library/react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  TOUCAN_AUCTION_SUPPORTED_CHAINS,
-  TOUCAN_TOKEN_CREATION_SUPPORTED_CHAINS,
+  useToucanAuctionSupportedChains,
+  useToucanTokenCreationSupportedChains,
 } from '~/features/Toucan/supportedChains'
 import {
   filterAllowedNetworksByTestnetMode,
@@ -11,6 +11,14 @@ import {
   useCreateAuctionAllowedNetworks,
   useCreateNewTokenAllowedNetworks,
 } from '~/pages/Liquidity/CreateAuction/hooks/useAllowedNetworks'
+
+/** The launcher chain lists as the surfaces see them: SDK-derived, with the rollout gates applied. */
+function renderSupportedChains(): { auction: UniverseChainId[]; creation: UniverseChainId[] } {
+  return {
+    auction: renderHook(() => useToucanAuctionSupportedChains()).result.current,
+    creation: renderHook(() => useToucanTokenCreationSupportedChains()).result.current,
+  }
+}
 
 const testnetMode = { enabled: false }
 vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({
@@ -80,16 +88,16 @@ describe('filterAllowedNetworksByTestnetMode', () => {
 
 describe('SDK-derived chain lists', () => {
   it('supported chains come from the SDK intersected with app-registered chains', () => {
-    // SDK 0.2.1 added avalanche, xlayer, and robinhood; base-sepolia is in the SDK but not an
-    // app-registered chain, so the intersection keeps it invisible. New chains appear via an
-    // SDK bump, not a code change here. Avalanche and XLayer are launched but hidden on web
-    // prod for this release (HIDDEN_LAUNCH_CHAINS in supportedChains.ts).
-    expect(new Set(TOUCAN_AUCTION_SUPPORTED_CHAINS)).toEqual(
+    // base-sepolia is in the SDK but not an app-registered chain, so the intersection keeps it
+    // invisible. New chains appear via an SDK bump, not a code change here. XLayer remains
+    // launched but hidden on web prod (HIDDEN_LAUNCH_CHAINS in supportedChains.ts).
+    expect(new Set(renderSupportedChains().auction)).toEqual(
       new Set([
         UniverseChainId.Mainnet,
         UniverseChainId.Unichain,
         UniverseChainId.Base,
         UniverseChainId.ArbitrumOne,
+        UniverseChainId.Avalanche,
         UniverseChainId.Robinhood,
         UniverseChainId.Sepolia,
       ]),
@@ -97,21 +105,30 @@ describe('SDK-derived chain lists', () => {
   })
 
   it('hides launched-but-hidden chains from every derived list', () => {
-    for (const hidden of [UniverseChainId.Avalanche, UniverseChainId.XLayer]) {
-      expect(TOUCAN_AUCTION_SUPPORTED_CHAINS).not.toContain(hidden)
-      expect(TOUCAN_TOKEN_CREATION_SUPPORTED_CHAINS).not.toContain(hidden)
+    const { auction, creation } = renderSupportedChains()
+    for (const hidden of [UniverseChainId.XLayer]) {
+      expect(auction).not.toContain(hidden)
+      expect(creation).not.toContain(hidden)
     }
   })
 
+  it('hides Arc while its rollout flag is off', () => {
+    // Vacuously true until the SDK bump lands Arc in the launcher registry; the gate itself is
+    // exercised against a registry that carries Arc in supportedChains.test.ts.
+    const { auction, creation } = renderSupportedChains()
+    expect(auction).not.toContain(UniverseChainId.Arc)
+    expect(creation).not.toContain(UniverseChainId.Arc)
+  })
+
   it('token-creation chains are the supported chains whose stack has a token factory', () => {
-    expect(TOUCAN_TOKEN_CREATION_SUPPORTED_CHAINS.every((id) => TOUCAN_AUCTION_SUPPORTED_CHAINS.includes(id))).toBe(
-      true,
-    )
+    const { auction, creation } = renderSupportedChains()
+    expect(creation.every((id) => auction.includes(id))).toBe(true)
   })
 
   it('pins Mainnet first — the network pickers default to the head of the list', () => {
-    expect(TOUCAN_AUCTION_SUPPORTED_CHAINS[0]).toBe(UniverseChainId.Mainnet)
-    expect(TOUCAN_TOKEN_CREATION_SUPPORTED_CHAINS[0]).toBe(UniverseChainId.Mainnet)
+    const { auction, creation } = renderSupportedChains()
+    expect(auction[0]).toBe(UniverseChainId.Mainnet)
+    expect(creation[0]).toBe(UniverseChainId.Mainnet)
   })
 })
 
@@ -152,7 +169,7 @@ describe('useCreateNewTokenAllowedNetworks', () => {
   it('excludes testnet chains when testnet mode is disabled', () => {
     const { result } = renderHook(() => useCreateNewTokenAllowedNetworks())
     expect(new Set(result.current)).toEqual(
-      new Set(TOUCAN_TOKEN_CREATION_SUPPORTED_CHAINS.filter((id) => id !== UniverseChainId.Sepolia)),
+      new Set(renderSupportedChains().creation.filter((id) => id !== UniverseChainId.Sepolia)),
     )
   })
 
@@ -173,7 +190,7 @@ describe('useCreateAuctionAllowedNetworks', () => {
   it('excludes testnet chains when testnet mode is disabled', () => {
     const { result } = renderHook(() => useCreateAuctionAllowedNetworks())
     expect(new Set(result.current)).toEqual(
-      new Set(TOUCAN_AUCTION_SUPPORTED_CHAINS.filter((id) => id !== UniverseChainId.Sepolia)),
+      new Set(renderSupportedChains().auction.filter((id) => id !== UniverseChainId.Sepolia)),
     )
   })
 

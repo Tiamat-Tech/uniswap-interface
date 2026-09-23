@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { getEarnVaultDisplayCurrencyId } from 'uniswap/src/features/earn/utils'
 import {
   DepositTransactionInfo,

@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { OnchainItemListOptionType } from 'uniswap/src/components/lists/items/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useWalletSearchResults } from 'uniswap/src/features/search/SearchModal/hooks/useWalletSearchResults'
 import { renderHook } from 'uniswap/src/test/test-utils'
 

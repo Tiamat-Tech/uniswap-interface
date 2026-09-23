@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import {
   TDP_MULTICHAIN_CHAIN_QUERY_VALUE,
   type TdpChainSelection,

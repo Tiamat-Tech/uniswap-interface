@@ -316,7 +316,10 @@ function* liquidity(params: LiquidityParams) {
   })
 }
 
-export const liquiditySaga = createSaga(liquidity, 'liquiditySaga')
+// restartOnRetrigger: the confirm button stays pressable until a transaction step starts, so a
+// retry while the saga is stuck awaiting a chain switch (e.g. a wallet prompt dismissed natively
+// without settling the request) must cancel the stalled run and start over instead of being dropped.
+export const liquiditySaga = createSaga(liquidity, 'liquiditySaga', { restartOnRetrigger: true })
 
 function getLiquidityTransactionInfo(
   action: LiquidityAction,

@@ -1,5 +1,6 @@
+import { Text } from '@universe/mycelium'
+import type { TextCompatProps as TextProps } from '@universe/mycelium'
 import { PropsWithChildren } from 'react'
-import { Text, TextProps } from 'ui/src'
 
 export const TableText = ({ children, ...props }: PropsWithChildren<TextProps>) => {
   return (

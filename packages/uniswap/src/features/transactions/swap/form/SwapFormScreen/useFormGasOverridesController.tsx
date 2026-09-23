@@ -1,7 +1,7 @@
 import { type TransactionRequest } from '@ethersproject/providers'
+import { UniverseChainId } from '@universe/chains'
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { AutoGasTooltipModal } from 'uniswap/src/features/gas/components/AutoGasTooltipModal'
 import { CrosschainNotSupportedModal } from 'uniswap/src/features/gas/components/CrosschainNotSupportedModal'
 import { NetworkCostEditorModal } from 'uniswap/src/features/gas/components/NetworkCostEditor/NetworkCostEditorModal'
@@ -16,8 +16,12 @@ import {
   useTransactionSettingsStore,
 } from 'uniswap/src/features/transactions/components/settings/stores/transactionSettingsStore/useTransactionSettingsStore'
 import { useSwapFormScreenStore } from 'uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/useSwapFormScreenStore'
-import { useSwapFormStoreDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
+import {
+  useSwapFormStore,
+  useSwapFormStoreDerivedSwapInfo,
+} from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
 import { isClassic } from 'uniswap/src/features/transactions/swap/utils/routing'
+import type { CurrencyField } from 'uniswap/src/types/currency'
 import { useEvent } from 'utilities/src/react/hooks'
 
 type OpenModal = 'editor' | 'auto-tooltip' | 'crosschain' | undefined
@@ -55,6 +59,10 @@ export function useFormGasOverridesController({
   modals: ReactNode
 } {
   const isCrossChain = useSwapFormScreenStore((s) => s.isCrossChain)
+  const { updateSwapForm, focusOnCurrencyField } = useSwapFormStore((s) => ({
+    updateSwapForm: s.updateSwapForm,
+    focusOnCurrencyField: s.focusOnCurrencyField,
+  }))
   const gasOverrides = useTransactionSettingsStore((s) => s.gasOverrides)
   const { setGasOverrides } = useTransactionSettingsActions()
   const { dispatch } = useGasChipDispatch({ isCrossChain })
@@ -89,6 +97,16 @@ export function useFormGasOverridesController({
   const [editorRecommendedFallback, setEditorRecommendedFallback] = useState<RecommendedGasFieldValues | undefined>(
     undefined,
   )
+  /** Focus as it was right before the editor opened, so closing puts the form
+   *  back where the user left it. Restoring a field unconditionally would pop
+   *  the keyboard open on native for someone who had dismissed it, and could
+   *  move focus to the wrong side when the focused field wasn't the exact one. */
+  const [focusBeforeEditor, setFocusBeforeEditor] = useState<CurrencyField | undefined>(undefined)
+
+  const closeEditorAndRestoreFocus = useEvent((): void => {
+    setOpenModal(undefined)
+    updateSwapForm({ focusOnCurrencyField: focusBeforeEditor })
+  })
 
   const onPress = useEvent((): void => {
     const action = dispatch()
@@ -99,6 +117,10 @@ export function useFormGasOverridesController({
       case 'editor':
         setEditorTx(tx)
         setEditorRecommendedFallback(recommendedFallback)
+        setFocusBeforeEditor(focusOnCurrencyField)
+        // Drop amount-field focus so useInputFocusSync doesn't reclaim the
+        // keyboard from the Network cost editor on quote-poll re-renders.
+        updateSwapForm({ focusOnCurrencyField: undefined })
         setOpenModal('editor')
         break
       case 'crosschain-not-supported':
@@ -114,11 +136,17 @@ export function useFormGasOverridesController({
     }
   })
 
-  const onCloseModal = useEvent((): void => setOpenModal(undefined))
+  const onCloseModal = useEvent((): void => {
+    if (openModal === 'editor') {
+      closeEditorAndRestoreFocus()
+      return
+    }
+    setOpenModal(undefined)
+  })
 
   const onSaveOverrides = useEvent((overrides: GasFeeOverrides): void => {
     setGasOverrides(overrides)
-    setOpenModal(undefined)
+    closeEditorAndRestoreFocus()
   })
 
   /** Reset clears the saved override and closes the editor. The `gasOverrides`
@@ -127,7 +155,7 @@ export function useFormGasOverridesController({
    *  next editor open shows the baseline. */
   const onResetOverrides = useEvent((): void => {
     setGasOverrides(undefined)
-    setOpenModal(undefined)
+    closeEditorAndRestoreFocus()
   })
 
   const modals = (

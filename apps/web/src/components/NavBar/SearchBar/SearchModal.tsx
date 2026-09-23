@@ -1,24 +1,25 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Flex, type Input, Text, TouchableArea, useMedia, useScrollbarStyles, useSporeColors } from 'ui/src'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { useMedia, useScrollbarStyles, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { type ComponentRef, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { useUpdateScrollLock } from 'uniswap/src/components/modals/ScrollLock'
 import { NetworkFilter } from 'uniswap/src/components/network/NetworkFilter'
+import { WEB_MODAL_ANIMATION_MS } from 'uniswap/src/constants/misc'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { EXPANDABLE_ASSET_SEARCH_ISSUER_ROW_RIGHT_INSET_PX } from 'uniswap/src/features/expandableAsset/expandableAssetLayout'
 import { useFilterCallbacks } from 'uniswap/src/features/search/SearchModal/hooks/useFilterCallbacks'
-import type { SearchModalRowVariant } from 'uniswap/src/features/search/SearchModal/SearchModalList'
 import { SearchModalNoQueryList } from 'uniswap/src/features/search/SearchModal/SearchModalNoQueryList'
 import { SearchModalResultsList } from 'uniswap/src/features/search/SearchModal/SearchModalResultsList'
-import { SearchTab, WEB_SEARCH_TABS } from 'uniswap/src/features/search/SearchModal/types'
+import { SearchTab, type SearchModalRowWrapper, WEB_SEARCH_TABS } from 'uniswap/src/features/search/SearchModal/types'
 import { SearchTextInput } from 'uniswap/src/features/search/SearchTextInput'
 import { ElementName, InterfaceEventName, ModalName, SectionName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { Trace } from 'uniswap/src/features/telemetry/Trace'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 import { useDebounce } from 'utilities/src/time/timing'
-import { TokenHoverCard } from '~/components/TokenHoverCard/TokenHoverCard'
+import { AuctionHoverCard } from '~/components/HoverCard/AuctionHoverCard/AuctionHoverCard'
+import { TokenHoverCard } from '~/components/HoverCard/TokenHoverCard/TokenHoverCard'
 import { useModalState } from '~/hooks/useModalState'
 
 const SEARCH_MODAL_WIDTH = {
@@ -26,44 +27,63 @@ const SEARCH_MODAL_WIDTH = {
   small: 540,
 }
 
-const TOKEN_HOVER_CARD_OFFSET = 8
+const HOVER_CARD_OFFSET = 8
 
 // Compensates for the RWA issuer sub-row's extra nesting; imported (not hardcoded) to stay in sync with its layout.
-const RWA_ISSUER_ROW_HOVER_CARD_OFFSET = TOKEN_HOVER_CARD_OFFSET + EXPANDABLE_ASSET_SEARCH_ISSUER_ROW_RIGHT_INSET_PX
+const RWA_ISSUER_ROW_HOVER_CARD_OFFSET = HOVER_CARD_OFFSET + EXPANDABLE_ASSET_SEARCH_ISSUER_ROW_RIGHT_INSET_PX
 
-function useHoverCardWrapper({ containerWidth, onNavigate }: { containerWidth: number; onNavigate: () => void }) {
-  return useCallback(
-    ({
-      element,
-      currencyInfo,
-      variant,
-    }: {
-      element: JSX.Element
-      currencyInfo: CurrencyInfo
-      variant: SearchModalRowVariant
-    }): JSX.Element => (
-      <TokenHoverCard
-        currencyInfo={currencyInfo}
-        placement="right-start"
-        offset={variant === 'rwaIssuerChild' ? RWA_ISSUER_ROW_HOVER_CARD_OFFSET : TOKEN_HOVER_CARD_OFFSET}
-        widthOffset={TOKEN_HOVER_CARD_OFFSET}
-        containerWidth={containerWidth}
-        onNavigate={onNavigate}
-      >
-        {element}
-      </TokenHoverCard>
-    ),
-    [containerWidth, onNavigate],
+function useHoverCardWrapper({
+  containerWidth,
+  onNavigate,
+  isModalSettled,
+}: {
+  containerWidth: number
+  onNavigate: () => void
+  isModalSettled: boolean
+}): SearchModalRowWrapper {
+  return useCallback<SearchModalRowWrapper>(
+    (props): JSX.Element => {
+      const { element, isRowFocused } = props
+      const isFocused = isRowFocused && isModalSettled
+      if (props.variant === 'auction') {
+        return (
+          <AuctionHoverCard
+            auction={props.auction}
+            isFocused={isFocused}
+            placement="right-start"
+            offset={HOVER_CARD_OFFSET}
+            widthOffset={HOVER_CARD_OFFSET}
+            containerWidth={containerWidth}
+            onNavigate={onNavigate}
+          >
+            {element}
+          </AuctionHoverCard>
+        )
+      }
+      return (
+        <TokenHoverCard
+          currencyInfo={props.currencyInfo}
+          isFocused={isFocused}
+          placement="right-start"
+          offset={props.variant === 'rwaIssuerChild' ? RWA_ISSUER_ROW_HOVER_CARD_OFFSET : HOVER_CARD_OFFSET}
+          widthOffset={HOVER_CARD_OFFSET}
+          containerWidth={containerWidth}
+          onNavigate={onNavigate}
+        >
+          {element}
+        </TokenHoverCard>
+      )
+    },
+    [containerWidth, onNavigate, isModalSettled],
   )
 }
 
 export const SearchModal = memo(function SearchModalInner({
   isAuctionSearchEnabled,
-  placeholder,
 }: {
   isAuctionSearchEnabled: boolean
-  placeholder: string
 }): JSX.Element {
+  const { t } = useTranslation()
   const colors = useSporeColors()
   const media = useMedia()
   const scrollbarStyles = useScrollbarStyles()
@@ -72,7 +92,7 @@ export const SearchModal = memo(function SearchModalInner({
 
   // Use ref for programmatic focus instead of autoFocus prop
   // autoFocus doesn't work reliably on first modal open in production
-  const searchInputRef = useRef<Input>(null)
+  const searchInputRef = useRef<ComponentRef<typeof SearchTextInput>>(null)
 
   useEffect(() => {
     if (isModalOpen) {
@@ -83,6 +103,17 @@ export const SearchModal = memo(function SearchModalInner({
       return () => clearTimeout(timeoutId)
     }
     return undefined
+  }, [isModalOpen])
+
+  // A hover card opened mid-animation anchors where the row was, not where it lands.
+  const [isModalSettled, setIsModalSettled] = useState(false)
+  useEffect(() => {
+    if (!isModalOpen) {
+      setIsModalSettled(false)
+      return undefined
+    }
+    const timeoutId = setTimeout(() => setIsModalSettled(true), WEB_MODAL_ANIMATION_MS)
+    return () => clearTimeout(timeoutId)
   }, [isModalOpen])
 
   const [activeTab, setActiveTab] = useState<SearchTab>(SearchTab.All)
@@ -119,13 +150,15 @@ export const SearchModal = memo(function SearchModalInner({
   }, [onChangeText, onClose])
 
   const { chains: enabledChains } = useEnabledChains()
-  const isDataLivelinessUIEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
 
-  const searchModalWidth =
-    isDataLivelinessUIEnabled && media.xxl ? SEARCH_MODAL_WIDTH.small : SEARCH_MODAL_WIDTH.default
+  const searchModalWidth = media.xxl ? SEARCH_MODAL_WIDTH.small : SEARCH_MODAL_WIDTH.default
 
-  const wrapWithHoverCard = useHoverCardWrapper({ containerWidth: searchModalWidth, onNavigate: onSelect })
-  const rowWrapper = isDataLivelinessUIEnabled && !media.xl ? wrapWithHoverCard : undefined
+  const wrapWithHoverCard = useHoverCardWrapper({
+    containerWidth: searchModalWidth,
+    onNavigate: onSelect,
+    isModalSettled,
+  })
+  const rowWrapper = !media.xl ? wrapWithHoverCard : undefined
 
   // Tamagui's lock doesn't block ArrowUp/Down key scrolling, so we lock scroll ourselves and disable
   // Tamagui's own lock below (disableRemoveScroll) to avoid a stray scrollbar-gutter reservation.
@@ -165,7 +198,7 @@ export const SearchModal = memo(function SearchModalInner({
           <SearchTextInput
             ref={searchInputRef}
             minHeight={media.sm ? undefined : 24}
-            backgroundColor={media.sm ? '$surface2' : '$none'}
+            backgroundColor={media.sm ? '$surface2' : '$transparent'}
             borderColor={!media.sm ? '$transparent' : undefined}
             borderWidth={!media.sm ? '$none' : undefined}
             py="$none"
@@ -179,7 +212,8 @@ export const SearchModal = memo(function SearchModalInner({
                 />
               </Flex>
             }
-            placeholder={placeholder}
+            // The long placeholder hard-clips in the narrow $sm input, so fall back to the short header copy there
+            placeholder={media.sm ? t('search.input.placeholder.header') : t('search.input.placeholder.modal')}
             px="$spacing16"
             value={searchFilter ?? ''}
             onChangeText={onChangeText}

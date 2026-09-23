@@ -16,22 +16,53 @@ vi.mock('uniswap/src/features/chains/chainInfo', () => ({
 }))
 
 import { type BlockaidScanTransactionResponse } from '@universe/api/src'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { TransactionRiskLevel, TransactionSectionType } from 'wallet/src/features/dappRequests/types'
+import { UniverseChainId } from '@universe/chains'
+import { encodeFunctionData } from 'viem'
+import {
+  TransactionApprovalAction,
+  TransactionApprovalScope,
+  TransactionRiskLevel,
+  TransactionSectionType,
+} from 'wallet/src/features/dappRequests/types'
+import { parseApprovals, UNLIMITED_APPROVAL_AMOUNT } from 'wallet/src/features/dappRequests/utils/blockaidApprovalUtils'
+import { roundToDecimals } from 'wallet/src/features/dappRequests/utils/blockaidAssetUtils'
 import {
   extractContractName,
   extractFunctionName,
   getRiskLevelFromClassification,
   getRiskLevelFromValidation,
-  parseApprovals,
   parseReceivingAssets,
   parseSendingAssets,
   parseTransactionSections,
-  roundToDecimals,
-  UNLIMITED_APPROVAL_AMOUNT,
 } from 'wallet/src/features/dappRequests/utils/blockaidUtils'
 
 const TEST_CHAIN_ID = UniverseChainId.Mainnet
+const NFT_ADDRESS = '0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d'
+const SPENDER_ADDRESS = '0xa77ac4e2a77ac4e2a77ac4e2a77ac4e2a77ac4e2'
+const OTHER_SPENDER_ADDRESS = '0xb88bc4e2b88bc4e2b88bc4e2b88bc4e2b88bc4e2'
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const NFT_APPROVAL_ABI = [
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'tokenId', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'setApprovalForAll',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'operator', type: 'address' },
+      { name: 'approved', type: 'bool' },
+    ],
+    outputs: [],
+  },
+] as const
 
 describe('blockaidUtils', () => {
   describe('roundToDecimals', () => {
@@ -551,9 +582,1125 @@ describe('blockaidUtils', () => {
     it('should return null when no exposures exist', () => {
       const exposures = [] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
       expect(result).toBeNull()
+    })
+
+    it('preserves an ERC721 token approval and derives its grant from a later batch call', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        { to: '0x1111111111111111111111111111111111111111', data: '0x' },
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [SPENDER_ADDRESS, BigInt(8817)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          symbol: 'BAYC',
+          tokenId: '8817',
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it.each([
+      { providerTokenId: '0x2271', expectedTokenId: '8817' },
+      { providerTokenId: '0008817', expectedTokenId: '8817' },
+      { providerTokenId: 'not-a-token-id', expectedTokenId: 'not-a-token-id' },
+    ])(
+      'matches equivalent NFT token ID representations without trusting malformed IDs: $providerTokenId',
+      ({ providerTokenId, expectedTokenId }) => {
+        const exposures = [
+          {
+            asset_type: 'ERC721',
+            asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+            spenders: {
+              [SPENDER_ADDRESS]: {
+                exposure: [{ token_id: providerTokenId, arbitrary_collection_token: false }],
+                is_approved_for_all: false,
+              },
+            },
+          },
+        ] as any
+        const calls = [
+          {
+            to: NFT_ADDRESS,
+            data: encodeFunctionData({
+              abi: NFT_APPROVAL_ABI,
+              functionName: 'approve',
+              args: [SPENDER_ADDRESS, BigInt(8817)],
+            }),
+          },
+        ]
+
+        const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+        expect(result?.assets).toEqual([
+          expect.objectContaining({
+            tokenId: expectedTokenId,
+            approvalAction:
+              providerTokenId === 'not-a-token-id' ? TransactionApprovalAction.Change : TransactionApprovalAction.Grant,
+          }),
+        ])
+      },
+    )
+
+    it('stays neutral when a batch revokes a token the simulation still reports as exposed', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [SPENDER_ADDRESS, BigInt(8817)],
+          }),
+        },
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [ZERO_ADDRESS, BigInt(8817)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      // The simulation still lists token 8817 as exposed after the batch, contradicting the calldata's
+      // final revoke — so the direction stays neutral rather than a reassuring revoke.
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          tokenId: '8817',
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+        }),
+      ])
+    })
+
+    it('stays neutral on the fallback row when an ambiguous exposure contradicts a calldata revoke', () => {
+      // arbitrary_collection_token filters the entry out of the exact-token exposures, so the
+      // revoke routes through the fallback row rather than the token path. The simulation still
+      // reports the spender exposed, contradicting the calldata revoke — so the fallback row must
+      // apply the same Revoke->Change downgrade as the token/collection rows, not render a revoke.
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: true }],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [SPENDER_ADDRESS, BigInt(8817)],
+          }),
+        },
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [ZERO_ADDRESS, BigInt(8817)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+        }),
+      ])
+    })
+
+    it.each([
+      { exposure: undefined, expectedAction: TransactionApprovalAction.Change },
+      { exposure: [], expectedAction: TransactionApprovalAction.Revoke },
+    ])(
+      'uses explicit post-simulation exposure data to corroborate a fallback token revoke: $expectedAction',
+      ({ exposure, expectedAction }) => {
+        const exposures = [
+          {
+            asset_type: 'ERC721',
+            asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+            spenders: {
+              [SPENDER_ADDRESS]: {
+                ...(exposure === undefined ? {} : { exposure }),
+                is_approved_for_all: false,
+              },
+            },
+          },
+        ] as any
+        const calls = [
+          {
+            to: NFT_ADDRESS,
+            data: encodeFunctionData({
+              abi: NFT_APPROVAL_ABI,
+              functionName: 'approve',
+              args: [SPENDER_ADDRESS, BigInt(8817)],
+            }),
+          },
+          {
+            to: NFT_ADDRESS,
+            data: encodeFunctionData({
+              abi: NFT_APPROVAL_ABI,
+              functionName: 'approve',
+              args: [ZERO_ADDRESS, BigInt(8817)],
+            }),
+          },
+        ]
+
+        const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+        expect(result?.assets).toEqual([
+          expect.objectContaining({
+            tokenId: '8817',
+            approvalScope: TransactionApprovalScope.SingleToken,
+            approvalAction: expectedAction,
+          }),
+        ])
+      },
+    )
+
+    it('uses post-simulation token exposure to preserve a grant after a later opaque call', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [SPENDER_ADDRESS, BigInt(8817)],
+          }),
+        },
+        { to: NFT_ADDRESS, data: '0x12345678' },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          tokenId: '8817',
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('keeps an unclassified ERC721 spender exposure visible as a neutral permission change', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          tokenId: undefined,
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('does not assign another token intent when Blockaid omits the exposed token id', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [SPENDER_ADDRESS, BigInt(8817)],
+          }),
+        },
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [OTHER_SPENDER_ADDRESS, BigInt(42)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          tokenId: '8817',
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('keeps distinct ERC721 token approvals as distinct assets', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [
+                { token_id: '8817', arbitrary_collection_token: false },
+                { token_id: '42', arbitrary_collection_token: false },
+              ],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets.map((asset) => asset.tokenId)).toEqual(['8817', '42'])
+      expect(result?.assets.every((asset) => asset.approvalAction === TransactionApprovalAction.Change)).toBe(true)
+    })
+
+    it('uses an explicit simulated ERC1155 grant when calldata claims to revoke', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC1155',
+          asset: { type: 'ERC1155', address: NFT_ADDRESS, name: 'Collection', symbol: 'COLL' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '42', value: '1', arbitrary_collection_token: false }],
+              is_approved_for_all: true,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      // The full-batch simulation is authoritative: the spender remains approved for all, so surface
+      // the risky grant instead of the contradictory calldata revoke.
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Grant,
+        }),
+      ])
+      expect(result?.assets[0]?.amount).toBeUndefined()
+    })
+
+    it.each([
+      { approvals: [false, true], expectedAction: TransactionApprovalAction.Grant },
+      { approvals: [true, false], expectedAction: TransactionApprovalAction.Revoke },
+    ] as const)('uses the final collection approval in a batch: $approvals', ({ approvals, expectedAction }) => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              // The simulated approval-for-all must match the batch's final call, otherwise a [true,false]
+              // batch would be a (contradictory) revoke-with-approval that collapses to the neutral label.
+              is_approved_for_all: approvals[approvals.length - 1],
+            },
+          },
+        },
+      ] as any
+      const calls = approvals.map((approved) => ({
+        to: NFT_ADDRESS,
+        data: encodeFunctionData({
+          abi: NFT_APPROVAL_ABI,
+          functionName: 'setApprovalForAll',
+          args: [SPENDER_ADDRESS, approved],
+        }),
+      }))
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: expectedAction,
+        }),
+      ])
+    })
+
+    it('does not label a spender missing from the calldata as an ERC721 revoke', () => {
+      // A contract that revokes at the top level while granting internally must not render the
+      // internal grantee under the Revoke header.
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, symbol: 'BAYC' },
+          spenders: {
+            [OTHER_SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [ZERO_ADDRESS, BigInt(8817)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          tokenId: '8817',
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+          spenderAddress: OTHER_SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('uses an explicit simulated grant instead of another operator’s setApprovalForAll direction', () => {
+      // Approval-for-all state is per operator: a decoy revoke of operator A says nothing about
+      // the operator Blockaid reports, whose explicit post-simulation state proves a grant.
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, symbol: 'BAYC' },
+          spenders: {
+            [OTHER_SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: true,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: OTHER_SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('infers missing collection scope from matching setApprovalForAll calldata', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ arbitrary_collection_token: true }],
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, true],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+      expect(result?.assets[0]?.tokenId).toBeUndefined()
+    })
+
+    it('preserves a token grant beside an inferred collection revoke in the same batch', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [SPENDER_ADDRESS, BigInt(8817)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Revoke,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+        expect.objectContaining({
+          tokenId: '8817',
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('lets an explicit simulated collection grant subsume a token grant despite calldata revoke', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: true,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [SPENDER_ADDRESS, BigInt(8817)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('preserves a reported token exposure beside an inferred collection revoke without a matching token call', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Revoke,
+        }),
+        expect.objectContaining({
+          tokenId: '8817',
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+        }),
+      ])
+    })
+
+    it('lets an explicit simulated collection grant subsume token exposure without decoded calldata', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: true,
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Grant,
+        }),
+      ])
+    })
+
+    it('lets an effective collection grant subsume reported token exposures', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: false }],
+              is_approved_for_all: true,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, true],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Grant,
+        }),
+      ])
+    })
+
+    it('keeps collection direction neutral when a later call cannot be decoded', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+        // A later same-contract fallback call can change the approval again without decodable calldata.
+        { to: NFT_ADDRESS, data: '0x12345678' },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Change,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('keeps a simulated collection revoke after a decodable approval call to another contract', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+        {
+          to: OTHER_SPENDER_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [OTHER_SPENDER_ADDRESS, BigInt(1)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Revoke,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('uses an explicit simulated collection grant after a same-contract opaque call', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: true,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, true],
+          }),
+        },
+        // The same-contract call is opaque, but Blockaid's full-batch post-state explicitly confirms
+        // that the spender is approved for all.
+        { to: NFT_ADDRESS, data: '0x' },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('renders a genuine collection revoke as Revoke when a later opaque call targets a different contract', () => {
+      // The later call could proxy back into this collection, but the full-batch simulation explicitly
+      // reports the operator as no longer approved, corroborating the decoded revoke.
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+        { to: OTHER_SPENDER_ADDRESS, data: '0x' },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Revoke,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('renders a collection revoke as neutral when is_approved_for_all is absent from the response', () => {
+      // Absence is not corroboration: without an explicit is_approved_for_all=false, a calldata
+      // setApprovalForAll(op,false) could be a proxy/non-standard grant, so stay neutral rather than
+      // show a reassuring revoke the simulation doesn't confirm.
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Change,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('keeps a collection revoke neutral when a later opaque call targets the same contract', () => {
+      // The same-contract opaque call could re-grant via fallback code we can't decode, so stay neutral.
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+        { to: NFT_ADDRESS, data: '0x' },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Change,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('renders a single-call token revoke as a neutral change without a confirming exposure', () => {
+      // A lone approve(0x0, tokenId) names the zero address rather than the exposed spender, and the
+      // token is absent from the post-execution exposure list, so nothing corroborates the direction.
+      // Stay conservative (neutral) rather than assert a revoke the simulation doesn't confirm.
+      // Whether a genuine revoke should read "Revoke" here depends on Blockaid's exposure semantics
+      // (a CONS-2886 open question); this pins the current safe-direction behavior until that lands.
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'approve',
+            args: [ZERO_ADDRESS, BigInt(8817)],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+        }),
+      ])
+    })
+
+    it('uses a final collection intent after an earlier opaque call', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              // Consistent with the final setApprovalForAll(false): the spender is no longer
+              // approved-for-all, so the inferred revoke is genuine (not a simulation contradiction).
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+      const calls = [
+        { to: OTHER_SPENDER_ADDRESS, data: '0x12345678' },
+        {
+          to: NFT_ADDRESS,
+          data: encodeFunctionData({
+            abi: NFT_APPROVAL_ABI,
+            functionName: 'setApprovalForAll',
+            args: [SPENDER_ADDRESS, false],
+          }),
+        },
+      ]
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID, calls })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Revoke,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+    })
+
+    it('does not treat an arbitrary ERC721 token as a collection-wide approval', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [{ token_id: '8817', arbitrary_collection_token: true }],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+      expect(result?.assets[0]?.tokenId).toBeUndefined()
+    })
+
+    it('keeps an arbitrary ERC721 token visible beside exact token exposures', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, name: 'Bored Ape Yacht Club', symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [
+                { token_id: '8817', arbitrary_collection_token: false },
+                { token_id: '42', arbitrary_collection_token: true },
+              ],
+              is_approved_for_all: false,
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          tokenId: '8817',
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.SingleToken,
+          approvalAction: TransactionApprovalAction.Change,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
+      expect(result?.assets[1]?.tokenId).toBeUndefined()
+    })
+
+    it('derives a collection grant from explicit simulation state without calldata', () => {
+      const exposures = [
+        {
+          asset_type: 'ERC721',
+          asset: { type: 'ERC721', address: NFT_ADDRESS, symbol: 'BAYC' },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              exposure: [],
+              is_approved_for_all: true,
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets).toEqual([
+        expect.objectContaining({
+          approvalScope: TransactionApprovalScope.Collection,
+          approvalAction: TransactionApprovalAction.Grant,
+          spenderAddress: SPENDER_ADDRESS,
+        }),
+      ])
     })
 
     it('should parse unlimited approval correctly (max uint256)', () => {
@@ -582,7 +1729,7 @@ describe('blockaidUtils', () => {
         },
       ] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
       expect(result).not.toBeNull()
       expect(result?.type).toBe(TransactionSectionType.Approving)
@@ -617,10 +1764,121 @@ describe('blockaidUtils', () => {
         },
       ] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
       expect(result?.assets[0]?.amount).toBe(UNLIMITED_APPROVAL_AMOUNT)
     })
+
+    it('treats uint96 max as unlimited', () => {
+      const exposures = [
+        {
+          asset: {
+            type: 'ERC20',
+            symbol: 'USDT',
+            name: 'Tether USD',
+            address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+            decimals: 6,
+            chain_id: 1,
+          },
+          spenders: {
+            '0xspender123': {
+              approval: '0xffffffffffffffffffffffff',
+              exposure: [],
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets[0]?.amount).toBe(UNLIMITED_APPROVAL_AMOUNT)
+    })
+
+    it('does not treat a small all-f approval as unlimited', () => {
+      const exposures = [
+        {
+          asset: {
+            type: 'ERC20',
+            symbol: 'USDT',
+            name: 'Tether USD',
+            address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
+            decimals: 6,
+            chain_id: 1,
+          },
+          spenders: {
+            '0xspender123': {
+              approval: '0xffffff',
+              exposure: [],
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets[0]?.amount).toBe('16.777215')
+    })
+
+    it.each([{ decimals: undefined }, { decimals: -1 }, { decimals: 1.5 }, { decimals: 256 }])(
+      'omits the displayed amount when ERC20 decimals are invalid: $decimals',
+      ({ decimals }) => {
+        const exposures = [
+          {
+            asset: {
+              type: 'ERC20',
+              symbol: 'TOKEN',
+              name: 'Token',
+              address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+              chain_id: 1,
+              ...(decimals === undefined ? {} : { decimals }),
+            },
+            spenders: {
+              '0xspender123': {
+                approval: '0xde0b6b3a7640000',
+                exposure: [],
+              },
+            },
+          },
+        ] as any
+
+        const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+        expect(result?.assets).toEqual([
+          expect.objectContaining({
+            amount: undefined,
+            approvalAction: TransactionApprovalAction.Grant,
+          }),
+        ])
+      },
+    )
+
+    it.each([{ decimals: undefined }, { decimals: 256 }])(
+      'detects an unlimited hex sentinel without valid ERC20 decimals: $decimals',
+      ({ decimals }) => {
+        const exposures = [
+          {
+            asset: {
+              type: 'ERC20',
+              symbol: 'TOKEN',
+              name: 'Token',
+              address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+              chain_id: 1,
+              ...(decimals === undefined ? {} : { decimals }),
+            },
+            spenders: {
+              '0xspender123': {
+                approval: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+                exposure: [],
+              },
+            },
+          },
+        ] as any
+
+        const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+        expect(result?.assets[0]?.amount).toBe(UNLIMITED_APPROVAL_AMOUNT)
+      },
+    )
 
     it('should parse unlimited approval correctly (mostly f pattern)', () => {
       const exposures = [
@@ -648,7 +1906,7 @@ describe('blockaidUtils', () => {
         },
       ] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
       expect(result?.assets[0]?.amount).toBe(UNLIMITED_APPROVAL_AMOUNT)
     })
@@ -680,7 +1938,7 @@ describe('blockaidUtils', () => {
         },
       ] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
       expect(result).not.toBeNull()
       expect(result?.assets[0]?.amount).toBe(UNLIMITED_APPROVAL_AMOUNT)
@@ -713,13 +1971,123 @@ describe('blockaidUtils', () => {
         },
       ] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
       // Should show approval amount (500), not exposure amount (250.5)
       expect(result?.assets[0]?.amount).toBe('500')
       // USD value is not provided for approval amounts
       expect(result?.assets[0]?.usdValue).toBeUndefined()
     })
+
+    it('preserves large exact approval integers without a floating-point round trip', () => {
+      const exposures = [
+        {
+          asset: {
+            type: 'ERC20',
+            symbol: 'TOKEN',
+            address: '0x1111111111111111111111111111111111111111',
+            decimals: 0,
+          },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              approval: '0x2bdc545d6b4b87',
+              exposure: [],
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets[0]?.amount).toBe('12345678901234567')
+    })
+
+    it('truncates approval display amounts once at the shared precision', () => {
+      const exposures = [
+        {
+          asset: {
+            type: 'ERC20',
+            symbol: 'TOKEN',
+            address: '0x1111111111111111111111111111111111111111',
+            decimals: 7,
+          },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              approval: '0xbc614e',
+              exposure: [],
+            },
+          },
+        },
+      ] as any
+
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+      expect(result?.assets[0]?.amount).toBe('1.234567')
+    })
+
+    it.each(['not-hex', '1000000'])('preserves an ERC20 exposure with malformed approval quantity %s', (approval) => {
+      const exposures = [
+        {
+          asset: {
+            type: 'ERC20',
+            symbol: 'TOKEN',
+            address: '0x1111111111111111111111111111111111111111',
+            decimals: 18,
+          },
+          spenders: {
+            [SPENDER_ADDRESS]: {
+              approval,
+              exposure: [],
+            },
+          },
+        },
+      ] as any
+
+      expect(parseApprovals({ exposures, chainId: TEST_CHAIN_ID })).toMatchObject({
+        type: TransactionSectionType.Approving,
+        assets: [
+          {
+            symbol: 'TOKEN',
+            amount: undefined,
+            approvalAction: TransactionApprovalAction.Change,
+          },
+        ],
+      })
+    })
+
+    it.each([
+      { approval: '0x0', expectedAction: TransactionApprovalAction.Revoke, expectedAmount: '0' },
+      {
+        approval: '0x1',
+        expectedAction: TransactionApprovalAction.Grant,
+        expectedAmount: '0.000000000000000001',
+      },
+    ])(
+      'derives ERC20 $expectedAction action from the raw approval value',
+      ({ approval, expectedAction, expectedAmount }) => {
+        const exposures = [
+          {
+            asset: {
+              type: 'ERC20',
+              symbol: 'TOKEN',
+              name: 'Test Token',
+              address: '0x1111111111111111111111111111111111111111',
+              decimals: 18,
+              chain_id: 1,
+            },
+            spenders: {
+              [SPENDER_ADDRESS]: { approval, exposure: [] },
+            },
+          },
+        ] as any
+
+        const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
+
+        expect(result?.assets[0]).toEqual(
+          expect.objectContaining({ amount: expectedAmount, approvalAction: expectedAction }),
+        )
+      },
+    )
 
     it('should handle multiple spenders for the same asset', () => {
       const exposures = [
@@ -746,7 +2114,7 @@ describe('blockaidUtils', () => {
         },
       ] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
       expect(result?.assets).toHaveLength(2)
       expect(result?.assets[0]?.spenderAddress).toBe('0xspender1')
@@ -773,7 +2141,7 @@ describe('blockaidUtils', () => {
         },
       ] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
       // Should still show approval even without exposure
       expect(result).not.toBeNull()
@@ -781,7 +2149,7 @@ describe('blockaidUtils', () => {
       expect(result?.assets[0]?.amount).toBe('1')
     })
 
-    it('should skip approvals without approval value', () => {
+    it('preserves approvals without an approval value as neutral changes', () => {
       const exposures = [
         {
           asset: {
@@ -800,9 +2168,18 @@ describe('blockaidUtils', () => {
         },
       ] as any
 
-      const result = parseApprovals(exposures, TEST_CHAIN_ID)
+      const result = parseApprovals({ exposures, chainId: TEST_CHAIN_ID })
 
-      expect(result).toBeNull()
+      expect(result).toMatchObject({
+        type: TransactionSectionType.Approving,
+        assets: [
+          {
+            symbol: 'USDC',
+            amount: undefined,
+            approvalAction: TransactionApprovalAction.Change,
+          },
+        ],
+      })
     })
   })
 
@@ -822,7 +2199,7 @@ describe('blockaidUtils', () => {
         // No simulation data (typical for signature requests)
       }
 
-      const result = parseTransactionSections(maliciousSignature, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult: maliciousSignature, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.Critical)
       expect(result.sections).toEqual([])
@@ -842,7 +2219,7 @@ describe('blockaidUtils', () => {
         },
       }
 
-      const result = parseTransactionSections(suspiciousSignature, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult: suspiciousSignature, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.Warning)
       expect(result.sections).toEqual([])
@@ -862,7 +2239,7 @@ describe('blockaidUtils', () => {
         },
       }
 
-      const result = parseTransactionSections(benignSignature, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult: benignSignature, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.None)
       expect(result.sections).toEqual([])
@@ -885,14 +2262,14 @@ describe('blockaidUtils', () => {
         } as any,
       }
 
-      const result = parseTransactionSections(failedMaliciousTransaction, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult: failedMaliciousTransaction, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.Critical)
       expect(result.sections).toEqual([])
     })
 
     it('should return None risk level when both simulation and validation are missing', () => {
-      const result = parseTransactionSections(null, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult: null, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.None)
       expect(result.sections).toEqual([])
@@ -921,7 +2298,7 @@ describe('blockaidUtils', () => {
         } as any,
       }
 
-      const result = parseTransactionSections(maliciousWithSimulation, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult: maliciousWithSimulation, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.Critical)
       expect(result.sections).toEqual([])
@@ -955,7 +2332,7 @@ describe('blockaidUtils', () => {
         } as any,
       }
 
-      const result = parseTransactionSections(drainerApproval, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult: drainerApproval, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.Critical)
     })
@@ -975,7 +2352,7 @@ describe('blockaidUtils', () => {
         // No simulation (typical for signature requests)
       }
 
-      const result = parseTransactionSections(drainerPermit, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult: drainerPermit, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.Critical)
       expect(result.sections).toEqual([])
@@ -1024,7 +2401,7 @@ describe('blockaidUtils', () => {
         } as any,
       }
 
-      const result = parseTransactionSections(scanResult, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult, chainId: TEST_CHAIN_ID })
 
       expect(result.riskLevel).toBe(TransactionRiskLevel.None)
       expect(result.sections).toHaveLength(1)
@@ -1081,7 +2458,7 @@ describe('blockaidUtils', () => {
         } as any,
       }
 
-      const result = parseTransactionSections(scanResult, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult, chainId: TEST_CHAIN_ID })
 
       expect(result.sections).toHaveLength(1)
       expect(result.sections[0]?.type).toBe(TransactionSectionType.Receiving)
@@ -1112,6 +2489,7 @@ describe('blockaidUtils', () => {
                   symbol: 'DAI',
                   name: 'Dai Stablecoin',
                   address: '0x6b175474e89094c44da98b954eedeac495271d0f',
+                  decimals: 18,
                   logo_url: 'https://example.com/dai.png',
                   chain_id: 1,
                 },
@@ -1134,7 +2512,7 @@ describe('blockaidUtils', () => {
         } as any,
       }
 
-      const result = parseTransactionSections(scanResult, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult, chainId: TEST_CHAIN_ID })
 
       expect(result.sections).toHaveLength(1)
       expect(result.sections[0]?.type).toBe(TransactionSectionType.Approving)
@@ -1187,7 +2565,7 @@ describe('blockaidUtils', () => {
         } as any,
       }
 
-      const result = parseTransactionSections(scanResult, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult, chainId: TEST_CHAIN_ID })
 
       // Should show approval amount (500), not exposure amount (250.5)
       expect(result.sections[0]?.assets[0]?.amount).toBe('500')
@@ -1255,7 +2633,7 @@ describe('blockaidUtils', () => {
         } as any,
       }
 
-      const result = parseTransactionSections(scanResult, TEST_CHAIN_ID)
+      const result = parseTransactionSections({ scanResult, chainId: TEST_CHAIN_ID })
 
       expect(result.sections).toHaveLength(3)
       expect(result.sections.map((s) => s.type)).toEqual([

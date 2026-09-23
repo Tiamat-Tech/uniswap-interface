@@ -1,6 +1,6 @@
 import { Currency } from '@uniswap/sdk-core'
-import { ReactNode, useEffect, useRef } from 'react'
-import { Flex, FlexProps } from 'ui/src'
+import { Flex } from '@universe/mycelium'
+import { ComponentProps, ReactNode, useEffect, useRef } from 'react'
 import { CurrencyInputPanel } from 'uniswap/src/components/CurrencyInputPanel/CurrencyInputPanel'
 import { CurrencyInputPanelRef } from 'uniswap/src/components/CurrencyInputPanel/types'
 import { CurrencyField } from 'uniswap/src/types/currency'
@@ -17,10 +17,12 @@ const sharedPanelStyle = {
   backgroundColor: '$surface2',
 }
 
-function borderRadiusStyles(component?: ReactNode): FlexProps {
+// The styles flow into CurrencyInputPanel's own (Tamagui-typed) prop, so the
+// annotation derives from the consumer rather than importing ui/src here.
+function borderRadiusStyles(component?: ReactNode): ComponentProps<typeof CurrencyInputPanel>['customPanelStyle'] {
   return {
-    borderBottomLeftRadius: component ? '$rounded0' : INPUT_BORDER_RADIUS,
-    borderBottomRightRadius: component ? '$rounded0' : INPUT_BORDER_RADIUS,
+    borderBottomLeftRadius: component ? '$none' : INPUT_BORDER_RADIUS,
+    borderBottomRightRadius: component ? '$none' : INPUT_BORDER_RADIUS,
   }
 }
 

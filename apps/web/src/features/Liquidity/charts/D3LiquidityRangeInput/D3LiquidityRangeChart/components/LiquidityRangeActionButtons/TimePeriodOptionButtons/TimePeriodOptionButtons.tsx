@@ -1,7 +1,8 @@
 import { GraphQLApi } from '@universe/api'
+import { Text } from '@universe/mycelium'
+import { SegmentedControl, type SegmentedControlOption } from '@universe/mycelium/segmented-control-compat'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SegmentedControl, SegmentedControlOption, Text } from 'ui/src'
 import { useChartPriceState } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/selectors/priceSelectors'
 import { useLiquidityChartStoreActions } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/useLiquidityChartStore'
 

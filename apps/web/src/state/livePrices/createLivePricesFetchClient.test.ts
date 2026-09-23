@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createLivePricesFetchClient } from '~/state/livePrices/createLivePricesFetchClient'
 
-vi.mock('@universe/gating', () => ({
-  getIsSessionServiceEnabled: (): boolean => false,
-}))
-
 /**
  * On web the session is an HttpOnly cookie; the browser only attaches it to
  * cross-origin EventSubscriptionService requests when the fetch runs with

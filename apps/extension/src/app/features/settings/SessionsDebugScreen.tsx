@@ -1,5 +1,7 @@
 /* oxlint-disable max-lines */
 import { getEntryGatewayUrl, provideSessionService } from '@universe/api'
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { CopyAlt } from '@universe/mycelium/icons/CopyAlt'
 import {
   ChallengeType,
   createHashcashSolver,
@@ -10,8 +12,6 @@ import { memo, useCallback, useEffect, useRef } from 'react'
 import { ScreenHeader } from 'src/app/components/layout/ScreenHeader'
 import { type LogEntry, useSessionsDebugStore } from 'src/app/features/settings/stores/sessionsDebugStore'
 import { createHashcashWorker } from 'src/workers/hashcashWorker'
-import { Button, Flex, ScrollView, Text, TouchableArea } from 'ui/src'
-import { CopyAlt } from 'ui/src/components/icons'
 import { setClipboard } from 'utilities/src/clipboard/clipboard'
 import { logger } from 'utilities/src/logger/logger'
 import { useShallow } from 'zustand/shallow'
@@ -211,7 +211,6 @@ export function SessionsDebugScreen(): JSX.Element {
     if (!sessionServiceRef.current) {
       sessionServiceRef.current = provideSessionService({
         getBaseUrl: getEntryGatewayUrl,
-        getIsSessionServiceEnabled: () => true, // Always enabled for debug
         getLogger: () => logger,
       })
     }
@@ -219,11 +218,9 @@ export function SessionsDebugScreen(): JSX.Element {
   }, [])
 
   const refreshSessionState = useCallback(async (): Promise<void> => {
-    const [sessionId, deviceId, uniswapIdentifier] = await Promise.all([
-      localStorage.getItem(SESSION_ID_KEY),
-      localStorage.getItem(DEVICE_ID_KEY),
-      localStorage.getItem(UNISWAP_IDENTIFIER_KEY),
-    ])
+    const sessionId = localStorage.getItem(SESSION_ID_KEY)
+    const deviceId = localStorage.getItem(DEVICE_ID_KEY)
+    const uniswapIdentifier = localStorage.getItem(UNISWAP_IDENTIFIER_KEY)
     setSession({
       sessionId: sessionId || null,
       deviceId: deviceId || null,
@@ -233,19 +230,16 @@ export function SessionsDebugScreen(): JSX.Element {
 
   // Initial load
   useEffect(() => {
-    const loadInitialState = async (): Promise<void> => {
-      const [sessionId, deviceId, uniswapIdentifier] = await Promise.all([
-        localStorage.getItem(SESSION_ID_KEY),
-        localStorage.getItem(DEVICE_ID_KEY),
-        localStorage.getItem(UNISWAP_IDENTIFIER_KEY),
-      ])
+    const loadInitialState = (): void => {
+      const sessionId = localStorage.getItem(SESSION_ID_KEY)
+      const deviceId = localStorage.getItem(DEVICE_ID_KEY)
+      const uniswapIdentifier = localStorage.getItem(UNISWAP_IDENTIFIER_KEY)
       setSession({
         sessionId: sessionId || null,
         deviceId: deviceId || null,
         uniswapIdentifier: uniswapIdentifier || null,
       })
     }
-    // oxlint-disable-next-line typescript/no-floating-promises -- biome-parity: oxlint is stricter here
     loadInitialState()
   }, [setSession])
 
@@ -433,7 +427,7 @@ export function SessionsDebugScreen(): JSX.Element {
   const hasChallenge = challenge !== null
 
   return (
-    <ScrollView>
+    <Flex grow shrink overflowX="hidden" overflowY="auto">
       <ScreenHeader title="Sessions Debug" />
 
       <Flex p="$spacing16" gap="$spacing16">
@@ -545,6 +539,6 @@ export function SessionsDebugScreen(): JSX.Element {
         {/* Operation Log */}
         <LogSection />
       </Flex>
-    </ScrollView>
+    </Flex>
   )
 }

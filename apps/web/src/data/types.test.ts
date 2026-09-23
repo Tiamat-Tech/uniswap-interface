@@ -1,6 +1,7 @@
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { DAI, nativeOnChain, USDC_MAINNET } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { ProtectionResult } from 'uniswap/src/features/dataApi/safety'
 import { TokenList } from 'uniswap/src/features/dataApi/types'
 import { removeSafetyInfo } from 'uniswap/src/test/fixtures/wallet/currencies'
 import { currencyId } from 'uniswap/src/utils/currencyId'
@@ -39,7 +40,7 @@ const MAINNET_NATIVE_CURRENCY_INFO = {
   logoUrl: 'eth_url',
   safetyInfo: {
     tokenList: TokenList.Default,
-    protectionResult: GraphQLApi.ProtectionResult.Benign,
+    protectionResult: ProtectionResult.Benign,
     attackType: undefined,
     blockaidFees: undefined,
   },
@@ -65,7 +66,7 @@ describe('gqlTokenToCurrencyInfo', () => {
       ...MAINNET_NATIVE_CURRENCY_INFO,
       logoUrl: undefined,
       safetyInfo: {
-        protectionResult: GraphQLApi.ProtectionResult.Unknown,
+        protectionResult: ProtectionResult.Unknown,
         tokenList: TokenList.NonDefault,
         attackType: undefined,
         blockaidFees: undefined,

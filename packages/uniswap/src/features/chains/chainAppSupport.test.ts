@@ -1,17 +1,23 @@
+import { UniverseChainId, Platform, chainIdToPlatform } from '@universe/chains'
 import { AppId } from '@universe/config'
 import {
   WEB_ONLY_CHAIN_SUPPORTED_APPS,
   ALL_APPS_CHAIN_SUPPORTED_APPS,
 } from 'uniswap/src/features/chains/chainAppSupport'
 import { ALL_CHAIN_IDS, ORDERED_CHAINS } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { filterChainIdsByAppSupport, getEnabledChains, isChainSupportedOnApp } from 'uniswap/src/features/chains/utils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-
 describe('chain app support invariants', () => {
   it('every ordered chain declares supportedApps', () => {
     for (const chain of ORDERED_CHAINS) {
       expect(chain.supportedApps.length).toBeGreaterThan(0)
+    }
+  })
+
+  // Guards the decoupled chainIdToPlatform in @universe/chains (which derives platform directly
+  // from the chain id) against drift from the chain-info metadata, the source of truth per chain.
+  it('chainIdToPlatform matches each chain-info platform', () => {
+    for (const chain of ORDERED_CHAINS) {
+      expect(chainIdToPlatform(chain.id)).toBe(chain.platform)
     }
   })
 

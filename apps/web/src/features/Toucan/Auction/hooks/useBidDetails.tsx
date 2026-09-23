@@ -1,6 +1,5 @@
 import { type ReactNode, useMemo } from 'react'
-import { Trans, useTranslation } from 'react-i18next'
-import { Text } from 'ui/src'
+import { useTranslation } from 'react-i18next'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { formatUnits } from '~/chains'
@@ -8,11 +7,13 @@ import { q96ToPriceString } from '~/features/Toucan/Auction/BidDistributionChart
 import {
   AuctionBidStatus,
   AuctionDetails,
+  AuctionOutcome,
   AuctionProgressState,
   BidTokenInfo,
   UserBid,
 } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
+import { getBidDescription } from '~/features/Toucan/Auction/utils/bidDescription'
 import {
   type BidDisplayState,
   computeIsFullyFilled,
@@ -27,9 +28,7 @@ import {
   formatCompactFromRaw,
 } from '~/features/Toucan/Auction/utils/fixedPointFdv'
 import { getAuctionTokenDecimals } from '~/features/Toucan/Auction/utils/tokenMetadata'
-
-// Module-level constant for description highlighting (no deps, never changes)
-const HIGHLIGHT_COMPONENT = <Text variant="body4" color="$neutral1" />
+import { hasTokenTotalSupply } from '~/features/Toucan/Auction/utils/tokenTotalSupply'
 
 interface UseBidDetailsParams {
   bid: UserBid
@@ -37,7 +36,13 @@ interface UseBidDetailsParams {
   bidTokenInfo: BidTokenInfo
   auctionDetails: AuctionDetails
   clearingPrice: string
-  isGraduated: boolean
+  /** Settled outcome, the only safe input for copy about the bidder's funds. */
+  outcome: AuctionOutcome
+  /**
+   * Whether the graduation threshold is already met. Unlike `outcome` this can be true while the
+   * auction is still running, which is what gates the mid-auction "refund unused budget" action.
+   */
+  hasMetThreshold: boolean
   auctionProgressState: AuctionProgressState
 }
 
@@ -66,7 +71,8 @@ interface BidDetails {
   refundBudgetSubtext: string
   refundBudgetLabel: string
   totalTokensReceivedDisplay: string
-  fdvFraction: number
+  /** `null` when the token's total supply is unknown, so the range marker can be suppressed. */
+  fdvFraction: number | null
   maxFdvDisplay: string
   currentFdvDisplay: string
   buttonState: ButtonState
@@ -86,7 +92,8 @@ export function useBidDetails({
   bidTokenInfo,
   auctionDetails,
   clearingPrice,
-  isGraduated,
+  outcome,
+  hasMetThreshold,
   auctionProgressState,
 }: UseBidDetailsParams): BidDetails {
   const { convertFiatAmountFormatted, formatNumberOrString } = useLocalizationContext()
@@ -105,6 +112,7 @@ export function useBidDetails({
   }, [auctionDetails.claimBlock, currentBlockNumber])
   const isExited = bid.status === AuctionBidStatus.Exited
   const isFullyFilled = computeIsFullyFilled(bid)
+  const isAuctionInProgress = auctionProgressState === AuctionProgressState.IN_PROGRESS
 
   // Use unified getBidDisplayInfo for all display state derivation
   const { displayState, descriptionState } = useMemo(
@@ -113,11 +121,11 @@ export function useBidDetails({
         bidStatus: bid.status,
         isInRange,
         isFullyFilled,
-        auctionProgressState,
-        isGraduated,
+        isAuctionInProgress,
+        outcome,
         isInPreClaimWindow,
       }),
-    [bid.status, isInRange, isFullyFilled, auctionProgressState, isGraduated, isInPreClaimWindow],
+    [bid.status, isInRange, isFullyFilled, isAuctionInProgress, outcome, isInPreClaimWindow],
   )
 
   const spentFraction = useMemo(
@@ -194,12 +202,18 @@ export function useBidDetails({
     return Number.isFinite(parsed) ? parsed : 0
   }, [auctionDetails.token, bidTokenInfo.decimals, clearingPrice])
 
-  const { fdvFraction, maxFdvBidTokenRaw, currentFdvBidTokenRaw } = useMemo(() => {
+  const { fdvFraction, maxFdvBidTokenRaw, currentFdvBidTokenRaw } = useMemo<{
+    fdvFraction: number | null
+    maxFdvBidTokenRaw: bigint | null
+    currentFdvBidTokenRaw: bigint | null
+  }>(() => {
     const auctionTokenDecimals = getAuctionTokenDecimals(auctionDetails.token)
     const totalSupplyRaw = auctionDetails.tokenTotalSupply
 
-    if (!totalSupplyRaw || totalSupplyRaw === '0' || auctionTokenDecimals === undefined) {
-      return { fdvFraction: 0, maxFdvBidTokenRaw: 0n, currentFdvBidTokenRaw: 0n }
+    // Unknown supply, not a zero valuation: `0n` would format as a confident "0 ETH" FDV and pin the
+    // range marker at the bottom of the bar.
+    if (!hasTokenTotalSupply(totalSupplyRaw) || auctionTokenDecimals === undefined) {
+      return { fdvFraction: null, maxFdvBidTokenRaw: null, currentFdvBidTokenRaw: null }
     }
 
     // oxlint-disable-next-line no-shadow
@@ -228,11 +242,17 @@ export function useBidDetails({
   }, [clearingPrice, auctionDetails.token, auctionDetails.tokenTotalSupply, bid.maxPrice, bidTokenInfo.decimals])
 
   const maxFdvDisplay = useMemo(() => {
+    if (maxFdvBidTokenRaw === null) {
+      return '-'
+    }
     const formatted = formatCompactFromRaw({ raw: maxFdvBidTokenRaw, decimals: bidTokenInfo.decimals })
     return `${formatted} ${bidTokenInfo.symbol}`
   }, [bidTokenInfo.decimals, bidTokenInfo.symbol, maxFdvBidTokenRaw])
 
   const currentFdvDisplay = useMemo(() => {
+    if (currentFdvBidTokenRaw === null) {
+      return '-'
+    }
     const formatted = formatCompactFromRaw({ raw: currentFdvBidTokenRaw, decimals: bidTokenInfo.decimals })
     return `${formatted} ${bidTokenInfo.symbol}`
   }, [bidTokenInfo.decimals, bidTokenInfo.symbol, currentFdvBidTokenRaw])
@@ -241,14 +261,13 @@ export function useBidDetails({
   // Button State & UI Logic
   // ─────────────────────────────────────────────────────────────────
   const buttonState = useMemo<ButtonState>(() => {
-    const isAuctionInProgress = auctionProgressState === AuctionProgressState.IN_PROGRESS
     const isAuctionEnded = auctionProgressState === AuctionProgressState.ENDED
 
     // Auction over - hide button UNLESS we're in the pre-claim window
     // for a graduated auction with out-of-range bids (allow exit during this window)
     if (isAuctionEnded) {
       // Allow refund button during pre-claim window for graduated auctions with out-of-range bids
-      if (isGraduated && isInPreClaimWindow && !isInRange) {
+      if (outcome === AuctionOutcome.GRADUATED && isInPreClaimWindow && !isInRange) {
         const isBidPending = pendingWithdrawalBidIds.has(bid.bidId) || awaitingConfirmationBidIds.has(bid.bidId)
         return {
           isEnabled: !isExited && !isBidPending,
@@ -260,8 +279,8 @@ export function useBidDetails({
       return { isEnabled: false, isVisible: false, label: '', action: 'exit' }
     }
 
-    // State 3: In progress + out of range + graduated
-    if (isAuctionInProgress && !isInRange && isGraduated) {
+    // State 3: In progress + out of range + graduation threshold already met
+    if (isAuctionInProgress && !isInRange && hasMetThreshold) {
       // Check if THIS specific bid is pending withdrawal, not global state
       const isBidPending = pendingWithdrawalBidIds.has(bid.bidId) || awaitingConfirmationBidIds.has(bid.bidId)
       return {
@@ -277,7 +296,9 @@ export function useBidDetails({
     auctionProgressState,
     awaitingConfirmationBidIds,
     bid.bidId,
-    isGraduated,
+    hasMetThreshold,
+    isAuctionInProgress,
+    outcome,
     isInPreClaimWindow,
     isInRange,
     isExited,
@@ -285,58 +306,15 @@ export function useBidDetails({
     t,
   ])
 
-  const description = useMemo<ReactNode>(() => {
-    const components = { highlight: HIGHLIGHT_COMPONENT }
-    const tokenSymbol = auctionDetails.token?.currency.symbol
-    const valuationSummary = maxFdvDisplay
-
-    switch (descriptionState) {
-      case 'overNotGraduated':
-        return <Trans i18nKey="toucan.bidDetails.description.overNotGraduated" components={components} />
-      case 'overNotGraduatedExited':
-        return <Trans i18nKey="toucan.bidDetails.description.overNotGraduatedExited" components={components} />
-      case 'completeInProgress':
-        return <Trans i18nKey="toucan.bidDetails.description.completeInProgress" components={components} />
-      case 'completePreClaim':
-        return <Trans i18nKey="toucan.bidDetails.description.completePreClaim" components={components} />
-      case 'completeOver':
-        return <Trans i18nKey="toucan.bidDetails.description.completeOver" components={components} />
-      case 'completeClaimed':
-        return <Trans i18nKey="toucan.bidDetails.description.completeClaimed" components={components} />
-      case 'inRangeInProgress':
-        return (
-          <Trans
-            i18nKey="toucan.bidDetails.description.inRangeInProgress"
-            values={{ tokenSymbol, valuationSummary }}
-            components={components}
-          />
-        )
-      case 'inRangePreClaim':
-        return <Trans i18nKey="toucan.bidDetails.description.inRangePreClaim" components={components} />
-      case 'inRangeOver':
-        return <Trans i18nKey="toucan.bidDetails.description.inRangeOver" components={components} />
-      case 'inRangeOutOfRangeClaimed':
-        return <Trans i18nKey="toucan.bidDetails.description.inRangeOutOfRangeClaimed" components={components} />
-      case 'outOfRangeInProgress':
-        return (
-          <Trans
-            i18nKey="toucan.bidDetails.description.outOfRangeInProgress"
-            values={{ valuationSummary }}
-            components={components}
-          />
-        )
-      case 'outOfRangePreClaim':
-        return <Trans i18nKey="toucan.bidDetails.description.outOfRangePreClaim" components={components} />
-      case 'outOfRangePreClaimExited':
-        return <Trans i18nKey="toucan.bidDetails.description.outOfRangePreClaimExited" components={components} />
-      case 'outOfRangeOver':
-        return <Trans i18nKey="toucan.bidDetails.description.outOfRangeOver" components={components} />
-      case 'outOfRangeOverExited':
-        return <Trans i18nKey="toucan.bidDetails.description.outOfRangeOverExited" components={components} />
-      default:
-        return null
-    }
-  }, [descriptionState, maxFdvDisplay, auctionDetails.token?.currency.symbol])
+  const description = useMemo<ReactNode>(
+    () =>
+      getBidDescription({
+        descriptionState,
+        tokenSymbol: auctionDetails.token?.currency.symbol,
+        valuationSummary: maxFdvDisplay,
+      }),
+    [descriptionState, maxFdvDisplay, auctionDetails.token?.currency.symbol],
+  )
 
   const showUnusedBudgetCard = !isInRange
   const refundBudgetLabel = useMemo(

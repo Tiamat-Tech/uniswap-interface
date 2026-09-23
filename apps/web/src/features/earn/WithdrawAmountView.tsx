@@ -1,13 +1,14 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
+import { Anchor, Button, Flex, Text } from '@universe/mycelium'
 import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Anchor, Button, Flex, Text, useDynamicFontSizing } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { useDynamicFontSizing } from 'ui/src/hooks/useDynamicFontSizing'
+import { iconSizes } from 'ui/src/theme/iconSizes'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { useNetworkSelectorOptions } from 'uniswap/src/components/network/NetworkFilterV2/useNetworkSelectorOptions'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   getEarnAmountValidation,
   getEarnFiatPercentageInput,
@@ -15,15 +16,16 @@ import {
 } from 'uniswap/src/features/earn/amount'
 import { EARN_INPUT_ERROR_DEBOUNCE_MS } from 'uniswap/src/features/earn/constants'
 import { EarnInlineError } from 'uniswap/src/features/earn/EarnInlineError'
+import { useEarnAmountEntryAnalytics } from 'uniswap/src/features/earn/hooks/useEarnAmountEntryAnalytics'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { hasConfirmedEarnPositionRawBalance, MORPHO_FAQ_URL } from 'uniswap/src/features/earn/utils'
 import { getEarnVaultWithdrawDestinationCurrencyId } from 'uniswap/src/features/earn/withdrawDestination'
 import { WithdrawLiquidityInfoPopover } from 'uniswap/src/features/earn/WithdrawLiquidityInfoPopover'
 import { useAppFiatCurrency, useFiatCurrencyComponents } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import type { EarnAnalyticsBaseProperties } from 'uniswap/src/features/telemetry/types'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { useFiatTokenConversion } from 'uniswap/src/features/transactions/hooks/useFiatTokenConversion'
-import useResizeObserver from 'use-resize-observer'
 import { NumberType } from 'utilities/src/format/types'
 import { isSafeNumber } from 'utilities/src/primitives/integer'
 import { useDebounce } from 'utilities/src/time/timing'
@@ -35,10 +37,12 @@ import {
   NumericalInputSymbolContainer,
   NumericalInputWrapper,
   StyledNumericalInput,
+  useMeasuredFieldWidth,
 } from '~/components/NumericalInput/LargeAmountInput'
 import { useActiveAddresses } from '~/features/accounts/store/hooks'
 import { EARN_SELECTOR_DROPDOWN_MAX_HEIGHT } from '~/features/earn/constants'
 import { EarnAmountViewHeader } from '~/features/earn/EarnAmountViewHeader'
+import { getWithdrawCtaLabel } from '~/features/earn/withdrawCtaLabel'
 import {
   getSelectedWithdrawDestinationChainId,
   getWithdrawDestinationChainIds,
@@ -53,6 +57,7 @@ const FIAT_DECIMALS = 2
 const PERCENT_OPTIONS = [0.25, 0.5, 0.75, 1] as const
 
 interface WithdrawAmountViewProps {
+  analyticsProperties?: EarnAnalyticsBaseProperties
   vault: EarnVaultInfo
   position: EarnPositionInfo
   initialAmount?: string
@@ -63,45 +68,8 @@ interface WithdrawAmountViewProps {
   onReview: (params: { amount: string; chainId: UniverseChainId; withdrawMode: TradingApi.EarnWithdrawMode }) => void
 }
 
-function getWithdrawCtaLabel({
-  hasPositionBalance,
-  inputAmount,
-  isOverBalance,
-  isOverWithdrawableLiquidity,
-  labels,
-}: {
-  hasPositionBalance: boolean
-  inputAmount: number
-  isOverBalance: boolean
-  isOverWithdrawableLiquidity: boolean
-  labels: {
-    enterAmount: string
-    insufficientBalance: string
-    loading: string
-    lowLiquidity: string
-    review: string
-  }
-}): string {
-  if (inputAmount <= 0) {
-    return labels.enterAmount
-  }
-
-  if (!hasPositionBalance) {
-    return labels.loading
-  }
-
-  if (isOverWithdrawableLiquidity) {
-    return labels.lowLiquidity
-  }
-
-  if (isOverBalance) {
-    return labels.insufficientBalance
-  }
-
-  return labels.review
-}
-
 export function WithdrawAmountView({
+  analyticsProperties,
   vault,
   position,
   initialAmount = '',
@@ -148,7 +116,7 @@ export function WithdrawAmountView({
     initialWithdrawMode ?? TradingApi.EarnWithdrawMode.EXACT_ASSETS,
   )
   const inputRef = useRef<ComponentRef<typeof StyledNumericalInput>>(null)
-  const hiddenObserver = useResizeObserver<HTMLElement>()
+  const { ref: hiddenObserverRef, fieldWidth: scaledInputWidth } = useMeasuredFieldWidth(amount)
 
   const { fontSize, onLayout, onSetFontSize, onExtraElementLayout } = useDynamicFontSizing({
     maxCharWidthAtMaxFontSize: CHAR_WIDTH,
@@ -166,6 +134,8 @@ export function WithdrawAmountView({
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional run-once on mount
   }, [])
 
+  const { logPresetSelected, logAmountEntered } = useEarnAmountEntryAnalytics({ analyticsProperties })
+
   const handleUserInput = useCallback(
     (value: string) => {
       if (!isSafeNumber(value)) {
@@ -175,8 +145,9 @@ export function WithdrawAmountView({
       onSetFontSize(normalized)
       setAmount(normalized)
       setWithdrawMode(TradingApi.EarnWithdrawMode.EXACT_ASSETS)
+      logAmountEntered({ action: 'withdraw', inputMethod: 'manual', value: normalized })
     },
-    [onSetFontSize],
+    [logAmountEntered, onSetFontSize],
   )
   const convertUsdToLocalFiat = useCallback(
     (balanceUsd: number): number => convertFiatAmount(balanceUsd).amount,
@@ -185,6 +156,7 @@ export function WithdrawAmountView({
 
   const handlePercentPress = useCallback(
     (pct: number) => {
+      logPresetSelected({ action: 'withdraw', pct })
       const value = getEarnFiatPercentageInput({
         balanceUsd: withdrawableBalanceUsd,
         convertUsdToLocalFiat,
@@ -192,6 +164,7 @@ export function WithdrawAmountView({
         percentage: pct,
         rounding: pct === 1 && withdrawableAmount.isLiquidityLimited ? 'down' : 'nearest',
       })
+      logAmountEntered({ action: 'withdraw', inputMethod: 'preset', pct, value })
       onSetFontSize(value)
       setAmount(value)
       setInputInFiat(true)
@@ -201,7 +174,14 @@ export function WithdrawAmountView({
           : TradingApi.EarnWithdrawMode.EXACT_ASSETS,
       )
     },
-    [convertUsdToLocalFiat, onSetFontSize, withdrawableAmount.isLiquidityLimited, withdrawableBalanceUsd],
+    [
+      convertUsdToLocalFiat,
+      logAmountEntered,
+      logPresetSelected,
+      onSetFontSize,
+      withdrawableAmount.isLiquidityLimited,
+      withdrawableBalanceUsd,
+    ],
   )
 
   useEffect(() => {
@@ -262,11 +242,6 @@ export function WithdrawAmountView({
       review: t('common.button.review'),
     },
   })
-
-  const scaledInputWidth = useMemo(
-    () => (amount && hiddenObserver.width ? hiddenObserver.width + 1 : undefined),
-    [amount, hiddenObserver.width],
-  )
 
   const handleReview = useCallback(() => {
     if (!hasPositionBalance || !currency || !chainId) {
@@ -346,7 +321,7 @@ export function WithdrawAmountView({
               maxDecimals={maxDecimals}
               ref={inputRef}
             />
-            <NumericalInputMimic ref={hiddenObserver.ref} numericalFontSize={fontSize}>
+            <NumericalInputMimic ref={hiddenObserverRef} numericalFontSize={fontSize}>
               {amount}
             </NumericalInputMimic>
           </NumericalInputWrapper>

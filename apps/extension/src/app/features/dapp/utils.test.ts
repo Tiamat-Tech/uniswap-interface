@@ -1,3 +1,5 @@
+import { isDevEnv } from '@universe/environment'
+import { IMPERSONATION_SIGNING_ERROR_MESSAGE } from 'src/app/features/accounts/impersonation'
 import {
   getActiveSignerConnectedAccount,
   getCapitalizedDisplayNameFromTab,
@@ -10,6 +12,11 @@ import { promiseTimeout } from 'utilities/src/time/timing'
 import type { Mock } from 'vitest'
 import { Account } from 'wallet/src/features/wallet/accounts/types'
 import { ACCOUNT, ACCOUNT2, ACCOUNT3, readOnlyAccount } from 'wallet/src/test/fixtures'
+
+vi.mock('@universe/environment', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@universe/environment')>()),
+  isDevEnv: vi.fn(() => false),
+}))
 
 vi.mock('utilities/src/format/extractNameFromUrl', () => ({
   extractNameFromUrl: vi.fn(),
@@ -65,6 +72,20 @@ describe('getActiveConnectedAccount', () => {
     expect(() => {
       getActiveSignerConnectedAccount(accounts, readOnlyAccount1.address!)
     }).toThrow('The active connected address must be a signer mnemonic account.')
+  })
+
+  it('reports a view-only account as an impersonated wallet in a dev build', () => {
+    vi.mocked(isDevEnv).mockReturnValue(true)
+    const readOnlyAccount1 = readOnlyAccount()
+    const accounts: Account[] = [ACCOUNT, ACCOUNT2, readOnlyAccount1]
+
+    try {
+      expect(() => {
+        getActiveSignerConnectedAccount(accounts, readOnlyAccount1.address!)
+      }).toThrow(IMPERSONATION_SIGNING_ERROR_MESSAGE)
+    } finally {
+      vi.mocked(isDevEnv).mockReturnValue(false)
+    }
   })
 })
 

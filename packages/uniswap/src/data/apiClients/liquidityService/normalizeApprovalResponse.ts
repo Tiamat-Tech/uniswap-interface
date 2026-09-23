@@ -6,8 +6,7 @@ import {
 import { type LPApprovalResponse } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/api_pb'
 import { type ApprovalTransactionRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
 import { permit2Address } from '@uniswap/permit2-sdk'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
+import { Platform, areAddressesEqual } from '@universe/chains'
 
 function areEvmAddressesEqual(a: string, b: string): boolean {
   return areAddressesEqual({

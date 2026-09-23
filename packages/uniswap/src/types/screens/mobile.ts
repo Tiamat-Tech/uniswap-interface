@@ -2,6 +2,8 @@ import type { ExtensionOnboardingFlow, ExtensionScreens } from 'uniswap/src/type
 
 export enum MobileScreens {
   Activity = 'Activity',
+  CategoryDetails = 'CategoryDetails',
+  Collections = 'Collections',
   DebugScreens = 'DebugScreens',
   Dev = 'Dev',
   HashcashBenchmark = 'HashcashBenchmark',
@@ -11,7 +13,9 @@ export enum MobileScreens {
   Education = 'Education',
   ConnectionsDappListModal = 'connections-dapp-list-modal',
   Explore = 'Explore',
+  // `Home` remains for legacy `mobile://Home` URLs; `MainTabs` is the outer route that owns the tab navigator.
   Home = 'Home',
+  MainTabs = 'MainTabs',
   OnboardingStack = 'OnboardingStack',
   PortfolioChartDetails = 'PortfolioChartDetails',
   PositionDetails = 'PositionDetails',

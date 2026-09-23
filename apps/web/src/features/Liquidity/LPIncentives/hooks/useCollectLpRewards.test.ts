@@ -1,6 +1,6 @@
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { SAMPLE_SEED_ADDRESS_1 } from 'uniswap/src/test/fixtures/gql/assets/constants'
 import { lpRewardsCollectKey, useCollectLpRewards } from '~/features/Liquidity/LPIncentives/hooks/useCollectLpRewards'
 import {

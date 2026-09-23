@@ -1,5 +1,12 @@
 import { WalletName as SolanaWalletName, WalletReadyState as SolanaWalletReadyState } from '@solana/wallet-adapter-base'
 import { Wallet as SolanaWallet, useWallet as useSolanaWallet } from '@solana/wallet-adapter-react'
+import {
+  UniverseChainId,
+  Platform,
+  type PlatformSpecificAddress,
+  isChainIdOnPlatform,
+  EVMUniverseChainId,
+} from '@universe/chains'
 import { useMemo, useSyncExternalStore } from 'react'
 import { CONNECTION_PROVIDER_IDS, CONNECTION_PROVIDER_NAMES } from 'uniswap/src/constants/web3'
 import type { Account } from 'uniswap/src/features/accounts/store/types/Account'
@@ -9,11 +16,7 @@ import { SigningCapability } from 'uniswap/src/features/accounts/store/types/Wal
 import { createAccountsStoreContextProvider } from 'uniswap/src/features/accounts/store/utils/createAccountsStoreContextProvider'
 import { CAIP25Session } from 'uniswap/src/features/capabilities/caip25/types'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { EVMUniverseChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import type { PlatformSpecificAddress } from 'uniswap/src/features/platforms/types/PlatformSpecificAddress'
-import { isChainIdOnPlatform } from 'uniswap/src/features/platforms/utils/chains'
 import {
   UseAccountReturnType,
   useCapabilities,

@@ -1,6 +1,8 @@
 import fs from 'fs'
 import React from 'react'
+import { USDC_ARC } from 'uniswap/src/constants/tokens'
 import { parseStringPromise } from 'xml2js'
+import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { EMBED_BASE_PATH, isEmbedPath } from '~/pages/embedPaths'
 import { EMBED_ENTRY_ROUTES, findRouteByPath, routes } from '~/pages/RouteDefinitions'
 
@@ -29,6 +31,16 @@ describe('Routes', () => {
    */
   it('router definition should match snapshot', () => {
     expect(routes).toMatchSnapshot()
+  })
+
+  it('matches Arc NATIVE to its redirect before the generic token details route', () => {
+    const redirectRoute = findRouteByPath(`/explore/tokens/arc/${NATIVE_CHAIN_ID}`)
+    const redirectElement = redirectRoute?.getElement({})
+
+    expect(redirectRoute?.path).toBe(`/explore/tokens/arc/${NATIVE_CHAIN_ID}`)
+    expect(redirectElement).toMatchObject({
+      props: { replace: true, to: `/explore/tokens/arc/${USDC_ARC.address}` },
+    })
   })
 })
 

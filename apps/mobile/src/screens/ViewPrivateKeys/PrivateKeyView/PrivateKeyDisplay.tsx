@@ -1,10 +1,10 @@
+import { Flex } from '@universe/mycelium'
 import { useMemo, useState } from 'react'
 import { NativePrivateKeyDisplay } from 'src/screens/ViewPrivateKeys/PrivateKeyView/NativePrivateKeyDisplay'
 import {
   NativePrivateKeyDisplayInternalProps,
   NativePrivateKeyDisplayProps,
 } from 'src/screens/ViewPrivateKeys/PrivateKeyView/types'
-import { Flex } from 'ui/src/components/layout/Flex'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
 /**

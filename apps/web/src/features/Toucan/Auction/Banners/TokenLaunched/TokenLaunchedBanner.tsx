@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { GetClearingPriceHistoryRequest } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
-import { useSporeColors } from 'ui/src'
 import { auctionQueries } from 'uniswap/src/data/apiClients/dataApiService/auctions/auctionQueries'
 import { logger } from 'utilities/src/logger/logger'
 import { TokenLaunchedBannerInner } from '~/features/Toucan/Auction/Banners/TokenLaunched/TokenLaunchedBannerInner'
@@ -15,6 +15,7 @@ import { fromQ96ToDecimalWithTokenDecimals } from '~/features/Toucan/Auction/Bid
 import { useAuctionRedemption } from '~/features/Toucan/Auction/hooks/useAuctionRedemption'
 import { useBidTokenInfo } from '~/features/Toucan/Auction/hooks/useBidTokenInfo'
 import { useDurationRemaining } from '~/features/Toucan/Auction/hooks/useDurationRemaining'
+import { AuctionOutcome } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getClearingPrice } from '~/features/Toucan/Auction/utils/clearingPrice'
 import { isTokenLaunchTradeLive } from '~/features/Toucan/Auction/utils/tokenLaunchedBannerUtils'
@@ -24,7 +25,7 @@ import { isTradingRestrictedUntilTge } from '~/features/Toucan/Config/config'
 interface TokenLaunchedBannerProps {
   tokenName: string
   tokenColor?: string
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals?: number
   // Whether the auction status permits trading. The banner additionally requires a live market
   // price before showing "Trade now" — see isTokenLaunchTradeLive.
@@ -41,14 +42,15 @@ interface TokenLaunchedBannerProps {
 export function TokenLaunchedBanner({
   tokenName,
   tokenColor,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals,
   isTradeAvailableFromStatus,
   tradeAvailabilityBlock,
 }: TokenLaunchedBannerProps) {
   const colors = useSporeColors()
-  const { isGraduated, auctionDetails, checkpointData, tokenColorLoading } = useAuctionStore((state) => ({
+  const { isGraduated, outcome, auctionDetails, checkpointData, tokenColorLoading } = useAuctionStore((state) => ({
     isGraduated: state.progress.isGraduated,
+    outcome: state.progress.outcome,
     auctionDetails: state.auctionDetails,
     checkpointData: state.checkpointData,
     tokenColorLoading: state.tokenColorLoading,
@@ -175,8 +177,16 @@ export function TokenLaunchedBanner({
 
   // Show failure state if auction didn't graduate
   if (!isGraduated) {
-    // Show skeleton while waiting for auction details to load
-    const isFailedBannerLoading = !tokenName
+    // Wait on every input the failure claim rests on — UNKNOWN covers an unresolved block,
+    // auction, or checkpoint; tokenName is the copy itself. Checkpoint polling stops once the
+    // auction ends, so a premature "failed to launch" is never retracted.
+    //
+    // UNKNOWN here means genuinely undecided, not merely "no checkpoint": a checkpoint that
+    // settled empty on an ended auction resolves to FAILED and renders the failure banner
+    // (see computeAuctionProgress). What still holds the skeleton is an in-flight request or a
+    // failed one — a failed fetch is not evidence the auction missed its threshold, and it is
+    // logged in useAuctionCheckpointDiagnostics rather than waited on in silence.
+    const isFailedBannerLoading = outcome === AuctionOutcome.UNKNOWN || !tokenName
     if (isFailedBannerLoading) {
       return <TokenLaunchedBannerSkeleton />
     }
@@ -219,7 +229,7 @@ export function TokenLaunchedBanner({
     <TokenLaunchedBannerInner
       tokenName={isRedeemable ? (realTokenName ?? tokenName) : tokenName}
       tokenColor={tokenColor}
-      totalSupply={totalSupply}
+      tokenTotalSupply={tokenTotalSupply}
       auctionTokenDecimals={auctionTokenDecimals}
       isTradeAvailable={isTradeAvailable}
       tradeAvailabilityDurationRemaining={tradeAvailabilityDurationRemaining}

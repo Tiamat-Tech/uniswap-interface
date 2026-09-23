@@ -1,5 +1,6 @@
+import { Flex } from '@universe/mycelium'
+import { Accordion } from '@universe/mycelium'
 import { memo } from 'react'
-import { Accordion, Flex } from 'ui/src'
 import { GeoRestrictionCard } from 'uniswap/src/features/transactions/swap/components/GeoRestrictionCard/GeoRestrictionCard'
 import { GeoRestrictionModalStoreContextProvider } from 'uniswap/src/features/transactions/swap/components/GeoRestrictionCard/GeoRestrictionModalStoreContextProvider'
 import { SwapFormButton } from 'uniswap/src/features/transactions/swap/components/SwapFormButton/SwapFormButton'

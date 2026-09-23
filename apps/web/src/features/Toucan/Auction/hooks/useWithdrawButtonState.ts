@@ -1,18 +1,22 @@
+import { EVMUniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import { useBidsListData } from '~/features/Toucan/Auction/hooks/useBidsListData'
 import { useDurationRemaining } from '~/features/Toucan/Auction/hooks/useDurationRemaining'
-import { AuctionBidStatus } from '~/features/Toucan/Auction/store/types'
+import { AuctionBidStatus, AuctionOutcome } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 
 export function useWithdrawButtonState({
-  isGraduated,
+  outcome,
   claimBlock,
   currentBlockNumber,
   chainId,
 }: {
-  isGraduated: boolean
+  /**
+   * Tri-state outcome, not a boolean: only GRADUATED and FAILED may drive copy about the bidder's
+   * funds. UNKNOWN and ACTIVE leave the button disabled with a neutral label.
+   */
+  outcome: AuctionOutcome
   claimBlock?: string
   currentBlockNumber?: number
   chainId?: EVMUniverseChainId
@@ -23,6 +27,10 @@ export function useWithdrawButtonState({
   allBidsExited: boolean
 } {
   const { t } = useTranslation()
+  const isGraduated = outcome === AuctionOutcome.GRADUATED
+  // "Withdraw tokens" and "Withdraw funds" are both claims about the bidder's money. Neither is
+  // safe until the auction has actually settled one way or the other.
+  const isOutcomeSettled = isGraduated || outcome === AuctionOutcome.FAILED
   const { bidItems, hasErrors } = useBidsListData()
   const pendingWithdrawalBidIds = useAuctionStore((state) => state.pendingWithdrawalBidIds)
   const awaitingConfirmationBidIds = useAuctionStore((state) => state.awaitingConfirmationBidIds)
@@ -68,6 +76,9 @@ export function useWithdrawButtonState({
   )
 
   const label = useMemo(() => {
+    if (!isOutcomeSettled) {
+      return t('common.loading')
+    }
     // Check claim period first (only for graduated auctions)
     if (isGraduated && isClaimPeriodNotOpen && durationRemaining) {
       return t('toucan.auction.withdrawAvailableIn', {
@@ -99,11 +110,15 @@ export function useWithdrawButtonState({
     isAwaitingWithdrawalConfirmation,
     isClaimPeriodNotOpen,
     isGraduated,
+    isOutcomeSettled,
     isWithdrawalPending,
     t,
   ])
 
   const isDisabled = useMemo(() => {
+    if (!isOutcomeSettled) {
+      return true
+    }
     // Check claim period first (only for graduated auctions)
     if (isGraduated && isClaimPeriodNotOpen) {
       return true
@@ -129,6 +144,7 @@ export function useWithdrawButtonState({
     isAwaitingWithdrawalConfirmation,
     isClaimPeriodNotOpen,
     isGraduated,
+    isOutcomeSettled,
     isWithdrawalPending,
   ])
 

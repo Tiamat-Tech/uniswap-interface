@@ -7,23 +7,27 @@ import {
   BottomSheetTextInput as GorhomBottomSheetTextInput,
 } from '@gorhom/bottom-sheet'
 import { isIOS } from '@universe/environment'
+import { borderRadii, Flex, spacing, zIndexes } from '@universe/mycelium'
+import { useDeviceDimensions, useIsDarkMode, useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { BlurView } from 'expo-blur'
 import type { ComponentProps } from 'react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { BackHandler, StyleSheet } from 'react-native'
 import Animated, { Extrapolate, interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
-import { Flex, useIsDarkMode, useMedia, useSporeColors } from 'ui/src'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
-import { borderRadii, spacing, zIndexes } from 'ui/src/theme'
 import { BottomSheetContextProvider } from 'uniswap/src/components/modals/BottomSheetContext'
 import { HandleBar } from 'uniswap/src/components/modals/HandleBar'
-import { BSM_ANIMATION_CONFIGS, IS_SHEET_READY_DELAY } from 'uniswap/src/components/modals/modalConstants'
+import {
+  BSM_ANIMATION_CONFIGS,
+  IS_SHEET_READY_DELAY,
+  IS_SHEET_READY_FALLBACK_TIMEOUT,
+} from 'uniswap/src/components/modals/modalConstants'
 import type { ModalProps } from 'uniswap/src/components/modals/ModalProps'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
 import { useKeyboardLayout } from 'uniswap/src/utils/useKeyboardLayout'
 import { dismissNativeKeyboard } from 'utilities/src/device/keyboard/dismissNativeKeyboard'
+import { logger } from 'utilities/src/logger/logger'
 
 /**
  * (android only)
@@ -93,6 +97,11 @@ function DetachedModalBackdrop(props: BottomSheetBackdropProps): JSX.Element {
   )
 }
 
+function hasMultipleDetents(snapPoints: ModalProps['snapPoints']): boolean {
+  // `length > 1`, not truthiness: a single-detent array is a fixed height, with nowhere to drag to.
+  return (snapPoints?.length ?? 0) > 1
+}
+
 export function Modal({ isModalOpen = true, ...props }: ModalProps): JSX.Element | null {
   if (!isModalOpen) {
     return null
@@ -127,6 +136,7 @@ function BottomSheetModalContents({
   hideKeyboardOnDismiss = false,
   hideKeyboardOnSwipeDown = false,
   keyboardBlurBehavior,
+  keyboardBehavior,
   enableBlurKeyboardOnGesture,
   forceRoundedCorners = false,
   // keyboardBehavior="extend" does not work and it's hard to figure why,
@@ -153,6 +163,28 @@ function BottomSheetModalContents({
     [providedSnapPoints, fullScreen],
   )
 
+  // `renderBehindTopInset && hideHandlebar` is the branch that nulls the handle in renderHandleBar.
+  const hasNoHandle = Boolean(renderBehindTopInset && hideHandlebar)
+  // fullScreen also leaves no backdrop to press, so there the content pan is the last affordance standing.
+  const hasNoDismissAffordance = hasNoHandle && Boolean(fullScreen)
+  // The multi-detent half is deliberately ungated by `isDismissible`: dragging between detents is not a
+  // dismissal, and `enablePanDownToClose` below is what keeps that drag from closing the sheet.
+  const contentPanningGesture =
+    enableContentPanningGesture ?? (hasMultipleDetents(snapPoints) || (isDismissible && hasNoDismissAffordance))
+
+  // Keyed to the handle-nulling shape, not `hasNoDismissAffordance`, so a non-fullScreen sheet left
+  // with only its backdrop is flagged too.
+  useEffect(() => {
+    if (__DEV__ && hasNoHandle && !contentPanningGesture) {
+      logger.warn(
+        'Modal.native',
+        'BottomSheetModalContents',
+        'A sheet with renderBehindTopInset and hideHandlebar renders no handle, and content panning resolved to false, so the only way out is a backdrop press — which fullScreen covers over entirely — or the Android hardware back button, and not even that when isDismissible or dismissOnBackPress is false.',
+        { modalName: name },
+      )
+    }
+  }, [hasNoHandle, contentPanningGesture, name])
+
   useModalBackHandler(modalRef, isDismissible && dismissOnBackPress)
 
   useEffect(() => {
@@ -167,6 +199,12 @@ function BottomSheetModalContents({
       modalRef.current?.expand()
     }
   }, [extendOnKeyboardVisible, keyboard.isVisible])
+
+  // Fallback for onAnimate never reporting the open animation: gated content must always render eventually.
+  useEffect(() => {
+    const fallbackTimer = setTimeout(() => setIsSheetReady(true), IS_SHEET_READY_FALLBACK_TIMEOUT)
+    return () => clearTimeout(fallbackTimer)
+  }, [])
 
   const animatedPosition = providedAnimatedPosition ?? internalAnimatedPosition
 
@@ -326,11 +364,14 @@ function BottomSheetModalContents({
       containerComponent={containerComponent}
       containerStyle={containerStyle}
       enableBlurKeyboardOnGesture={enableBlurKeyboardOnGesture}
-      enableContentPanningGesture={enableContentPanningGesture ?? isDismissible}
+      enableContentPanningGesture={contentPanningGesture}
       enableDynamicSizing={enableDynamicSizing ?? !snapPoints}
       enableHandlePanningGesture={isDismissible}
+      // gorhom defaults this to true, so without it a drag could close a sheet the caller marked non-dismissible.
+      enablePanDownToClose={isDismissible}
       footerComponent={footerComponent}
       handleComponent={renderHandleBar}
+      keyboardBehavior={keyboardBehavior}
       keyboardBlurBehavior={keyboardBlurBehavior}
       snapPoints={snapPoints}
       stackBehavior={stackBehavior}
@@ -362,6 +403,7 @@ export function BottomSheetDetachedModal({
   stackBehavior = 'push',
   isDismissible = true,
   dismissOnBackPress = true,
+  enableContentPanningGesture,
   fullScreen,
   hideHandlebar,
   backgroundColor,
@@ -404,8 +446,11 @@ export function BottomSheetDetachedModal({
       bottomInset={insets.bottom}
       containerStyle={bottomSheetStyle.detachedContainer}
       detached={true}
-      enableContentPanningGesture={isDismissible}
+      enableContentPanningGesture={enableContentPanningGesture ?? hasMultipleDetents(snapPoints)}
       enableDynamicSizing={!snapPoints}
+      // gorhom's BottomSheetModal defaults this to true, so without it a content drag could close a
+      // sheet the caller marked non-dismissible.
+      enablePanDownToClose={isDismissible}
       handleComponent={renderHandleBar}
       snapPoints={snapPoints}
       stackBehavior={stackBehavior}

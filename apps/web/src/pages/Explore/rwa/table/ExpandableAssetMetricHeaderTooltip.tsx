@@ -44,6 +44,7 @@ export function ExpandableAssetMetricHeaderTooltip({
     <MouseoverTooltip
       disabled={!tooltipContent}
       size={TooltipSize.Small}
+      fitContent
       text={tooltipContent}
       placement="top"
       onClick={handleTooltipClick}

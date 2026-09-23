@@ -1,5 +1,5 @@
 import { Token } from '@uniswap/sdk-core'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import {
   getEarnAmountInputDisplayValue,
   MAX_EARN_AMOUNT_INPUT_LENGTH,
@@ -46,10 +46,14 @@ describe(useEarnAmountEntryMobile, () => {
       }),
     )
 
-    act(() => result.current.setActiveAmount('12345678901'))
+    act(() => {
+      result.current.setActiveAmount('12345678901')
+    })
     expect(result.current.value).toBe('12345678901')
 
-    act(() => result.current.setActiveAmount('123456789012'))
+    act(() => {
+      result.current.setActiveAmount('123456789012')
+    })
     expect(result.current.value).toBe('12345678901')
     expect(onInputLengthExceeded).toHaveBeenCalledTimes(1)
   })
@@ -115,7 +119,9 @@ describe(useEarnAmountEntryMobile, () => {
       }),
     )
 
-    act(() => result.current.handlePercentPress(0.25))
+    act(() => {
+      result.current.handlePercentPress(0.25)
+    })
 
     expect(result.current.value).toBe('125000000.0')
     expect(result.current.value).toHaveLength(MAX_EARN_AMOUNT_INPUT_LENGTH)
@@ -135,7 +141,9 @@ describe(useEarnAmountEntryMobile, () => {
       }),
     )
 
-    act(() => result.current.handlePercentPress(1))
+    act(() => {
+      result.current.handlePercentPress(1)
+    })
 
     expect(result.current.value).toBe('250000000.0')
     expect(result.current.value).toHaveLength(MAX_EARN_AMOUNT_INPUT_LENGTH)
@@ -164,7 +172,9 @@ describe(useEarnAmountEntryMobile, () => {
       }),
     )
 
-    act(() => result.current.handlePercentPress(1))
+    act(() => {
+      result.current.handlePercentPress(1)
+    })
 
     expect(result.current.value).toBe('0.051437783')
     expect(result.current.value).toHaveLength(MAX_EARN_AMOUNT_INPUT_LENGTH)
@@ -194,12 +204,16 @@ describe(useEarnAmountEntryMobile, () => {
       }),
     )
 
-    act(() => result.current.handlePercentPress(1))
+    act(() => {
+      result.current.handlePercentPress(1)
+    })
     expect(result.current.exactMaxTokenAmount).toBe(exactBalance)
 
     isWithdrawing = true
     rerender()
-    act(() => result.current.handlePercentPress(1))
+    act(() => {
+      result.current.handlePercentPress(1)
+    })
 
     expect(result.current.isMaxSelected).toBe(true)
     expect(result.current.exactMaxTokenAmount).toBeUndefined()
@@ -220,14 +234,18 @@ describe(useEarnAmountEntryMobile, () => {
       onTokenAmountUpdated: (amount: string) => void
     }
 
-    act(() => result.current.handlePercentPress(1))
+    act(() => {
+      result.current.handlePercentPress(1)
+    })
     expect(result.current.exactAmountFiat).toBe('100.00')
     expect(result.current.isMaxSelected).toBe(true)
 
     // The unit switch requires a settled counterpart conversion.
     act(() => updater.onTokenAmountUpdated('0.05'))
     act(() => result.current.handleToggleInputMode())
-    act(() => result.current.setActiveAmount('3'))
+    act(() => {
+      result.current.setActiveAmount('3')
+    })
     expect(result.current.exactAmountToken).toBe('3')
     expect(result.current.isFiatInput).toBe(false)
 
@@ -257,7 +275,9 @@ describe(useEarnAmountEntryMobile, () => {
       onTokenAmountUpdated: (amount: string) => void
     }
 
-    act(() => result.current.handlePercentPress(1))
+    act(() => {
+      result.current.handlePercentPress(1)
+    })
     expect(result.current.exactAmountFiat).toBe('100.00')
 
     // Pending conversion: switching would promote an empty value over the typed amount.

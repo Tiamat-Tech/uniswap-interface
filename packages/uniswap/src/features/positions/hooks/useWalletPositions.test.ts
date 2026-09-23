@@ -1,46 +1,36 @@
 import { ConnectError } from '@connectrpc/connect'
-import { Position as RestPosition } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { PositionStatus as LiquidityPositionStatus } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import { useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { renderHookWithProviders } from 'uniswap/src/test/render'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const {
-  mockUseGetPositionsInfiniteQuery,
-  mockUseEnabledChains,
-  mockUsePositionVisibilityCheck,
-  mockParseRestPosition,
-} = vi.hoisted(() => ({
-  mockUseGetPositionsInfiniteQuery: vi.fn(),
-  mockUseEnabledChains: vi.fn(),
-  mockUsePositionVisibilityCheck: vi.fn(),
-  mockParseRestPosition: vi.fn(),
+const { mockUseLiquidityServiceWalletPositions } = vi.hoisted(() => ({
+  mockUseLiquidityServiceWalletPositions: vi.fn(),
 }))
 
-vi.mock('uniswap/src/data/apiClients/dataApiService/positions/getPositions', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('uniswap/src/data/apiClients/dataApiService/positions/getPositions')>()),
-  useGetPositionsInfiniteQuery: mockUseGetPositionsInfiniteQuery,
+// The liquidity-service source has its own suite (useLiquidityServiceWalletPositions.test.ts);
+// here it is mocked so this file can assert the merge/complement logic in isolation. This
+// also keeps the suite runnable against the pinned @uniswap/client-liquidity 1.3.3, which
+// predates the GetWalletPositions surface the real hook imports.
+vi.mock('uniswap/src/features/positions/hooks/useLiquidityServiceWalletPositions', () => ({
+  useLiquidityServiceWalletPositions: mockUseLiquidityServiceWalletPositions,
 }))
 
-vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({
-  useEnabledChains: mockUseEnabledChains,
-}))
-
-vi.mock('uniswap/src/features/visibility/hooks/usePositionVisibilityCheck', () => ({
-  usePositionVisibilityCheck: mockUsePositionVisibilityCheck,
-}))
-
-vi.mock('uniswap/src/features/positions/parseRestPosition', () => ({
-  parseRestPosition: mockParseRestPosition,
+// Deterministic modifier shape so tests can tell the visible primary query from the hidden-only
+// complement by its `hiddenOnly` flag without a seeded Redux visibility state.
+vi.mock('uniswap/src/features/positions/hooks/usePositionModifier', () => ({
+  usePositionModifier: ({ includeHidden }: { includeHidden: boolean }) => ({
+    hiddenOnly: includeHidden,
+    poolIncludeOverrides: [],
+    poolExcludeOverrides: [],
+  }),
 }))
 
 // ---------- Test fixtures ----------
 
 const ACCOUNT = '0xUser'
-const DEFAULT_CHAINS = [UniverseChainId.Mainnet, UniverseChainId.Optimism]
-
-const restPosition = (id: string): RestPosition => ({ id }) as unknown as RestPosition
 
 const positionInfo = (id: string, overrides: Partial<PositionInfo> = {}): PositionInfo =>
   ({
@@ -51,16 +41,20 @@ const positionInfo = (id: string, overrides: Partial<PositionInfo> = {}): Positi
     ...overrides,
   }) as PositionInfo
 
-const queryStateFor = (
-  positions: RestPosition[],
-  overrides: Partial<ReturnType<typeof mockUseGetPositionsInfiniteQuery>> = {},
-): ReturnType<typeof mockUseGetPositionsInfiniteQuery> => ({
-  data: { pages: [{ positions, nextPageToken: '' }], pageParams: [undefined] },
+const liquidityServiceResultFor = (
+  positions: PositionInfo[],
+  overrides: Record<string, unknown> = {},
+): ReturnType<typeof mockUseLiquidityServiceWalletPositions> => ({
+  positions,
+  hiddenPositions: [],
+  allPositions: positions,
+  pagesLoaded: positions.length > 0 ? 1 : 0,
   isLoading: false,
   isFetching: false,
   isFetchingNextPage: false,
   isPlaceholderData: false,
   hasNextPage: false,
+  hasData: true,
   error: null,
   refetch: vi.fn(),
   fetchNextPage: vi.fn().mockResolvedValue({ data: undefined }),
@@ -70,298 +64,209 @@ const queryStateFor = (
 describe('useWalletPositions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockUseEnabledChains.mockReturnValue({ chains: DEFAULT_CHAINS })
-    // Default: every position is visible.
-    mockUsePositionVisibilityCheck.mockReturnValue(() => true)
-    // Default: identity parse - RestPosition with `id` becomes a PositionInfo with that tokenId.
-    mockParseRestPosition.mockImplementation((rest?: RestPosition) => {
-      if (!rest) {
-        return undefined
-      }
-      const id = (rest as unknown as { id: string }).id
-      return positionInfo(id)
-    })
-    mockUseGetPositionsInfiniteQuery.mockReturnValue(queryStateFor([]))
+    mockUseLiquidityServiceWalletPositions.mockReturnValue(liquidityServiceResultFor([]))
   })
 
-  describe('query enable/disable', () => {
-    it('disables the underlying query when account is empty', () => {
-      renderHookWithProviders(() => useWalletPositions({ account: '' }))
+  describe('liquidity-service source', () => {
+    it('returns the liquidity-service result as-is when no hidden complement is requested', () => {
+      const lsPositions = [positionInfo('ls-1'), positionInfo('ls-2')]
+      const lsResult = liquidityServiceResultFor(lsPositions)
+      mockUseLiquidityServiceWalletPositions.mockReturnValue(lsResult)
 
-      expect(mockUseGetPositionsInfiniteQuery).toHaveBeenCalledWith(expect.any(Object), {
-        disabled: true,
-        refetchInterval: undefined,
-      })
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
+
+      // The liquidity-service result object is returned as-is.
+      expect(result.current.positions).toBe(lsPositions)
+      expect(result.current.refetch).toBe(lsResult.refetch)
     })
 
-    it('enables the underlying query when account is provided', () => {
+    it('forwards account/requestStatuses/protocolVersions/pageSize defaults to the source', () => {
       renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
 
-      expect(mockUseGetPositionsInfiniteQuery).toHaveBeenCalledWith(expect.any(Object), {
-        disabled: false,
-        refetchInterval: undefined,
-      })
+      expect(mockUseLiquidityServiceWalletPositions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          account: ACCOUNT,
+          protocolVersions: expect.any(Array),
+          requestStatuses: expect.any(Array),
+          pageSize: 25,
+        }),
+      )
     })
 
-    it('disables the underlying query when `disabled` is true even with an account', () => {
+    it('forwards `disabled` to the primary query', () => {
       renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, disabled: true }))
 
-      expect(mockUseGetPositionsInfiniteQuery).toHaveBeenCalledWith(expect.any(Object), {
-        disabled: true,
-        refetchInterval: undefined,
-      })
-    })
-
-    it('forwards `pollInterval` to the underlying query as `refetchInterval`', () => {
-      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, pollInterval: 60_000 }))
-
-      expect(mockUseGetPositionsInfiniteQuery).toHaveBeenCalledWith(expect.any(Object), {
-        disabled: false,
-        refetchInterval: 60_000,
-      })
+      const primary = mockUseLiquidityServiceWalletPositions.mock.calls
+        .map(([args]) => args as { modifier?: { hiddenOnly?: boolean }; disabled?: boolean })
+        .find((call) => call.modifier?.hiddenOnly === false)
+      expect(primary?.disabled).toBe(true)
     })
   })
 
-  describe('chain id resolution', () => {
-    it('passes the provided chainIds through to the underlying query', () => {
-      const chainIds = [UniverseChainId.Base]
-      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, chainIds }))
+  describe('hidden-complement query', () => {
+    type LiquidityCallArgs = {
+      modifier?: { hiddenOnly?: boolean }
+      requestStatuses?: LiquidityPositionStatus[]
+      disabled?: boolean
+      autoFetchAllPages?: boolean
+    }
+    const liquidityCalls = (): LiquidityCallArgs[] =>
+      mockUseLiquidityServiceWalletPositions.mock.calls.map(([args]) => args as LiquidityCallArgs)
+    const primaryCall = (): LiquidityCallArgs | undefined =>
+      liquidityCalls().find((call) => call.modifier?.hiddenOnly === false)
+    const complementCall = (): LiquidityCallArgs | undefined =>
+      liquidityCalls().find((call) => call.modifier?.hiddenOnly === true)
 
-      const [input] = mockUseGetPositionsInfiniteQuery.mock.calls[0]!
-      expect(input.chainIds).toEqual(chainIds)
-    })
+    it('never sends HIDDEN as a request status, even with includeHidden=true', () => {
+      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
 
-    it('falls back to enabled EVM chains when chainIds is omitted', () => {
-      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      const [input] = mockUseGetPositionsInfiniteQuery.mock.calls[0]!
-      expect(input.chainIds).toEqual(DEFAULT_CHAINS)
-    })
-  })
-
-  describe('query input forwarding', () => {
-    it('forwards address, includeHidden, pageSize, statuses, protocolVersions to the query', () => {
-      const customParams = {
-        account: ACCOUNT,
-        includeHidden: true,
-        pageSize: 50,
+      for (const call of liquidityCalls()) {
+        expect(call.requestStatuses).not.toContain(LiquidityPositionStatus.HIDDEN)
+        expect(call.requestStatuses).toEqual(expect.arrayContaining([LiquidityPositionStatus.OPEN]))
       }
-      renderHookWithProviders(() => useWalletPositions(customParams))
-
-      const [input] = mockUseGetPositionsInfiniteQuery.mock.calls[0]!
-      expect(input).toMatchObject({
-        address: ACCOUNT,
-        includeHidden: true,
-        pageSize: 50,
-        pageToken: '',
-      })
-      // Defaults applied.
-      expect(input.protocolVersions).toBeDefined()
-      expect(input.protocolVersions.length).toBeGreaterThan(0)
-      expect(input.positionStatuses).toBeDefined()
-    })
-  })
-
-  describe('parse + partition', () => {
-    it('parses positions and treats them all as visible by default', () => {
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(queryStateFor([restPosition('a'), restPosition('b')]))
-
-      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(result.current.positions).toHaveLength(2)
-      expect(result.current.positions.map((p) => p.tokenId)).toEqual(['a', 'b'])
-      expect(result.current.hiddenPositions).toHaveLength(0)
-      expect(result.current.allPositions).toHaveLength(2)
     })
 
-    it('partitions visible vs hidden using the visibility check', () => {
-      mockUsePositionVisibilityCheck.mockReturnValue(({ tokenId }: { tokenId?: string }) => tokenId !== 'b')
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(
-        queryStateFor([restPosition('a'), restPosition('b'), restPosition('c')]),
-      )
-
-      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(result.current.positions.map((p) => p.tokenId)).toEqual(['a', 'c'])
-      expect(result.current.hiddenPositions.map((p) => p.tokenId)).toEqual(['b'])
-      expect(result.current.allPositions.map((p) => p.tokenId)).toEqual(['a', 'b', 'c'])
-    })
-
-    it('passes poolId/tokenId/chainId/isFlaggedSpam to the visibility check', () => {
-      const visibilityCheck = vi.fn().mockReturnValue(true)
-      mockUsePositionVisibilityCheck.mockReturnValue(visibilityCheck)
-      mockParseRestPosition.mockReturnValue(
-        positionInfo('a', { isHidden: true, chainId: UniverseChainId.Optimism, poolId: 'pool-X' }),
-      )
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(queryStateFor([restPosition('a')]))
-
+    it('includeHidden=false: complement query stays disabled', () => {
       renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
 
-      expect(visibilityCheck).toHaveBeenCalledWith({
-        poolId: 'pool-X',
-        tokenId: 'a',
-        chainId: UniverseChainId.Optimism,
-        isFlaggedSpam: true,
-      })
+      expect(complementCall()?.disabled).toBe(true)
     })
 
-    it('filters out positions that fail to parse (parseRestPosition returns undefined)', () => {
-      mockParseRestPosition.mockImplementation((rest?: RestPosition) => {
-        if (!rest) {
-          return undefined
-        }
-        const id = (rest as unknown as { id: string }).id
-        return id === 'bad' ? undefined : positionInfo(id)
-      })
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(
-        queryStateFor([restPosition('a'), restPosition('bad'), restPosition('c')]),
+    it('includeHidden=true: complement is enabled, fully drained, and merged into hiddenPositions', () => {
+      mockUseLiquidityServiceWalletPositions.mockImplementation((args: { modifier?: { hiddenOnly?: boolean } }) =>
+        args.modifier?.hiddenOnly
+          ? liquidityServiceResultFor([positionInfo('hid-1'), positionInfo('hid-2')])
+          : liquidityServiceResultFor([positionInfo('vis-1')]),
       )
 
-      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
 
-      expect(result.current.positions.map((p) => p.tokenId)).toEqual(['a', 'c'])
-      expect(result.current.allPositions.map((p) => p.tokenId)).toEqual(['a', 'c'])
+      expect(primaryCall()?.disabled).toBe(false)
+      expect(complementCall()?.disabled).toBe(false)
+      expect(complementCall()?.autoFetchAllPages).toBe(true)
+      expect(result.current.positions.map((p) => p.tokenId)).toEqual(['vis-1'])
+      expect(result.current.hiddenPositions.map((p) => p.tokenId)).toEqual(['hid-1', 'hid-2'])
+      expect(result.current.allPositions.map((p) => p.tokenId)).toEqual(['vis-1', 'hid-1', 'hid-2'])
     })
 
-    it('flattens positions across multiple pages', () => {
-      mockUseGetPositionsInfiniteQuery.mockReturnValue({
-        ...queryStateFor([]),
-        data: {
-          pages: [
-            { positions: [restPosition('a'), restPosition('b')], nextPageToken: 'page2' },
-            { positions: [restPosition('c')], nextPageToken: '' },
-          ],
-          pageParams: [undefined, 'page2'],
-        },
-      })
+    it('drops the complement copy of a position the primary already returned as hidden', () => {
+      mockUseLiquidityServiceWalletPositions.mockImplementation((args: { modifier?: { hiddenOnly?: boolean } }) =>
+        args.modifier?.hiddenOnly
+          ? liquidityServiceResultFor([positionInfo('dup'), positionInfo('hid-2')])
+          : liquidityServiceResultFor([], {
+              hiddenPositions: [positionInfo('dup')],
+              allPositions: [positionInfo('dup')],
+            }),
+      )
 
-      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
 
-      expect(result.current.allPositions.map((p) => p.tokenId)).toEqual(['a', 'b', 'c'])
-    })
-  })
-
-  describe('auto-drain pages', () => {
-    it('auto-fetches the next page when hasNextPage is true (default behavior)', () => {
-      const fetchNextPage = vi.fn().mockResolvedValue({ data: undefined })
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(queryStateFor([], { hasNextPage: true, fetchNextPage }))
-
-      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(fetchNextPage).toHaveBeenCalledTimes(1)
+      expect(result.current.hiddenPositions.map((p) => p.tokenId)).toEqual(['dup', 'hid-2'])
+      expect(result.current.allPositions.map((p) => p.tokenId)).toEqual(['dup', 'hid-2'])
     })
 
-    it('does NOT auto-fetch when autoFetchAllPages is false', () => {
-      const fetchNextPage = vi.fn()
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(queryStateFor([], { hasNextPage: true, fetchNextPage }))
+    it('drops the complement copy of a position the primary already returned as visible', () => {
+      mockUseLiquidityServiceWalletPositions.mockImplementation((args: { modifier?: { hiddenOnly?: boolean } }) =>
+        args.modifier?.hiddenOnly
+          ? liquidityServiceResultFor([positionInfo('dup')])
+          : liquidityServiceResultFor([positionInfo('dup')]),
+      )
+
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
+
+      expect(result.current.positions.map((p) => p.tokenId)).toEqual(['dup'])
+      expect(result.current.hiddenPositions).toEqual([])
+      expect(result.current.allPositions.map((p) => p.tokenId)).toEqual(['dup'])
+    })
+
+    it('sorts the merged hidden section by USD value descending', () => {
+      mockUseLiquidityServiceWalletPositions.mockImplementation((args: { modifier?: { hiddenOnly?: boolean } }) =>
+        args.modifier?.hiddenOnly
+          ? liquidityServiceResultFor([
+              positionInfo('hid-low', { totalValueUsd: 1 }),
+              positionInfo('hid-high', { totalValueUsd: 10 }),
+            ])
+          : liquidityServiceResultFor([], {
+              hiddenPositions: [positionInfo('hid-mid', { totalValueUsd: 5 })],
+              allPositions: [positionInfo('hid-mid', { totalValueUsd: 5 })],
+            }),
+      )
+
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
+
+      expect(result.current.hiddenPositions.map((p) => p.tokenId)).toEqual(['hid-high', 'hid-mid', 'hid-low'])
+    })
+
+    it('surfaces the complement first-load and error state once the primary has settled', () => {
+      const complementError = new ConnectError('hidden fetch failed')
+      mockUseLiquidityServiceWalletPositions.mockImplementation((args: { modifier?: { hiddenOnly?: boolean } }) =>
+        args.modifier?.hiddenOnly
+          ? liquidityServiceResultFor([], { error: complementError, isLoading: true, isFetching: true })
+          : liquidityServiceResultFor([positionInfo('vis-1')]),
+      )
+
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
+
+      expect(result.current.error).toBe(complementError)
+      expect(result.current.isLoading).toBe(true)
+      // Pagination semantics stay primary-only: the complement's drain must not pin isFetching.
+      expect(result.current.isFetching).toBe(false)
+      expect(result.current.isFetchingNextPage).toBe(false)
+    })
+
+    it('defers the complement error while the primary is still unsettled', () => {
+      mockUseLiquidityServiceWalletPositions.mockImplementation((args: { modifier?: { hiddenOnly?: boolean } }) =>
+        args.modifier?.hiddenOnly
+          ? liquidityServiceResultFor([], { error: new ConnectError('hidden failed') })
+          : liquidityServiceResultFor([], { hasData: false, isLoading: true, isFetching: true }),
+      )
+
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
+
+      // A secondary failure must not blank a still-loading primary via `!!error && !hasData`.
+      expect(result.current.error).toBeNull()
+      expect(result.current.hasData).toBe(false)
+    })
+
+    it('primary error wins over the complement error', () => {
+      const primaryError = new ConnectError('primary failed')
+      mockUseLiquidityServiceWalletPositions.mockImplementation((args: { modifier?: { hiddenOnly?: boolean } }) =>
+        args.modifier?.hiddenOnly
+          ? liquidityServiceResultFor([], { error: new ConnectError('hidden failed') })
+          : liquidityServiceResultFor([], { error: primaryError }),
+      )
+
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
+
+      expect(result.current.error).toBe(primaryError)
+    })
+
+    it('merged refetch refetches both the primary and the complement query', () => {
+      const primaryRefetch = vi.fn()
+      const complementRefetch = vi.fn()
+      mockUseLiquidityServiceWalletPositions.mockImplementation((args: { modifier?: { hiddenOnly?: boolean } }) =>
+        args.modifier?.hiddenOnly
+          ? liquidityServiceResultFor([], { refetch: complementRefetch })
+          : liquidityServiceResultFor([], { refetch: primaryRefetch }),
+      )
+
+      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT, includeHidden: true }))
+      result.current.refetch()
+
+      expect(primaryRefetch).toHaveBeenCalledTimes(1)
+      expect(complementRefetch).toHaveBeenCalledTimes(1)
+    })
+
+    it('explicit liquidityModifier: passed through unchanged and the complement never runs', () => {
+      const explicitModifier = { includeSpamTokens: true }
 
       renderHookWithProviders(() =>
-        useWalletPositions({
-          account: ACCOUNT,
-          autoFetchAllPages: false,
-        }),
+        useWalletPositions({ account: ACCOUNT, includeHidden: true, liquidityModifier: explicitModifier }),
       )
 
-      expect(fetchNextPage).not.toHaveBeenCalled()
-    })
-
-    it('does NOT auto-fetch when there is no next page', () => {
-      const fetchNextPage = vi.fn()
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(queryStateFor([], { hasNextPage: false, fetchNextPage }))
-
-      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(fetchNextPage).not.toHaveBeenCalled()
-    })
-
-    it('does NOT auto-fetch while a next-page fetch is already in flight', () => {
-      const fetchNextPage = vi.fn()
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(
-        queryStateFor([], { hasNextPage: true, isFetchingNextPage: true, fetchNextPage }),
-      )
-
-      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(fetchNextPage).not.toHaveBeenCalled()
-    })
-
-    it('does NOT auto-fetch while a refetch is in flight', () => {
-      const fetchNextPage = vi.fn()
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(
-        queryStateFor([], { hasNextPage: true, isFetching: true, fetchNextPage }),
-      )
-
-      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(fetchNextPage).not.toHaveBeenCalled()
-    })
-
-    it('does NOT auto-fetch after an error (no retry loop)', () => {
-      const fetchNextPage = vi.fn()
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(
-        queryStateFor([], {
-          hasNextPage: true,
-          error: new ConnectError('boom'),
-          fetchNextPage,
-        }),
-      )
-
-      renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(fetchNextPage).not.toHaveBeenCalled()
-    })
-
-    it('does NOT auto-fetch when the query is disabled (empty account)', () => {
-      const fetchNextPage = vi.fn()
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(queryStateFor([], { hasNextPage: true, fetchNextPage }))
-
-      renderHookWithProviders(() => useWalletPositions({ account: '' }))
-
-      expect(fetchNextPage).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('forwarded React Query state', () => {
-    it('returns hasData=false when the query has not yet returned data', () => {
-      mockUseGetPositionsInfiniteQuery.mockReturnValue({
-        ...queryStateFor([]),
-        data: undefined,
-      })
-
-      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(result.current.hasData).toBe(false)
-      expect(result.current.allPositions).toHaveLength(0)
-    })
-
-    it('returns hasData=true once the first response has arrived (even if positions empty)', () => {
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(queryStateFor([]))
-
-      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(result.current.hasData).toBe(true)
-    })
-
-    it('forwards error, isPlaceholderData, hasNextPage, and refetch from the underlying query', () => {
-      const refetch = vi.fn()
-      const error = new ConnectError('boom')
-      mockUseGetPositionsInfiniteQuery.mockReturnValue(
-        queryStateFor([], {
-          isPlaceholderData: true,
-          hasNextPage: true,
-          error,
-          refetch,
-          // override autoFetch path with isFetching so the auto-drain doesn't fire here
-          isFetching: true,
-        }),
-      )
-
-      const { result } = renderHookWithProviders(() => useWalletPositions({ account: ACCOUNT }))
-
-      expect(result.current.error).toBe(error)
-      expect(result.current.isPlaceholderData).toBe(true)
-      expect(result.current.hasNextPage).toBe(true)
-      expect(result.current.refetch).toBe(refetch)
+      const explicitCall = liquidityCalls().find((call) => call.modifier === explicitModifier)
+      expect(explicitCall?.disabled).toBe(false)
+      expect(complementCall()?.disabled).toBe(true)
     })
   })
 })

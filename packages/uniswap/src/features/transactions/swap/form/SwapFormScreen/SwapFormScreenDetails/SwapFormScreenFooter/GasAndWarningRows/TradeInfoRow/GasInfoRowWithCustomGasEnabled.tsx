@@ -1,8 +1,12 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { Gas } from '@universe/mycelium/icons/Gas'
+import { withSporeCurve } from '@universe/tailwind/animations/reanimated'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { Gas } from 'ui/src/components/icons/Gas'
+import { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
+import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { SponsoredFeeWithModal, UniswapXFee } from 'uniswap/src/components/gas/NetworkFee'
 import { useGasOverridesWarningState } from 'uniswap/src/features/gas/components/NetworkCostEditor/useGasOverridesWarningState'
 import { useTransactionSettingsStore } from 'uniswap/src/features/transactions/components/settings/stores/transactionSettingsStore/useTransactionSettingsStore'
@@ -97,6 +101,28 @@ function CustomGasChip({
 }): JSX.Element | null {
   const { t } = useTranslation()
 
+  // Reanimated leg of the legacy Tamagui 'quick' opacity fade (enterStyle
+  // opacity 0 -> the isLoading-driven target, tracked continuously on every
+  // subsequent change too) — the same pattern GasInfoRow.tsx converted to.
+  // Shared across all three render branches below: each is the same
+  // gap="$spacing4" centered row with the same opacity target, so one hook
+  // usage covers them (hooks can't run conditionally, so this sits ahead of
+  // the early `return null`).
+  const targetOpacity = gasInfo.isLoading ? 0.6 : 1
+  // Gated on presence, not the early-return guard below: the old enterStyle animated in when the
+  // inner Flex first mounted with a price. This component never unmounts, so the effect has to
+  // fire on that same transition itself rather than run unconditionally, or the fade completes
+  // while the chip is still rendering null.
+  const hasFiatPrice = Boolean(gasInfo.fiatPriceFormatted)
+  const opacity = useSharedValue(0)
+  useEffect(() => {
+    if (!hasFiatPrice) {
+      return
+    }
+    opacity.value = withSporeCurve('quick', targetOpacity)
+  }, [targetOpacity, opacity, hasFiatPrice])
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }), [opacity])
+
   if (!gasInfo.fiatPriceFormatted) {
     return null
   }
@@ -107,20 +133,13 @@ function CustomGasChip({
   // Do not render custom gas tap handler for sponsored swaps
   if (gasInfo.sponsorshipInfo?.sponsorMetadata) {
     return (
-      <Flex
-        centered
-        row
-        gap="$spacing4"
-        animation="quick"
-        enterStyle={{ opacity: 0 }}
-        opacity={gasInfo.isLoading ? 0.6 : 1}
-      >
+      <AnimatedFlex centered row gap="$spacing4" style={animatedStyle}>
         <SponsoredFeeWithModal
           sponsorMetadata={gasInfo.sponsorshipInfo.sponsorMetadata}
           campaign={gasInfo.sponsorshipInfo.campaign}
           preSavingsGasFee={gasInfo.fiatPriceFormatted}
         />
-      </Flex>
+      </AnimatedFlex>
     )
   }
 
@@ -130,16 +149,9 @@ function CustomGasChip({
   // UniswapX fee display without a tap handler.
   if (isUniswapXTrade) {
     return uniswapXSavings ? (
-      <Flex
-        centered
-        row
-        gap="$spacing4"
-        animation="quick"
-        enterStyle={{ opacity: 0 }}
-        opacity={gasInfo.isLoading ? 0.6 : 1}
-      >
+      <AnimatedFlex centered row gap="$spacing4" style={animatedStyle}>
         <UniswapXFee gasFee={gasInfo.fiatPriceFormatted} isFree={isGasFeeFree} preSavingsGasFee={uniswapXSavings} />
-      </Flex>
+      </AnimatedFlex>
     ) : null
   }
 
@@ -149,14 +161,7 @@ function CustomGasChip({
 
   return (
     <TouchableArea testID="gas-info-row-custom-gas" onPress={onPress}>
-      <Flex
-        centered
-        row
-        gap="$spacing4"
-        animation="quick"
-        enterStyle={{ opacity: 0 }}
-        opacity={gasInfo.isLoading ? 0.6 : 1}
-      >
+      <AnimatedFlex centered row gap="$spacing4" style={animatedStyle}>
         <Gas color={amountColor} size="$icon.16" />
         {showWarning && (
           <AlertTriangleFilled testID="gas-info-row-custom-gas-warning-icon" color="$statusWarning" size="$icon.16" />
@@ -179,7 +184,7 @@ function CustomGasChip({
             size="$icon.16"
           />
         )}
-      </Flex>
+      </AnimatedFlex>
     </TouchableArea>
   )
 }

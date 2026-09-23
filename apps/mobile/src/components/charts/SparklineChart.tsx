@@ -54,6 +54,7 @@ interface SparklineChartProps {
   /** Parent-owned scrub state, written by the chart on the UI thread (e.g. to drive external worklet text) */
   scrubIndex?: SharedValue<number>
   scrubActive?: SharedValue<boolean>
+  strokeWidth?: number
 }
 
 export const SparklineChart = memo(function SparklineChart({
@@ -68,6 +69,7 @@ export const SparklineChart = memo(function SparklineChart({
   onScrub,
   scrubIndex: providedScrubIndex,
   scrubActive: providedScrubActive,
+  strokeWidth = STROKE_WIDTH,
 }: SparklineChartProps): JSX.Element | null {
   const gradientId = `sparkline-gradient-${useId()}`
   const clipPathId = `sparkline-clip-${useId()}`
@@ -217,7 +219,7 @@ export const SparklineChart = memo(function SparklineChart({
           <Path
             d={linePath}
             stroke={color}
-            strokeWidth={STROKE_WIDTH}
+            strokeWidth={strokeWidth}
             fill="none"
             strokeOpacity={INACTIVE_LINE_OPACITY}
           />
@@ -225,7 +227,7 @@ export const SparklineChart = memo(function SparklineChart({
       )}
       <G clipPath={interactive ? `url(#${clipPathId})` : undefined}>
         <Path d={areaPath} fill={`url(#${gradientId})`} />
-        <Path d={linePath} stroke={color} strokeWidth={STROKE_WIDTH} fill="none" />
+        <Path d={linePath} stroke={color} strokeWidth={strokeWidth} fill="none" />
         {showDot && lastPoint && (
           <>
             <PulseDot cx={lastPoint.x} cy={lastPoint.y} color={color} hidden={interactive ? scrubActive : undefined} />

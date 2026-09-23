@@ -1,10 +1,11 @@
 import 'utilities/src/logger/mocks'
+import { Code, ConnectError } from '@connectrpc/connect'
 import { GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb.d'
-import { Token as SearchToken } from '@uniswap/client-data-api/dist/data/v1/searchTypes_pb'
+import { SharedQueryClient } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import isEqual from 'lodash/isEqual'
-import * as searchTokensAndPools from 'uniswap/src/data/apiClients/dataApiService/search/searchTokensAndPools'
+import { getGetTokenQueryOptions } from 'uniswap/src/data/apiClients/dataApiService/tokens/queries'
 import { fetchTradingApiIndicativeQuoteIgnoring404 } from 'uniswap/src/data/apiClients/tradingApi/useTradingApiIndicativeQuoteQuery'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { fetchOnChainCurrencyBalance } from 'uniswap/src/features/portfolio/api'
 import { fetchOnChainBalances } from 'uniswap/src/features/portfolio/portfolioUpdates/fetchOnChainBalances'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
@@ -26,23 +27,34 @@ vi.mock('uniswap/src/features/portfolio/api', () => ({
   fetchOnChainCurrencyBalance: vi.fn(),
 }))
 
-vi.mock('uniswap/src/data/apiClients/dataApiService/search/searchTokensAndPools', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('uniswap/src/data/apiClients/dataApiService/search/searchTokensAndPools')>()
-  return {
-    ...actual,
-    fetchTokenByAddress: vi.fn(),
-  }
-})
+vi.mock('uniswap/src/data/apiClients/dataApiService/tokens/queries', () => ({
+  getGetTokenQueryOptions: vi.fn(),
+}))
 
 const mockGetOnChainBalancesFetch = fetchOnChainCurrencyBalance as MockedFunction<typeof fetchOnChainCurrencyBalance>
 const mockFetchIndicativeQuote = fetchTradingApiIndicativeQuoteIgnoring404 as MockedFunction<
   typeof fetchTradingApiIndicativeQuoteIgnoring404
 >
 
-const mockFetchTokenByAddress = searchTokensAndPools.fetchTokenByAddress as MockedFunction<
-  typeof searchTokensAndPools.fetchTokenByAddress
->
+const mockGetGetTokenQueryOptions = getGetTokenQueryOptions as MockedFunction<typeof getGetTokenQueryOptions>
+
+// Routes the mocked getGetTokenQueryOptions through SharedQueryClient.fetchQuery like the real
+// options would, resolving (or rejecting) with the given GetToken response.
+function mockGetTokenQueryOnce({ token, error }: { token?: Record<string, unknown>; error?: Error }): void {
+  mockGetGetTokenQueryOptions.mockImplementationOnce((({
+    params,
+  }: {
+    params: { chainId: number; address: string }
+  }) => ({
+    queryKey: ['test-getToken', params.chainId, params.address],
+    queryFn: async (): Promise<unknown> => {
+      if (error) {
+        throw error
+      }
+      return { token }
+    },
+  })) as unknown as typeof getGetTokenQueryOptions)
+}
 
 const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890'
 const TEST_TOKEN_ADDRESS = '0xabcdef0123456789abcdef0123456789abcdef01'
@@ -89,9 +101,20 @@ const mockCachedPortfolio = {
   ],
 } as NonNullable<GetPortfolioResponse['portfolio']>
 
+const MOCK_GET_TOKEN_RESPONSE_TOKEN = {
+  chainId: TEST_CHAIN_ID,
+  address: MOCK_TOKEN_ADDRESS_2,
+  symbol: 'NEW',
+  name: 'New Token',
+  decimals: 18,
+  project: { logoUrl: 'https://example.com/logo.png' },
+}
+
 describe('fetchOnChainBalancesRest', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // fetchQuery caches by queryKey — clear so each test controls its own GetToken response.
+    SharedQueryClient.clear()
   })
 
   it('fetches on-chain balances for valid currency IDs', async () => {
@@ -223,18 +246,7 @@ describe('fetchOnChainBalancesRest', () => {
       balance: mockBalance,
     })
 
-    // Mock REST search for new token
-    mockFetchTokenByAddress.mockResolvedValueOnce({
-      chainId: TEST_CHAIN_ID,
-      address: MOCK_TOKEN_ADDRESS_2,
-      symbol: 'NEW',
-      name: 'New Token',
-      decimals: 18,
-      logoUrl: '',
-      feeData: undefined,
-      safetyLevel: 0,
-      protectionInfo: undefined,
-    } as unknown as SearchToken)
+    mockGetTokenQueryOnce({ token: MOCK_GET_TOKEN_RESPONSE_TOKEN })
 
     const result = await fetchOnChainBalances({
       cachedPortfolio: mockCachedPortfolio, // doesn't contain new token
@@ -242,9 +254,8 @@ describe('fetchOnChainBalancesRest', () => {
       currencyIds: new Set([currencyId]),
     })
 
-    expect(mockFetchTokenByAddress).toHaveBeenCalledWith({
-      chainId: TEST_CHAIN_ID,
-      address: MOCK_TOKEN_ADDRESS_2,
+    expect(mockGetGetTokenQueryOptions).toHaveBeenCalledWith({
+      params: { chainId: TEST_CHAIN_ID, address: MOCK_TOKEN_ADDRESS_2 },
     })
 
     const balanceInfo = result.get(currencyId)
@@ -252,6 +263,7 @@ describe('fetchOnChainBalancesRest', () => {
     expect(balanceInfo?.amount?.amount).toBe(3)
     expect(balanceInfo?.token?.address).toBe(MOCK_TOKEN_ADDRESS_2)
     expect(balanceInfo?.token?.symbol).toBe('NEW')
+    expect(balanceInfo?.token?.metadata?.logoUrl).toBe('https://example.com/logo.png')
   })
 
   it('preserves a new token balance when the indicative quote omits quote data', async () => {
@@ -260,17 +272,7 @@ describe('fetchOnChainBalancesRest', () => {
     mockGetOnChainBalancesFetch.mockResolvedValueOnce({
       balance: MOCK_BALANCE_3_ETH,
     })
-    mockFetchTokenByAddress.mockResolvedValueOnce({
-      chainId: TEST_CHAIN_ID,
-      address: MOCK_TOKEN_ADDRESS_2,
-      symbol: 'NEW',
-      name: 'New Token',
-      decimals: 18,
-      logoUrl: '',
-      feeData: undefined,
-      safetyLevel: 0,
-      protectionInfo: undefined,
-    } as unknown as SearchToken)
+    mockGetTokenQueryOnce({ token: MOCK_GET_TOKEN_RESPONSE_TOKEN })
     mockFetchIndicativeQuote.mockResolvedValueOnce(
       {} as NonNullable<Awaited<ReturnType<typeof fetchTradingApiIndicativeQuoteIgnoring404>>>,
     )
@@ -297,17 +299,7 @@ describe('fetchOnChainBalancesRest', () => {
     mockGetOnChainBalancesFetch.mockResolvedValueOnce({
       balance: MOCK_BALANCE_3_ETH,
     })
-    mockFetchTokenByAddress.mockResolvedValueOnce({
-      chainId: TEST_CHAIN_ID,
-      address: MOCK_TOKEN_ADDRESS_2,
-      symbol: 'NEW',
-      name: 'New Token',
-      decimals: 18,
-      logoUrl: '',
-      feeData: undefined,
-      safetyLevel: 0,
-      protectionInfo: undefined,
-    } as unknown as SearchToken)
+    mockGetTokenQueryOnce({ token: MOCK_GET_TOKEN_RESPONSE_TOKEN })
     mockFetchIndicativeQuote.mockResolvedValueOnce(
       malformedQuoteResponse as NonNullable<Awaited<ReturnType<typeof fetchTradingApiIndicativeQuoteIgnoring404>>>,
     )
@@ -320,26 +312,6 @@ describe('fetchOnChainBalancesRest', () => {
 
     expect(result.get(currencyId)?.amount?.amount).toBe(3)
     expect(result.get(currencyId)?.valueUsd).toBeUndefined()
-  })
-
-  it('skips tokens when REST token search fails', async () => {
-    const currencyId = buildCurrencyId(TEST_CHAIN_ID, MOCK_TOKEN_ADDRESS_3)
-    const mockBalance = MOCK_BALANCE_1_ETH
-
-    mockGetOnChainBalancesFetch.mockResolvedValueOnce({
-      balance: mockBalance,
-    })
-
-    // Mock REST search to return null (token not found)
-    mockFetchTokenByAddress.mockResolvedValueOnce(null)
-
-    const result = await fetchOnChainBalances({
-      cachedPortfolio: mockCachedPortfolio,
-      accountAddress: TEST_ACCOUNT,
-      currencyIds: new Set([currencyId]),
-    })
-
-    expect(result.size).toBe(0)
   })
 
   it('processes multiple currency IDs in parallel', async () => {
@@ -468,6 +440,51 @@ describe('fetchOnChainBalancesRest', () => {
     expect(snapshot?.token).not.toHaveProperty('name')
     expectNoExplicitUndefinedValues(snapshot)
     expect(isEqual(snapshot, JSON.parse(JSON.stringify(snapshot)))).toBe(true)
+  })
+
+  it('skips tokens when GetToken rejects with NotFound', async () => {
+    const currencyId = buildCurrencyId(TEST_CHAIN_ID, MOCK_TOKEN_ADDRESS_3)
+
+    mockGetOnChainBalancesFetch.mockResolvedValueOnce({ balance: MOCK_BALANCE_1_ETH })
+    mockGetTokenQueryOnce({ error: new ConnectError('token not found', Code.NotFound) })
+
+    const result = await fetchOnChainBalances({
+      cachedPortfolio: mockCachedPortfolio,
+      accountAddress: TEST_ACCOUNT,
+      currencyIds: new Set([currencyId]),
+    })
+
+    expect(result.size).toBe(0)
+  })
+
+  it('skips tokens when GetToken fails with an unexpected error', async () => {
+    const currencyId = buildCurrencyId(TEST_CHAIN_ID, MOCK_TOKEN_ADDRESS_3)
+
+    mockGetOnChainBalancesFetch.mockResolvedValueOnce({ balance: MOCK_BALANCE_1_ETH })
+    mockGetTokenQueryOnce({ error: new Error('network error') })
+
+    const result = await fetchOnChainBalances({
+      cachedPortfolio: mockCachedPortfolio,
+      accountAddress: TEST_ACCOUNT,
+      currencyIds: new Set([currencyId]),
+    })
+
+    expect(result.size).toBe(0)
+  })
+
+  it('still resolves cached tokens without calling GetToken', async () => {
+    const currencyId = buildCurrencyId(TEST_CHAIN_ID, TEST_TOKEN_ADDRESS)
+
+    mockGetOnChainBalancesFetch.mockResolvedValueOnce({ balance: MOCK_BALANCE_1_ETH })
+
+    const result = await fetchOnChainBalances({
+      cachedPortfolio: mockCachedPortfolio,
+      accountAddress: TEST_ACCOUNT,
+      currencyIds: new Set([currencyId]),
+    })
+
+    expect(mockGetGetTokenQueryOptions).not.toHaveBeenCalled()
+    expect(result.get(currencyId)?.amount?.amount).toBe(1)
   })
 })
 

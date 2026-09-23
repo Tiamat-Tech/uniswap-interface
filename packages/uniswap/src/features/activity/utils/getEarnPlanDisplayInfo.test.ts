@@ -1,10 +1,10 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { AssetType } from 'uniswap/src/entities/assets'
 import {
   getEarnPlanDisplayInfo,
   getEarnPlanVaultStep,
 } from 'uniswap/src/features/activity/utils/getEarnPlanDisplayInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   TransactionDetails,
   TransactionOriginType,

@@ -1,11 +1,11 @@
 import { CommandParser, CommandType, type UniversalRouterCall } from '@uniswap/universal-router-sdk'
 import { Actions, URVersion, V4BaseActionsParser, type V4RouterCall } from '@uniswap/v4-sdk'
 import { TradingApi } from '@universe/api'
+import { type UniverseChainId, areEvmAddressesEqual } from '@universe/chains'
 import { EthSendTransactionRPCActions } from 'src/app/features/dappRequests/types/DappRequestTypes'
 import { parseCalldata as parseNfPMCalldata } from 'src/app/features/dappRequests/types/NonfungiblePositionManager'
 import { type NonfungiblePositionManagerCall } from 'src/app/features/dappRequests/types/NonfungiblePositionManagerTypes'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
 import { wrappedNativeCurrency } from 'uniswap/src/utils/currency'
 import methodHashToFunctionSignature from 'utilities/src/calldata/methodHashToFunctionSignature'
 import { logger } from 'utilities/src/logger/logger'
@@ -160,7 +160,7 @@ export default function getCalldataInfoFromTransaction({
 
     const isWrapUnwrapSignature = functionSignature === 'deposit()' || functionSignature === 'withdraw(uint256)'
     const wrappedNative = chainId ? wrappedNativeCurrency(chainId) : undefined
-    const isNativeWrappedCurrencyTo = wrappedNative && to?.toLowerCase() === wrappedNative.address.toLowerCase()
+    const isNativeWrappedCurrencyTo = wrappedNative && areEvmAddressesEqual(to, wrappedNative.address)
     if (functionSignature.includes('wrap') || (isWrapUnwrapSignature && isNativeWrappedCurrencyTo)) {
       result.contractInteractions = EthSendTransactionRPCActions.Wrap
       return result

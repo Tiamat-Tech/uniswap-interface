@@ -1,7 +1,7 @@
 import { isMobileWeb } from '@universe/environment'
+import { type ColorTokens, Text, type TextVariantKey } from '@universe/mycelium'
+import { spacing } from '@universe/mycelium/tokens'
 import { Link } from 'react-router'
-import { type ColorTokens, Text } from 'ui/src'
-import { spacing, TextVariantTokens } from 'ui/src/theme'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { MobileTouchableArea } from '~/components/MobileTouchableArea'
 import { MenuItem } from '~/components/NavBar/CompanyMenu/Content'
@@ -34,7 +34,7 @@ export function MenuLink({
   elementName,
   color,
 }: MenuItem & {
-  textVariant?: TextVariantTokens
+  textVariant?: TextVariantKey
   color?: ColorTokens
 }) {
   const content = internal ? (

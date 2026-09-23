@@ -196,6 +196,9 @@ vi.mock('uniswap/src/i18n', () => ({
     language: 'en',
     languages: ['en'],
     resolvedLanguage: 'en',
+    // Real i18next exposes dir() for text direction; AnimatedNumber's ReanimatedNumber
+    // calls it on every render. 'ltr' matches the mocked 'en' language above.
+    dir: () => 'ltr',
     changeLanguage: vi.fn(),
     use: vi.fn().mockReturnThis(),
     init: vi.fn().mockReturnThis(),

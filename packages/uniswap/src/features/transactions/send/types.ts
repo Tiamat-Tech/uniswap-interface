@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { AssetType } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { NFTItem } from 'uniswap/src/features/nfts/types'
 import { BaseDerivedInfo } from 'uniswap/src/features/transactions/types/baseDerivedInfo'

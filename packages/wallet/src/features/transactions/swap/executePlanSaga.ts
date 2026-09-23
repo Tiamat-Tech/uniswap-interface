@@ -1,8 +1,8 @@
+import type { UniverseChainId } from '@universe/chains'
 import { BigNumber } from 'ethers'
 import { call, put, SagaGenerator } from 'typed-redux-saga'
 import { AccountType } from 'uniswap/src/features/accounts/types'
 import { CAIP25Session } from 'uniswap/src/features/capabilities/caip25/types'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
@@ -204,11 +204,6 @@ function* executeChainedPlan(params: ExecutePlanParams, dependencies: Transactio
         })
         throw error
       }
-
-      yield* call(sendAnalyticsEvent, WalletEventName.SwapSubmitted, {
-        transaction_hash: hash,
-        ...handleSwapStepParams.analytics,
-      })
 
       return hash
     },

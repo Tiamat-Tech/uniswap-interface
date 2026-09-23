@@ -8,7 +8,6 @@ import {
   SharedQueryClient,
 } from '@universe/api'
 import { REQUEST_SOURCE } from '@universe/environment'
-import { getIsSessionServiceEnabled } from '@universe/gating'
 import {
   createApiNotificationTracker,
   createBaseNotificationProcessor,
@@ -38,6 +37,7 @@ import { selectCurrentLanguage } from 'uniswap/src/features/settings/selectors'
 import { getLogger } from 'utilities/src/logger/logger'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { type QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
+import { getBackupReminderPortfolioValue } from 'wallet/src/features/behaviorHistory/getBackupReminderPortfolioValue'
 
 /**
  * Checks if the session has been initialized by looking at the React Query cache.
@@ -76,7 +76,6 @@ function provideExtensionNotificationService(ctx: {
     getSessionService: () =>
       provideSessionService({
         getBaseUrl: () => getEntryGatewayUrl(),
-        getIsSessionServiceEnabled,
       }),
   })
 
@@ -108,11 +107,20 @@ function provideExtensionNotificationService(ctx: {
     pollIntervalMs: ms('10s'),
   })
 
+  /**
+   * Fetches the portfolio value for the active account.
+   * Used by local triggers that need to check portfolio-based conditions (e.g. backup reminder).
+   */
+  const getPortfolioValue = async (): Promise<number> => {
+    return getBackupReminderPortfolioValue(ctx.getReduxStore().getState())
+  }
+
   const localTriggersDataSource = createExtensionLocalTriggerDataSource({
     // oxlint-disable-next-line typescript/no-unsafe-return -- biome-parity: oxlint is stricter here
     getState: () => ctx.getReduxStore().getState(),
     dispatch: ctx.getReduxStore().dispatch,
     tracker,
+    getPortfolioValue,
     pollIntervalMs: ms('5s'),
   })
 

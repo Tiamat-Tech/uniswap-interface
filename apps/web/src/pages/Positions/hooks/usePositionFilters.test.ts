@@ -1,16 +1,14 @@
 import { act, renderHook } from '@testing-library/react'
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { Provider } from 'jotai'
-import { createElement, type ReactNode } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { withNuqsTestingAdapter } from 'nuqs/adapters/testing'
 import { DEFAULT_LP_POSITION_PROTOCOL_FILTER, DEFAULT_LP_POSITION_STATUS_FILTER } from '~/features/Liquidity/constants'
 import { usePositionFilters } from '~/pages/Positions/hooks/usePositionFilters'
 
-// Each renderHook gets its own isolated atom store via a fresh <Provider>
-// so previous tests can't leak default-store state into later ones.
-function renderUsePositionFilters() {
-  const wrapper = ({ children }: { children: ReactNode }) => createElement(Provider, null, children)
-  return renderHook(() => usePositionFilters(), { wrapper })
+// Each renderHook gets a fresh nuqs testing adapter (empty URL) so filters start at their defaults
+// and previous tests can't leak query-state into later ones.
+function renderUsePositionFilters(searchParams?: string) {
+  return renderHook(() => usePositionFilters(), { wrapper: withNuqsTestingAdapter({ searchParams }) })
 }
 
 describe('usePositionFilters', () => {
@@ -20,6 +18,23 @@ describe('usePositionFilters', () => {
     expect(result.current.chainFilter).toBeNull()
     expect(result.current.versionFilter).toEqual(DEFAULT_LP_POSITION_PROTOCOL_FILTER)
     expect(result.current.statusFilter).toEqual(DEFAULT_LP_POSITION_STATUS_FILTER)
+    expect(result.current.search).toBe('')
+  })
+
+  it('updates search via setSearch and clears it back to empty', () => {
+    const { result } = renderUsePositionFilters()
+
+    act(() => result.current.setSearch('usdc'))
+    expect(result.current.search).toBe('usdc')
+
+    act(() => result.current.setSearch(''))
+    expect(result.current.search).toBe('')
+  })
+
+  it('reads an initial search value from the URL', () => {
+    const { result } = renderUsePositionFilters('?search=eth')
+
+    expect(result.current.search).toBe('eth')
   })
 
   it('updates chainFilter via setChainFilter', () => {
@@ -90,6 +105,32 @@ describe('usePositionFilters', () => {
     ])
   })
 
+  it('resetFilters restores chain, versions, and search but keeps the range tab selection', () => {
+    const { result } = renderUsePositionFilters()
+
+    act(() => result.current.setChainFilter(UniverseChainId.Mainnet))
+    act(() => result.current.toggleVersion(ProtocolVersion.V2))
+    act(() => result.current.setStatusFilter([PositionStatus.IN_RANGE]))
+    act(() => result.current.setSearch('usdc'))
+
+    act(() => result.current.resetFilters())
+
+    expect(result.current.chainFilter).toBeNull()
+    expect(result.current.versionFilter).toEqual(DEFAULT_LP_POSITION_PROTOCOL_FILTER)
+    expect(result.current.statusFilter).toEqual([PositionStatus.IN_RANGE])
+    expect(result.current.search).toBe('')
+  })
+
+  it('resetFilters heals a status the range tabs cannot render', () => {
+    const { result } = renderUsePositionFilters()
+
+    act(() => result.current.toggleStatus(PositionStatus.CLOSED))
+
+    act(() => result.current.resetFilters())
+
+    expect(result.current.statusFilter).toEqual(DEFAULT_LP_POSITION_STATUS_FILTER)
+  })
+
   it('toggleVersion uses a functional setter — captured handler from earlier render still applies relative to latest atom value', () => {
     const { result } = renderUsePositionFilters()
 
@@ -107,5 +148,14 @@ describe('usePositionFilters', () => {
     act(() => capturedToggle(ProtocolVersion.V4))
 
     expect(result.current.versionFilter).toEqual([ProtocolVersion.V2])
+  })
+
+  it('drops URL version/status values that fall outside the enums', () => {
+    const { result } = renderUsePositionFilters(
+      `?versions=${ProtocolVersion.V4},999&status=${PositionStatus.CLOSED},42`,
+    )
+
+    expect(result.current.versionFilter).toEqual([ProtocolVersion.V4])
+    expect(result.current.statusFilter).toEqual([PositionStatus.CLOSED])
   })
 })

@@ -18,7 +18,9 @@ export function bootstrapSession(ctx: {
   getService: () => SessionInitializationService
   getLogger?: () => Logger
 }): Session {
-  if (cachedSession) return cachedSession
+  if (cachedSession) {
+    return cachedSession
+  }
 
   const options = sessionInitQuery({ getService: ctx.getService, getLogger: ctx.getLogger })
   const queryKey = options.queryKey
@@ -34,13 +36,15 @@ export function bootstrapSession(ctx: {
         await SharedQueryClient.fetchQuery(options)
       },
       refetchSession: async () => {
-        await SharedQueryClient.refetchQueries({ queryKey })
+        await SharedQueryClient.refetchQueries({ queryKey }, { throwOnError: true })
       },
       getStatus: () => SharedQueryClient.getQueryState(queryKey)?.status ?? 'idle',
       hasData: () => SharedQueryClient.getQueryState(queryKey)?.data != null,
       subscribe: (listener) =>
         SharedQueryClient.getQueryCache().subscribe((event) => {
-          if (event.query.queryHash === targetHash) listener()
+          if (event.query.queryHash === targetHash) {
+            listener()
+          }
         }),
     },
     // Monotonic clock for the recover cooldown's interval math — never a wall clock.
@@ -75,7 +79,9 @@ export function tryProvideSession(): Session | null {
   try {
     return provideSession()
   } catch (err) {
-    if (err instanceof SessionNotBootstrappedError) return null
+    if (err instanceof SessionNotBootstrappedError) {
+      return null
+    }
     throw err
   }
 }

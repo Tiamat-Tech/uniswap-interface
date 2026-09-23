@@ -1,5 +1,5 @@
 import { TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { usePendingTransactions } from 'uniswap/src/features/transactions/hooks/usePendingTransactions'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { TEST_WALLET } from 'uniswap/src/test/fixtures/wallet/addresses'

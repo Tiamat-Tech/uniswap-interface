@@ -1,5 +1,5 @@
+import { TouchableArea } from '@universe/mycelium'
 import { memo } from 'react'
-import { TouchableArea } from 'ui/src'
 import { tokenCardHoverStyle, tokenCardShellProps } from 'uniswap/src/components/TokenCard/constants'
 import { TokenCardHorizontal } from 'uniswap/src/components/TokenCard/TokenCardHorizontal'
 import { TokenCardVertical } from 'uniswap/src/components/TokenCard/TokenCardVertical'

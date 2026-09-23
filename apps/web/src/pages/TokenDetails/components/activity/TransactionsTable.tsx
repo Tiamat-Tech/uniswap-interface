@@ -1,25 +1,21 @@
 /* oxlint-disable typescript/no-unnecessary-condition */
 
-import { ApolloError } from '@apollo/client'
 import { createColumnHelper } from '@tanstack/react-table'
 import { Token } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableTextLink, type TouchableTextLinkProps } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo, useReducer, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableTextLink, type TouchableTextLinkProps, useMedia } from 'ui/src'
-import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
+import type { ParsedToken } from 'uniswap/src/features/dataApi/utils/parsedToken'
 import { useAppFiatCurrency } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { getSymbolDisplayText } from 'uniswap/src/utils/currency'
 import { ExplorerDataType, getExplorerLink } from 'uniswap/src/utils/linking'
 import { shortenAddress } from 'utilities/src/addresses'
 import { NumberType } from 'utilities/src/format/types'
+import { useEvent } from 'utilities/src/react/hooks'
 import { AddressHoverCard } from '~/components/AddressHoverCard/AddressHoverCard'
-import { LimitedDataBanner } from '~/components/Banner/Outage/OutageBanner'
 import { InternalLink } from '~/components/InternalLink'
 import { Table } from '~/components/Table'
 import { Cell } from '~/components/Table/Cell'
@@ -30,12 +26,7 @@ import { TimestampCell } from '~/components/Table/shared/TimestampCell'
 import { TokenLinkCell } from '~/components/Table/shared/TokenLinkCell'
 import { FilterHeaderRow, HeaderCell } from '~/components/Table/styled'
 import { unwrapToken } from '~/data/util'
-import {
-  getTokenTransactionTypeTranslation,
-  TokenTransactionType,
-  useTokenTransactions,
-} from '~/features/Explore/state/transactions/useTokenTransactions'
-import { useUpdateManualOutage } from '~/hooks/useUpdateManualOutage'
+import { TokenTransactionType, useTokenTransactions } from '~/features/Explore/state/transactions/useTokenTransactions'
 import { buildPortfolioUrl } from '~/pages/Portfolio/utils/portfolioUrls'
 import { useTDPStore } from '~/pages/TokenDetails/context/useTDPStore'
 
@@ -43,6 +34,7 @@ interface SwapTransaction {
   hash: string
   chainId: UniverseChainId
   timestamp: number
+  direction: TokenTransactionType
   input: SwapLeg
   output: SwapLeg
   value: string
@@ -53,7 +45,7 @@ interface SwapLeg {
   address?: string
   symbol?: string
   amount: number
-  token: GraphQLApi.Token
+  token: ParsedToken
 }
 
 export function TransactionsTable({
@@ -66,51 +58,27 @@ export function TransactionsTable({
   isMultichainView: boolean
 }) {
   const { t } = useTranslation()
+  const media = useMedia()
   const activeLocalCurrency = useAppFiatCurrency()
   const { convertFiatAmountFormatted, formatNumberOrString } = useLocalizationContext()
   const [filterModalIsOpen, toggleFilterModal] = useReducer((s) => !s, false)
   const filterAnchorRef = useRef<HTMLDivElement>(null)
   const [filter, setFilters] = useState<TokenTransactionType[]>([TokenTransactionType.BUY, TokenTransactionType.SELL])
-  // v2 endpoint only — the multichain view scopes by the token's multichain id and lets the BE
-  // resolve every chain + native/wrapped, so the client never enumerates per-chain addresses.
-  const multichainId = useTDPStore((s) => s.multichainToken?.multichainId)
-  const { transactions, loading, loadMore, errorV2, errorV3, errorV4 } = useTokenTransactions({
+  // The multichain view scopes by the token's multichain id (v2 lets the BE resolve every chain +
+  // native/wrapped); the per-chain addresses let the hook classify Buy/Sell on cross-chain rows.
+  const multichainToken = useTDPStore((s) => s.multichainToken)
+  const { transactions, isLoading, loadMore, error } = useTokenTransactions({
     address: referenceToken.address,
     chainId,
     filter,
     multichain: isMultichainView,
-    multichainId,
+    multichainId: multichainToken?.multichainId,
+    multichainAddresses: multichainToken?.addresses,
   })
 
-  // Only show full error state when ALL versions fail
-  const allVersionsFailed = Boolean(errorV2 && errorV3 && errorV4)
-  const combinedError = allVersionsFailed
-    ? new ApolloError({
-        errorMessage: `Could not retrieve transactions for token: ${referenceToken.address} on chain: ${chainId}`,
-      })
-    : undefined
+  const hasError = Boolean(error)
 
-  // Track which versions failed for partial error banner
-  const failedVersions = useMemo(() => {
-    const versions: GraphQLApi.ProtocolVersion[] = []
-    if (errorV2) {
-      versions.push(GraphQLApi.ProtocolVersion.V2)
-    }
-    if (errorV3) {
-      versions.push(GraphQLApi.ProtocolVersion.V3)
-    }
-    if (errorV4) {
-      versions.push(GraphQLApi.ProtocolVersion.V4)
-    }
-    return versions
-  }, [errorV2, errorV3, errorV4])
-
-  // Show limited data banner when some (but not all) versions failed and we have data to show
-  const hasPartialData = failedVersions.length > 0 && !allVersionsFailed
-  const showLimitedDataBanner = hasPartialData && transactions.length > 0
-
-  const allDataStillLoading = loading && !transactions.length
-  useUpdateManualOutage({ chainId, errorV3, errorV2, trigger: transactions })
+  const dataStillLoading = isLoading && !transactions.length
   const unwrappedReferenceToken = unwrapToken(chainId, referenceToken)
 
   const data = useMemo(
@@ -128,23 +96,33 @@ export function TransactionsTable({
           amount: parseFloat(transaction.token1Quantity),
           token: transaction.token1,
         }
-        const token0IsBeingSold = parseFloat(transaction.token0Quantity) > 0
+        const { token0IsBeingSold } = transaction
         return {
           hash: transaction.hash,
-          chainId: fromGraphQLChain(transaction.chain) ?? chainId,
+          chainId: transaction.chainId,
           timestamp: transaction.timestamp,
+          direction: transaction.direction,
           input: token0IsBeingSold ? swapLeg0 : swapLeg1,
           output: token0IsBeingSold ? swapLeg1 : swapLeg0,
-          value: convertFiatAmountFormatted(transaction.usdValue.value, NumberType.FiatTokenPrice),
+          value: convertFiatAmountFormatted(transaction.usdValue, NumberType.FiatTokenPrice),
           makerAddress: transaction.account,
         }
       }),
-    [transactions, convertFiatAmountFormatted, chainId],
+    [transactions, convertFiatAmountFormatted],
   )
 
-  const media = useMedia()
+  const getTokenTransactionTypeTranslation = useEvent((type: TokenTransactionType): string => {
+    switch (type) {
+      case TokenTransactionType.BUY:
+        return t('common.buy.label')
+      case TokenTransactionType.SELL:
+        return t('common.sell.label')
+      default:
+        return ''
+    }
+  })
 
-  const showLoadingSkeleton = allDataStillLoading || !!combinedError
+  const showLoadingSkeleton = dataStillLoading || hasError
   // TODO(WEB-3236): once GQL BE Transaction query is supported add usd, token0 amount, and token1 amount sort support
   const columns = useMemo(() => {
     const columnHelper = createColumnHelper<SwapTransaction>()
@@ -183,7 +161,6 @@ export function TransactionsTable({
         header: () => (
           <HeaderCell justifyContent="flex-start" grow>
             <FilterHeaderRow
-              clickable={filterModalIsOpen}
               onPress={filterModalIsOpen ? undefined : toggleFilterModal}
               alignItems="center"
               ref={filterAnchorRef}
@@ -207,10 +184,7 @@ export function TransactionsTable({
         ),
         cell: (info) => {
           const tx = info.getValue?.()
-          const isBuy = areAddressesEqual({
-            addressInput1: { address: String(tx?.output?.address), platform: Platform.EVM },
-            addressInput2: { address: referenceToken.address, platform: Platform.EVM },
-          })
+          const isBuy = tx?.direction === TokenTransactionType.BUY
           const color = isBuy ? '$statusSuccess' : '$statusCritical'
           const text = isBuy ? t('common.buy.label') : t('common.sell.label')
           return (
@@ -233,13 +207,7 @@ export function TransactionsTable({
         },
       }),
       columnHelper.accessor(
-        (row) =>
-          areAddressesEqual({
-            addressInput1: { address: row.input.address, platform: Platform.EVM },
-            addressInput2: { address: referenceToken.address, platform: Platform.EVM },
-          })
-            ? row.input.amount
-            : row.output.amount,
+        (row) => (row.direction === TokenTransactionType.SELL ? row.input.amount : row.output.amount),
         {
           id: 'reference-amount',
           maxSize: 80,
@@ -264,12 +232,7 @@ export function TransactionsTable({
       ),
       columnHelper.accessor(
         (row) => {
-          const nonReferenceSwapLeg = areAddressesEqual({
-            addressInput1: { address: row.input.address, platform: Platform.EVM },
-            addressInput2: { address: referenceToken.address, platform: Platform.EVM },
-          })
-            ? row.output
-            : row.input
+          const nonReferenceSwapLeg = row.direction === TokenTransactionType.SELL ? row.output : row.input
           return (
             <Flex row gap="$gap8" justifyContent="flex-end" alignItems="center">
               <EllipsisText maxWidth={75}>
@@ -329,11 +292,10 @@ export function TransactionsTable({
           const tx = info.getValue?.()
           const address = tx?.makerAddress
           const shortenedAddress = shortenAddress({ address })
-          const chainInfo = getChainInfo(tx?.chainId ?? chainId)
 
           return (
             <Cell loading={showLoadingSkeleton} justifyContent="flex-end">
-              <AddressHoverCard address={address} platform={chainInfo.platform}>
+              <AddressHoverCard address={address} chainId={tx?.chainId ?? chainId}>
                 <InternalLink to={buildPortfolioUrl({ externalAddress: address })}>
                   <TableText>{shortenedAddress}</TableText>
                 </InternalLink>
@@ -349,7 +311,7 @@ export function TransactionsTable({
     chainId,
     filterModalIsOpen,
     filter,
-    referenceToken.address,
+    getTokenTransactionTypeTranslation,
     unwrappedReferenceToken.symbol,
     formatNumberOrString,
     activeLocalCurrency,
@@ -360,16 +322,13 @@ export function TransactionsTable({
       <Table
         columns={columns}
         data={data}
-        loading={allDataStillLoading}
-        error={combinedError}
+        loading={dataStillLoading}
+        error={hasError}
         loadMore={loadMore}
         maxHeight={600}
         defaultPinnedColumns={['timestamp', 'swap-type']}
         forcePinning={media.xxl}
       />
-      {showLimitedDataBanner && (
-        <LimitedDataBanner failedVersions={failedVersions} tokenAddress={referenceToken.address} chainId={chainId} />
-      )}
     </Flex>
   )
 }

@@ -1,9 +1,21 @@
+import { Flex, IconButton, Input, zIndexes } from '@universe/mycelium'
+import { Search } from '@universe/mycelium/icons/Search'
+import { X } from '@universe/mycelium/icons/X'
 import { useState } from 'react'
-import { Flex, IconButton, Input } from 'ui/src'
-import { Search } from 'ui/src/components/icons/Search'
-import { X } from 'ui/src/components/icons/X'
-import { zIndexes } from 'ui/src/theme'
 import { transitions } from '~/theme/styles'
+
+// Left padding that clears the absolutely-positioned search glyph.
+const SEARCH_GLYPH_INSET = 34
+// Trailing padding while collapsed. Stated rather than left to the Input's own default so the
+// exported width below stays true to what renders.
+const SEARCH_COLLAPSED_RIGHT_PAD = 8
+const SEARCH_BORDER_WIDTH = 1
+/**
+ * The collapsed control's rendered width (44px): its horizontal padding plus both borders. The
+ * `width` below is 0 when collapsed, but `box-sizing: border-box` clamps the used width up to
+ * exactly that sum. Exported so sibling toolbar icon buttons can match this footprint.
+ */
+export const COLLAPSED_SEARCH_WIDTH = SEARCH_GLYPH_INSET + SEARCH_COLLAPSED_RIGHT_PAD + SEARCH_BORDER_WIDTH * 2
 
 interface ExpandableSearchInputProps {
   value: string
@@ -88,12 +100,12 @@ export function ExpandableSearchInput({
         onChangeText={onChangeText}
         backgroundColor="$surface1"
         borderRadius={12}
-        borderWidth="$spacing1"
+        borderWidth={SEARCH_BORDER_WIDTH}
         borderColor={isOpen ? '$accent1' : '$surface3'}
         height="100%"
         width={isOpen ? 200 : 0}
-        pl={34}
-        pr={isOpen ? 30 : undefined}
+        pl={SEARCH_GLYPH_INSET}
+        pr={isOpen ? 30 : SEARCH_COLLAPSED_RIGHT_PAD}
         color="$neutral2"
         textOverflow="ellipsis"
         onFocus={handleFocus}

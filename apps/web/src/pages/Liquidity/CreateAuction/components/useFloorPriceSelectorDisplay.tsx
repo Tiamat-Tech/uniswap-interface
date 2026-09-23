@@ -1,6 +1,6 @@
+import { Text } from '@universe/mycelium'
 import { useMemo, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Text } from 'ui/src'
 import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
 import type {
   FloorPriceDenomination,

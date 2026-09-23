@@ -1,5 +1,5 @@
+import { Text, type TextCompatProps as TextProps } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Text, TextProps } from 'ui/src'
 import { UniswapXRouterLabel } from '~/pages/Swap/Limit/RouterLabel/UniswapXRouterLabel'
 import { QuoteMethod, SubmittableTrade } from '~/state/routing/types'
 import { isUniswapXTrade } from '~/state/routing/utils'

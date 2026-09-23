@@ -1,5 +1,5 @@
 import { isMobileWeb } from '@universe/environment'
-import { QrCode } from 'ui/src/components/icons/QrCode'
+import { QrCode } from '@universe/mycelium/icons/QrCode'
 import { CONNECTION_PROVIDER_IDS } from 'uniswap/src/constants/web3'
 import { WalletConnectorOption } from '~/components/WalletModal/WalletConnectorOption'
 import { useWalletWithId } from '~/features/accounts/store/hooks'

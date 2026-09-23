@@ -21,7 +21,7 @@ vi.mock('src/app/features/dappRequests/DappRequestContent', () => ({
     mockDappRequestContent(props),
 }))
 
-vi.mock('ui/src', () => ({
+vi.mock('@universe/mycelium', () => ({
   Button: ({ children, onPress, testID }: { children: React.ReactNode; onPress: () => void; testID?: string }) => (
     <button data-testid={testID} onClick={onPress}>
       {children}
@@ -31,7 +31,7 @@ vi.mock('ui/src', () => ({
   Text: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
 }))
 
-vi.mock('ui/src/components/icons/Lock', () => ({
+vi.mock('@universe/mycelium/icons/Lock', () => ({
   Lock: () => <div data-testid="lock-icon" />,
 }))
 

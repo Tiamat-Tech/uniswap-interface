@@ -1,14 +1,13 @@
 import { GetWalletTokensProfitLossResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { Token } from '@uniswap/sdk-core'
+import { UniverseChainId, normalizeTokenAddressForCache } from '@universe/chains'
 import { USDC_ARBITRUM, USDC_MAINNET } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type {
   CurrencyInfo,
   PortfolioChainBalance,
   PortfolioMultichainBalance,
 } from 'uniswap/src/features/dataApi/types'
 import { useEarnVaults } from 'uniswap/src/features/earn/hooks/useEarnVaults'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { useSortedPortfolioBalancesMultichain } from 'uniswap/src/features/portfolio/balances/hooks'
 import {
@@ -44,14 +43,9 @@ vi.mock('uniswap/src/features/earn/hooks/useEarnVaults', () => ({
   useEarnVaults: vi.fn(),
 }))
 
-vi.mock('uniswap/src/features/earn/hooks/useIsEarnEnabled', () => ({
-  useIsEarnEnabled: vi.fn(),
-}))
-
 const mockUsePortfolioAddresses = vi.mocked(usePortfolioAddresses)
 const mockUseSortedPortfolioBalancesMultichain = vi.mocked(useSortedPortfolioBalancesMultichain)
 const mockUseEarnVaults = vi.mocked(useEarnVaults)
-const mockUseIsEarnEnabled = vi.mocked(useIsEarnEnabled)
 
 /** Web-only preset around shared {@link createPortfolioChainBalance} (quantity/valueUsd for token table tests). */
 function createPortfolioTableChainBalance(
@@ -108,7 +102,7 @@ const VAULT_SHARE_INFO: CurrencyInfo = {
   logoUrl: null,
 }
 const EARN_VAULT: EarnVaultInfo = {
-  id: `1-${VAULT_SHARE_ADDRESS.toLowerCase()}`,
+  id: `1-${normalizeTokenAddressForCache(VAULT_SHARE_ADDRESS)}`,
   currencyId: buildCurrencyId(UniverseChainId.Mainnet, USDC_MAINNET.address),
   displayCurrencyId: buildCurrencyId(UniverseChainId.Mainnet, USDC_MAINNET.address),
   vaultAddress: VAULT_SHARE_ADDRESS,
@@ -135,7 +129,6 @@ describe('useTransformTokenTableData', () => {
       loading: false,
       error: undefined,
     } as ReturnType<typeof useSortedPortfolioBalancesMultichain>)
-    mockUseIsEarnEnabled.mockReturnValue(true)
     mockUseEarnVaults.mockReturnValue({
       hasLoadedPositions: true,
       isError: false,

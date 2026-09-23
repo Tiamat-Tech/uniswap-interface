@@ -1,12 +1,10 @@
 import { SharedQueryClient, TradingApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { type UniverseChainId, Platform } from '@universe/chains'
 import { useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { resolvePlatform } from 'uniswap/src/features/accounts/store/utils/flexibleInput'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
 import { logEarnSwapUpsellConverted } from 'uniswap/src/features/earn/analytics'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { getDisplayedPriceSource } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 import { useRWAWhitelist } from 'uniswap/src/features/rwa/useRWAWhitelist'
 import { SwapEventName } from 'uniswap/src/features/telemetry/constants'
@@ -75,7 +73,6 @@ export function useSwapCallback(): SwapCallback {
     return state.getActiveConnector(Platform.EVM)?.session?.caip25Info
   })
 
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const rwaWhitelist = useRWAWhitelist()
 
   return useCallback(
@@ -103,8 +100,6 @@ export function useSwapCallback(): SwapCallback {
       const includedPermitTransactionStep = isClassicSwap && swapTxContext.permit?.method === PermitMethod.Transaction
 
       const priceSource = getDisplayedPriceSource({
-        isCentralizedPricesEnabled,
-        surface: 'usdc',
         chainId: trade.inputAmount.currency.chainId,
         address: getCurrencyAddressForAnalytics(trade.inputAmount.currency),
         queryClient: SharedQueryClient,
@@ -214,7 +209,6 @@ export function useSwapCallback(): SwapCallback {
       updateSwapForm,
       earnSwapUpsellAnalyticsProperties,
       caip25Info,
-      isCentralizedPricesEnabled,
       rwaWhitelist,
     ],
   )

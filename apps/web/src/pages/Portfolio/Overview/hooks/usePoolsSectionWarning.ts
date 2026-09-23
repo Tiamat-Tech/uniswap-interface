@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { useTranslation } from 'react-i18next'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getPoolsUnavailableMessage } from 'uniswap/src/features/portfolio/pools/getPoolsFailedNetworks'
 import { usePoolsFailedNetworks } from 'uniswap/src/features/portfolio/pools/usePoolsFailedNetworks'
 import { usePortfolioAddresses } from '~/pages/Portfolio/hooks/usePortfolioAddresses'

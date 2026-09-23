@@ -1,8 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, useMedia } from 'ui/src'
 import { Check } from 'ui/src/components/icons/Check'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -44,10 +45,18 @@ export function VolumeTimeFrameSelector() {
       <Dropdown
         isOpen={isMenuOpen}
         toggleOpen={toggleMenu}
-        menuLabel={`${getLabel(activeTime)} ${isLargeScreen ? t('common.volume').toLowerCase() : ''}`}
+        menuLabel={
+          <Text width="max-content">{`${getLabel(activeTime)} ${isLargeScreen ? t('common.volume').toLowerCase() : ''}`}</Text>
+        }
         dataTestId={TestID.TimeSelector}
-        buttonStyle={{ height: 40 }}
-        dropdownStyle={{ maxHeight: 300 }}
+        buttonStyle={{ height: 40, width: 'max-content' }}
+        dropdownStyle={{
+          maxHeight: 300,
+          width: 'max-content',
+          minWidth: 200,
+          // Longest label across locales is vi-VN "Mọi thời điểm khối lượng", so cap rather than let it run wide.
+          maxWidth: 'min(320px, calc(100vw - 32px))',
+        }}
         adaptToSheet
         allowFlip
         alignRight={!media.lg}

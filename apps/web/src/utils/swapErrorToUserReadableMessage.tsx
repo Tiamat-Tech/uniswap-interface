@@ -1,3 +1,4 @@
+import { Code, ConnectError } from '@connectrpc/connect'
 import { WalletSignTransactionError } from '@solana/wallet-adapter-base'
 import { TFunction } from 'i18next'
 import { logger } from 'utilities/src/logger/logger'
@@ -87,7 +88,7 @@ function didUserRejectOneLevel(error: any): boolean {
 }
 
 /** Walks `cause`, `originalError`, and legacy `error` / `data.originalError` chains (wallets + viem + our transaction wrappers). */
-export function didUserReject(error: any): boolean {
+function someInErrorChain(error: any, predicate: (error: any) => boolean): boolean {
   const visited = new WeakSet<object>()
   const queue: any[] = [error]
   while (queue.length > 0) {
@@ -101,7 +102,7 @@ export function didUserReject(error: any): boolean {
       }
       visited.add(current)
     }
-    if (didUserRejectOneLevel(current)) {
+    if (predicate(current)) {
       return true
     }
     const next: unknown[] = []
@@ -131,6 +132,22 @@ export function didUserReject(error: any): boolean {
   return false
 }
 
+export function didUserReject(error: any): boolean {
+  return someInErrorChain(error, didUserRejectOneLevel)
+}
+
+function isBlockedAccountOneLevel(error: any): boolean {
+  if (error instanceof ConnectError && error.code === Code.Unauthenticated) {
+    return true
+  }
+  return rejectionParts(error).some((part) => part.match(/account is blocked/i))
+}
+
+/** A backend UnauthorizedError for a sanctioned/blocked wallet (ConnectRPC `Code.Unauthenticated` or an "account is blocked" reason anywhere in the chain). */
+export function isBlockedAccountError(error: any): boolean {
+  return someInErrorChain(error, isBlockedAccountOneLevel)
+}
+
 // oxlint-disable-next-line no-unused-expressions -- biome-parity: oxlint is stricter here
 WalletSignTransactionError
 /**
@@ -141,6 +158,10 @@ WalletSignTransactionError
 export function swapErrorToUserReadableMessage(t: TFunction, error: any): string {
   if (didUserReject(error)) {
     return t('swap.error.rejected')
+  }
+
+  if (isBlockedAccountError(error)) {
+    return t('swap.error.accountBlocked')
   }
 
   let reason = getReason(error)

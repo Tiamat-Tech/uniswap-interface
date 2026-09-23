@@ -1,8 +1,8 @@
 import { renderHook } from '@testing-library/react'
+import { Platform } from '@universe/chains'
 import { CONNECTION_PROVIDER_IDS } from 'uniswap/src/constants/web3'
 import { useActiveWallet } from 'uniswap/src/features/accounts/store/hooks'
 import { useIsCustomGasFlowAvailable } from 'uniswap/src/features/gas/hooks/useIsCustomGasFlowAvailable'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockPlatformState = vi.hoisted(() => ({ isWebApp: false }))

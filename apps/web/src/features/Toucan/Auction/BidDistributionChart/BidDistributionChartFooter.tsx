@@ -1,6 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useColorsFromTokenColor, useSporeColors } from 'ui/src'
+import { useColorsFromTokenColor, useSporeColors } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { BidDistributionChartTab } from '~/features/Toucan/Auction/AuctionChartShared'
 import { AuctionProgressBar } from '~/features/Toucan/Auction/AuctionProgressBar'

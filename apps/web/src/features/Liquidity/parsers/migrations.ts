@@ -1,6 +1,6 @@
 import { FeeAmount, TICK_SPACINGS } from '@uniswap/v3-sdk'
 import type { FeeData } from 'uniswap/src/features/positions/types'
-import { isDynamicFeeTier } from '~/features/Liquidity/utils/feeTiers'
+import { parseFeeDataFromUrl } from '~/features/Liquidity/utils/feeTiers'
 
 interface ParsedParams {
   // Current params
@@ -42,15 +42,15 @@ function migrateFee(params: ParsedParams): UrlMigrationResult | null {
     const feeTierNumber = Number(params.feeTier)
     const tickSpacing = TICK_SPACINGS[feeTierNumber as FeeAmount] || TICK_SPACINGS[FeeAmount.MEDIUM]
 
-    updates.fee = {
+    // Same rules as the `fee` param: a legacy bookmark can carry the dynamic pool key's fee with no
+    // `isDynamic`, the two can disagree, or the fee can be unusable outright (`?feeTier=abc` parses
+    // to NaN, which otherwise keys a tier as 'NaN-60'). An unusable fee is dropped rather than
+    // migrated, but the params still clear — leaving them would re-run this on every render.
+    updates.fee = parseFeeDataFromUrl({
       feeAmount: feeTierNumber,
       tickSpacing,
-      isDynamic: isDynamicFeeTier({
-        feeAmount: feeTierNumber,
-        tickSpacing,
-        isDynamic: Boolean(params.isDynamic),
-      }),
-    }
+      isDynamic: Boolean(params.isDynamic),
+    })
 
     clearParams.push('feeTier', 'isDynamic')
     hasMigrations = true

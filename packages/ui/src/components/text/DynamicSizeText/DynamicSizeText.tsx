@@ -1,5 +1,5 @@
+import type { TextProps } from '@universe/mycelium'
 import React from 'react'
-import type { TextProps } from 'ui/src/components/text/Text'
 import { PlatformSplitStubError } from 'utilities/src/errors'
 
 type FontSizeOptions = {

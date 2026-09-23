@@ -3,6 +3,7 @@ import { getCreatorSweepDisplay } from '~/features/Toucan/Auction/CreatorActions
 import { getMigrateCtaState } from '~/features/Toucan/Auction/CreatorActions/getMigrateCtaState'
 import { useAuctionCreatorInfo } from '~/features/Toucan/Auction/hooks/useAuctionCreatorInfo'
 import { useBidFormState } from '~/features/Toucan/Auction/hooks/useBidFormState'
+import { useShouldShowNowTradingCard } from '~/features/Toucan/Auction/hooks/useShouldShowNowTradingCard'
 import { useSweepUnsoldTokensState } from '~/features/Toucan/Auction/hooks/useSweepUnsoldTokensState'
 import { useAuctionOutcome, useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getLbpMigrationState } from '~/features/Toucan/Auction/utils/creatorActions'
@@ -31,6 +32,7 @@ export function usePostAuctionPanelState(): PostAuctionPanelState {
     auctionDetails: state.auctionDetails,
     currentBlockNumber: state.currentBlockNumber,
   }))
+  const showNowTradingCard = useShouldShowNowTradingCard()
   const { isConnectedTokensRecipient } = useAuctionCreatorInfo()
   const { hasSwept, remainingSupplyRaw } = useSweepUnsoldTokensState({ enabled: isConnectedTokensRecipient })
 
@@ -58,8 +60,12 @@ export function usePostAuctionPanelState(): PostAuctionPanelState {
     }).visible
 
     const postAuctionActionVisible = sweepVisible || migrateVisible
-    return { postAuctionActionVisible, hasPanelContent: showAuctionGraduated || postAuctionActionVisible }
+    return {
+      postAuctionActionVisible,
+      hasPanelContent: showNowTradingCard || showAuctionGraduated || postAuctionActionVisible,
+    }
   }, [
+    showNowTradingCard,
     showAuctionGraduated,
     outcome,
     isConnectedTokensRecipient,

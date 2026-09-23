@@ -16,7 +16,15 @@ const MAX_TINY_PRICE_SCALING_DECIMALS = 36
 export function useUSDCPrice(
   currency?: Currency,
   pollInterval: PollingInterval = PollingInterval.Fast,
-): { price: Price<Currency, Currency> | undefined; isLoading: boolean } {
+): {
+  price: Price<Currency, Currency> | undefined
+  isLoading: boolean
+  // True while the underlying price is withheld as stale with a refetch in flight (see usePrice):
+  // `price` is undefined but provisional, not settled-missing. Callers whose missing-price
+  // handling fails open should defer while this is true. Always false on the Solana quote path,
+  // which has no persisted cache to rehydrate stale entries from.
+  isStaleRefreshing: boolean
+} {
   const { chainId, address } = currency ? normalizeToken(currency) : { chainId: undefined, address: undefined }
 
   const isRemoteSupported = chainId !== undefined && isRemotePriceServiceSupportedChain(chainId)
@@ -26,26 +34,32 @@ export function useUSDCPrice(
   )
 
   // Remote pricing no-ops when disabled or when the input is the chain's primary stablecoin.
-  const { price: livePrice, isLoading: livePriceLoading } = usePrice({
+  const {
+    price: livePrice,
+    isLoading: livePriceLoading,
+    isStaleRefreshing: livePriceStaleRefreshing,
+  } = usePrice({
     chainId: isRemoteSupported && !currencyIsStablecoin ? chainId : undefined,
     address: isRemoteSupported && !currencyIsStablecoin ? address : undefined,
   })
 
   const solanaResult = useSolanaUSDCPrice(currency, pollInterval)
+  const solanaResultWithRefreshState = useMemo(() => ({ ...solanaResult, isStaleRefreshing: false }), [solanaResult])
 
   const remoteResult = useMemo(() => {
     if (!currency || !stablecoin || !isUniverseChainId(chainId)) {
-      return { price: undefined, isLoading: false }
+      return { price: undefined, isLoading: false, isStaleRefreshing: false }
     }
 
     if (currencyIsStablecoin) {
-      return { price: new Price(stablecoin, stablecoin, '1', '1'), isLoading: false }
+      return { price: new Price(stablecoin, stablecoin, '1', '1'), isLoading: false, isStaleRefreshing: false }
     }
 
     if (livePrice === undefined || !Number.isFinite(livePrice)) {
       // Distinguish "still fetching" from "settled with no price" so callers
-      // don't treat a cold-cache miss as a confirmed absence of price.
-      return { price: undefined, isLoading: livePriceLoading }
+      // don't treat a cold-cache miss as a confirmed absence of price — and surface
+      // the withheld-stale-mid-refetch state so callers can defer instead of failing open.
+      return { price: undefined, isLoading: livePriceLoading, isStaleRefreshing: livePriceStaleRefreshing }
     }
 
     try {
@@ -74,14 +88,15 @@ export function useUSDCPrice(
       return {
         price: quoteAmountRaw === '0' ? undefined : new Price({ baseAmount, quoteAmount }),
         isLoading: false,
+        isStaleRefreshing: false,
       }
     } catch (error) {
       logger.debug('useUSDCPrice', 'remoteResult', 'parse price failed', { error, livePrice })
-      return { price: undefined, isLoading: false }
+      return { price: undefined, isLoading: false, isStaleRefreshing: false }
     }
-  }, [currency, stablecoin, chainId, currencyIsStablecoin, livePrice, livePriceLoading])
+  }, [currency, stablecoin, chainId, currencyIsStablecoin, livePrice, livePriceLoading, livePriceStaleRefreshing])
 
-  return isRemoteSupported ? remoteResult : solanaResult
+  return isRemoteSupported ? remoteResult : solanaResultWithRefreshState
 }
 
 export function useUSDCValue(

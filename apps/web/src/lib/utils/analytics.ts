@@ -1,5 +1,6 @@
 import { Currency, CurrencyAmount, Percent, Price, Token } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { getIsPermissionedForAnalytics } from 'uniswap/src/features/permissionedTokens/getIsPermissionedForAnalytics'
 import type { RWAWhitelist } from 'uniswap/src/features/rwa/types'
 import { PriceSourceTag, SwapTradeBaseProperties } from 'uniswap/src/features/telemetry/types'
 import { getRouteAnalyticsData, tradeRoutingToFillType } from 'uniswap/src/features/transactions/swap/analytics'
@@ -189,6 +190,7 @@ export function formatCommonPropertiesForTrade({
     token_out_symbol: trade.outputAmount.currency.symbol,
     token_in_amount: formatToDecimal(trade.inputAmount, trade.inputAmount.currency.decimals),
     token_out_amount: formatToDecimal(trade.outputAmount, trade.outputAmount.currency.decimals),
+    is_permissioned: getIsPermissionedForAnalytics([trade.inputAmount.currency, trade.outputAmount.currency]),
     price_impact_basis_points: getPriceImpactBasisPoints(trade),
     chain_id:
       trade.inputAmount.currency.chainId === trade.outputAmount.currency.chainId

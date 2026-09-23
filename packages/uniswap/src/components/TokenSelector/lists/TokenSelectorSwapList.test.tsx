@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags } from '@universe/gating'
 import {
   OnchainItemListOptionType,
@@ -8,7 +9,6 @@ import { OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItem
 import { useTokenSectionsForSwap } from 'uniswap/src/components/TokenSelector/lists/TokenSelectorSwapList'
 import { TokenSelectorFlow, TokenSelectorVariation } from 'uniswap/src/components/TokenSelector/types'
 import { AssetType, TradeableAsset } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { renderHook } from 'uniswap/src/test/test-utils'
 
 const {
@@ -41,12 +41,6 @@ vi.mock('uniswap/src/components/TokenSelector/hooks/useCommonTokensOptionsWithFa
 }))
 vi.mock('uniswap/src/features/bridging/hooks/tokens', () => ({
   useBridgingTokensOptions: mockUseBridgingTokensOptions,
-}))
-// Bypass the async data-loading gate so the assembled sections are computed synchronously,
-// isolating the test to the Stocks-section assembly logic (which doesn't depend on it).
-vi.mock('uniswap/src/components/TokenSelector/utils', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('uniswap/src/components/TokenSelector/utils')>()),
-  isSwapListLoading: () => false,
 }))
 
 const stock: RwaTokenOption = {

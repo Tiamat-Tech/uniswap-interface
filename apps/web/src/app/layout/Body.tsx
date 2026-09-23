@@ -1,6 +1,6 @@
+import { SpinningLoader } from '@universe/mycelium'
 import { lazy, memo, Suspense } from 'react'
 import { Route, Routes } from 'react-router'
-import { SpinningLoader } from 'ui/src'
 import { EMBED_ENTRY_ROUTES, RouteDefinition, routes, useRouterConfig } from '~/pages/RouteDefinitions'
 import { EmbedProvider, type EmbedView } from '~/pages/Swap/embedContext'
 

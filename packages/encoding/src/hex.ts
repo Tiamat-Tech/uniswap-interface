@@ -61,13 +61,22 @@ export function hexToNumber(hex: string): number {
 }
 
 /**
- * Ensures the input string is prefixed with `0x`.
+ * Ensures the input string is prefixed with a lowercase `0x`.
+ *
+ * A leading uppercase `0X` prefix is normalized to `0x`; the remainder of the
+ * string (including any mixed-case checksum body) is left untouched.
  *
  * @param hex - The hex string to normalize.
- * @returns The hex string with a guaranteed `0x` prefix.
+ * @returns The hex string with a guaranteed lowercase `0x` prefix.
  */
 export function ensure0xHex(hex: string): HexString {
-  return hex.startsWith('0x') ? (hex as HexString) : `0x${hex}`
+  if (hex.startsWith('0x')) {
+    return hex as HexString
+  }
+  if (hex.startsWith('0X')) {
+    return `0x${hex.slice(2)}` as HexString
+  }
+  return `0x${hex}`
 }
 
 /**

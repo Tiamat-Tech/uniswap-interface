@@ -1,5 +1,6 @@
+import type { Currency } from '@uniswap/sdk-core'
 import { useGetPasskeyAuthStatus } from '@universe/embedded-wallet'
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import type { SwapRedirectFn } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext'
 import { SwapFormSettings } from 'uniswap/src/features/transactions/swap/components/SwapFormSettings/SwapFormSettings'
 import { SwapOffHoursBanner } from 'uniswap/src/features/transactions/swap/components/SwapOffHoursBanner/SwapOffHoursBanner'
@@ -19,10 +20,11 @@ export interface SwapFormProps {
   hideHeader?: boolean
   hideFooter?: boolean
   prefilledState?: SwapFormState
-  onCurrencyChange?: (selected: CurrencyState, isBridgePair?: boolean) => void
+  onCurrencyChange?: (selected: CurrencyState, selectedCurrency?: Currency) => void
   swapRedirectCallback?: SwapRedirectFn
   tokenColor?: string
   onCurrencyPanelsLayout?: (height: number) => void
+  tdpCurrency?: Currency
 }
 
 export function SwapFormSettingsButton(): JSX.Element {
@@ -46,6 +48,7 @@ export function SwapForm({
   swapRedirectCallback,
   tokenColor,
   onCurrencyPanelsLayout,
+  tdpCurrency,
 }: SwapFormProps): JSX.Element {
   const swapHandlers = useSwapHandlers()
   const swapSettings = useWebSwapSettings()
@@ -69,6 +72,7 @@ export function SwapForm({
           onCurrencyChange={onCurrencyChange}
           prefilledState={prefilledState}
           tokenColor={tokenColor}
+          tdpCurrency={tdpCurrency}
           onSubmitSwap={resetDisableOneClickSwap}
           passkeyAuthStatus={passkeyAuthStatus}
           onCurrencyPanelsLayout={onCurrencyPanelsLayout}

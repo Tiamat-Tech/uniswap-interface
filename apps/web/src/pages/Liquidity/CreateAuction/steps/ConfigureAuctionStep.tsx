@@ -1,7 +1,7 @@
 import { type Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { Button, Flex, Text } from '@universe/mycelium'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
 import { AuctionEventName, ElementName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -28,8 +28,10 @@ import {
 } from '~/pages/Liquidity/CreateAuction/CreateAuctionContext'
 import { useCreateAuctionTokenColor } from '~/pages/Liquidity/CreateAuction/hooks/useCreateAuctionTokenColor'
 import { useCreateAuctionTokenLogoNode } from '~/pages/Liquidity/CreateAuction/hooks/useCreateAuctionTokenLogoNode'
+import { useEffectiveRaiseCurrency } from '~/pages/Liquidity/CreateAuction/hooks/useEffectiveRaiseCurrency'
 import { useExistingTokenWalletBalance } from '~/pages/Liquidity/CreateAuction/hooks/useExistingTokenWalletBalance'
 import { useIsStepValid } from '~/pages/Liquidity/CreateAuction/hooks/useIsStepValid'
+import { useLaunchChainId } from '~/pages/Liquidity/CreateAuction/hooks/useLaunchChainId'
 import { useStableRaiseUsdPrice } from '~/pages/Liquidity/CreateAuction/hooks/useStableRaiseUsdPrice'
 import {
   getInitialConfigureAuctionInputCurrency,
@@ -48,7 +50,7 @@ import {
   percentOfSoldToLiquidityFromDepositAndLiquidityAmount,
   percentOfAmount,
 } from '~/pages/Liquidity/CreateAuction/utils'
-import { getMinAuctionStartTimeToProceed } from '~/pages/Liquidity/CreateAuction/utils/duration'
+import { getDurationInvalidReason } from '~/pages/Liquidity/CreateAuction/utils/duration'
 import {
   EmissionScheduleError,
   getAuctionEmissionScheduleError,
@@ -63,7 +65,7 @@ export function ConfigureAuctionStep() {
   const auctionDistributionTokenLogo = useCreateAuctionTokenLogoNode(AUCTION_DISTRIBUTION_TOKEN_LOGO_SIZE, {
     hideNetworkLogo: true,
   })
-  const configureAuction: ConfigureAuctionFormState = useCreateAuctionStore((state) => state.configureAuction)
+  const storedConfigureAuction: ConfigureAuctionFormState = useCreateAuctionStore((state) => state.configureAuction)
   const tokenMode = useCreateAuctionStore((state) => state.tokenForm.mode)
   const existingTokenCurrency = useCreateAuctionStore((state) =>
     state.tokenForm.mode === TokenMode.EXISTING ? state.tokenForm.existingTokenCurrencyInfo?.currency : undefined,
@@ -79,55 +81,83 @@ export function ConfigureAuctionStep() {
     setSinglePostAuctionLiquidityPercent,
     setStartTime,
     setEndTime,
+    setPreBidStartTime,
     setPostAuctionLiquidityAllocationType,
     setRaiseCurrency,
     setFloorPrice,
     updatePostAuctionLiquidityTier,
   } = useCreateAuctionStoreActions()
 
-  const { startTime, endTime, committed, postAuctionLiquidityAllocation, raiseCurrency, floorPrice, floorPriceInput } =
-    configureAuction
+  const {
+    startTime,
+    endTime,
+    preBidStartTime,
+    committed,
+    postAuctionLiquidityAllocation,
+    floorPrice,
+    floorPriceInput,
+  } = storedConfigureAuction
+  // One chain for the raise currency and for every child that prices or denominates in it: the
+  // committed snapshot's chain goes stale when the network changes without a re-commit, and a
+  // resolved currency paired with a stale chain is what makes the hidden picker render again and
+  // the price sections quote the wrong asset.
+  const launchChainId = useLaunchChainId()
+  // Resolved, never the stored selection — and resolved against the same launch chain, so this
+  // step's analytics event can't name a different currency from the one submitted after a
+  // post-commit network change. Spread back into the state handed to analytics for the same reason.
+  const raiseCurrency = useEffectiveRaiseCurrency()
+  const configureAuction: ConfigureAuctionFormState = useMemo(
+    () => ({ ...storedConfigureAuction, raiseCurrency }),
+    [storedConfigureAuction, raiseCurrency],
+  )
   const isNextStepDisabled = !useIsStepValid(CreateAuctionStep.CONFIGURE_AUCTION)
 
   const durationSectionRef = useRef<DurationSectionHandle>(null)
   const priceSettingsSectionRef = useRef<PriceSettingsSectionHandle>(null)
 
   const handleDisabledContinue = useCallback(() => {
-    const minStartTimeMs = getMinAuctionStartTimeToProceed().getTime()
-    const isStartTimeValid = !!startTime && startTime.getTime() >= minStartTimeMs
-    const isEndTimeValid = !!endTime && !!startTime && endTime.getTime() > startTime.getTime()
-
-    if (!isStartTimeValid) {
+    // Switch over the same ordered reason the disable is computed from, rather than a fourth
+    // hand-maintained copy of the predicates.
+    const durationInvalidReason = getDurationInvalidReason({ startTime, endTime, preBidStartTime })
+    if (durationInvalidReason === 'auction-open-too-soon') {
+      // The auction OPENS at the pre-bid start when a window is set, so that — not the Duration
+      // card's start date — is the field at fault. Opening the Duration calendar there would be a
+      // dead end: no date it offers can clear the condition, and its own minimum is derived from
+      // the very value that has gone stale.
+      durationSectionRef.current?.openCalendar(preBidStartTime ? 'preBidStart' : 'start')
+      return
+    }
+    if (durationInvalidReason === 'pre-bid-order') {
+      // The mirrored boundary — the Duration start date and "Pre-bid end date" are the same value.
       durationSectionRef.current?.openCalendar('start')
       return
     }
-    if (!isEndTimeValid) {
+    if (durationInvalidReason === 'range') {
       durationSectionRef.current?.openCalendar('end')
       return
     }
     if (!floorPrice) {
       priceSettingsSectionRef.current?.focusFloorPrice()
     }
-  }, [startTime, endTime, floorPrice])
+  }, [startTime, endTime, preBidStartTime, floorPrice])
 
-  // Snapshot the raise-token USD price once per raise-currency selection. Holding it stable
-  // keeps every USD↔raise conversion in the flow agreeing on one anchor, so the user's "$100k"
-  // doesn't drift to "$99,990" on the next oracle tick. Re-snapshots only on raise-currency
-  // change. Single source of truth — children receive this instead of calling useUSDCPrice themselves.
-  const usdPriceNum = useStableRaiseUsdPrice({ raiseCurrency, chainId: committed?.totalSupply.currency.chainId ?? 1 })
+  // Snapshot the raise-token USD price and hold it stable, so every USD↔raise conversion in the
+  // flow agrees on one anchor and the user's "$100k" doesn't drift to "$99,990" on the next oracle
+  // tick. The hook keys its snapshot on the raise currency and the chain together, so a launch-chain
+  // change re-snapshots too and yields null — not a stale anchor — until the new pair resolves.
+  // Single source of truth: children receive this instead of calling useUSDCPrice themselves.
+  const usdPriceNum = useStableRaiseUsdPrice({ raiseCurrency, chainId: launchChainId })
 
   // Analytics snapshot inputs for `Auction Details Info Entered`, mirroring the Review step's
   // FDV math and raise-currency resolution so the step-level event agrees with Submitted/Completed.
   const trace = useTrace()
-  const detailsChainId = committed?.totalSupply.currency.chainId
   const maxFdv = useMemo(() => {
     if (!configureAuction.floorPrice || !committed) {
       return undefined
     }
     return parseFloat(configureAuction.floorPrice) * parseFloat(committed.totalSupply.toExact())
   }, [configureAuction.floorPrice, committed])
-  const raiseCurrencyAddress =
-    detailsChainId === undefined ? undefined : getRaiseCurrencyAddress(raiseCurrency, detailsChainId)
+  const raiseCurrencyAddress = getRaiseCurrencyAddress(raiseCurrency, launchChainId)
   const handleContinue = useEvent(() => {
     sendAnalyticsEvent(
       AuctionEventName.AuctionDetailsInfoEntered,
@@ -163,11 +193,20 @@ export function ConfigureAuctionStep() {
   }, [floorPriceInput, raiseCurrency, hasUsdOracle])
 
   const handleDurationChange = useCallback(
-    ({ startTime: nextStart, endTime: nextEnd }: { startTime: Date | undefined; endTime: Date | undefined }) => {
+    ({
+      startTime: nextStart,
+      endTime: nextEnd,
+      preBidStartTime: nextPreBidStart,
+    }: {
+      startTime: Date | undefined
+      endTime: Date | undefined
+      preBidStartTime: Date | undefined
+    }) => {
       setStartTime(nextStart)
       setEndTime(nextEnd)
+      setPreBidStartTime(nextPreBidStart)
     },
-    [setStartTime, setEndTime],
+    [setStartTime, setEndTime, setPreBidStartTime],
   )
 
   // Existing tokens deposit tokens pulled from the wallet, so the auction can only be funded up to
@@ -259,9 +298,13 @@ export function ConfigureAuctionStep() {
   // using the chain's block time, and a too-short window (or one whose per-block rounding overshoots
   // the supply budget) is rejected with "Emission schedule overshot the supply target" /
   // "Auction window is too short". Catch both before submit and surface them on the duration picker.
+  // Block times for the committed token's own chain, not the raise currency's: the committed
+  // snapshot and `tokenForm.network` can diverge across the whole step, which is tracked on its own
+  // rather than widened into here.
   const emissionScheduleError = getAuctionEmissionScheduleError({
     startTime,
     endTime,
+    preBidStartTime,
     chainId: totalSupply.currency.chainId,
   })
   const emissionScheduleErrorMessage =
@@ -296,6 +339,7 @@ export function ConfigureAuctionStep() {
             ref={durationSectionRef}
             startTime={startTime}
             endTime={endTime}
+            preBidStartTime={preBidStartTime}
             scheduleError={emissionScheduleErrorMessage}
             onChange={handleDurationChange}
           />
@@ -314,7 +358,7 @@ export function ConfigureAuctionStep() {
 
           <PriceSettingsSection
             ref={priceSettingsSectionRef}
-            chainId={totalSupply.currency.chainId}
+            chainId={launchChainId}
             raiseCurrency={raiseCurrency}
             onSelect={setRaiseCurrency}
             floorPrice={floorPrice}
@@ -333,7 +377,7 @@ export function ConfigureAuctionStep() {
             postAuctionLiquidityAmount={committed.postAuctionLiquidityAmount}
             floorPrice={floorPrice}
             raiseCurrency={raiseCurrency}
-            chainId={totalSupply.currency.chainId}
+            chainId={launchChainId}
             tokenSymbol={tokenSymbol}
             inputCurrency={inputCurrency}
             usdPriceNum={usdPriceNum}
@@ -350,7 +394,7 @@ export function ConfigureAuctionStep() {
               postAuctionLiquidityAmount={committed.postAuctionLiquidityAmount}
               tokenSymbol={tokenSymbol}
               raiseCurrency={raiseCurrency}
-              chainId={totalSupply.currency.chainId}
+              chainId={launchChainId}
               tokenColor={tokenColor}
               tokenLogoNode={auctionDistributionTokenLogo}
             />
@@ -360,7 +404,7 @@ export function ConfigureAuctionStep() {
             <LaunchThresholdSection
               floorPrice={floorPrice}
               raiseCurrency={raiseCurrency}
-              chainId={totalSupply.currency.chainId}
+              chainId={launchChainId}
               auctionSupplyAmount={auctionSupplyAmount}
               postAuctionLiquidityAmount={committed.postAuctionLiquidityAmount}
             />

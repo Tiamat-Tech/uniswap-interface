@@ -1,4 +1,4 @@
-import { spacing } from 'ui/src/theme/spacing'
+import { spacing } from '@universe/mycelium'
 import type { ExpandableAssetGroupVariant } from 'uniswap/src/features/expandableAsset/types'
 
 /** Expand/collapse height transition for grouped table rows. */
@@ -25,6 +25,14 @@ export const EXPANDABLE_ASSET_INNER_PADDING_Y_PX = spacing.spacing4
 
 /** Padding on the outer `$surface2` expandable row container (table). */
 export const EXPANDABLE_ASSET_TABLE_SHELL_PADDING_PX = spacing.spacing4
+
+/**
+ * Total horizontal padding (each side) between an expanded issuer row's content edge and the shell's outer
+ * edge: the outer `$surface2` shell padding plus the inner `$surface1` panel padding. Issuer table rows bleed
+ * outward by this much so their columns line up with the parent metrics row, which bleeds to the shell edge.
+ */
+export const EXPANDABLE_ASSET_ISSUER_ROW_ALIGNMENT_INSET_X_PX =
+  EXPANDABLE_ASSET_TABLE_SHELL_PADDING_PX + EXPANDABLE_ASSET_INNER_PADDING_X_PX
 
 /** Gap between the parent metrics row and the inner issuer block inside the same container. */
 export const EXPANDABLE_ASSET_SHELL_HEADER_GAP_PX = spacing.spacing8

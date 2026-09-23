@@ -1,7 +1,8 @@
 //! tamagui-ignore
 // tamagui-ignore
+import { Button, Flex, Text } from '@universe/mycelium'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
 import { UserLock } from 'ui/src/components/icons/UserLock'
 import { noop } from 'utilities/src/react/noop'
 import { AuctionKycStatus } from '~/features/Toucan/Auction/hooks/useAuctionKycStatus'
@@ -23,11 +24,16 @@ export function KycActionButton({ kycStatus, onPress }: { kycStatus: AuctionKycS
           group
         >
           <Flex alignItems="flex-start" position="relative">
-            <Button.Text animation="fastHeavy" position="relative" top={0} $group-hover={{ top: -6 }}>
+            <Button.Text
+              transition={`top ${SPORE_ANIMATION_CURVE_CSS.fastHeavy}`}
+              position="relative"
+              top={0}
+              $group-hover={{ top: -6 }}
+            >
               {kycStatus.kycButtonLabel}
             </Button.Text>
             <Text
-              animation="fastHeavy"
+              transition={`top ${SPORE_ANIMATION_CURVE_CSS.fastHeavy}, opacity ${SPORE_ANIMATION_CURVE_CSS.fastHeavy}`}
               $group-hover={{ opacity: 1, top: 12 }}
               opacity={0}
               position="absolute"

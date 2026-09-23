@@ -1,9 +1,11 @@
+import { UniverseChainId } from '@universe/chains'
+import { View, type ViewCompatProps, Flex, Text } from '@universe/mycelium'
+import { curveToAnimationTiming } from '@universe/mycelium/compat'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { TFunction } from 'i18next'
-import { ReactNode, useMemo, useRef } from 'react'
+import { type CSSProperties, ReactNode, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text } from 'ui/src'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { ExplorerDataType, getExplorerLink } from 'uniswap/src/utils/linking'
 import { LogoContainer } from '~/components/AccountDrawer/MiniPortfolio/Activity/Logos'
@@ -21,21 +23,23 @@ import { useIsTransactionConfirmed, useUniswapXOrderByOrderHash } from '~/state/
 import { ExternalLink } from '~/theme/components/Links'
 import type { LimitOrderResult } from '~/types/trade'
 
-const AnimationWrapper = styled(Flex, {
-  position: 'relative',
-  width: '100%',
-  minHeight: 72,
-  flexGrow: 1,
-})
+function AnimationWrapper(props: ViewCompatProps): JSX.Element {
+  return <View position="relative" width="100%" minHeight={72} flexGrow={1} {...props} />
+}
 
-const StepTitleAnimationContainer = styled(Flex, {
-  position: 'absolute',
-  width: '100%',
-  height: '100%',
-  alignItems: 'center',
-  flexDirection: 'column',
-  gap: '$gap12',
-})
+function StepTitleAnimationContainer(props: ViewCompatProps): JSX.Element {
+  return (
+    <View
+      position="absolute"
+      width="100%"
+      height="100%"
+      alignItems="center"
+      flexDirection="column"
+      gap="$gap12"
+      {...props}
+    />
+  )
+}
 
 function getTitle({
   t,
@@ -126,6 +130,8 @@ export function Pending({
     return <OrderContent order={uniswapXOrder} />
   }
 
+  // Mount slide-in from the right on the legacy `300ms` curve; the legacy exitStyle was dead
+  // (unmount runs through the parent AnimateTransition's own exit lane).
   return (
     <Flex
       alignItems="center"
@@ -133,10 +139,13 @@ export function Pending({
       mt={48}
       mb="$spacing8"
       gap="$gap24"
-      animation="300ms"
-      animateOnly={['transform', 'opacity']}
-      enterStyle={{ opacity: 0, x: 40 }}
-      exitStyle={{ opacity: 0, x: -40 }}
+      className="animate-spore-enter-presence opacity-[1]"
+      style={
+        {
+          '--spore-presence-enter-x': '40px',
+          ...curveToAnimationTiming(SPORE_ANIMATION_CURVE_CSS['300ms']),
+        } as CSSProperties
+      }
     >
       <LogoContainer>
         {/* Shown only during the final step under "success" conditions, and scales in */}
@@ -195,7 +204,7 @@ export function Pending({
         {explorerLink && (
           <Flex row width="100%" justifyContent="center" alignItems="center" mt={32} minHeight={24}>
             <Text variant="body3" color="$neutral2">
-              <ExternalLink href={explorerLink} color="neutral2">
+              <ExternalLink href={explorerLink} color="$neutral2">
                 {t('common.viewOnExplorer')}
               </ExternalLink>
             </Text>

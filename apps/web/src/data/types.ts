@@ -1,14 +1,14 @@
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId, areAddressesEqual } from '@universe/chains'
 import { useCallback } from 'react'
 import { useAllCommonBaseCurrencies } from 'uniswap/src/components/TokenSelector/hooks/useAllCommonBaseCurrencies'
 import { MELD_NATIVE_SOL_ADDRESS_SOLANA } from 'uniswap/src/features/chains/svm/defaults'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
+import { ProtectionResult } from 'uniswap/src/features/dataApi/safety'
 import { CurrencyInfo, TokenList } from 'uniswap/src/features/dataApi/types'
 import { buildCurrencyInfo } from 'uniswap/src/features/dataApi/utils/buildCurrency'
 import { getCurrencySafetyInfo } from 'uniswap/src/features/dataApi/utils/getCurrencySafetyInfo'
 import { FORSupportedToken } from 'uniswap/src/features/fiatOnRamp/types'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { currencyId } from 'uniswap/src/utils/currencyId'
 import { fiatOnRampToCurrency, gqlToCurrency, PricePoint } from '~/data/util'
 
@@ -71,7 +71,7 @@ export function useMeldSupportedCurrencyToCurrencyInfo(): {
           logoUrl: forCurrency.symbol,
           safetyInfo: {
             tokenList: TokenList.Default,
-            protectionResult: GraphQLApi.ProtectionResult.Benign,
+            protectionResult: ProtectionResult.Benign,
           },
           isSpam: false,
         }
@@ -87,7 +87,7 @@ export function useMeldSupportedCurrencyToCurrencyInfo(): {
         logoUrl: forCurrency.symbol,
         safetyInfo: {
           tokenList: TokenList.Default,
-          protectionResult: GraphQLApi.ProtectionResult.Benign,
+          protectionResult: ProtectionResult.Benign,
         },
         isSpam: false,
       })

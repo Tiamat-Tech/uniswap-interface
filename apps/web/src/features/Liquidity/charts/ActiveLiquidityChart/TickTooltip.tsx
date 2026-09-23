@@ -1,8 +1,7 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency, CurrencyAmount, Percent } from '@uniswap/sdk-core'
+import { Flex, iconSizes, Text, type FlexCompatProps } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, FlexProps, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
@@ -130,7 +129,7 @@ export function TickTooltipContent({
   showQuoteCurrencyFirst?: boolean
   priceInverted: boolean
   protocolVersion: ProtocolVersion
-} & FlexProps) {
+} & FlexCompatProps) {
   const { t } = useTranslation()
   const { formatNumberOrString, convertFiatAmountFormatted } = useLocalizationContext()
   const locale = useCurrentLocale()

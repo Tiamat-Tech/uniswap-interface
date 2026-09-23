@@ -2,6 +2,7 @@ import { type PartialMessage } from '@bufbuild/protobuf'
 import { ToolkitStore } from '@reduxjs/toolkit/dist/configureStore'
 import { GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { type Balance } from '@uniswap/client-data-api/dist/data/v1/types_pb'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import { AccountAddressesByPlatform } from 'uniswap/src/data/apiClients/dataApiService/utils/buildAccountAddressesByPlatform'
 import { type OnChainMap } from 'uniswap/src/features/portfolio/portfolioUpdates/fetchOnChainBalances'
@@ -12,7 +13,7 @@ import {
   type TokenBalanceOverride,
 } from 'uniswap/src/features/portfolio/slice/slice'
 import { CurrencyId } from 'uniswap/src/types/currency'
-import { normalizeCurrencyIdForMapLookup, normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
+import { normalizeCurrencyIdForMapLookup } from 'uniswap/src/utils/currencyId'
 import {
   buildCurrencyId,
   currencyIdToAddress,

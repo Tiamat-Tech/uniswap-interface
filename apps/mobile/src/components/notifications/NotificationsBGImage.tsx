@@ -1,6 +1,7 @@
+import { Flex } from '@universe/mycelium'
 import { useLayoutEffect, useState } from 'react'
 import { Dimensions, Image, Platform } from 'react-native'
-import { Flex, useIsDarkMode } from 'ui/src'
+import { useIsDarkMode } from 'ui/src'
 import { ONBOARDING_NOTIFICATIONS_DARK, ONBOARDING_NOTIFICATIONS_LIGHT } from 'ui/src/assets'
 import { breakpoints } from 'ui/src/theme'
 

@@ -1,6 +1,7 @@
 /* oxlint-disable max-lines */
 import { type Provider } from '@ethersproject/providers'
 import { providerErrors, rpcErrors, serializeError } from '@metamask/rpc-errors'
+import { Platform, UniverseChainId } from '@universe/chains'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
 import { createSearchParams } from 'react-router'
 import { changeChain } from 'src/app/features/dapp/changeChain'
@@ -37,19 +38,17 @@ import {
   type UniswapOpenSidebarRequest,
   type UniswapOpenSidebarResponse,
 } from 'src/app/features/dappRequests/types/DappRequestTypes'
-import { HexadecimalNumberSchema } from 'src/app/features/dappRequests/types/utilityTypes'
+import { NumberLikeSchema } from 'src/app/features/dappRequests/types/utilityTypes'
 import { isWalletUnlocked } from 'src/app/hooks/useIsWalletUnlocked'
 import { AppRoutes, HomeQueryParams } from 'src/app/navigation/constants'
 import { navigate } from 'src/app/navigation/state'
 import { dappResponseMessageChannel } from 'src/background/messagePassing/messageChannels'
 import getCalldataInfoFromTransaction from 'src/background/utils/getCalldataInfoFromTransaction'
 import { call, put, select, take } from 'typed-redux-saga'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { hexadecimalStringToInt, toSupportedChainId, toSupportedDappChainId } from 'uniswap/src/features/chains/utils'
 import { DappRequestType, DappResponseType } from 'uniswap/src/features/dappRequests/types'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { getEnabledChainIdsSaga } from 'uniswap/src/features/settings/saga'
 import { ExtensionEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -240,7 +239,7 @@ function* handleRequest(requestParams: DappRequestNoDappInfo) {
     try {
       const typedData = requestParams.dappRequest.typedData
       const parsedChainId = JSON.parse(typedData)?.domain?.chainId
-      const formattedChainId = HexadecimalNumberSchema.parse(parsedChainId)
+      const formattedChainId = NumberLikeSchema.parse(parsedChainId)
       const chainId = toSupportedChainId(formattedChainId)
 
       if (dappInfo?.lastChainId !== chainId) {
@@ -271,9 +270,7 @@ function* handleRequest(requestParams: DappRequestNoDappInfo) {
 
   if (requestParams.dappRequest.type === DappRequestType.SendCalls) {
     try {
-      const parsedChainId = requestParams.dappRequest.chainId
-      const formattedChainId = HexadecimalNumberSchema.parse(parsedChainId)
-      const chainId = toSupportedChainId(formattedChainId)
+      const chainId = toSupportedChainId(hexadecimalStringToInt(requestParams.dappRequest.chainId))
 
       if (dappInfo?.lastChainId !== chainId) {
         throw new Error('Chain ID on message does not match the chain ID set on the extension.')
@@ -572,7 +569,7 @@ export function* handleSignTypedData({
 
     // This should already be handled when request is received, but extra check here
     const parsedChainId = JSON.parse(typedData)?.domain?.chainId
-    const formattedChainId = HexadecimalNumberSchema.parse(parsedChainId)
+    const formattedChainId = NumberLikeSchema.parse(parsedChainId)
     const chainId = toSupportedChainId(formattedChainId)
     if (!chainId) {
       throw new Error(!parsedChainId ? 'Missing domain chainId' : 'Unsupported chainId')
@@ -669,7 +666,7 @@ export function* handleGetCapabilities(request: GetCapabilitiesRequest, senderTa
  */
 export function* handleSendCalls({
   request,
-  senderTabInfo: { id },
+  senderTabInfo: { id, url },
   dappInfo,
   transactionTypeInfo,
   preSignedTransaction,
@@ -716,6 +713,14 @@ export function* handleSendCalls({
       yield* call(dappResponseMessageChannel.sendMessageToTab, id, errorResponse)
       return
     }
+
+    // The prompt prepared and scanned on the queued snapshot chain. Refuse to sign on anything
+    // else: an unsigned UserOperation carries no chain, so the signer would otherwise stamp a
+    // different EIP-712 domain onto fields the user never reviewed for it.
+    if (dappInfo.lastChainId !== chainId) {
+      throw new Error(`Mismatched chainId - expected active chain: ${dappInfo.lastChainId}, received: ${chainId}`)
+    }
+    yield* call(assertDappChainUnchanged, { url, reviewedChainId: chainId })
 
     const activeAccount = getActiveSignerConnectedAccount(dappInfo.connectedAccounts, dappInfo.activeConnectedAddress)
     const batchId = request.id || generateBatchId()

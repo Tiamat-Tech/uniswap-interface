@@ -1,3 +1,4 @@
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { concat, keccak256, pad, toHex } from 'viem/utils'
 import { describe, expect, it } from 'vitest'
 import type { Address } from '~/chains'
@@ -126,7 +127,7 @@ describe('knownBalanceSlotFor', () => {
     ['WEETH', '0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee', 101],
   ])('resolves %s regardless of address casing', (_symbol, address, slot) => {
     expect(knownBalanceSlotFor(address as Address)).toBe(slot)
-    expect(knownBalanceSlotFor(address.toLowerCase() as Address)).toBe(slot)
+    expect(knownBalanceSlotFor(normalizeAddress(address, AddressStringFormat.Lowercase) as Address)).toBe(slot)
   })
 
   it('returns undefined for unknown tokens', () => {

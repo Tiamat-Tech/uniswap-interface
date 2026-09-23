@@ -1,13 +1,11 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { CurrencyAmount } from '@uniswap/sdk-core'
 import { useGetPasskeyAuthStatus } from '@universe/embedded-wallet'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Button, Flex, iconSizes, Separator, Text } from '@universe/mycelium'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Button, Flex, Separator, Text } from 'ui/src'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { iconSizes } from 'ui/src/theme'
 import { ProgressIndicator } from 'uniswap/src/components/ConfirmSwapModal/ProgressIndicator'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
@@ -47,7 +45,6 @@ export function IncreaseLiquidityReview({ onClose }: { onClose: () => void }) {
   const startChainId = connectedAccount.chainId
   const account = useWallet().evmAccount
   const trace = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const { needsPasskeySignin } = useGetPasskeyAuthStatus(connectedAccount.connector?.id)
   const disableOneClickSwap = useSetOverrideOneClickSwapFlag()
 
@@ -199,7 +196,6 @@ export function IncreaseLiquidityReview({ onClose }: { onClose: () => void }) {
             currency1: currencyAmounts.TOKEN1.currency,
             currency0AmountUsd: updatedUSDAmounts?.TOKEN0,
             currency1AmountUsd: updatedUSDAmounts?.TOKEN1,
-            isCentralizedPricesEnabled,
           }),
           expectedAmountBaseRaw: updatedCurrencyAmounts?.TOKEN0?.quotient.toString(),
           expectedAmountQuoteRaw: updatedCurrencyAmounts?.TOKEN1?.quotient.toString(),
@@ -239,7 +235,7 @@ export function IncreaseLiquidityReview({ onClose }: { onClose: () => void }) {
         <TokenInfo currencyAmount={updatedCurrencyAmounts?.TOKEN1} currencyUSDAmount={updatedUSDAmounts?.TOKEN1} />
         {/* V4 adds unclaimed fees to the position */}
         {version === ProtocolVersion.V4 && hasUnclaimedFees && (
-          <Flex p="$spacing12" gap="$gap12" background="$surface2" borderRadius="$rounded12">
+          <Flex p="$spacing12" gap="$gap12" backgroundColor="$surface2" borderRadius="$rounded12">
             <Text variant="body4" color="$neutral2">
               {t('fee.unclaimed.added')}
             </Text>

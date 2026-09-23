@@ -1,5 +1,5 @@
-import { Flex } from 'ui/src'
-import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
+import { Flex } from '@universe/mycelium'
+import { ArrowRight } from '@universe/mycelium/icons/ArrowRight'
 
 export function CarouselScrollButtonVisual({ direction }: { direction: 'left' | 'right' }): JSX.Element {
   return (

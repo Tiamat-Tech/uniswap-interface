@@ -99,7 +99,14 @@ function beforeSend(event: RumEvent, context: RumEventDomainContext): boolean {
   return true
 }
 
-export async function initializeDatadog(appName: string): Promise<void> {
+export async function initializeDatadog({
+  appName,
+  buildType,
+}: {
+  appName: string
+  /** Serving-stack cohort marker ('workers' | 'ecs' | ...); web only. */
+  buildType?: string
+}): Promise<void> {
   if (!isDatadogEnabled()) {
     return
   }
@@ -175,6 +182,11 @@ export async function initializeDatadog(appName: string): Promise<void> {
   }
 
   datadogRum.setGlobalContextProperty('app', appName)
+
+  if (buildType) {
+    datadogRum.setGlobalContextProperty('buildType', buildType)
+    datadogLogs.setGlobalContextProperty('buildType', buildType)
+  }
 
   for (const [_, flagKey] of [...WEB_FEATURE_FLAG_NAMES.entries(), ...WALLET_FEATURE_FLAG_NAMES.entries()]) {
     datadogRum.addFeatureFlagEvaluation(

@@ -10,14 +10,17 @@ import {
   resolveLoadStatePath,
   resolvePinnedForkBlock,
 } from '~/playwright/anvil/anvil-args'
+// Derive the expected pins from the same source anvil-args reads, so the checked-in bump (or the
+// weekly bump job, whose artifact carries fork-blocks.json but not this test) can never desync them.
+import forkBlockDefaults from '~/playwright/anvil/fork-blocks.json'
 
 describe('resolvePinnedForkBlock', () => {
   it('returns the checked-in mainnet pin when no override is set', () => {
-    expect(resolvePinnedForkBlock({ chainId: 1, env: {} })).toBe(25510000)
+    expect(resolvePinnedForkBlock({ chainId: 1, env: {} })).toBe(forkBlockDefaults.mainnet)
   })
 
   it('returns the checked-in base pin when no override is set', () => {
-    expect(resolvePinnedForkBlock({ chainId: 8453, env: {} })).toBe(48510000)
+    expect(resolvePinnedForkBlock({ chainId: 8453, env: {} })).toBe(forkBlockDefaults.base)
   })
 
   it('honors the ANVIL_FORK_BLOCK override for mainnet', () => {
@@ -29,11 +32,13 @@ describe('resolvePinnedForkBlock', () => {
   })
 
   it('ignores the base override when resolving mainnet', () => {
-    expect(resolvePinnedForkBlock({ chainId: 1, env: { ANVIL_FORK_BLOCK_BASE: '87654321' } })).toBe(25510000)
+    expect(resolvePinnedForkBlock({ chainId: 1, env: { ANVIL_FORK_BLOCK_BASE: '87654321' } })).toBe(
+      forkBlockDefaults.mainnet,
+    )
   })
 
   it('falls back to the default for a blank override', () => {
-    expect(resolvePinnedForkBlock({ chainId: 1, env: { ANVIL_FORK_BLOCK: '  ' } })).toBe(25510000)
+    expect(resolvePinnedForkBlock({ chainId: 1, env: { ANVIL_FORK_BLOCK: '  ' } })).toBe(forkBlockDefaults.mainnet)
   })
 
   it.each(['latest', '-5', '1.5', '0x123'])('rejects the malformed override %j', (value) => {

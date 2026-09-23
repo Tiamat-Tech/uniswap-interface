@@ -1,4 +1,4 @@
-import { ColorTokens } from 'ui/src'
+import { ColorTokens } from '@universe/mycelium'
 import { getDeltaTextColor } from 'uniswap/src/utils/getDeltaTextColor'
 
 // Cap at $1T — values beyond this indicate a calculation error

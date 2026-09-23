@@ -1,7 +1,12 @@
 import { TradingApi } from '@universe/api'
+import { isWebPlatform } from '@universe/environment'
+import { AnimatedFlex, Flex, getTokenValue, Separator, Text, useSporeColors } from '@universe/mycelium'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
+import { withSporeCurve } from '@universe/tailwind/animations/reanimated'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, getTokenValue, Separator, Text, useSporeColors, VerticalDottedLineSeparator } from 'ui/src'
+import type { EntryExitAnimationFunction } from 'react-native-reanimated'
+import { VerticalDottedLineSeparator } from 'ui/src'
 import { zIndexes } from 'ui/src/theme'
 import {
   TokenApprovalTransactionStepRow,
@@ -24,6 +29,17 @@ interface ProgressIndicatorProps {
   steps: TransactionStep[]
   currentStep?: { step: TransactionStep; accepted: boolean }
   isChainedAction?: boolean
+}
+
+// Reanimated leg (native) of the legacy Tamagui 'quicker' mount-in fade (enterStyle opacity 0 -> rest).
+// On web, the enterStyle mount-flip plus the scoped opacity transition below drives the same fade;
+// `entering` is ignored on web, so the two mechanisms cover one platform each.
+const fadeInQuicker: EntryExitAnimationFunction = () => {
+  'worklet'
+  return {
+    initialValues: { opacity: 0 },
+    animations: { opacity: withSporeCurve('quicker', 1) },
+  }
 }
 
 // TODO(SWAP-838): Remove implicit chained actions patterns
@@ -121,7 +137,14 @@ export function ProgressIndicator({
   }
 
   return (
-    <Flex enterStyle={{ opacity: 0 }} animation="quicker" gap="$spacing16">
+    <AnimatedFlex
+      entering={fadeInQuicker}
+      gap="$spacing16"
+      {...(isWebPlatform && {
+        enterStyle: { opacity: 0 },
+        transition: `opacity ${SPORE_ANIMATION_CURVE_CSS.quicker}`,
+      })}
+    >
       <Flex row gap="$spacing12" alignItems="center">
         <Separator my="$spacing12" />
         <Text color="$neutral2" variant="body3">
@@ -152,7 +175,7 @@ export function ProgressIndicator({
           )
         })}
       </Flex>
-    </Flex>
+    </AnimatedFlex>
   )
 }
 

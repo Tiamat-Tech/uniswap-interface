@@ -8,9 +8,10 @@ import {
   useGateValue,
   useLayer,
 } from '@universe/gating'
+import { Button, Flex, Separator, Switch, Text, TouchableArea } from '@universe/mycelium'
+import { useShadowPropsShort } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useContext, useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
-import { Button, Flex, Separator, Switch, Text, TouchableArea, useShadowPropsShort } from 'ui/src'
 import { Flag } from 'ui/src/components/icons/Flag'
 import { Settings } from 'ui/src/components/icons/Settings'
 import { X } from 'ui/src/components/icons/X'

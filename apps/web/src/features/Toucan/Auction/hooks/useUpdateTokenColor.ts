@@ -1,5 +1,5 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useLayoutEffect } from 'react'
-import { useSporeColors } from 'ui/src'
 import { useAuctionStore, useAuctionStoreActions } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { useSrcColor } from '~/hooks/useColor'
 

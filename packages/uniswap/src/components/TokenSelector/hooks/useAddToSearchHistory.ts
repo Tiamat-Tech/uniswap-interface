@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { useDispatch } from 'react-redux'
 import {
   MultichainTokenOption,
@@ -6,7 +7,6 @@ import {
   SearchModalOption,
 } from 'uniswap/src/components/lists/items/types'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import {
@@ -50,6 +50,14 @@ export function useAddToSearchHistory(): {
         break
       }
       case OnchainItemListOptionType.MultichainToken:
+        // Search V2 returns the backend's '' multichainId sentinel for ungrouped (single-chain) tokens; the slice
+        // rejects an empty id, so persist those like a chain-filtered row instead of silently dropping them.
+        if (!item.multichainResult.id.trim()) {
+          dispatch(
+            addToSearchHistory({ searchResult: currencyInfoToTokenSearchHistoryResult(item.primaryCurrencyInfo) }),
+          )
+          break
+        }
         dispatch(
           addToSearchHistory({ searchResult: multichainTokenOptionToSearchHistoryResult(item, meta?.tdpChainFilter) }),
         )
@@ -67,6 +75,9 @@ export function useAddToSearchHistory(): {
         break
       case OnchainItemListOptionType.Auction:
         // TODO: Auctions don't have search history yet
+        break
+      case OnchainItemListOptionType.Category:
+        // Recents for categories are pending design.
         break
     }
   }

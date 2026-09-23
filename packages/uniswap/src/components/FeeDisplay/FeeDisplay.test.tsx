@@ -1,5 +1,5 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { Flex, Text } from 'ui/src'
+import { Flex, Text } from '@universe/mycelium'
 import { FeeDisplay } from 'uniswap/src/components/FeeDisplay/FeeDisplay'
 import type { InfoTooltipProps } from 'uniswap/src/components/tooltip/InfoTooltipProps'
 import type { FeeBreakdown } from 'uniswap/src/features/fees/types'

@@ -8,6 +8,35 @@ export {
   type AuctionMetadataOverride,
 } from 'uniswap/src/features/toucan/auctionMetadata'
 
+/** Key builder for the curated override maps below: "{chainId}-{address}". */
+function buildOverrideKey({ chainId, address }: { chainId: number; address: string }): string {
+  // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- Keep this Cloudflare worker dependency-free (imported by functions/utils/getAuction.ts); normalizeTokenAddressForCache's import graph breaks the workerd dev runner.
+  return `${chainId}-${address.toLowerCase()}`
+}
+
+/**
+ * Trading tokens for receipts that do not expose IVirtualERC20's underlying-token getter.
+ * Values are bare addresses on the SAME chain as the key — navigation reuses the auction's
+ * chainId. An entry here also wins over the on-chain `UNDERLYING_TOKEN_ADDRESS()` read in
+ * `useAuctionTradingToken`, so don't add a token that is also in AUCTION_REDEMPTION_OVERRIDES
+ * unless the curated address should replace the read.
+ */
+const AUCTION_TRADING_TOKEN_OVERRIDES: Record<string, string> = {
+  // rIDOS -> IDOS on Arbitrum. rIDOS only tracks auction disbursements.
+  // https://docs.idos.network/idos-token-launch/official-links
+  '42161-0xb628b89067e8f7dfc2cb528a72bcff7d5cedce29': '0x68731d6f14b827bbcffbebb62b19daa18de1d79c',
+}
+
+export function getAuctionTradingTokenOverride({
+  chainId,
+  tokenAddress,
+}: {
+  chainId: number
+  tokenAddress: string
+}): string | undefined {
+  return AUCTION_TRADING_TOKEN_OVERRIDES[buildOverrideKey({ chainId, address: tokenAddress })]
+}
+
 /**
  * Redemption override for an auction whose auctioned token is a virtual ERC-20
  * (`IVirtualERC20`) that is now redeemable for a real, tradeable token.
@@ -47,6 +76,39 @@ export function getAuctionRedemptionConfig({
   chainId: number
   tokenAddress: string
 }): AuctionRedemptionConfig | undefined {
-  const key = `${chainId}-${tokenAddress.toLowerCase()}`
-  return AUCTION_REDEMPTION_OVERRIDES[key]
+  return AUCTION_REDEMPTION_OVERRIDES[buildOverrideKey({ chainId, address: tokenAddress })]
+}
+
+/**
+ * Curated "% committed to LP" overrides, as a percent value rendered to one decimal
+ * place (34.6 => "34.6%", 25 => "25.0%").
+ *
+ * The displayed percentage is normally computed live as
+ * `tokenCountAllocatedToLpForAuction` / `tokenTotalSupply` (see useAuctionStatsData).
+ * When the indexed on-chain allocation doesn't reflect the intended split, we pin the
+ * displayed value here until the underlying data is corrected.
+ *
+ * Keyed by the AUCTION CONTRACT address (the `/explore/auctions/...` address,
+ * `auctionDetails.address`) — NOT the auctioned token address — because one token can
+ * run multiple CCAs with different LP splits.
+ */
+const AUCTION_LP_PERCENT_OVERRIDES: Record<string, number> = {
+  // Interfold (FOLD) — second CCA. Auction contract 0xfA63…6605.
+  '1-0xfa63c5b9220a7f0d21e156490ec0b296838e6605': 25,
+  // Umia — Base CCA. Auction contract 0x2dDa…4a9b.
+  '8453-0x2ddafa49cdd62864ab2e2aad66cc294cc7ef4a9b': 34.6,
+}
+
+/**
+ * Get the hardcoded "% committed to LP" (whole-number percent) for an auction, or
+ * undefined to fall back to the computed value.
+ */
+export function getAuctionLpPercentOverride({
+  chainId,
+  auctionAddress,
+}: {
+  chainId: number
+  auctionAddress: string
+}): number | undefined {
+  return AUCTION_LP_PERCENT_OVERRIDES[buildOverrideKey({ chainId, address: auctionAddress })]
 }

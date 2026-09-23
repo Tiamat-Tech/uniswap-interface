@@ -1,15 +1,12 @@
+import { Flex, type FlexCompatProps, Text, zIndexes } from '@universe/mycelium'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, Tooltip } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
-const DisabledOverlay = styled(Flex, {
-  position: 'absolute',
-  width: '100%',
-  height: '100%',
-  zIndex: zIndexes.overlay,
-})
+const DisabledOverlay = (props: FlexCompatProps): JSX.Element => (
+  <Flex position="absolute" width="100%" height="100%" zIndex={zIndexes.overlay} {...props} />
+)
 
 /**
  * Children stay mounted at a stable tree position so toggling `isBlocked` never remounts
@@ -33,7 +30,7 @@ export function PermissionedTabWrapper({
         {children}
       </Flex>
       {isBlocked && (
-        <DisabledOverlay cursor="not-allowed" data-testid={TestID.PermissionedPoolTabOverlay}>
+        <DisabledOverlay cursor="not-allowed" testID={TestID.PermissionedPoolTabOverlay}>
           <Tooltip placement="top">
             <Tooltip.Content zIndex={zIndexes.tooltip}>
               <Tooltip.Arrow />

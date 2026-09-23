@@ -10,25 +10,25 @@
       "defaultConfiguration": "dev",
       "configurations": {
         "dev": {
-          "command": "EXPO_ANDROID_LAUNCH_ACTIVITY='com.uniswap.mobile.dev/com.uniswap.MainActivity' bunx expo run:android --variant=devDebug --app-id=com.uniswap.mobile.dev"
+          "command": "bunx expo run:android --variant=devDebug --app-id=com.uniswap.mobile.dev"
         },
         "dev-optimized": {
-          "command": "EXPO_ANDROID_LAUNCH_ACTIVITY='com.uniswap.mobile.dev/com.uniswap.MainActivity' bunx expo run:android --variant=devDebugOptimized --app-id=com.uniswap.mobile.dev"
+          "command": "bunx expo run:android --variant=devDebugOptimized --app-id=com.uniswap.mobile.dev"
         },
         "dev-release": {
-          "command": "EXPO_ANDROID_LAUNCH_ACTIVITY='com.uniswap.mobile.dev/com.uniswap.MainActivity' bunx expo run:android --variant=devRelease --app-id=com.uniswap.mobile.dev"
+          "command": "bunx expo run:android --variant=devRelease --app-id=com.uniswap.mobile.dev"
         },
         "beta": {
-          "command": "EXPO_ANDROID_LAUNCH_ACTIVITY='com.uniswap.mobile.beta/com.uniswap.MainActivity' bunx expo run:android --variant=betaDebug --app-id=com.uniswap.mobile.beta"
+          "command": "bunx expo run:android --variant=betaDebug --app-id=com.uniswap.mobile.beta"
         },
         "beta-release": {
-          "command": "EXPO_ANDROID_LAUNCH_ACTIVITY='com.uniswap.mobile.beta/com.uniswap.MainActivity' bunx expo run:android --variant=betaRelease --app-id=com.uniswap.mobile.beta"
+          "command": "bunx expo run:android --variant=betaRelease --app-id=com.uniswap.mobile.beta"
         },
         "prod": {
-          "command": "EXPO_ANDROID_LAUNCH_ACTIVITY='com.uniswap.mobile/com.uniswap.MainActivity' bunx expo run:android --variant=prodDebug"
+          "command": "bunx expo run:android --variant=prodDebug"
         },
         "prod-release": {
-          "command": "EXPO_ANDROID_LAUNCH_ACTIVITY='com.uniswap.mobile/com.uniswap.MainActivity' bunx expo run:android --variant=prodRelease"
+          "command": "bunx expo run:android --variant=prodRelease"
         },
         "dev-local": {
           "command": "bash ./scripts/runAndroidLocal.sh dev"
@@ -250,7 +250,7 @@
     "check": {},
     "check:fast": {},
     "start": {
-      "command": "EXPO_ANDROID_LAUNCH_ACTIVITY='com.uniswap.mobile.dev/com.uniswap.MainActivity' EXPO_BUILD_CONFIGURATION=Debug NODE_ENV=development bunx expo start --scheme uniswap",
+      "command": "EXPO_BUILD_CONFIGURATION=Debug NODE_ENV=development bunx expo start --scheme uniswap",
       "options": {
         "cwd": "{projectRoot}"
       },

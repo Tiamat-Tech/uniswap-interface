@@ -28,11 +28,8 @@ export function buildFlagGroups(extras: {
     {
       name: 'Sessions',
       flags: [
-        { flag: FeatureFlags.SessionsServiceEnabled, label: 'Enable Sessions Service' },
-        { flag: FeatureFlags.SessionsUpgradeAutoEnabled, label: 'Enable Sessions Upgrade Auto' },
         { flag: FeatureFlags.HashcashSolverEnabled, label: 'Enable Hashcash Solver' },
         { flag: FeatureFlags.TurnstileSolverEnabled, label: 'Enable Turnstile Solver' },
-        { flag: FeatureFlags.SessionsPerformanceTrackingEnabled, label: 'Enable Sessions Performance Tracking' },
       ],
     },
     {
@@ -42,6 +39,7 @@ export function buildFlagGroups(extras: {
     {
       name: 'Swap Features',
       flags: [
+        { flag: FeatureFlags.Margin, label: 'Enable Margin trading tab' },
         { flag: FeatureFlags.NoUniswapInterfaceFees, label: 'Turn off Uniswap interface fees' },
         { flag: FeatureFlags.ChainedActions, label: 'Enable Chained Actions' },
         { flag: FeatureFlags.BatchedSwaps, label: 'Enable Batched Swaps' },
@@ -76,19 +74,14 @@ export function buildFlagGroups(extras: {
     {
       name: 'LP',
       flags: [
-        { flag: FeatureFlags.AddLiquidityRevamp, label: 'Enable Add Liquidity Revamp' },
+        { flag: FeatureFlags.AdvancedPoolsFiltering, label: 'Enable Advanced Pools Filtering' },
         { flag: FeatureFlags.LpPdpDepthChart, label: 'Enable LP PDP Depth Chart toggle' },
         { flag: FeatureFlags.LiquidityBatchedTransactions, label: 'Enable Batched Transactions for LP flow' },
-        { flag: FeatureFlags.LpIncentives, label: 'Enable LP Incentives' },
-        { flag: FeatureFlags.LpIncentivesTablesColumn, label: 'Enable LP Reward APR Column' },
-        { flag: FeatureFlags.MultiTokenLpIncentives, label: 'Enable Multi-Token LP Incentive Rewards' },
-        { flag: FeatureFlags.V4ProtocolFeeDisplay, label: 'Enable v4 Fee Tiers in the Create flow' },
       ],
     },
     {
       name: 'Toucan',
       flags: [
-        { flag: FeatureFlags.ToucanAuctionKYC, label: 'Enable Toucan Auction KYC' },
         {
           flag: FeatureFlags.ToucanTickDetailsTooltip,
           label: 'Show Remaining (currency required) on chart-bar tooltip',
@@ -155,14 +148,7 @@ export function buildFlagGroups(extras: {
     },
     {
       name: 'V2 Endpoints',
-      flags: [
-        { flag: FeatureFlags.V2EndpointsTokens, label: 'Enable V2 Endpoints Tokens' },
-        { flag: FeatureFlags.V2EndpointsTransactions, label: 'Enable V2 Endpoints Transactions' },
-        { flag: FeatureFlags.V2EndpointsPools, label: 'Enable V2 Endpoints Pools' },
-        { flag: FeatureFlags.V2EndpointsPositions, label: 'Enable V2 Endpoints Positions' },
-        { flag: FeatureFlags.V2EndpointsPortfolio, label: 'Enable V2 Endpoints Portfolio' },
-        { flag: FeatureFlags.V2EndpointsSearch, label: 'Enable V2 Endpoints Search' },
-      ],
+      flags: [{ flag: FeatureFlags.V2EndpointsPortfolio, label: 'Enable V2 Endpoints Portfolio' }],
     },
     {
       name: 'Portfolio',
@@ -173,37 +159,14 @@ export function buildFlagGroups(extras: {
       ],
     },
     {
-      name: 'Earn',
-      flags: [{ flag: FeatureFlags.Earn, label: 'Enable Earn' }],
-    },
-    {
       name: 'Misc',
-      flags: [
-        { flag: FeatureFlags.DataLivelinessUI, label: 'Enable Data Liveliness UI' },
-        { flag: FeatureFlags.UnificationCopy, label: 'Enable Unification Copy' },
-      ],
-    },
-    {
-      name: 'Prices',
-      flags: [{ flag: FeatureFlags.CentralizedPrices, label: 'Enable Centralized Prices' }],
+      flags: [{ flag: FeatureFlags.UnificationCopy, label: 'Enable Unification Copy' }],
     },
     {
       name: 'RWA',
       flags: [
         { flag: FeatureFlags.PermissionedPositions, label: 'Enable permissioned positions in the positions list' },
-        { flag: FeatureFlags.RwaGeoblocked, label: 'Geo-block RWA tokens (treat region as restricted)' },
-        { flag: FeatureFlags.RWACoinGeckoData, label: 'Enable RWA CoinGecko Data' },
-        { flag: FeatureFlags.RWATdp, label: 'Enable RWA TDP' },
-        { flag: FeatureFlags.RWATdpRelatedTokens, label: 'Enable RWA TDP Related Tokens' },
-        { flag: FeatureFlags.RWATdpSiblings, label: 'Enable RWA TDP More Ways to Trade (Siblings)' },
-        { flag: FeatureFlags.RWAUX, label: 'Enable RWA UX' },
-        { flag: FeatureFlags.RWAUXExplore, label: 'Enable RWA UX Explore (table)' },
-        { flag: FeatureFlags.RwaUxSearch, label: 'Enable Stocks in Search' },
       ],
-    },
-    {
-      name: 'Token Categories',
-      flags: [{ flag: FeatureFlags.TokenCategories, label: 'Enable Token Categories' }],
     },
     {
       name: 'Experiments',

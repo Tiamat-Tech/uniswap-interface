@@ -1,8 +1,8 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { Check } from '@universe/mycelium/icons/Check'
 // TODO(WALL-7189): Explore removing FlatList. Currently using this to fix a scrolling regression.
 import { FlatList } from 'react-native-gesture-handler'
 import { useReactNavigationModal } from 'src/components/modals/useReactNavigationModal'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { Check } from 'ui/src/components/icons'
 import { useBottomSheetContext } from 'uniswap/src/components/modals/BottomSheetContext'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalNameType } from 'uniswap/src/features/telemetry/constants'

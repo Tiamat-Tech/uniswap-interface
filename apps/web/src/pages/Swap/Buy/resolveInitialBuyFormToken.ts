@@ -1,7 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
 import { ParsedQs } from 'qs'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { TradeableAsset } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { FiatOnRampCurrency } from 'uniswap/src/features/fiatOnRamp/types'
 import { normalizeCurrencyIdForMapLookup } from 'uniswap/src/utils/currencyId'
 
@@ -56,6 +56,7 @@ export function resolveInitialBuyFormToken({
   if (hasProviders && currencyCode) {
     // Meld's currency code, since chainId is not set when coming from an ad
     return supportedTokens?.find(
+      // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- Meld currency codes, not addresses
       (meldToken) => meldToken.meldCurrencyCode?.toLowerCase() === currencyCode.toLowerCase(),
     )
   }

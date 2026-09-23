@@ -1,6 +1,6 @@
+import { Anchor, Flex, Text } from '@universe/mycelium'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
 import { useTranslation } from 'react-i18next'
-import { Anchor, Flex, Text } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import { Tooltip } from 'ui/src/components/tooltip/Tooltip'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { stopPropagation } from 'utilities/src/react/stopPropagation'
@@ -18,7 +18,7 @@ export function TopVerifiedAuctionsSection() {
   }
 
   return (
-    <Flex width="100%" maxWidth={MAX_WIDTH_MEDIA_BREAKPOINT} margin="0 auto" flexDirection="column" gap="$spacing16">
+    <Flex width="100%" maxWidth={MAX_WIDTH_MEDIA_BREAKPOINT} mx="auto" flexDirection="column" gap="$spacing16">
       <Flex flexDirection="row" gap="$gap8" alignItems="center" mt="$spacing16">
         <Text variant="subheading1" color="$neutral1">
           {t('toucan.topVerifiedAuctions.title')}
@@ -48,7 +48,6 @@ export function TopVerifiedAuctionsSection() {
         gap="$spacing12"
         $platform-web={{
           display: 'grid',
-          gridAutoRows: 'auto',
         }}
         gridTemplateColumns="repeat(4, 1fr)"
         $lg={{

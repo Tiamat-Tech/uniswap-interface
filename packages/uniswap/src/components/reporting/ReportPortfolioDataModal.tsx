@@ -1,3 +1,4 @@
+import { Platform } from '@universe/chains'
 import { isProdEnv } from '@universe/environment'
 import { FeatureFlags, useFeatureFlagWithExposureLoggingDisabled } from '@universe/gating'
 import { useMemo } from 'react'
@@ -10,7 +11,6 @@ import { dataApiServiceClientV1 } from 'uniswap/src/data/apiClients/dataApiServi
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { PortfolioDataReportOption, submitPortfolioDataReport } from 'uniswap/src/features/reporting/reports'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { logger } from 'utilities/src/logger/logger'

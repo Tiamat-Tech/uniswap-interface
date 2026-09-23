@@ -1,5 +1,6 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { ReactNode } from 'react'
-import { Flex, Text, Tooltip, TouchableArea } from 'ui/src'
 
 type TokenGridTileProps = {
   icon: ReactNode

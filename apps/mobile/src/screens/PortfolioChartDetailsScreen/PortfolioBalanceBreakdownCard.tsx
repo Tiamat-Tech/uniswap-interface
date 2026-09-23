@@ -1,11 +1,9 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, iconSizes } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
 import { type BreakdownCardProps } from 'src/screens/PortfolioChartDetailsScreen/getBreakdownCardProps'
-import { Flex, Text } from 'ui/src'
 import { Coin } from 'ui/src/components/icons/Coin'
 import { EarnSparkle } from 'ui/src/components/icons/EarnSparkle'
 import { Pools } from 'ui/src/components/icons/Pools'
-import { iconSizes } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { RelativeChange } from 'uniswap/src/components/RelativeChange/RelativeChange'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
@@ -20,7 +18,6 @@ export function PortfolioBalanceBreakdownCard({
   earn,
   semanticPercentColor,
 }: BreakdownCardProps): JSX.Element {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const { t } = useTranslation()
   const { convertFiatAmountFormatted } = useLocalizationContext()
 
@@ -51,22 +48,18 @@ export function PortfolioBalanceBreakdownCard({
         <Flex key={testID} row alignItems="center" gap="$spacing12" accessibilityLabel={label} testID={testID}>
           <Flex row grow shrink minWidth={0} alignItems="center" gap="$spacing8">
             <Icon color="$neutral2" size={iconSizes.icon16} />
-            {isDataLivelinessEnabled ? (
-              <AnimatedNumber
-                numericValue={valueUSD ?? undefined}
-                value={convertFiatAmountFormatted(valueUSD, NumberType.PortfolioBalance)}
-                textVariant="$body3"
-              />
-            ) : (
-              <Text variant="body3">{convertFiatAmountFormatted(valueUSD, NumberType.PortfolioBalance)}</Text>
-            )}
+            <AnimatedNumber
+              numericValue={valueUSD ?? undefined}
+              value={convertFiatAmountFormatted(valueUSD, NumberType.PortfolioBalance)}
+              textVariant="$body3"
+            />
           </Flex>
           <Flex row justifyContent="flex-end" minWidth={PERCENT_COLUMN_WIDTH}>
             <RelativeChange
+              shouldAnimate
               arrowSize="$icon.12"
               change={percentChange}
               semanticColor={semanticPercentColor}
-              shouldAnimate={isDataLivelinessEnabled}
               variant="body3"
             />
           </Flex>

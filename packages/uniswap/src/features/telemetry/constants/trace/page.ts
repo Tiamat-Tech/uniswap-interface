@@ -3,6 +3,7 @@ export enum InterfacePageName {
   AddLiquidity = 'add-liquidity-page',
   AuctionDetailsPage = 'auction-details-page',
   Buy = 'buy-page',
+  CategoryDetailsPage = 'category-details-page',
   CreatePosition = 'create-position-page',
   ExplorePage = 'explore-page',
   ExtensionPasskeySignInPage = 'extension-passkey-sign-in-page',

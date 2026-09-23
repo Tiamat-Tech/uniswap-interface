@@ -1,6 +1,6 @@
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { RWAIssuerLogosMap, UwULinkAllowlist } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 export const isRWAIssuerLogosMap = (x: unknown): x is RWAIssuerLogosMap => {
   if (x === null || typeof x !== 'object') {

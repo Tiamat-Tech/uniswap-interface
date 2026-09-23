@@ -17,8 +17,6 @@ vi.mock('@universe/gating', async (importOriginal) => {
     getFeatureFlag: vi.fn().mockReturnValue(false),
     getExperimentValueFromLayer: vi.fn().mockReturnValue(false),
     waitForStatsigReady: vi.fn().mockResolvedValue(undefined),
-    // The flag under test: session service ON, i.e. the production storm configuration.
-    getIsSessionServiceEnabled: vi.fn().mockReturnValue(true),
   }
 })
 

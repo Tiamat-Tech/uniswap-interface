@@ -1,6 +1,6 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { createExternallySubmittedUniswapXOrder } from 'src/app/features/dappRequests/handleUniswapX'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   QueuedOrderStatus,
   TransactionOriginType,

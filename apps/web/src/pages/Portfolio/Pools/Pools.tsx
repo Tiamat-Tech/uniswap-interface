@@ -1,15 +1,13 @@
-import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { Platform } from '@universe/chains'
+import { parseOptionalHex } from '@universe/encoding'
 import {
   FeatureFlags,
   SynchronizedHeartbeatsConfigKey,
-  useFeatureFlag,
   useFeatureFlagWithExposureLoggingDisabled,
 } from '@universe/gating'
-import { memo, useCallback, useMemo, useState } from 'react'
+import { Flex, spacing } from '@universe/mycelium'
+import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Anchor, Flex, Text, TouchableArea, useMedia } from 'ui/src'
-import { Pools } from 'ui/src/components/icons/Pools'
-import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { PortfolioBalancePart } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
 import { usePortfolioBalancePart } from 'uniswap/src/features/dataApi/balances/usePortfolioBalancePart'
 import { PoolsDataIssueBanner } from 'uniswap/src/features/portfolio/pools/PoolsDataIssueBanner'
@@ -17,125 +15,82 @@ import { usePoolsOutageBanner } from 'uniswap/src/features/portfolio/pools/usePo
 import { PortfolioBalance } from 'uniswap/src/features/portfolio/PortfolioBalance/PortfolioBalance'
 import { usePoolsPositionsReport } from 'uniswap/src/features/positions/hooks/usePoolsPositionsReport'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
-import { sortPositionsByStatusClosedLast } from 'uniswap/src/features/positions/utils'
 import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
-import { TestID } from 'uniswap/src/test/fixtures/testIDs'
-import useResizeObserver from 'use-resize-observer'
+import { APP_BODY_MOBILE_GUTTER_PX } from '~/app/layout/constants'
+import { useConnectionStatus } from '~/features/accounts/store/hooks'
 import { EmptyPositionsView } from '~/features/Liquidity/components/emptyStates/EmptyPositionsView'
 import { ErrorPositionsView } from '~/features/Liquidity/components/emptyStates/ErrorPositionsView'
 import { PoolsUnavailableOnSolanaView } from '~/features/Liquidity/components/emptyStates/PoolsUnavailableOnSolanaView'
 import {
-  DEFAULT_LP_POSITION_PROTOCOL_FILTER,
-  DEFAULT_LP_POSITION_STATUS_FILTER,
+  deriveActiveRangeFilter,
+  deriveLifecycleFilter,
   LP_POSITION_PROTOCOL_VERSIONS,
-  LP_POSITION_STATUS_FILTER_OPTIONS,
 } from '~/features/Liquidity/constants'
 import { useWalletPositionsWeb } from '~/features/Liquidity/hooks/useWalletPositionsWeb'
-import { LiquidityPositionCardLoader } from '~/features/Liquidity/LiquidityPositionCard'
-import { PositionsHeader } from '~/features/Liquidity/PositionsHeader'
-import { PositionsListSection } from '~/features/Liquidity/PositionsListSection'
+import { PositionsSummaryChips } from '~/features/Liquidity/PositionsSummaryChips'
 import { PositionsTable, PositionsTableLoader } from '~/features/Liquidity/PositionsTable'
-import type { PositionsTableControlBarProps } from '~/features/Liquidity/PositionsTableControlBar'
+import { hasActiveControlBarFilter } from '~/features/Liquidity/PositionsTableControlBar'
 import { useIsSynchronizedHeartbeatEnabled } from '~/lib/hooks/useHeartbeatCoordinator'
 import { PortfolioBalanceCountIndicator } from '~/pages/Portfolio/components/PortfolioBalanceCountIndicator'
 import { usePortfolioRoutes } from '~/pages/Portfolio/Header/hooks/usePortfolioRoutes'
 import { usePortfolioAddresses } from '~/pages/Portfolio/hooks/usePortfolioAddresses'
 import { usePortfolioHeartbeatEnabled } from '~/pages/Portfolio/hooks/usePortfolioHeartbeatCoordinator'
 import { useResolvedAddresses } from '~/pages/Portfolio/hooks/useResolvedAddresses'
-import { PortfolioPoolsFeesPanel } from '~/pages/Portfolio/Pools/components/PortfolioPoolsFeesPanel'
-import { PortfolioPoolsRewardsCard } from '~/pages/Portfolio/Pools/components/PortfolioPoolsRewardsCard'
-import { PoolsActionRow } from '~/pages/Portfolio/Pools/PoolsActionRow'
+import { useShowDemoView } from '~/pages/Portfolio/hooks/useShowDemoView'
+import { usePoolsPositionCount } from '~/pages/Portfolio/Pools/usePoolsPositionCount'
+import { usePortfolioPoolsFilters } from '~/pages/Portfolio/Pools/usePortfolioPoolsFilters'
 import { PortfolioTab } from '~/pages/Portfolio/types'
 import { buildPortfolioUrl } from '~/pages/Portfolio/utils/portfolioUrls'
-import { useCreatePositionHref } from '~/utils/createPositionRoute'
-import { buildImportV2PositionsHref } from '~/utils/importV2PositionsRoute'
+import { buildCreatePositionHref } from '~/utils/createPositionRoute'
 
-const POSITIONS_LIST_MAX_WIDTH = 768
-const POSITIONS_SIDEBAR_WIDTH = 360
-const FEE_CARD_STACKED_MAX_HEIGHT = 400
-const FEE_CARD_MIN_MAX_HEIGHT = 664
-const POSITION_STACK_HEIGHT_OFFSET = 110
-
-const PoolsPositionCountIndicator = memo(function PoolsPositionCountIndicator({ count }: { count: number }) {
-  const { t } = useTranslation()
-
-  return <PortfolioBalanceCountIndicator label={t('portfolio.pools.balance.totalPositions', { count })} />
-})
-
-function positionMatchesSearch(position: PositionInfo, normalizedSearch: string): boolean {
-  if (!normalizedSearch) {
-    return true
-  }
-
-  const currency0 = position.currency0Amount.currency
-  const currency1 = position.currency1Amount.currency
-  const searchableValues = [
-    currency0.symbol,
-    currency0.name,
-    currency1.symbol,
-    currency1.name,
-    position.poolId,
-    position.tokenId,
-  ]
-
-  return searchableValues.some((value) => value?.toLowerCase().includes(normalizedSearch))
+// Right gutters the summary carousel cancels to bleed to the viewport edge on mWeb:
+// PortfolioPageInner's p + AppBody's gutter below the md breakpoint.
+const SUMMARY_CHIPS_BLEED_GUTTERS = {
+  md: spacing.spacing24 + APP_BODY_MOBILE_GUTTER_PX,
+  sm: spacing.spacing8 + APP_BODY_MOBILE_GUTTER_PX,
 }
 
-export function PortfolioPools() {
+const PoolsPositionCountIndicator = memo(function PoolsPositionCountIndicator({ count }: { count?: number }) {
   const { t } = useTranslation()
+
+  return (
+    <PortfolioBalanceCountIndicator
+      label={count !== undefined ? t('portfolio.pools.balance.totalPositions', { count }) : '-'}
+    />
+  )
+})
+
+export function PortfolioPools() {
   const { evmAddress, isExternalWallet } = usePortfolioAddresses()
+  const { isConnected: isEvmConnected } = useConnectionStatus(Platform.EVM)
   const { evmAddress: resolvedEvmAddress, svmAddress: resolvedSvmAddress } = useResolvedAddresses()
   const { chainId, externalAddress } = usePortfolioRoutes()
-  const isLpIncentivesEnabled = useFeatureFlag(FeatureFlags.LpIncentives)
+  const showDemoView = useShowDemoView()
   const portfolioPoolsBalancesEnabled = useFeatureFlagWithExposureLoggingDisabled(FeatureFlags.PortfolioPoolsBalances)
   const isSynchronizedHeartbeatsEnabled = useIsSynchronizedHeartbeatEnabled(
     SynchronizedHeartbeatsConfigKey.PortfolioPollIntervalSeconds,
     usePortfolioHeartbeatEnabled({ tab: PortfolioTab.Pools, poolsEnabled: portfolioPoolsBalancesEnabled }),
   )
   const outageBanner = usePoolsOutageBanner({ evmAddress, chainId, enabled: portfolioPoolsBalancesEnabled })
-  const isV2PositionsEnabled = useFeatureFlag(FeatureFlags.V2EndpointsPositions)
-  const media = useMedia()
-  const { ref: positionsListRef, height: positionStackHeight } = useResizeObserver<HTMLElement>()
-  const twoColumnFeeCardMaxHeight = positionStackHeight
-    ? Math.max(positionStackHeight - POSITION_STACK_HEIGHT_OFFSET, FEE_CARD_MIN_MAX_HEIGHT)
-    : undefined
-  const feeCardMaxHeight = media.xl ? FEE_CARD_STACKED_MAX_HEIGHT : twoColumnFeeCardMaxHeight
+  const showBalanceHeader = portfolioPoolsBalancesEnabled
 
-  const [search, setSearch] = useState('')
-  const [versionFilter, setVersionFilter] = useState(() => [...DEFAULT_LP_POSITION_PROTOCOL_FILTER])
-  const [statusFilter, setStatusFilter] = useState(() => [...DEFAULT_LP_POSITION_STATUS_FILTER])
-  const [showHiddenPositions, setShowHiddenPositions] = useState(false)
-
-  const toggleVersion = useCallback((version: ProtocolVersion) => {
-    setVersionFilter((prev) => (prev.includes(version) ? prev.filter((v) => v !== version) : [...prev, version]))
-  }, [])
-
-  const toggleStatus = useCallback((status: PositionStatus) => {
-    setStatusFilter((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]))
-  }, [])
-
-  const clearFiltersAndSearch = useCallback(() => {
-    setSearch('')
-    setVersionFilter([...DEFAULT_LP_POSITION_PROTOCOL_FILTER])
-    setStatusFilter([...DEFAULT_LP_POSITION_STATUS_FILTER])
-  }, [])
-
-  // Portfolio pools filters by the route's chainId rather than a chain dropdown, so the table's
-  // network filter is hidden and the chain controls are no-ops.
-  const noopChainChange = useCallback(() => undefined, [])
-  const positionsTableControlBarProps: PositionsTableControlBarProps = {
-    statusFilter,
-    setStatusFilter,
+  const {
+    search,
     versionFilter,
-    toggleVersion,
-    chainFilter: null,
-    setChainFilter: noopChainChange,
-    showNetworkFilter: false,
-  }
+    statusFilter,
+    v2StatusFilter,
+    showHiddenPositions,
+    sort,
+    onSort,
+    positionsTableControlBarProps,
+  } = usePortfolioPoolsFilters({
+    chainId,
+    externalAddress: externalAddress?.address,
+    positionsOwnerAddress: evmAddress,
+  })
 
-  // Fetch every status + version once and filter client-side, so toggling a filter never refetches and
-  // closed positions stay in memory for the count.
+  // Status and search are filtered server-side by GetWalletPositions; only version stays client-side.
   const {
     visiblePositions,
     hiddenPositions,
@@ -151,132 +106,92 @@ export function PortfolioPools() {
     address: evmAddress,
     chainFilter: chainId ?? null,
     versionFilter: LP_POSITION_PROTOCOL_VERSIONS,
-    statusFilter: LP_POSITION_STATUS_FILTER_OPTIONS,
+    statusFilter,
+    v2StatusFilter,
+    sort,
+    searchText: search,
   })
 
   usePoolsPositionsReport({
     positions: visiblePositions,
+    lifecycleFilter: deriveLifecycleFilter(v2StatusFilter),
+    rangeFilter: deriveActiveRangeFilter(statusFilter),
     pagesLoaded,
     hasMore: hasNextPage,
-    isLoading: isLoadingPositions,
+    // A filter change serves the previous query's rows as placeholder data while refetching;
+    // treat that window as loading so the old set is never emitted under the new filter name.
+    isLoading: isLoadingPositions || isPlaceholderData,
     enabled: !!evmAddress,
   })
 
+  const balanceChainIds = useMemo(() => (chainId ? [chainId] : undefined), [chainId])
   const { data: poolsBalance } = usePortfolioBalancePart({
     part: PortfolioBalancePart.Pools,
     evmAddress,
-    chainIds: chainId ? [chainId] : undefined,
+    chainIds: balanceChainIds,
   })
   const hasLoadedBalance = poolsBalance !== undefined
   const totalPoolsCount = poolsBalance?.count
 
-  // Backend count (open + closed) is the source of truth; only the Closed filter adjusts it, subtracting
-  // in-memory closed positions while it's off.
-  const closedStatusSelected = statusFilter.includes(PositionStatus.CLOSED)
-  const closedPositionsCount = useMemo(
-    () => visiblePositions.filter((position) => position.status === PositionStatus.CLOSED).length,
-    [visiblePositions],
-  )
-  const poolsPositionCount =
-    totalPoolsCount === undefined
-      ? undefined
-      : closedStatusSelected
-        ? totalPoolsCount
-        : Math.max(0, totalPoolsCount - closedPositionsCount)
+  const hasLoadedPositions = !isLoadingPositions && !hasErrorWithoutData
+  const poolsPositionCount = usePoolsPositionCount({
+    v2StatusFilter,
+    visiblePositions,
+    totalPoolsCount,
+    hasLoadedPositions,
+    hasNextPage,
+  })
 
   const hasSolanaOnlyWallet = !resolvedEvmAddress && !!resolvedSvmAddress
-  const normalizedSearch = search.trim().toLowerCase()
+  // Version stays client-side; status and search are already filtered server-side. Position order is
+  // set server-side (sort_by), so preserve it.
   const matchesPositionFilters = useCallback(
-    (position: PositionInfo): boolean =>
-      versionFilter.includes(position.version) &&
-      statusFilter.includes(position.status) &&
-      positionMatchesSearch(position, normalizedSearch),
-    [versionFilter, statusFilter, normalizedSearch],
+    (position: PositionInfo): boolean => versionFilter.includes(position.version),
+    [versionFilter],
   )
   const filteredVisiblePositions = useMemo(
-    () => sortPositionsByStatusClosedLast(visiblePositions.filter(matchesPositionFilters)),
+    () => visiblePositions.filter(matchesPositionFilters),
     [visiblePositions, matchesPositionFilters],
   )
   const filteredHiddenPositions = useMemo(
-    () => sortPositionsByStatusClosedLast(hiddenPositions.filter(matchesPositionFilters)),
+    () => hiddenPositions.filter(matchesPositionFilters),
     [hiddenPositions, matchesPositionFilters],
   )
-  const hasLoadedPositions = !isLoadingPositions && !hasErrorWithoutData
   const walletHasAnyPositions = visiblePositions.length > 0 || hiddenPositions.length > 0
-  const showEmptyState = hasLoadedPositions && !walletHasAnyPositions
-  const showNoResults =
-    hasLoadedPositions &&
-    walletHasAnyPositions &&
-    !hasNextPage &&
-    filteredVisiblePositions.length === 0 &&
-    filteredHiddenPositions.length === 0
+  const hasActiveV2Filter = hasActiveControlBarFilter(positionsTableControlBarProps)
+  // The Hidden toggle can empty the list (wallet has no hidden positions); like an active filter it
+  // must keep the table+control bar mounted, otherwise the switch unmounts with no way back. The
+  // route chain scope is the same trap: a chain with no positions must show the no-results table
+  // (whose Clear filters widens back to all networks), not the bare empty view.
+  const showEmptyState = hasLoadedPositions && !walletHasAnyPositions && !hasActiveV2Filter && !showHiddenPositions
 
   const portfolioPoolsUrl = buildPortfolioUrl({
     tab: PortfolioTab.Pools,
     chainId,
     externalAddress: externalAddress?.address,
   })
-  const newPositionHref = useCreatePositionHref({ entryPoint: portfolioPoolsUrl })
+  const newPositionHref = buildCreatePositionHref({ entryPoint: portfolioPoolsUrl })
 
   const renderListContent = (): JSX.Element => {
     if (hasErrorWithoutData) {
       return <ErrorPositionsView onRetry={refetch} />
     }
-    if (isV2PositionsEnabled) {
-      if (isLoadingPositions) {
-        return <PositionsTableLoader {...positionsTableControlBarProps} />
-      }
-      return (
-        <PositionsTable
-          visiblePositions={filteredVisiblePositions}
-          hiddenPositions={filteredHiddenPositions}
-          hasNextPage={hasNextPage}
-          isFetching={isFetching}
-          isPlaceholderData={isPlaceholderData}
-          loadMorePositions={loadMorePositions}
-          showHiddenPositions={showHiddenPositions}
-          setShowHiddenPositions={setShowHiddenPositions}
-          entryPoint={portfolioPoolsUrl}
-          {...positionsTableControlBarProps}
-        />
-      )
-    }
     if (isLoadingPositions) {
-      return (
-        <Flex gap="$gap16">
-          {Array.from({ length: 5 }, (_, index) => (
-            <LiquidityPositionCardLoader key={index} />
-          ))}
-        </Flex>
-      )
-    }
-    if (showNoResults) {
-      return (
-        <Flex pb="$spacing48">
-          <BaseCard.EmptyState
-            icon={<Pools size="$icon.64" color="$neutral3" />}
-            description={t('portfolio.noResults.filters.title')}
-            buttonLabel={t('portfolio.noResults.filters.clear')}
-            dataTestId={TestID.PortfolioPoolsNoResults}
-            onPress={clearFiltersAndSearch}
-          />
-        </Flex>
-      )
+      return <PositionsTableLoader {...positionsTableControlBarProps} />
     }
     return (
-      <PositionsListSection
+      <PositionsTable
         visiblePositions={filteredVisiblePositions}
         hiddenPositions={filteredHiddenPositions}
         hasNextPage={hasNextPage}
         isFetching={isFetching}
         isPlaceholderData={isPlaceholderData}
         loadMorePositions={loadMorePositions}
-        showHiddenPositions={showHiddenPositions}
-        setShowHiddenPositions={setShowHiddenPositions}
-        hiddenSectionLabel={t('hidden.pools.info.text.button', { numHidden: filteredHiddenPositions.length })}
-        hiddenSectionPadding={{ py: '$spacing12', px: 0 }}
+        sort={sort}
+        onSort={onSort}
         entryPoint={portfolioPoolsUrl}
         readOnly={isExternalWallet}
+        {...positionsTableControlBarProps}
       />
     )
   }
@@ -290,105 +205,34 @@ export function PortfolioPools() {
     }
 
     return (
-      <Flex gap="$spacing40">
+      <Flex gap="$spacing24">
         <Flex gap="$spacing24">
-          <PortfolioBalance
-            evmOwner={evmAddress}
-            chainIds={chainId ? [chainId] : undefined}
-            endText={
-              hasLoadedBalance ? (
-                poolsPositionCount !== undefined ? (
-                  <PoolsPositionCountIndicator count={poolsPositionCount} />
-                ) : (
-                  <PortfolioBalanceCountIndicator label="-" />
-                )
-              ) : undefined
-            }
-            part={PortfolioBalancePart.Pools}
-            // The heartbeat refetches balances on its tick — avoid a second overlapping schedule
-            disablePolling={isSynchronizedHeartbeatsEnabled}
-          />
-          {isV2PositionsEnabled ? (
-            !isExternalWallet && (
-              <PositionsHeader
-                showTitle={false}
-                showFilters={false}
-                showNetworkFilter={false}
-                selectedChain={null}
-                onChainChange={noopChainChange}
-                onVersionChange={toggleVersion}
-                onStatusChange={toggleStatus}
-                createPositionEntryPoint={portfolioPoolsUrl}
-              />
-            )
-          ) : (
-            <PoolsActionRow
-              search={search}
-              selectedVersions={versionFilter}
-              selectedStatus={statusFilter}
-              onSearchChange={setSearch}
-              onVersionChange={toggleVersion}
-              onStatusChange={toggleStatus}
-              createPositionEntryPoint={portfolioPoolsUrl}
-              showCreateButton={!isExternalWallet}
+          {showBalanceHeader && (
+            <PortfolioBalance
+              evmOwner={evmAddress}
+              chainIds={balanceChainIds}
+              endText={hasLoadedBalance ? <PoolsPositionCountIndicator count={poolsPositionCount} /> : undefined}
+              part={PortfolioBalancePart.Pools}
+              // The heartbeat refetches balances on its tick — avoid a second overlapping schedule
+              disablePolling={isSynchronizedHeartbeatsEnabled}
+              disableRefresh={showDemoView}
             />
           )}
+          <PositionsSummaryChips
+            walletAddress={parseOptionalHex(evmAddress)}
+            showActions={!isExternalWallet && isEvmConnected}
+            balanceChainIds={balanceChainIds}
+            rewardsTooltipVariant="portfolio"
+            bleedGutters={SUMMARY_CHIPS_BLEED_GUTTERS}
+          />
         </Flex>
-        <Flex row gap="$spacing24" alignItems="flex-start" $xl={{ flexDirection: 'column-reverse' }}>
-          <Flex
-            grow
-            shrink
-            width="100%"
-            maxWidth={isV2PositionsEnabled ? '100%' : POSITIONS_LIST_MAX_WIDTH}
-            $xl={{ maxWidth: '100%' }}
-          >
-            {outageBanner.isVisible && (
-              <Flex mb="$spacing16">
-                <PoolsDataIssueBanner message={outageBanner.message} onDismiss={outageBanner.onDismiss} />
-              </Flex>
-            )}
-            <Flex ref={positionsListRef}>{renderListContent()}</Flex>
-            {!isExternalWallet && (
-              <Flex
-                row
-                alignItems="center"
-                mt="$spacing12"
-                py="$spacing8"
-                gap="$gap8"
-                $sm={{ flexDirection: 'column', alignItems: 'flex-start' }}
-              >
-                <Text variant="body3" color="$neutral2">
-                  {t('pool.import.link.description')}
-                </Text>
-                <Anchor href={buildImportV2PositionsHref({ entryPoint: portfolioPoolsUrl })} textDecorationLine="none">
-                  <TouchableArea>
-                    <Text variant="body3" color="$neutral1">
-                      {t('pool.import.positions.v2')}
-                    </Text>
-                  </TouchableArea>
-                </Anchor>
-              </Flex>
-            )}
-          </Flex>
-          {!isV2PositionsEnabled && (
-            <Flex
-              width={POSITIONS_SIDEBAR_WIDTH}
-              flexShrink={0}
-              gap="$gap12"
-              $xl={{ width: '100%', flexDirection: 'row' }}
-              $md={{ flexDirection: 'column' }}
-            >
-              {isLpIncentivesEnabled && (
-                <PortfolioPoolsRewardsCard walletAddress={evmAddress} isExternalWallet={isExternalWallet} />
-              )}
-              <PortfolioPoolsFeesPanel
-                walletAddress={evmAddress}
-                chainId={chainId}
-                isExternalWallet={isExternalWallet}
-                maxHeight={feeCardMaxHeight}
-              />
+        <Flex grow shrink width="100%">
+          {outageBanner.isVisible && (
+            <Flex mb="$spacing16">
+              <PoolsDataIssueBanner message={outageBanner.message} onDismiss={outageBanner.onDismiss} />
             </Flex>
           )}
+          {renderListContent()}
         </Flex>
       </Flex>
     )

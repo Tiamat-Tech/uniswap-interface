@@ -1,6 +1,6 @@
+import { TouchableArea } from '@universe/mycelium'
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router'
-import { TouchableArea } from 'ui/src'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { getTokenDetailsURL } from '~/data/util'
 import { TokenLaunchedBannerContent } from '~/features/Toucan/Auction/Banners/TokenLaunched/TokenLaunchedBannerContent'
@@ -10,7 +10,7 @@ import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore
 interface TokenLaunchedBannerInnerProps {
   tokenName: string
   tokenColor?: string
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals: number
   priceData?: {
     priceSeries: Array<{ timestamp: number; value: number }>
@@ -28,7 +28,7 @@ interface TokenLaunchedBannerInnerProps {
 
 export function TokenLaunchedBannerInner({
   tokenName,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals,
   priceData,
   bannerGradient,
@@ -59,7 +59,7 @@ export function TokenLaunchedBannerInner({
       <TouchableArea onPress={canPress ? onBannerPress : undefined} cursor={canPress ? 'pointer' : 'default'}>
         <TokenLaunchedBannerContent
           tokenName={tokenName}
-          totalSupply={totalSupply}
+          tokenTotalSupply={tokenTotalSupply}
           auctionTokenDecimals={auctionTokenDecimals}
           accentColor={accentColor}
           currentTickValue={priceData?.currentTickValue}

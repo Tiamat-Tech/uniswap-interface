@@ -2,11 +2,10 @@ import type { TransactionRequest } from '@ethersproject/abstract-provider'
 import type { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import type { GasFeeResult } from '@universe/api'
 import { SharedQueryClient } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { isSVMChain } from '@universe/chains'
 import { useCallback, useRef } from 'react'
 import { AssetType } from 'uniswap/src/entities/assets'
 import { useSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
-import { isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { getDisplayedPriceSource } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -43,7 +42,6 @@ export function useSendCallback({
   const addTransaction = useTransactionAdder()
   const selectChain = useSelectChain()
   const supportedTransactionChainId = useSupportedChainId(transactionRequest?.chainId)
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
 
   return useCallback(async () => {
     if (!transactionRequest) {
@@ -122,8 +120,6 @@ export function useSendCallback({
         amount: sendInfo.currencyAmountRaw ?? '',
         recipient: sendInfo.recipient,
         price_source: getDisplayedPriceSource({
-          isCentralizedPricesEnabled,
-          surface: 'usdc',
           chainId: currencyAmount.currency.chainId,
           address: getCurrencyAddressForAnalytics(currencyAmount.currency),
           queryClient: SharedQueryClient,
@@ -144,6 +140,5 @@ export function useSendCallback({
     supportedTransactionChainId,
     selectChain,
     transactionRequest,
-    isCentralizedPricesEnabled,
   ])
 }

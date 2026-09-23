@@ -8,25 +8,27 @@ import {
   TokenRankingsResponse,
   TokenRankingsStat,
 } from '@uniswap/client-explore/dist/uniswap/explore/v1/service_pb'
-import { parseProtectionInfo, parseSafetyLevel } from '@universe/api'
 import { uniswapGetTransport } from 'uniswap/src/data/transport'
 import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { buildCurrency, buildCurrencyInfo } from 'uniswap/src/features/dataApi/utils/buildCurrency'
-import { getCurrencySafetyInfo } from 'uniswap/src/features/dataApi/utils/getCurrencySafetyInfo'
+import { parseCurrencySafetyInfo } from 'uniswap/src/features/dataApi/utils/getCurrencySafetyInfo'
 import { currencyId } from 'uniswap/src/utils/currencyId'
 
 /**
  * Wrapper around Tanstack useQuery for the Uniswap REST BE service TokenRankings
  * This includes the top tokens pre-sorted by various filters
  * @param input { chainId: string } - string representation of the chain to query or `ALL_NETWORKS` for aggregated data
- * @returns UseQueryResult<TokenRankingsResponse, ConnectError>
+ * @param options.select - TanStack `select`. Pass a `useCallback` whose deps include everything the transform
+ *   closes over: TanStack reuses the last result until `data` or `select` changes identity, so a permanently
+ *   stable reference (e.g. `useEvent`) never recomputes.
+ * @returns UseQueryResult<TData, ConnectError>
  */
-export function useTokenRankingsQuery(
+export function useTokenRankingsQuery<TData = TokenRankingsResponse>(
   input?: PartialMessage<TokenRankingsRequest>,
-  enabled = true,
-): UseQueryResult<TokenRankingsResponse, ConnectError> {
-  return useQuery(tokenRankings, input, { transport: uniswapGetTransport, enabled })
+  { enabled = true, select }: { enabled?: boolean; select?: (data: TokenRankingsResponse) => TData } = {},
+): UseQueryResult<TData, ConnectError> {
+  return useQuery(tokenRankings, input, { transport: uniswapGetTransport, enabled, select })
 }
 
 /** Market fields the rankings payload already carries; read by TokenSelectorV2 rows (legacy selector ignores them). */
@@ -48,8 +50,6 @@ export function tokenRankingsStatToMarketData(tokenRankingsStat: TokenRankingsSt
 export function tokenRankingsStatToCurrencyInfo(tokenRankingsStat: TokenRankingsStat): CurrencyInfo | null {
   const { chain, address, symbol, name, logo, decimals, feeData } = tokenRankingsStat
   const chainId = fromGraphQLChain(chain)
-  const protectionInfo = parseProtectionInfo(tokenRankingsStat.protectionInfo)
-  const safetyLevel = parseSafetyLevel(tokenRankingsStat.safetyLevel)
 
   if (!chainId || !symbol || !name) {
     return null
@@ -73,6 +73,6 @@ export function tokenRankingsStatToCurrencyInfo(tokenRankingsStat: TokenRankings
     currency,
     currencyId: currencyId(currency),
     logoUrl: logo,
-    safetyInfo: getCurrencySafetyInfo(safetyLevel, protectionInfo),
+    safetyInfo: parseCurrencySafetyInfo(tokenRankingsStat.safetyLevel, tokenRankingsStat.protectionInfo),
   })
 }

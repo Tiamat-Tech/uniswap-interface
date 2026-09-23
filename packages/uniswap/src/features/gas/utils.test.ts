@@ -1,8 +1,8 @@
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
 import type { GasFeeResult, GasStrategy } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { DynamicConfigs, type GasStrategies, getStatsigClient } from '@universe/gating'
 import { DAI } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { DEFAULT_GAS_STRATEGY } from 'uniswap/src/features/gas/consts'
 import {
   applyNativeTokenPercentageBuffer,

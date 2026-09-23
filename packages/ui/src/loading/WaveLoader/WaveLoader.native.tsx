@@ -1,3 +1,4 @@
+import { Flex } from '@universe/mycelium'
 import { useEffect } from 'react'
 import { StyleSheet } from 'react-native'
 import Animated, {
@@ -8,7 +9,6 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated'
-import { Flex } from 'ui/src/components/layout'
 import { useSporeColors } from 'ui/src/hooks/useSporeColors'
 import { WAVE_TILE_COUNT, WAVE_WIDTH, resolveWaveLoader } from 'ui/src/loading/WaveLoader/shared'
 import { Wave } from 'ui/src/loading/WaveLoader/Wave'

@@ -5,16 +5,23 @@ import { Pair } from '@uniswap/v2-sdk'
 import { FeeAmount, Pool as V3Pool } from '@uniswap/v3-sdk'
 import { Pool as V4Pool } from '@uniswap/v4-sdk'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { isMobileWeb } from '@universe/environment'
-import { CrosshairMode, ISeriesApi, LineStyle, LineType, UTCTimestamp } from 'lightweight-charts'
+import { ColorTokens, Flex, FlexCompatProps, Shine, zIndexes } from '@universe/mycelium'
+import { HorizontalDensityChart } from '@universe/mycelium/icons/HorizontalDensityChart'
+import { LoadingPriceCurve } from '@universe/mycelium/icons/LoadingPriceCurve'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import {
+  AreaSeries,
+  CrosshairMode,
+  ISeriesApi,
+  LineSeries,
+  LineStyle,
+  LineType,
+  UTCTimestamp,
+} from 'lightweight-charts'
 import { useMemo, useState } from 'react'
-import { ColorTokens, Flex, FlexProps, Shine, useSporeColors } from 'ui/src'
-import { HorizontalDensityChart } from 'ui/src/components/icons/HorizontalDensityChart'
-import { LoadingPriceCurve } from 'ui/src/components/icons/LoadingPriceCurve'
-import { opacify, zIndexes } from 'ui/src/theme'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
-import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import useResizeObserver from 'use-resize-observer'
 // Not using the formatters in a react context, so we need to import the formatter directly.
 // oxlint-disable-next-line no-restricted-imports -- Need direct formatter import for chart formatting outside React context
@@ -34,7 +41,7 @@ import { ErrorBoundary } from '~/components/ErrorBoundary'
 import { ActiveLiquidityChart } from '~/features/Liquidity/charts/ActiveLiquidityChart/ActiveLiquidityChart'
 import { getCrosshairProps, priceToNumber } from '~/features/Liquidity/charts/LiquidityPositionRangeChart/utils'
 import { useDensityChartData } from '~/features/Liquidity/charts/LiquidityRangeInput/hooks'
-import { usePoolPriceChartData } from '~/features/Liquidity/charts/usePoolPriceChartData'
+import { useLiquidityServicePoolPriceChartData } from '~/features/Liquidity/charts/useLiquidityServicePoolPriceChartData'
 import { getBaseAndQuoteCurrencies } from '~/features/Liquidity/utils/currency'
 import { getPoolIdOrAddressFromCreatePositionInfo } from '~/features/Liquidity/utils/getPoolIdOrAddressFromCreatePositionInfo'
 import { isOutOfRange } from '~/features/Liquidity/utils/priceRangeInfo'
@@ -71,9 +78,6 @@ interface LPPriceChartModelParams extends ChartModelParams<PriceChartData> {
   setCrosshairCoordinates?: ({ x, y }: { x: number; y: number }) => void
   setBoundaryPrices?: (price: [number, number]) => void
   onChartReady?: (chart: LPPriceChartModel) => void
-  // Color of the price data line,
-  color?: ColorTokens
-  colors: ReturnType<typeof useSporeColors>
   // Color of the current price dotted line.
   currentPriceLineColor?: ColorTokens
   // Total height of the chart, including the time axis pane if showXAxis is true.
@@ -104,11 +108,11 @@ class LPPriceChartModel extends ChartModel<PriceChartData> {
     this.currentParams = params
 
     // Price history (primary series)
-    this.series = this.api.addAreaSeries()
+    this.series = this.api.addSeries(AreaSeries)
     this.series.setData(this.data)
 
     this.extendedData = LPPriceChartModel.generateExtendedData(this.data, params.disableExtendedTimeScale)
-    this.rangeBandSeries = this.api.addLineSeries({ priceScaleId: 'right' })
+    this.rangeBandSeries = this.api.addSeries(LineSeries, { priceScaleId: 'right' })
     // The price values in the data are ignored by this Series,
     // it only uses the time values to make the BandsIndicator work.
     this.rangeBandSeries.setData(this.extendedData)
@@ -363,6 +367,8 @@ interface LiquidityPositionRangeChartProps {
   showLiquidityBars?: boolean
   crosshairEnabled?: boolean
   showChartBorder?: boolean
+  // Live spot price already oriented to match `priceInverted`; appended so the chart ends at the current price.
+  currentPrice?: number
 }
 
 export function getLiquidityRangeChartProps({
@@ -431,9 +437,9 @@ export function LiquidityPositionRangeChartLoader({
   width,
   height,
   ...rest
-}: { width: number; height: number } & FlexProps) {
+}: { width: number; height: number } & FlexCompatProps) {
   return (
-    <Shine
+    <Flex
       height={height}
       width={width}
       position="absolute"
@@ -445,8 +451,10 @@ export function LiquidityPositionRangeChartLoader({
       justifyContent="center"
       {...rest}
     >
-      <LoadingPriceCurve size={{ width, height }} color="$neutral2" />
-    </Shine>
+      <Shine>
+        <LoadingPriceCurve size={{ width, height }} color="$neutral2" />
+      </Shine>
+    </Flex>
   )
 }
 
@@ -473,23 +481,23 @@ function LiquidityPositionRangeChart({
   showLiquidityBars,
   crosshairEnabled,
   showChartBorder = false,
+  currentPrice,
 }: LiquidityPositionRangeChartProps) {
   const colors = useSporeColors()
   const isV2 = version === ProtocolVersion.V2
   const isV3 = version === ProtocolVersion.V3
   const isV4 = version === ProtocolVersion.V4
-  const chainInfo = getChainInfo(chainId)
   const variables = poolAddressOrId
     ? {
         addressOrId: poolAddressOrId,
-        chain: chainInfo.backendChain.chain,
+        chainId,
         duration: duration ?? GraphQLApi.HistoryDuration.Month,
         isV4,
         isV3,
         isV2,
       }
     : undefined
-  const priceData = usePoolPriceChartData({ variables, priceInverted })
+  const priceData = useLiquidityServicePoolPriceChartData({ variables, priceInverted, currentPrice })
 
   const [crosshairCoordinates, setCrosshairCoordinates] = useState<{ x: number; y: number }>()
   const [boundaryPrices, setBoundaryPrices] = useState<[number, number]>()
@@ -665,7 +673,7 @@ function LiquidityPositionRangeChart({
         </Flex>
       )}
       {showLiquidityBars && loading && chartWidth && (
-        <Shine
+        <Flex
           position="absolute"
           right={Y_AXIS_WIDTH}
           top={0}
@@ -673,8 +681,10 @@ function LiquidityPositionRangeChart({
           height={height - X_AXIS_HEIGHT}
           width={chartWidth - Y_AXIS_WIDTH}
         >
-          <HorizontalDensityChart color="$neutral2" size={height - X_AXIS_HEIGHT} />
-        </Shine>
+          <Shine>
+            <HorizontalDensityChart color="$neutral2" size={height - X_AXIS_HEIGHT} />
+          </Shine>
+        </Flex>
       )}
     </Flex>
   )

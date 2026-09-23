@@ -15,9 +15,19 @@ import {
   useExperimentValueWithExposureLoggingDisabled,
   useFeatureFlagWithExposureLoggingDisabled,
 } from '@universe/gating'
+import {
+  Button,
+  Flex,
+  type FlexCompatProps,
+  Input,
+  ModalCloseIcon,
+  Switch,
+  Text,
+  TouchableArea,
+  type TouchableAreaCompatProps,
+} from '@universe/mycelium'
 import type { PropsWithChildren, ReactNode } from 'react'
-import { memo, useMemo, useState } from 'react'
-import { Button, Flex, FlexProps, Input, ModalCloseIcon, styled, Switch, Text, TouchableArea } from 'ui/src'
+import { forwardRef, memo, useMemo, useState } from 'react'
 import { Pin } from 'ui/src/components/icons/Pin'
 import { ComplianceOverrides } from 'uniswap/src/components/gating/ComplianceOverrides'
 import { useLayerValue } from 'uniswap/src/components/gating/Rows'
@@ -31,21 +41,40 @@ import { useModalState } from '~/hooks/useModalState'
 import { useExternallyConnectableExtensionId } from '~/pages/ExtensionPasskeyAuthPopUp/useExternallyConnectableExtensionId'
 import { EllipsisTamaguiStyle } from '~/theme/components/styles'
 
-const CenteredRowProps: FlexProps = {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  py: '$gap8',
-  maxWidth: '100%',
-  gap: '$gap4',
-}
+const CenteredRow = forwardRef<HTMLDivElement, FlexCompatProps>(function CenteredRow(props, ref) {
+  return (
+    <Flex
+      ref={ref}
+      flexDirection="row"
+      justifyContent="space-between"
+      alignItems="center"
+      py="$gap8"
+      maxWidth="100%"
+      gap="$gap4"
+      {...props}
+    />
+  )
+})
 
-const CenteredRow = styled(Flex, CenteredRowProps)
+const TouchableCenteredRow = forwardRef<HTMLElement, TouchableAreaCompatProps>(
+  function TouchableCenteredRow(props, ref) {
+    return (
+      <TouchableArea
+        ref={ref}
+        flexDirection="row"
+        justifyContent="space-between"
+        alignItems="center"
+        py="$gap8"
+        maxWidth="100%"
+        gap="$gap4"
+        {...props}
+      />
+    )
+  },
+)
 
-const TouchableCenteredRow = styled(TouchableArea, CenteredRowProps)
-
-const FlagInfo = styled(Flex, {
-  flexShrink: 1,
+const FlagInfo = forwardRef<HTMLDivElement, FlexCompatProps>(function FlagInfo(props, ref) {
+  return <Flex ref={ref} flexShrink={1} {...props} />
 })
 
 function fuzzyMatch(query: string, ...targets: (string | undefined)[]): boolean {
@@ -108,7 +137,7 @@ function PinnableRow({ isPinned, onPinPress, title, label, rightContent }: Pinna
     <TouchableCenteredRow group="item" onPress={onPinPress} gap="$gap8">
       <Flex
         alignSelf="center"
-        p="$padding4"
+        p="$spacing4"
         opacity={isPinned ? 1 : 0}
         $group-item-hover={{ opacity: isPinned ? 1 : 0.6 }}
       >
@@ -145,7 +174,7 @@ const FeatureFlagGroup = memo(function FeatureFlagGroup({
         <Text variant="body1">{name}</Text>
         <Flex
           alignSelf="center"
-          pl="$padding4"
+          pl="$spacing4"
           opacity={pinned ? 1 : 0}
           $group-item-hover={{ opacity: pinned ? 1 : 0.6 }}
         >
@@ -336,6 +365,9 @@ export function FeatureFlagModal(): JSX.Element {
           <Flex ml="$padding8" gap="$gap8">
             <FeatureFlagGroup name={Layers.SwapPage}>
               <LayerOption layerName={Layers.SwapPage} />
+            </FeatureFlagGroup>
+            <FeatureFlagGroup name={Layers.Discovery}>
+              <LayerOption layerName={Layers.Discovery} />
             </FeatureFlagGroup>
           </Flex>
         ),

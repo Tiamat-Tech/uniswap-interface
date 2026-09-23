@@ -2,9 +2,12 @@ import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/
 import { EarnEventName } from 'uniswap/src/features/telemetry/constants/features'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import type {
+  EarnAmountEnteredAnalyticsProperties,
+  EarnAmountPresetAnalyticsProperties,
   EarnAnalyticsBaseProperties,
   EarnAnalyticsEntryPoint,
   EarnAnalyticsSurface as EarnAnalyticsSurfaceValue,
+  EarnSurfaceViewedAnalyticsProperties,
   EarnSwapUpsellAnalyticsProperties,
   EarnSwapUpsellSurface as EarnSwapUpsellSurfaceValue,
   EarnTransactionAnalyticsProperties,
@@ -20,6 +23,7 @@ export const EarnEntryPoint = {
   Activity: 'activity',
   ExploreChip: 'explore_chip',
   GlobalModal: 'global_modal',
+  HomeUnfundedEarnCard: 'home_unfunded_earn_card',
   PortfolioEarnGetToken: 'portfolio_earn_get_token',
   PortfolioEarnSection: 'portfolio_earn_section',
   PostSwapUpsellToast: 'post_swap_upsell_toast',
@@ -125,7 +129,7 @@ export function logEarnVaultSelected(properties: EarnAnalyticsBaseProperties): v
   sendAnalyticsEvent(EarnEventName.EarnVaultSelected, properties)
 }
 
-export function logEarnSurfaceViewed(properties: Pick<EarnAnalyticsBaseProperties, 'entry_point' | 'surface'>): void {
+export function logEarnSurfaceViewed(properties: EarnSurfaceViewedAnalyticsProperties): void {
   sendAnalyticsEvent(EarnEventName.EarnSurfaceViewed, properties)
 }
 
@@ -137,6 +141,14 @@ export function logEarnHowItWorksAcknowledged(properties: EarnAnalyticsBasePrope
   sendAnalyticsEvent(EarnEventName.EarnHowItWorksAcknowledged, properties)
 }
 
+export function logEarnAmountPresetSelected(properties: EarnAmountPresetAnalyticsProperties): void {
+  sendAnalyticsEvent(EarnEventName.EarnAmountPresetSelected, properties)
+}
+
+export function logEarnAmountEntered(properties: EarnAmountEnteredAnalyticsProperties): void {
+  sendAnalyticsEvent(EarnEventName.EarnAmountEntered, properties)
+}
+
 export function logEarnTransactionEvent({
   action,
   properties,
@@ -144,21 +156,25 @@ export function logEarnTransactionEvent({
 }: {
   action: 'deposit' | 'withdraw'
   properties: EarnTransactionAnalyticsProperties
-  status: 'started' | 'reviewed' | 'submitted' | 'completed' | 'failed'
+  status: 'started' | 'reviewed' | 'review_ready' | 'submit_button_clicked' | 'submitted' | 'completed' | 'failed'
 }): void {
   const eventNameByAction = {
     deposit: {
       completed: EarnEventName.EarnDepositCompleted,
       failed: EarnEventName.EarnDepositFailed,
+      review_ready: EarnEventName.EarnDepositReviewReady,
       reviewed: EarnEventName.EarnDepositReviewed,
       started: EarnEventName.EarnDepositStarted,
+      submit_button_clicked: EarnEventName.EarnDepositSubmitButtonClicked,
       submitted: EarnEventName.EarnDepositSubmitted,
     },
     withdraw: {
       completed: EarnEventName.EarnWithdrawCompleted,
       failed: EarnEventName.EarnWithdrawFailed,
+      review_ready: EarnEventName.EarnWithdrawReviewReady,
       reviewed: EarnEventName.EarnWithdrawReviewed,
       started: EarnEventName.EarnWithdrawStarted,
+      submit_button_clicked: EarnEventName.EarnWithdrawSubmitButtonClicked,
       submitted: EarnEventName.EarnWithdrawSubmitted,
     },
   } as const

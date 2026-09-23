@@ -3,6 +3,7 @@ import { useQueryClient, type Query } from '@tanstack/react-query'
 import type { GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb.d'
 import type { Balance, MultichainBalance } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import type { Currency } from '@uniswap/sdk-core'
+import { Platform } from '@universe/chains'
 import { useMemo } from 'react'
 import type { GetPortfolioInput } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolio'
 import { doesGetPortfolioQueryMatchAddress } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolioQueryUtils'
@@ -17,7 +18,6 @@ import { useRestPortfolioValueModifier } from 'uniswap/src/features/dataApi/bala
 import type { PortfolioCacheUpdater } from 'uniswap/src/features/dataApi/balances/buildPortfolioBalance'
 import { matchesCurrency } from 'uniswap/src/features/dataApi/balances/utils'
 import type { PortfolioBalance } from 'uniswap/src/features/dataApi/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { logger } from 'utilities/src/logger/logger'
 import { useEvent } from 'utilities/src/react/hooks'
 
@@ -249,11 +249,12 @@ export function usePortfolioCacheUpdater(evmAddress?: string, svmAddress?: strin
 
     cacheUpdater({ evmAddress, svmAddress, chainIds, modifier })({ hidden, portfolioBalance })
 
-    // Neither cache keys on `modifier`, so reconcile with the server explicitly. Deferred a
-    // tick so refetches pick up the queryFn built with the updated visibility state.
-    setTimeout(() => {
+    // Reconcile with the server — neither cache keys on `modifier`, so invalidate explicitly. Must run AFTER the
+    // visibility dispatch re-renders the balance queries with the new modifier; a setTimeout(0) can fire before that
+    // commit on Android/Hermes, refetching with the stale modifier and clobbering the optimistic write (CONS-2925).
+    requestAnimationFrame(() => {
       queryClient.invalidateQueries({ predicate }).catch(onUpdaterError)
-    }, 0)
+    })
   })
 
   return useEvent((hidden: boolean, portfolioBalance?: PortfolioBalance) => {

@@ -1,26 +1,27 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import type { ReactElement, ReactNode } from 'react'
 import { EarnDepositAmountModal } from 'src/components/earn/EarnDepositAmountModal'
 import { fireEvent, render, screen, waitFor } from 'src/test/test-utils'
 import { initialUniswapBehaviorHistoryState } from 'uniswap/src/features/behaviorHistory/slice'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
+import { EarnEntryPoint, logEarnTransactionEvent } from 'uniswap/src/features/earn/analytics'
+import { EarnPositionStatus } from 'uniswap/src/features/earn/hooks/useEarnPosition'
 import { EarnAction, type EarnPositionInfo, type EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 
 const mockNavigate = vi.fn()
 const mockReplace = vi.fn()
 let mockLivePosition: EarnPositionInfo | undefined
+let mockPositionStatus: EarnPositionStatus | undefined
 
 vi.mock('src/app/navigation/types', () => ({
   useAppStackNavigation: () => ({ navigate: mockNavigate, replace: mockReplace }),
 }))
 
 vi.mock('src/components/earn/EarnDepositAmountContent', async () => {
-  const { Text } = await vi.importActual<typeof import('ui/src')>('ui/src')
-  const { UniverseChainId: ActualUniverseChainId } = await vi.importActual<
-    typeof import('uniswap/src/features/chains/types')
-  >('uniswap/src/features/chains/types')
+  const { Text } = await vi.importActual<typeof import('@universe/mycelium')>('@universe/mycelium')
+  const { UniverseChainId: ActualUniverseChainId } =
+    await vi.importActual<typeof import('@universe/chains')>('@universe/chains')
   const { EarnAction: ActualEarnAction } = await vi.importActual<typeof import('uniswap/src/features/earn/types')>(
     'uniswap/src/features/earn/types',
   )
@@ -77,12 +78,24 @@ vi.mock('uniswap/src/features/earn/analytics', async () => ({
   logEarnTransactionEvent: vi.fn(),
 }))
 
-vi.mock('uniswap/src/features/earn/hooks/useEarnPosition', () => ({
-  useEarnPosition: () => ({ position: mockLivePosition }),
-}))
+vi.mock('uniswap/src/features/earn/hooks/useEarnPosition', async () => {
+  const actual = await vi.importActual<typeof import('uniswap/src/features/earn/hooks/useEarnPosition')>(
+    'uniswap/src/features/earn/hooks/useEarnPosition',
+  )
+  return {
+    ...actual,
+    useEarnPosition: () => ({
+      position: mockLivePosition,
+      positionStatus:
+        mockPositionStatus ??
+        (mockLivePosition ? actual.EarnPositionStatus.Present : actual.EarnPositionStatus.NoPosition),
+    }),
+  }
+})
 
 vi.mock('wallet/src/features/wallet/hooks', () => ({
-  useActiveAccountAddress: () => '0x0000000000000000000000000000000000000001',
+  useActiveAccountAddress: (): string => '0x0000000000000000000000000000000000000001',
+  useIsViewOnlyWallet: (): boolean => false,
 }))
 
 const vault = {
@@ -104,12 +117,12 @@ const confirmedLivePosition = {
   sharesRaw: '9990000',
 }
 
-function renderAcknowledged(ui: ReactElement): ReturnType<typeof render> {
+function renderAcknowledged(ui: ReactElement, acknowledgedVaultId = vault.id): ReturnType<typeof render> {
   return render(ui, {
     preloadedState: {
       uniswapBehaviorHistory: {
         ...initialUniswapBehaviorHistoryState,
-        earnHowItWorksAcknowledgedByVaultId: { [vault.id]: true },
+        earnHowItWorksAcknowledgedByVaultId: { [acknowledgedVaultId]: true },
       },
     },
   })
@@ -118,8 +131,10 @@ function renderAcknowledged(ui: ReactElement): ReturnType<typeof render> {
 describe(EarnDepositAmountModal, () => {
   beforeEach(() => {
     mockLivePosition = undefined
+    mockPositionStatus = undefined
     mockNavigate.mockClear()
     mockReplace.mockClear()
+    vi.mocked(logEarnTransactionEvent).mockClear()
   })
 
   it('redirects a first deposit to the How it works sheet with the deposit params intact', async () => {
@@ -160,6 +175,16 @@ describe(EarnDepositAmountModal, () => {
     )
 
     expect(screen.queryByText('How it works')).toBeNull()
+    expect(screen.getByTestId('amount-position')).toBeDefined()
+  })
+
+  it('does not show How it works for a different vault after any acknowledgement', () => {
+    renderAcknowledged(
+      <EarnDepositAmountModal initialAction={EarnAction.Deposit} isOpen vault={vault} onClose={vi.fn()} />,
+      'another-vault-id',
+    )
+
+    expect(mockReplace).not.toHaveBeenCalled()
     expect(screen.getByTestId('amount-position')).toBeDefined()
   })
 
@@ -230,4 +255,27 @@ describe(EarnDepositAmountModal, () => {
 
     expect(screen.getByText('9990000')).toBeDefined()
   })
+
+  it.each([EarnPositionStatus.Loading, EarnPositionStatus.Error])(
+    'withholds analytics while the position status is %s so has_existing_position is never a guess',
+    async (unknownStatus) => {
+      mockPositionStatus = unknownStatus
+
+      const { rerender } = render(
+        <EarnDepositAmountModal initialAction={EarnAction.Withdraw} isOpen vault={vault} onClose={vi.fn()} />,
+      )
+
+      expect(logEarnTransactionEvent).not.toHaveBeenCalled()
+
+      mockLivePosition = confirmedLivePosition
+      mockPositionStatus = undefined
+      rerender(<EarnDepositAmountModal initialAction={EarnAction.Withdraw} isOpen vault={vault} onClose={vi.fn()} />)
+
+      await waitFor(() =>
+        expect(logEarnTransactionEvent).toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'withdraw', status: 'started' }),
+        ),
+      )
+    },
+  )
 })

@@ -1,6 +1,6 @@
 import { isExtensionApp } from '@universe/environment'
+import { TouchableArea } from '@universe/mycelium'
 import { memo, PropsWithChildren, useCallback, useMemo } from 'react'
-import { TouchableArea } from 'ui/src'
 import { ContextMenu } from 'uniswap/src/components/menus/ContextMenu'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
 import { TokenBalanceItemContextMenuProps } from 'uniswap/src/components/portfolio/TokenBalanceItem/TokenBalanceItemContextMenu'

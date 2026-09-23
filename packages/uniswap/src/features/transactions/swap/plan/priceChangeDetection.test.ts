@@ -1,7 +1,7 @@
 import { CurrencyAmount } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { UNI, WBTC } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { buildTradeFromPlanResponse } from 'uniswap/src/features/transactions/swap/plan/planSagaUtils'
 import { createChainedActionTrade, type ChainedActionTrade } from 'uniswap/src/features/transactions/swap/types/trade'
 import { requireAcceptNewTrade } from 'uniswap/src/features/transactions/swap/utils/trade'

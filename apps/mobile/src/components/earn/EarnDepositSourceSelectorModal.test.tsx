@@ -41,7 +41,8 @@ vi.mock('uniswap/src/features/tokens/useCurrencyInfo', () => ({
 }))
 
 vi.mock('wallet/src/features/wallet/hooks', () => ({
-  useActiveAccountAddress: () => '0x0000000000000000000000000000000000000001',
+  useActiveAccountAddress: (): string => '0x0000000000000000000000000000000000000001',
+  useIsViewOnlyWallet: (): boolean => false,
 }))
 
 describe(EarnDepositSourceSelectorModal, (): void => {

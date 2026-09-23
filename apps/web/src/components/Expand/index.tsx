@@ -1,7 +1,8 @@
+import { Flex } from '@universe/mycelium'
+import type { FlexCompatProps as FlexProps, IconSizeTokens } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import { PropsWithChildren, ReactElement } from 'react'
-import { Flex, FlexProps, HeightAnimator } from 'ui/src'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { IconSizeTokens } from 'ui/src/theme/tokens'
 
 export function Expand({
   header,

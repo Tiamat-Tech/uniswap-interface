@@ -1,7 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
 import type { EmbeddedWalletCapability } from '@universe/embedded-wallet/src/connection/eip5792Types'
 import { getEmbeddedWalletCapabilities } from '@universe/embedded-wallet/src/connection/getCapabilities'
 import { getFeatureFlaggedChainIds } from 'uniswap/src/features/chains/hooks/useFeatureFlaggedChainIds'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getEnabledChains } from 'uniswap/src/features/chains/utils'
 
 vi.mock('uniswap/src/features/chains/utils', async (importOriginal) => ({

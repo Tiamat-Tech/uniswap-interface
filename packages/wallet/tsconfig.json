@@ -37,6 +37,12 @@
     },
     {
       "path": "../../config/vitest-presets"
+    },
+    {
+      "path": "../mycelium"
+    },
+    {
+      "path": "../tailwind"
     }
   ],
   "compilerOptions": {

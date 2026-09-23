@@ -1,3 +1,4 @@
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import type {
   ConnectionEstablishedMessage,
   RawPoolPriceMessage,
@@ -93,7 +94,7 @@ export function parseTokenPriceMessage(raw: unknown): TokenPriceMessage | null {
     key,
     data: {
       chainId,
-      tokenAddress: tokenAddress.toLowerCase(),
+      tokenAddress: normalizeTokenAddressForCache(tokenAddress),
       priceUsd: price,
       timestamp,
     },

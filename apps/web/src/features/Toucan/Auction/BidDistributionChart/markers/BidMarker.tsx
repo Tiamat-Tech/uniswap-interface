@@ -1,6 +1,8 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, Tooltip, useMedia } from 'ui/src'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
 import { useAbbreviatedTimeString } from '~/components/Table/utils/useAbbreviatedTimeString'
 import { MARKER_CONFIG } from '~/features/Toucan/Auction/BidDistributionChart/constants'
@@ -106,42 +108,43 @@ export function BidMarker({ marker, bidTokenInfo, formatPrice, formatTokenAmount
 
   return (
     <Tooltip placement="right" delay={75} offset={{ mainAxis: 8 }}>
-      <Tooltip.Trigger asChild>
-        <Flex
-          group
-          position="absolute"
-          alignItems="center"
-          justifyContent="center"
-          cursor="pointer"
-          pointerEvents="auto"
-          onPress={handleClick}
-          style={{
-            left: `${left}px`,
-            top: `${top}px`,
-            transform: 'translate(-50%, 0)',
-            zIndex: 1000,
-          }}
-        >
-          <Flex opacity={0.54} $group-hover={{ opacity: 1 }} style={{ transition: 'opacity 0.15s ease' }}>
-            <AccountIcon address={address} size={MARKER_CONFIG.AVATAR_SIZE} />
-          </Flex>
-          {showBadge && (
-            <Flex
-              position="absolute"
-              inset={0}
-              alignItems="center"
-              justifyContent="center"
-              borderRadius="$roundedFull"
-              backgroundColor="$scrim"
-              $group-hover={{ opacity: 0 }}
-              style={{ transition: 'opacity 0.15s ease' }}
-            >
-              <Text variant="body4" fontSize={8} lineHeight={8} color="$white" fontWeight="600">
-                {bids.length}
-              </Text>
-            </Flex>
-          )}
+      {/* Style props sit on the Trigger itself (its surface is the Flex compat
+          contract) instead of an asChild compat Flex: a compat child forwards a
+          closed prop allowlist, which drops the hover/ARIA surface Base UI
+          merges onto the trigger — the trigger div here receives it natively. */}
+      <Tooltip.Trigger
+        className="group"
+        position="absolute"
+        alignItems="center"
+        justifyContent="center"
+        cursor="pointer"
+        pointerEvents="auto"
+        onPress={handleClick}
+        style={{
+          left: `${left}px`,
+          top: `${top}px`,
+          transform: 'translate(-50%, 0)',
+          zIndex: 1000,
+        }}
+      >
+        <Flex className="opacity-[0.54] transition-opacity duration-150 ease-[ease] group-hover:opacity-100">
+          <AccountIcon address={address} size={MARKER_CONFIG.AVATAR_SIZE} />
         </Flex>
+        {showBadge && (
+          <Flex
+            position="absolute"
+            inset={0}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius="$roundedFull"
+            backgroundColor="$scrim"
+            className="transition-opacity duration-150 ease-[ease] group-hover:opacity-0"
+          >
+            <Text variant="body4" fontSize={8} lineHeight={8} color="$white" fontWeight="600">
+              {bids.length}
+            </Text>
+          </Flex>
+        )}
       </Tooltip.Trigger>
       <Tooltip.Content backgroundColor="transparent" borderWidth={0} p={0} pointerEvents="none">
         <Flex gap="$spacing2" flexDirection="column">

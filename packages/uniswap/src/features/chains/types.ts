@@ -1,49 +1,12 @@
-// oxlint-disable-next-line no-restricted-imports -- legacy import will be migrated
-import { CurrencyAmount, Token, ChainId as UniswapSDKChainId } from '@uniswap/sdk-core'
+import { CurrencyAmount, Token } from '@uniswap/sdk-core'
 import type { GraphQLApi, TradingApi } from '@universe/api'
+import { UniverseChainId, Platform } from '@universe/chains'
 import type { AppId } from '@universe/config'
 import { SwapConfigKey } from '@universe/gating'
 import type { ImageSourcePropType } from 'react-native'
-// oxlint-disable-next-line no-restricted-imports -- legacy import will be migrated
-import { type UNIVERSE_CHAIN_INFO } from 'uniswap/src/features/chains/chainInfo'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { NonEmptyArray } from 'utilities/src/primitives/array'
 import { Chain as WagmiChain } from 'wagmi/chains'
-
-export enum UniverseChainId {
-  Mainnet = UniswapSDKChainId.MAINNET,
-  ArbitrumOne = UniswapSDKChainId.ARBITRUM_ONE,
-  Arc = UniswapSDKChainId.ARC,
-  Avalanche = UniswapSDKChainId.AVALANCHE,
-  Base = UniswapSDKChainId.BASE,
-  Blast = UniswapSDKChainId.BLAST,
-  Bnb = UniswapSDKChainId.BNB,
-  Celo = UniswapSDKChainId.CELO,
-  Ink = UniswapSDKChainId.INK,
-  Monad = UniswapSDKChainId.MONAD,
-  Optimism = UniswapSDKChainId.OPTIMISM,
-  Polygon = UniswapSDKChainId.POLYGON,
-  Robinhood = UniswapSDKChainId.ROBINHOOD,
-  Sepolia = UniswapSDKChainId.SEPOLIA,
-  Soneium = UniswapSDKChainId.SONEIUM,
-  Tempo = UniswapSDKChainId.TEMPO,
-  Unichain = UniswapSDKChainId.UNICHAIN,
-  UnichainSepolia = UniswapSDKChainId.UNICHAIN_SEPOLIA,
-  WorldChain = UniswapSDKChainId.WORLDCHAIN,
-  XLayer = UniswapSDKChainId.XLAYER,
-  Linea = UniswapSDKChainId.LINEA,
-  MegaETH = UniswapSDKChainId.MEGAETH,
-  Zksync = UniswapSDKChainId.ZKSYNC,
-  Zora = UniswapSDKChainId.ZORA,
-  Solana = 501000101,
-}
-
-export type UniverseChainIdByPlatform<T extends Platform> = ((typeof UNIVERSE_CHAIN_INFO)[UniverseChainId] & {
-  platform: T
-})['id']
-export type EVMUniverseChainId = UniverseChainIdByPlatform<Platform.EVM>
-export type SVMUniverseChainId = UniverseChainIdByPlatform<Platform.SVM>
 
 export interface EnabledChainsInfo {
   chains: UniverseChainId[]

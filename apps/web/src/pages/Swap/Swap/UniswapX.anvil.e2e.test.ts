@@ -1,9 +1,9 @@
 import { listTransactions } from '@uniswap/client-data-api/dist/data/v1/api-DataApiService_connectquery'
 import { WETH9 } from '@uniswap/sdk-core'
 import { TRADING_API_PATHS, V1_TRADING_API_PATHS } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { DAI, USDC_MAINNET } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { parseEther } from '~/chains'
 import { assume0xAddress } from '~/chains'
@@ -98,7 +98,9 @@ test.describe(
       })
 
       await page.getByTestId(TestID.Web3StatusConnected).click()
-      await page.getByText('Swapping').click()
+      // Scoped to the drawer: the transient pending-activity popup also renders 'Swapping',
+      // making the page-wide locator ambiguous under strict mode
+      await page.getByTestId(TestID.AccountDrawer).getByText('Swapping').first().click()
       await page.getByText('Cancel').click()
       await page.getByRole('button', { name: 'Proceed' }).click()
 

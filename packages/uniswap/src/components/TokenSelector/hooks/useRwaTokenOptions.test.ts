@@ -1,7 +1,7 @@
 import { RankedRwa } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { OnchainItemListOptionType } from 'uniswap/src/components/lists/items/types'
 import { useRwaTokenOptions } from 'uniswap/src/components/TokenSelector/hooks/useRwaTokenOptions'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { renderHook } from 'uniswap/src/test/test-utils'
 
 const { mockUseListRankedRwasQuery } = vi.hoisted(() => ({ mockUseListRankedRwasQuery: vi.fn() }))

@@ -1,7 +1,6 @@
 import { createFetchClient, type FetchClient, provideSessionService } from '@universe/api'
 import { tryProvideSession } from '@universe/api'
 import { isMobileApp, isWebApp, REQUEST_SOURCE } from '@universe/environment'
-import { getIsSessionServiceEnabled } from '@universe/gating'
 import { SessionGateSource } from '@universe/sessions'
 import { config } from 'uniswap/src/config'
 import { getUniswapServiceUrls, UniswapStaticUrls } from 'uniswap/src/constants/urls'
@@ -41,7 +40,6 @@ export function createUniswapFetchClient({
     getSessionService: () =>
       provideSessionService({
         getBaseUrl: () => getUniswapServiceUrls(config).apiBaseUrlV2,
-        getIsSessionServiceEnabled,
       }),
     getSession: tryProvideSession,
     source: SessionGateSource.FetchUniswap,

@@ -1,9 +1,7 @@
+import { UniverseChainId, PlatformAddress, areEvmAddressesEqual, getPlatformAddress } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { PlatformAddress } from 'uniswap/src/features/platforms/types/PlatformSpecificAddress'
-import { getPlatformAddress } from 'uniswap/src/features/platforms/utils/addresses'
 import { useActiveAddresses } from '~/features/accounts/store/hooks'
 import { PageType } from '~/hooks/useIsPage'
 import { isPortfolioTab, PortfolioTab } from '~/pages/Portfolio/types'
@@ -64,7 +62,7 @@ export function usePortfolioRoutes(): {
   const { evmAddress, svmAddress } = useActiveAddresses()
 
   const externalAddress = getPlatformAddress(potentialAddress)
-  const isOwnEvmAddress = evmAddress?.toLowerCase() === potentialAddress?.toLowerCase()
+  const isOwnEvmAddress = areEvmAddressesEqual(evmAddress, potentialAddress)
   const isOwnSvmAddress = svmAddress === potentialAddress
   const isExternalWallet = Boolean(externalAddress) && !isOwnEvmAddress && !isOwnSvmAddress
 

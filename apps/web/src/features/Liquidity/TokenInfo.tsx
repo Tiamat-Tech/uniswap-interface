@@ -1,10 +1,11 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
-import { Flex, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { Flex, iconSizes, Text } from '@universe/mycelium'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { getSymbolDisplayText } from 'uniswap/src/utils/currency'
+import { currencyId } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
 
 export function TokenInfo({
   currencyAmount,
@@ -15,6 +16,7 @@ export function TokenInfo({
 }) {
   const { formatCurrencyAmount } = useLocalizationContext()
   const currency = currencyAmount?.currency
+  const currencyInfo = useCurrencyInfo(currencyId(currency))
 
   return (
     <Flex row alignItems="center">
@@ -33,7 +35,7 @@ export function TokenInfo({
           })}
         </Text>
       </Flex>
-      <CurrencyLogo currency={currency} size={iconSizes.icon36} />
+      <CurrencyLogo currencyInfo={currencyInfo} size={iconSizes.icon36} />
     </Flex>
   )
 }

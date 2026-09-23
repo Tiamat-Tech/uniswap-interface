@@ -1,5 +1,6 @@
 /* oxlint-disable jest/expect-expect */
 import { BigNumber } from '@ethersproject/bignumber'
+import { UniverseChainId } from '@universe/chains'
 import { toIncludeSameMembers } from 'jest-extended'
 import {
   testMigratePendingDappRequestsToRecord,
@@ -43,11 +44,11 @@ import {
   v30Schema,
   v31Schema,
   v32Schema,
+  v33Schema,
 } from 'src/store/schema'
 import { USDC } from 'uniswap/src/constants/tokens'
 import { initialAppearanceSettingsState } from 'uniswap/src/features/appearance/slice'
 import { initialUniswapBehaviorHistoryState } from 'uniswap/src/features/behaviorHistory/slice'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { initialFavoritesState } from 'uniswap/src/features/favorites/slice'
 import { FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
 import { initialNotificationsState } from 'uniswap/src/features/notifications/slice/slice'
@@ -60,6 +61,7 @@ import { initialVisibilityState } from 'uniswap/src/features/visibility/slice'
 import {
   testAddActivityVisibility,
   testAddEnableCustomGasFeeEntry,
+  testMarkPoolsBalanceCoachmarkEligible,
   testMigrateDismissedTokenWarnings,
   testMigrateSearchHistory,
   testRemoveTHBFromCurrency,
@@ -391,5 +393,9 @@ describe('Redux state migrations', () => {
 
   it('migrates from v32 to v33', () => {
     testRemoveUniswapWrapped2025BehaviorHistory(migrations[33], v32Schema)
+  })
+
+  it('migrates from v33 to v34', () => {
+    testMarkPoolsBalanceCoachmarkEligible(migrations[34], v33Schema)
   })
 })

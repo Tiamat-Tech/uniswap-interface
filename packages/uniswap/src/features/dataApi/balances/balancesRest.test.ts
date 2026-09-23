@@ -1,8 +1,8 @@
 import { type PlainMessage } from '@bufbuild/protobuf'
 import type { GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb.d'
 import { SharedQueryClient } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { getPortfolioQuery } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolio'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   convertRestBalanceToPortfolioBalance,
   formatPortfolioResponseToMap,
@@ -20,7 +20,6 @@ const {
   mockUseHideSmallBalancesSetting,
   mockUseHideSpamTokensSetting,
   mockUsePlatformBasedFetchPolicy,
-  mockUseFeatureFlag,
 } = vi.hoisted(() => ({
   mockUseEnabledChains: vi.fn(),
   mockUseCurrencyIdToVisibility: vi.fn(),
@@ -28,7 +27,6 @@ const {
   mockUseHideSmallBalancesSetting: vi.fn(),
   mockUseHideSpamTokensSetting: vi.fn(),
   mockUsePlatformBasedFetchPolicy: vi.fn(),
-  mockUseFeatureFlag: vi.fn(),
 }))
 
 vi.mock(
@@ -58,11 +56,6 @@ vi.mock('uniswap/src/features/transactions/selectors', async (importOriginal) =>
 
 vi.mock('uniswap/src/utils/usePlatformBasedFetchPolicy', () => ({
   usePlatformBasedFetchPolicy: mockUsePlatformBasedFetchPolicy,
-}))
-
-vi.mock('@universe/gating', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@universe/gating')>()),
-  useFeatureFlag: mockUseFeatureFlag,
 }))
 
 describe(formatPortfolioResponseToMap, () => {
@@ -259,6 +252,33 @@ describe(convertRestBalanceToPortfolioBalance, () => {
     const result = convertRestBalanceToPortfolioBalance(balance as never, '0xuser')
     expect(result).toBeUndefined()
   })
+
+  // Polygon's canonical native address is the real 0x…1010 placeholder, not the zero address the
+  // v2 backend serves for native balances — must still resolve to the native currency, not a
+  // distinct Token at the zero address (which would never match the multichain deployment map).
+  it('normalizes a Polygon native balance served as the zero address to the native currencyId', () => {
+    const balance = {
+      token: {
+        chainId: UniverseChainId.Polygon,
+        address: '0x0000000000000000000000000000000000000000',
+        decimals: 18,
+        symbol: 'POL',
+        name: 'Polygon Ecosystem Token',
+        metadata: {},
+      },
+      amount: { amount: 1, raw: '1000000000000000000' },
+      valueUsd: 1,
+      pricePercentChange1d: 0,
+      isHidden: false,
+    }
+
+    const result = convertRestBalanceToPortfolioBalance(balance as never, '0xuser')
+
+    expect(result?.currencyInfo.currency.isNative).toBe(true)
+    expect(result?.currencyInfo.currencyId).toBe(
+      `${UniverseChainId.Polygon}-0x0000000000000000000000000000000000001010`,
+    )
+  })
 })
 
 describe(usePortfolioData, () => {
@@ -276,64 +296,38 @@ describe(usePortfolioData, () => {
     mockUseHideSpamTokensSetting.mockReturnValue(false)
   })
 
-  it('sends useSubstreamData: true on the request when V2EndpointsTokens is enabled', () => {
-    mockUseFeatureFlag.mockReturnValue(true)
-
-    const queryKey = getPortfolioQuery({
-      input: { evmAddress, chainIds: [UniverseChainId.Mainnet], multichain: false, useSubstreamData: true },
-    }).queryKey
-
+  // The request always carries useSubstreamData: true, so it is part of the cache key — data primed
+  // without it belongs to a different key and must not be picked up.
+  it('reads cache under a key that includes useSubstreamData: true', () => {
     const portfolioResponse = {
       portfolio: { balances: [], totalValueUsd: 0 },
     } as unknown as PlainMessage<GetPortfolioResponse>
 
     act(() => {
-      SharedQueryClient.setQueryData(queryKey, portfolioResponse)
+      SharedQueryClient.setQueryData(
+        getPortfolioQuery({
+          input: { evmAddress, chainIds: [UniverseChainId.Mainnet], multichain: false },
+        }).queryKey,
+        portfolioResponse,
+      )
+    })
+
+    const { result: withoutSubstreamData } = renderHookWithProviders(() =>
+      usePortfolioData({ evmAddress, cacheOnly: true }),
+    )
+    expect(withoutSubstreamData.current.data).toBeUndefined()
+
+    act(() => {
+      SharedQueryClient.setQueryData(
+        getPortfolioQuery({
+          input: { evmAddress, chainIds: [UniverseChainId.Mainnet], multichain: false, useSubstreamData: true },
+        }).queryKey,
+        portfolioResponse,
+      )
     })
 
     const { result } = renderHookWithProviders(() => usePortfolioData({ evmAddress, cacheOnly: true }))
-
     expect(result.current.data).toEqual({})
-  })
-
-  it('omits useSubstreamData from the request entirely when V2EndpointsTokens is disabled', () => {
-    mockUseFeatureFlag.mockReturnValue(false)
-
-    const queryKey = getPortfolioQuery({
-      input: { evmAddress, chainIds: [UniverseChainId.Mainnet], multichain: false },
-    }).queryKey
-
-    const portfolioResponse = {
-      portfolio: { balances: [], totalValueUsd: 0 },
-    } as unknown as PlainMessage<GetPortfolioResponse>
-
-    act(() => {
-      SharedQueryClient.setQueryData(queryKey, portfolioResponse)
-    })
-
-    const { result } = renderHookWithProviders(() => usePortfolioData({ evmAddress, cacheOnly: true }))
-
-    expect(result.current.data).toEqual({})
-  })
-
-  it('does not find cached data primed under the opposite flag value', () => {
-    mockUseFeatureFlag.mockReturnValue(true)
-
-    const queryKeyForDisabledFlag = getPortfolioQuery({
-      input: { evmAddress, chainIds: [UniverseChainId.Mainnet], multichain: false },
-    }).queryKey
-
-    const portfolioResponse = {
-      portfolio: { balances: [], totalValueUsd: 0 },
-    } as unknown as PlainMessage<GetPortfolioResponse>
-
-    act(() => {
-      SharedQueryClient.setQueryData(queryKeyForDisabledFlag, portfolioResponse)
-    })
-
-    const { result } = renderHookWithProviders(() => usePortfolioData({ evmAddress, cacheOnly: true }))
-
-    expect(result.current.data).toBeUndefined()
   })
 })
 
@@ -406,9 +400,9 @@ describe(usePortfolioTotalBalancesUsdPerChain, () => {
   const evmAddress = '0x123'
 
   // The exact input shape every fetching consumer uses (usePortfolioData & friends):
-  // `multichain` is always present in the cache key.
+  // `multichain` and `useSubstreamData` are always present in the cache key.
   const producerQueryKey = getPortfolioQuery({
-    input: { evmAddress, chainIds: [UniverseChainId.Mainnet], multichain: false },
+    input: { evmAddress, chainIds: [UniverseChainId.Mainnet], multichain: false, useSubstreamData: true },
   }).queryKey
 
   const portfolioResponse = {
@@ -430,7 +424,6 @@ describe(usePortfolioTotalBalancesUsdPerChain, () => {
     mockUseCurrencyIdToVisibility.mockReturnValue({})
     mockUseHideSmallBalancesSetting.mockReturnValue(false)
     mockUseHideSpamTokensSetting.mockReturnValue(false)
-    mockUseFeatureFlag.mockReturnValue(false)
   })
 
   it('never fetches on its own', () => {

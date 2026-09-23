@@ -1,10 +1,11 @@
-import { isExtensionApp, isWebPlatform } from '@universe/environment'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
+import { isExtensionApp, isMobileApp, isWebPlatform } from '@universe/environment'
+import { Flex, Shine, Text } from '@universe/mycelium'
+import { ChevronsIn } from '@universe/mycelium/icons/ChevronsIn'
+import { ChevronsOut } from '@universe/mycelium/icons/ChevronsOut'
+import { useIsDarkMode } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Shine, Text, useIsDarkMode } from 'ui/src'
-import { ChevronsIn } from 'ui/src/components/icons/ChevronsIn'
-import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { GroupHoverTransition } from 'uniswap/src/components/GroupHoverTransition'
@@ -16,7 +17,6 @@ import {
   useRestTokenBalanceQuantityParts,
 } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolio'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo, PortfolioBalance, PortfolioMultichainBalance } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { getPortfolioBalanceDisplayQuantity } from 'uniswap/src/features/portfolio/balances/getPortfolioBalanceDisplayQuantity'
@@ -304,7 +304,6 @@ function TokenBalanceRightSideColumn({
   svmAddress?: string
   portfolioBalance?: PortfolioMultichainBalance
 }): JSX.Element {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const { t } = useTranslation()
   const { isTestnetModeEnabled } = useEnabledChains()
   const { convertFiatAmountFormatted } = useLocalizationContext()
@@ -339,10 +338,10 @@ function TokenBalanceRightSideColumn({
           <Flex alignItems="flex-end" pl="$spacing8">
             <AnimatedNumber
               alignRight
+              disableAnimations={isMobileApp}
               numericValue={balanceUSD}
               value={balanceFormatted}
               textVariant={isWebPlatform ? '$body2' : '$body1'}
-              disableAnimations={!isDataLivelinessEnabled}
               warmLoading={isLoading}
             />
             <RelativeChange

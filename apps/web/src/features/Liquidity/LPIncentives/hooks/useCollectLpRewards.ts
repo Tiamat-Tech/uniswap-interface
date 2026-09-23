@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { ClaimLPRewardsRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/api_pb'
 import { Distributor } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useState } from 'react'
 import { useDispatch } from 'react-redux'
 import { liquidityQueries } from 'uniswap/src/data/apiClients/liquidityService/liquidityQueries'
@@ -35,7 +36,7 @@ interface UseCollectLpRewardsResult {
 // Stable identity for a Collect action (one chain, one or more reward tokens).
 export function lpRewardsCollectKey(chainId: number, tokenAddresses: string[]): string {
   return `${chainId}:${tokenAddresses
-    .map((address) => address.toLowerCase())
+    .map((address) => normalizeAddress(address, AddressStringFormat.Lowercase))
     .sort()
     .join(',')}`
 }

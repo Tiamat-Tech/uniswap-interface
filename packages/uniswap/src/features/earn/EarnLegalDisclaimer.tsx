@@ -1,6 +1,6 @@
+import { Text } from '@universe/mycelium'
 import { useCallback } from 'react'
 import { Trans } from 'react-i18next'
-import { Text } from 'ui/src'
 import { UniswapHelpUrls, UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { openUri } from 'uniswap/src/utils/linking'

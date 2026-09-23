@@ -1,7 +1,7 @@
 import { GqlResult } from '@universe/api'
 import { GatedFeature, useIsFeatureGated } from '@universe/compliance'
+import { Flex } from '@universe/mycelium'
 import { useMemo } from 'react'
-import { Flex } from 'ui/src'
 import { TokenSelectorListOption, TokenSelectorOption } from 'uniswap/src/components/lists/items/types'
 import { type OnchainItemSection, OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { useOnchainItemListSection } from 'uniswap/src/components/lists/utils'
@@ -12,7 +12,6 @@ import { usePortfolioTokenOptions } from 'uniswap/src/components/TokenSelector/h
 import { useRecentlySearchedTokens } from 'uniswap/src/components/TokenSelector/hooks/useRecentlySearchedTokens'
 import { useRwaTokenOptions } from 'uniswap/src/components/TokenSelector/hooks/useRwaTokenOptions'
 import { TokenSectionsHookProps, TokenSelectorVariation } from 'uniswap/src/components/TokenSelector/types'
-import { isSwapListLoading } from 'uniswap/src/components/TokenSelector/utils'
 import { RECENT_PILLS_MAX_COUNT } from 'uniswap/src/components/TokenSelectorV2/constants'
 import { useTrendingTokensOptionsV2 } from 'uniswap/src/components/TokenSelectorV2/hooks/useTrendingTokensOptionsV2'
 import { TokenSelectorV2SectionHeader } from 'uniswap/src/components/TokenSelectorV2/TokenSelectorV2SectionHeader'
@@ -174,7 +173,7 @@ export function useTokenSectionsForSwapV2({
       </Flex>
     )
   }, [isPortfolioOutage])
-  // Built even when excluded from the list (dual-pane) — isSwapListLoading keys off its presence.
+  // Built even when excluded from the list (dual-pane): the sidebar renders it separately.
   const yourTokensSection = useOnchainItemListSection({
     sectionKey: OnchainItemSectionName.YourTokens,
     options: portfolioTokenOptions,
@@ -192,16 +191,17 @@ export function useTokenSectionsForSwapV2({
     sectionHeader: trendingSectionHeader,
   })
 
+  // Deliberately does NOT blank out while `loading` is true. A refetch briefly drops one constituent
+  // section, and discarding the whole list for that swapped the mounted rows for the skeleton
+  // mid-scroll. `undefined` now means "nothing to show at all", which is the first load — and that is
+  // the only case `SelectorBaseList` should render its skeleton for.
   const sections = useMemo(() => {
-    if (isSwapListLoading({ loading, portfolioSection: yourTokensSection, trendingSection, isTestnetModeEnabled })) {
-      return undefined
-    }
-
     if (isTestnetModeEnabled) {
-      return [...(suggestedSection ?? []), ...(includeYourTokens ? (yourTokensSection ?? []) : [])]
+      const builtForTestnet = [...(suggestedSection ?? []), ...(includeYourTokens ? (yourTokensSection ?? []) : [])]
+      return builtForTestnet.length ? builtForTestnet : undefined
     }
 
-    return [
+    const built = [
       ...(recentSection ?? []),
       ...(suggestedSection ?? []),
       ...(shouldShowStocks ? (stocksSection ?? []) : []),
@@ -209,8 +209,8 @@ export function useTokenSectionsForSwapV2({
       ...(includeYourTokens ? (yourTokensSection ?? []) : []),
       ...(trendingSection ?? []),
     ]
+    return built.length ? built : undefined
   }, [
-    loading,
     yourTokensSection,
     trendingSection,
     suggestedSection,

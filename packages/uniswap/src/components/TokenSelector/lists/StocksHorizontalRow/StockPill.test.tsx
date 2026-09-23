@@ -1,7 +1,7 @@
 import { fireEvent } from '@testing-library/react-native'
+import { UniverseChainId } from '@universe/chains'
 import { OnchainItemListOptionType, type RwaTokenOption } from 'uniswap/src/components/lists/items/types'
 import { StockPill } from 'uniswap/src/components/TokenSelector/lists/StocksHorizontalRow/StockPill'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { render } from 'uniswap/src/test/test-utils'
 
 const option: RwaTokenOption = {

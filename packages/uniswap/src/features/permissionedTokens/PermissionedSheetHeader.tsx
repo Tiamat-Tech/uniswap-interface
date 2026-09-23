@@ -1,5 +1,5 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
 
 type PermissionedSheetHeaderProps = {
   icon: ReactNode

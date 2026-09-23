@@ -1,16 +1,16 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
+import { UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 import * as d3 from 'd3'
-import { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
 import { PriceChartData } from '~/components/Charts/PriceChart'
-import { TickData } from '~/data/AllV3TicksQuery'
 import type { AnimateParams } from '~/features/Liquidity/charts/D3LiquidityChartShared/store/createChartActions'
 import type { LinearTickScale, Renderer } from '~/features/Liquidity/charts/D3LiquidityChartShared/types'
 import { BucketChartEntry } from '~/features/Liquidity/charts/D3LiquidityChartShared/utils/liquidityBucketing/liquidityBucketing'
 import { TickAlignment } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/utils/priceToY'
 import { ChartEntry } from '~/features/Liquidity/charts/LiquidityRangeInput/types'
 import { RangeAmountInputPriceMode } from '~/features/Liquidity/Create/types'
+import { TickData } from '~/features/Liquidity/types/ticks'
 
 export type { Renderer } from '~/features/Liquidity/charts/D3LiquidityChartShared/types'
 
@@ -25,6 +25,12 @@ export type TickNavigationParams = {
 export type ChartState = {
   baseCurrency: Maybe<Currency>
   quoteCurrency: Maybe<Currency>
+  /** Latest displayed current price; for a new pool this is the user-entered initial price */
+  currentPrice?: number
+  /** Current tick in visual space (negated when priceInverted), mirroring renderingContext.currentTick so price strategies work without a mounted chart */
+  currentTick: number
+  /** True while creating a pool/pair, where the current tick follows the typed initial price instead of being fixed */
+  creatingPoolOrPair: boolean
   dimensions: {
     width: number
     height: number
@@ -127,9 +133,21 @@ export type ChartActions = {
   setChartState: (state: Omit<Partial<ChartState>, 'minPrice' | 'maxPrice'>) => void
   setPriceStrategy: ({ priceStrategy, animate }: { priceStrategy: DefaultPriceStrategy; animate: boolean }) => void
   setTimePeriod: (timePeriod: GraphQLApi.HistoryDuration) => void
+  syncCurrentTickFromParent: ({
+    currentTick,
+    currentPrice,
+    tickSpacing,
+    isInitialPriceDirty,
+  }: {
+    currentTick: number
+    currentPrice?: number
+    tickSpacing: number
+    isInitialPriceDirty?: boolean
+  }) => void
   syncIsFullRangeFromParent: (isFullRange: boolean) => void
   updateDimensions: (dimensions: { width: number; height: number }) => void
   handleTickChange: ({ changeType, tick }: { changeType: 'min' | 'max'; tick?: number }) => void
+  handleTickRangeChange: ({ minTick, maxTick }: { minTick?: number; maxTick?: number }) => void
   initializeView: () => void
   initializeRenderers: ({
     g,

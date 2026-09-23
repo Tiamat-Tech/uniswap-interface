@@ -1,7 +1,16 @@
-import { zIndexes } from 'ui/src/theme'
+import { zIndexes } from '@universe/mycelium'
 
 /** Full-height pinned-column guide; positioned by the table shell so row layout cannot break it. */
-export function TablePinnedColumnOverlay({ leftPx, color }: { leftPx: number; color: string }): JSX.Element | null {
+export function TablePinnedColumnOverlay({
+  leftPx,
+  leftOverride,
+  color,
+}: {
+  leftPx: number
+  /** CSS width expression tracking an overridden pinned-region width (see TableProps.pinnedWidthOverride). */
+  leftOverride?: string
+  color: string
+}): JSX.Element | null {
   if (leftPx <= 0) {
     return null
   }
@@ -14,7 +23,7 @@ export function TablePinnedColumnOverlay({ leftPx, color }: { leftPx: number; co
         position: 'absolute',
         top: 0,
         bottom: 0,
-        left: leftPx - 1,
+        left: leftOverride ? `calc(${leftOverride} - 1px)` : leftPx - 1,
         width: 1,
         pointerEvents: 'none',
         zIndex: zIndexes.default + 1,

@@ -2,6 +2,7 @@ import { ChartPeriod, WalletBalanceCategory } from '@uniswap/client-data-api/dis
 import { UTCTimestamp } from 'lightweight-charts'
 import type { PortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/buildPortfolioBalance'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+import { withText } from 'uniswap/src/test/matchers'
 import type { PriceChartData } from '~/components/Charts/PriceChart'
 import { PortfolioChartCategory } from '~/pages/Portfolio/Overview/hooks/usePortfolioChartSeries'
 import { PortfolioBalanceHeader } from '~/pages/Portfolio/Overview/PortfolioBalanceHeader'
@@ -75,7 +76,7 @@ describe('PortfolioBalanceHeader', () => {
     )
 
     expect(screen.getByTestId(TestID.PortfolioBalanceHeader)).toBeInTheDocument()
-    expect(screen.getByText(/15,741\.99/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/15,741\.99/))).toBeInTheDocument()
     expect(screen.getByTestId('price-chart-delta')).toBeInTheDocument()
     expect(screen.getByText(/today/i)).toBeInTheDocument()
   })
@@ -96,7 +97,7 @@ describe('PortfolioBalanceHeader', () => {
       />,
     )
 
-    expect(screen.getByText(/\$110/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/\$110/))).toBeInTheDocument()
   })
 
   it('renders the hovered chart value and delta while scrubbing', () => {
@@ -247,7 +248,7 @@ describe('PortfolioBalanceHeader', () => {
       />,
     )
 
-    expect(screen.getByText(/\$0/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/\$0/))).toBeInTheDocument()
   })
 
   it('renders a placeholder when balance and chart values are unavailable for a non-zero portfolio', () => {
@@ -309,7 +310,7 @@ describe('PortfolioBalanceHeader', () => {
     )
 
     expect(screen.getByTestId(TestID.BalanceBreakdownPopover)).toBeInTheDocument()
-    expect(screen.getByText(/15,741\.99/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/15,741\.99/))).toBeInTheDocument()
   })
 
   it('shows the tokens balance and hides the breakdown popover when the tokens category is selected', () => {
@@ -330,8 +331,8 @@ describe('PortfolioBalanceHeader', () => {
       />,
     )
 
-    expect(screen.getByText(/8,368\.94/)).toBeInTheDocument()
-    expect(screen.queryByText(/15,741\.99/)).not.toBeInTheDocument()
+    expect(screen.getByText(withText(/8,368\.94/))).toBeInTheDocument()
+    expect(screen.queryByText(withText(/15,741\.99/))).not.toBeInTheDocument()
     expect(screen.queryByTestId(TestID.BalanceBreakdownPopover)).not.toBeInTheDocument()
   })
 
@@ -353,8 +354,8 @@ describe('PortfolioBalanceHeader', () => {
       />,
     )
 
-    expect(screen.getByText(/7,373\.05/)).toBeInTheDocument()
-    expect(screen.queryByText(/15,741\.99/)).not.toBeInTheDocument()
+    expect(screen.getByText(withText(/7,373\.05/))).toBeInTheDocument()
+    expect(screen.queryByText(withText(/15,741\.99/))).not.toBeInTheDocument()
     expect(screen.queryByTestId(TestID.BalanceBreakdownPopover)).not.toBeInTheDocument()
   })
 
@@ -380,7 +381,7 @@ describe('PortfolioBalanceHeader', () => {
 
     expect(screen.getByTestId(TestID.BalanceUnavailableIndicator)).toBeInTheDocument()
     // tokens (8368.94) + pools (7373.05), earn omitted from the sum
-    expect(screen.getByText(/15,741\.99/)).toBeInTheDocument()
+    expect(screen.getByText(withText(/15,741\.99/))).toBeInTheDocument()
   })
 
   it('hides the unavailable indicator when no category is unavailable', () => {
@@ -448,8 +449,8 @@ describe('PortfolioBalanceHeader', () => {
       />,
     )
 
-    expect(screen.getByText(/3,259\.01/)).toBeInTheDocument()
-    expect(screen.queryByText(/15,741\.99/)).not.toBeInTheDocument()
+    expect(screen.getByText(withText(/3,259\.01/))).toBeInTheDocument()
+    expect(screen.queryByText(withText(/15,741\.99/))).not.toBeInTheDocument()
     expect(screen.queryByTestId(TestID.BalanceBreakdownPopover)).not.toBeInTheDocument()
   })
 })

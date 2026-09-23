@@ -1,7 +1,10 @@
+import type { UniverseChainId } from '@universe/chains'
+import { Text as MyceliumText, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import type { ComponentProps } from 'react'
 import { useReducer } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatableCopyIcon, Flex, styled, Text, TouchableArea } from 'ui/src'
+import { AnimatableCopyIcon } from 'ui/src'
 import { BlockExplorer } from 'ui/src/components/icons/BlockExplorer'
 import { GlobeFilled } from 'ui/src/components/icons/GlobeFilled'
 import { Lock } from 'ui/src/components/icons/Lock'
@@ -12,7 +15,6 @@ import type { getBlockExplorerIcon } from 'uniswap/src/components/chains/BlockEx
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { MultichainAddressList } from 'uniswap/src/components/MultichainTokenDetails/MultichainAddressList'
 import { MultichainExplorerList } from 'uniswap/src/components/MultichainTokenDetails/MultichainExplorerList'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { PermissionedTokenTooltip } from 'uniswap/src/features/permissionedTokens/PermissionedTokenTooltip'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -27,7 +29,6 @@ import {
   tokenPillStyles,
 } from '~/pages/TokenDetails/components/info/MultichainPillDropdown'
 import type { useMultichainTokenEntries } from '~/pages/TokenDetails/hooks/useMultichainTokenEntries'
-import { EllipsisTamaguiStyle } from '~/theme/components/styles'
 
 const TRUNCATE_CHARACTER_COUNT = 300
 
@@ -37,14 +38,12 @@ function truncateDescription(desc: string, maxCharacterCount = TRUNCATE_CHARACTE
   return truncated
 }
 
-const TokenDescriptionContainer = styled(Text, {
-  variant: 'body1',
-  color: '$neutral1',
-  maxWidth: '100%',
-  maxHeight: 'fit-content',
-  ...EllipsisTamaguiStyle,
-  whiteSpace: 'pre-wrap',
-  lineHeight: 24,
+// Typography = the legacy `variant: 'body1'` preset (18px) with the config's line-height 24
+// override — the font-size is restated so the pair survives tailwind-merge's font-size group.
+// The legacy config's `whiteSpace: 'pre-wrap'` overrode the EllipsisTamaguiStyle spread's
+// `nowrap` (later key wins), so only the resolved value is transcribed.
+const TokenDescriptionContainer = styled(MyceliumText, {
+  base: '[font-family:var(--stext-font-book)] text-[18px] [font-weight:485] [line-height:24px] [color:var(--stext-neutral1)] whitespace-pre-wrap text-ellipsis max-w-[100%] max-h-[fit-content] overflow-hidden',
 })
 
 export function TokenLinkButton({
@@ -70,7 +69,7 @@ export function TokenLinkButton({
       target="_blank"
       rel="noopener noreferrer"
       {...tokenPillStyles}
-      $platform-web={{ textDecorationLine: 'none' }}
+      className="no-underline"
       onPress={onPress}
     >
       {icon}

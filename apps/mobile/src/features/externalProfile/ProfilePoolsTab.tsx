@@ -1,13 +1,13 @@
-import { BottomSheetFlatList } from '@gorhom/bottom-sheet'
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
 import { FeatureFlags, useFeatureFlagWithExposureLoggingDisabled } from '@universe/gating'
+import { Flex, UniversalList, type UniversalListRenderItemInfo, type UniversalListStyle } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { memo, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlatList, type ListRenderItemInfo } from 'react-native'
 import { useAppStackNavigation } from 'src/app/navigation/types'
 import type { TabProps } from 'src/components/layout/TabHelpers'
 import { usePoolsListRenderData } from 'src/screens/HomeScreen/portfolio/tabs/pools/hooks/usePoolsListRenderData'
-import { Flex, Loader } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
+import { Loader } from 'ui/src'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { ExpandoRow } from 'uniswap/src/components/ExpandoRow/ExpandoRow'
 import { PositionItem } from 'uniswap/src/components/portfolio/PositionItem/PositionItem'
@@ -24,6 +24,8 @@ import { filterAndSortPositions, getPositionKey } from 'uniswap/src/features/pos
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
+
+const EMPTY_POSITIONS: PositionInfo[] = []
 
 const FIRST_PAGE_LOADER_ROW_COUNT = 6
 const NEXT_PAGE_LOADER_ROW_COUNT = 2
@@ -69,7 +71,7 @@ export const ProfilePoolsTab = memo(function ProfilePoolsTabInner({
   const viewOpenPositions = useEvent(() => setStatusFilter(PositionStatusFilterValue.Open))
 
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<PositionInfo>): JSX.Element => (
+    ({ item }: UniversalListRenderItemInfo<PositionInfo>): JSX.Element => (
       <ProfilePoolPositionRow owner={owner} positionInfo={item} />
     ),
     [owner],
@@ -145,18 +147,24 @@ export const ProfilePoolsTab = memo(function ProfilePoolsTabInner({
     [isFetchingNextPage, filteredHiddenPositions, hiddenExpanded, toggleHidden, owner, t],
   )
 
-  const List = renderedInModal ? BottomSheetFlatList<PositionInfo> : FlatList<PositionInfo>
+  const contentContainerStyle = useMemo<UniversalListStyle>(
+    () => ({ style: containerProps?.contentContainerStyle }),
+    [containerProps?.contentContainerStyle],
+  )
 
   return (
-    <Flex grow backgroundColor="$surface1">
-      <List
-        contentContainerStyle={containerProps?.contentContainerStyle}
-        data={hasErrorWithoutData || isLoadingFirstPage ? [] : visiblePositions}
+    // `fill` (flex:1) not `grow`: the list needs a parent with a definite height or it sizes to its content.
+    <Flex fill backgroundColor="$surface1">
+      <UniversalList
+        contentContainerStyle={contentContainerStyle}
+        data={hasErrorWithoutData || isLoadingFirstPage ? EMPTY_POSITIONS : visiblePositions}
         keyExtractor={getPositionKey}
-        renderItem={renderItem}
-        ListHeaderComponent={ListHeaderComponent}
         ListEmptyComponent={ListEmptyComponent}
         ListFooterComponent={ListFooterComponent}
+        ListHeaderComponent={ListHeaderComponent}
+        renderItem={renderItem}
+        // Route scroll gestures through the sheet's own scrollable when rendered inside one.
+        renderScrollComponent={renderedInModal ? BottomSheetScrollView : undefined}
         showsVerticalScrollIndicator={false}
         onEndReached={onListEndReached}
         onEndReachedThreshold={0.5}

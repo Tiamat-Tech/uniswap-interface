@@ -8,6 +8,7 @@ import {
   addActivityVisibility,
   addDismissedBridgedAndCompatibleWarnings,
   addEnableCustomGasFeeEntry,
+  markPoolsBalanceCoachmarkEligible,
   migrateDismissedTokenWarnings,
   migrateSearchHistory,
   removeThaiBahtFromFiatCurrency,
@@ -74,6 +75,7 @@ export const migrations = {
   31: setLanguageToNavigatorLanguage,
   32: addEnableCustomGasFeeEntry,
   33: removeUniswapWrapped2025BehaviorHistory,
+  34: markPoolsBalanceCoachmarkEligible,
 }
 
-export const EXTENSION_STATE_VERSION = 33
+export const EXTENSION_STATE_VERSION = 34

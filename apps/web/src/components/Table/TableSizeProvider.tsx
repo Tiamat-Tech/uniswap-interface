@@ -1,29 +1,43 @@
 import { ParentSizeState } from '@visx/responsive/lib/hooks/useParentSize'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 
-export type TableSizeContextValue = ParentSizeState & {
-  /** Sum of leaf column sizes — matches full `DataRow` scroll width. */
-  rowContentMinWidthPx: number
-}
-
-const defaultTableSizeContextValue: TableSizeContextValue = {
+const defaultTableSize: ParentSizeState = {
   width: 0,
   height: 0,
   top: 0,
   left: 0,
-  rowContentMinWidthPx: 0,
 }
 
-const TableSizeContext = createContext<TableSizeContextValue>(defaultTableSizeContextValue)
+const TableSizeContext = createContext<ParentSizeState>(defaultTableSize)
 
-export const useTableSize = (): TableSizeContextValue => {
+const TableRowContentMinWidthContext = createContext<number | undefined>(undefined)
+
+export const useTableSize = (): ParentSizeState => {
   return useContext(TableSizeContext)
 }
 
 export const useTableRowContentMinWidthPx = (): number => {
-  return useContext(TableSizeContext).rowContentMinWidthPx
+  const value = useContext(TableRowContentMinWidthContext)
+  if (value === undefined) {
+    throw new Error('useTableRowContentMinWidthPx must be used within TableSizeProvider')
+  }
+  return value
 }
 
-export function TableSizeProvider({ children, value }: { children: React.ReactNode; value: TableSizeContextValue }) {
-  return <TableSizeContext.Provider value={value}>{children}</TableSizeContext.Provider>
+export function TableSizeProvider({
+  children,
+  size,
+  rowContentMinWidthPx,
+}: {
+  children: ReactNode
+  size: ParentSizeState
+  rowContentMinWidthPx: number
+}): JSX.Element {
+  return (
+    <TableSizeContext.Provider value={size}>
+      <TableRowContentMinWidthContext.Provider value={rowContentMinWidthPx}>
+        {children}
+      </TableRowContentMinWidthContext.Provider>
+    </TableSizeContext.Provider>
+  )
 }

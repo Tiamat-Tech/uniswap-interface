@@ -1,10 +1,8 @@
 import { isHoverable, isMobileApp, isMobileWeb, isWebPlatform } from '@universe/environment'
+import { Flex, TouchableArea } from '@universe/mycelium'
 import { useMemo, useRef, useState } from 'react'
-import { Flex, TouchableArea } from 'ui/src'
-import {
-  CONTEXT_MENU_ACTIONS,
-  TokenContextMenuVariant,
-} from 'uniswap/src/components/lists/items/tokens/TokenOptionItem'
+import { CONTEXT_MENU_ACTIONS } from 'uniswap/src/components/lists/items/tokens/TokenOptionItem/contextMenuActions'
+import { TokenContextMenuVariant } from 'uniswap/src/components/lists/items/tokens/TokenOptionItem/types'
 import { TokenOptionItemContextMenu } from 'uniswap/src/components/lists/items/tokens/TokenOptionItemContextMenu'
 import type { ContextMenuHandle } from 'uniswap/src/components/menus/ContextMenu'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
@@ -202,9 +200,11 @@ export function RwaIssuerRow({
             {rowContent}
           </div>
         ) : ownsTouchable ? (
-          // native expanded sub-row: ONE TouchableArea, tap + long-press (no nesting, no `…` since !isHoverable).
-          // openMenuNative adds keyboard-dismiss + haptic.
+          // native expanded sub-row: one pressable, tap + long-press. openMenuNative adds keyboard-dismiss + haptic.
+          // scale:1 opts out of the default press-shrink, matching the search rows this sub-row expands within.
           <TouchableArea
+            accessibilityRole="button"
+            pressStyle={{ scale: 1 }}
             modifierPressHref={modifierPressHref}
             onModifierPress={onModifierPress}
             onPress={onPress}

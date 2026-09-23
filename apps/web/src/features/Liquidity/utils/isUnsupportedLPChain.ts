@@ -1,6 +1,5 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { isSVMChain } from 'uniswap/src/features/platforms/utils/chains'
+import { UniverseChainId, isSVMChain } from '@universe/chains'
 import { SUPPORTED_V2POOL_CHAIN_IDS } from '~/hooks/useNetworkSupportsV2'
 import { isV4UnsupportedChain } from '~/utils/networkSupportsV4'
 

@@ -1,4 +1,5 @@
 import { Currency, Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { useFeatureFlag } from '@universe/gating'
 import {
   TokenContextMenuAction,
@@ -6,7 +7,6 @@ import {
   useSearchTokenMenuItems,
 } from 'uniswap/src/components/lists/items/tokens/useSearchTokenMenuItems'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { renderHook } from 'uniswap/src/test/test-utils'
 import { TdpChainSelectionType } from 'uniswap/src/utils/linking'
 import type { Mock } from 'vitest'

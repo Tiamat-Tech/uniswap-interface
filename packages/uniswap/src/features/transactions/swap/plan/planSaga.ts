@@ -1,13 +1,13 @@
 /* oxlint-disable max-lines */
 import { TradingApi } from '@universe/api'
-import { call, cancel, delay, fork } from 'typed-redux-saga'
+import { UniverseChainId } from '@universe/chains'
+import { call, cancel, delay, fork, spawn } from 'typed-redux-saga'
 import { TradingApiSessionClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiSessionClient'
 import {
   mapTAPIPlanStatusToTXStatus,
   mapTAPIPlanStepStatusToTXStatus,
 } from 'uniswap/src/features/activity/extract/statusMappers'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { AppNotificationType, type PlanTxNotification } from 'uniswap/src/features/notifications/slice/types'
 import { HandledTransactionInterrupt } from 'uniswap/src/features/transactions/errors'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
@@ -31,6 +31,7 @@ import {
   updateGlobalStateWithLatestSteps,
 } from 'uniswap/src/features/transactions/swap/plan/planSagaUtils'
 import {
+  logPlanSwapStepSubmitted,
   logPlanStepTradeAnalytics,
   TRADE_STEP_TYPES,
   logUniswapXPlanOrderSubmitted,
@@ -295,6 +296,7 @@ export function* plan(params: PlanParams) {
       logger.debug('planSaga', 'plan', '🚨 Starting step', currentStep)
 
       const swapChainId = currentStep?.tokenInChainId
+      const stepChainId = tradingApiToUniverseChainId(swapChainId)
       if (swapChainId) {
         const chainSwitched = yield* call(selectChain, swapChainId)
         if (!chainSwitched) {
@@ -390,11 +392,18 @@ export function* plan(params: PlanParams) {
         }
       }
 
+      if (hash && TRADE_STEP_TYPES.has(currentStep.type)) {
+        yield* call(logPlanSwapStepSubmitted, {
+          hash,
+          chainId: stepChainId,
+          analyticsWithPlanStepContext,
+        })
+      }
+
       if (hash || signature) {
         const stepIndex = currentStep.stepIndex
         logger.debug('planSaga', 'plan', '🚨 updating existing trade', planId, hash, signature)
 
-        const stepChainId = swapChainId ? tradingApiToUniverseChainId(swapChainId) : null
         const blockTimeMs = stepChainId ? getChainInfo(stepChainId).blockTimeMs : undefined
         // We set the base delay to half the block time.
         const baseDelayMs = blockTimeMs ? blockTimeMs / 2 : ONE_SECOND_MS
@@ -452,7 +461,7 @@ export function* plan(params: PlanParams) {
       const { steps: updatedSteps, planResponse: latestPlanResponse } = yield* call(watchPlanStep, {
         planId,
         targetStepIndex: currentStep.stepIndex,
-        stepChainId: tradingApiToUniverseChainId(swapChainId),
+        stepChainId,
         sourceChainId: inputChainId,
         address,
         initialPlanResponse: patchResponse,
@@ -488,9 +497,8 @@ export function* plan(params: PlanParams) {
       })
 
       // Non-last trade steps are logged here synchronously after `watchPlanStep` returns.
-      // Last steps are instead logged inside `watchLastPlanStepWithCleanup` (forked background saga).
+      // Last steps are instead logged inside `watchLastPlanStepWithCleanup` (detached background task).
       // logPlanStepTradeAnalytics internally skips non-trade steps (approvals, permits).
-      const stepChainId = swapChainId ? tradingApiToUniverseChainId(swapChainId) : null
       logPlanStepTradeAnalytics({
         stepType: currentStep.type,
         updatedSteps,
@@ -651,9 +659,9 @@ function buildPlanErrorToast(params: {
 
 /**
  * Wraps watchPlanStep in try/catch/finally for the last step.
- * Unlike non-last steps (which use a blocking `call`), errors from a forked task
- * won't be caught by the parent saga's try/catch since it has already returned.
- * - catch: prevents unhandled errors from the forked polling task
+ * Unlike non-last steps (which use a blocking `call`), errors from the detached task
+ * do not propagate to the parent task.
+ * - catch: prevents errors from escaping the detached polling task
  * - finally: clears the plan from backgroundedPlans so the activity UI can show
  *   the real plan status (e.g. AwaitingAction) instead of overriding it to Pending,
  *   which is what allows the retry button to appear for failed last steps.
@@ -793,7 +801,7 @@ function* watchLastPlanStepWithCleanup(params: WatchLastPlanStepParams) {
 }
 
 /**
- * Handles the last step of a plan: forks background polling, signals success,
+ * Handles the last step of a plan: starts detached background polling, signals success,
  * backgrounds the plan, and logs timing.
  */
 // oxlint-disable-next-line typescript/explicit-function-return-type
@@ -824,9 +832,9 @@ function* handleLastStepCompletion(params: HandleLastStepCompletionParams) {
     })
   }
 
-  // For the last step, we fork watchPlanStep (non-blocking) so the saga can return
-  // and let the user navigate away while polling continues in the background.
-  yield* fork(watchLastPlanStepWithCleanup, {
+  // The detached watcher cannot keep the serial plan worker busy or be canceled by
+  // the monitored parent timeout. It handles its own bounded polling and cleanup.
+  yield* spawn(watchLastPlanStepWithCleanup, {
     planId,
     targetStepIndex: lastStepIndex,
     stepChainId: lastStepChainId,

@@ -1,5 +1,5 @@
+import { areAddressesEqual } from '@universe/chains'
 import { type RWAAsset, type RWAToken, type RWAWhitelist } from 'uniswap/src/features/rwa/types'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 
 export type RWACandidate = {
   chainId: number | null | undefined

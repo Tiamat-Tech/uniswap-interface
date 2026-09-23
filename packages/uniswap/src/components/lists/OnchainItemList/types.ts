@@ -10,6 +10,7 @@ export enum OnchainItemSectionName {
   FavoriteTokens = 'favoriteTokens',
   SuggestedTokens = 'suggestedTokens',
   Stocks = 'stocks',
+  Category = 'category',
   BridgingTokens = 'bridgingTokens',
   OtherChainsTokens = 'otherNetworksTokens',
 
@@ -26,7 +27,10 @@ export enum OnchainItemSectionName {
 export type OnchainItemSection<T extends OnchainItemListOption> = {
   data: T[]
   sectionKey: OnchainItemSectionName
+  sectionId?: string
   name?: string
+  categoryId?: string
+  onPress?: () => void
   rightElement?: JSX.Element
   endElement?: JSX.Element
   sectionHeader?: JSX.Element

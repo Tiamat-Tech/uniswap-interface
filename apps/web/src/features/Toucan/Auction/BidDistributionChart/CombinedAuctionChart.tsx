@@ -1,9 +1,10 @@
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 /* oxlint-disable max-lines */
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { BidDistributionChartPlaceholder } from '~/features/Toucan/Auction/BidDistributionChart/BidDistributionChartPlaceholder'
@@ -111,11 +112,11 @@ export function CombinedAuctionChart({
 
   const tickSize = auctionDetails.tickSize || '0'
   const floorPrice = auctionDetails.floorPrice || '0'
-  const totalSupply = auctionDetails.tokenTotalSupply
+  const tokenTotalSupply = auctionDetails.tokenTotalSupply
 
   const { formatPrice, formatTokenAmount } = useAuctionValueFormatters({
     bidTokenInfo,
-    totalSupply,
+    totalSupply: tokenTotalSupply,
     auctionTokenDecimals,
   })
 
@@ -132,7 +133,7 @@ export function CombinedAuctionChart({
       return generateChartData({
         bidData: effectiveBidDistributionData,
         bidTokenInfo,
-        totalSupply,
+        tokenTotalSupply,
         auctionTokenDecimals,
         clearingPrice,
         floorPrice,
@@ -150,7 +151,7 @@ export function CombinedAuctionChart({
     clearingPrice,
     floorPrice,
     tickSize,
-    totalSupply,
+    tokenTotalSupply,
     auctionTokenDecimals,
     excludedBidVolume,
   ])
@@ -416,7 +417,7 @@ export function CombinedAuctionChart({
           height={effectiveHeight}
           onVisiblePriceRangeChange={handleVisiblePriceRangeChange}
           disableMouseWheelInteractions
-          totalSupply={totalSupply}
+          tokenTotalSupply={tokenTotalSupply}
           auctionTokenDecimals={auctionTokenDecimals}
           extendLineToRightEdge={showNoBidsState}
         />
@@ -543,7 +544,7 @@ export function CombinedAuctionChart({
               totalBidVolume: clearingPriceTooltipData.totalBidVolume,
             }}
             bidTokenInfo={bidTokenInfo}
-            totalSupply={totalSupply}
+            tokenTotalSupply={tokenTotalSupply}
             auctionTokenDecimals={auctionTokenDecimals}
           />
         )}
@@ -558,7 +559,7 @@ export function CombinedAuctionChart({
             volumeAmount={hoverState?.bar?.amount ?? 0}
             totalVolume={chartData.totalBidVolume}
             bidTokenInfo={bidTokenInfo}
-            totalSupply={totalSupply}
+            tokenTotalSupply={tokenTotalSupply}
             auctionTokenDecimals={auctionTokenDecimals}
             formatter={formatFdvValue}
             volumeFormatter={formatVolumeLabel}
@@ -572,7 +573,7 @@ export function CombinedAuctionChart({
           direction={bidOutOfRange}
           tickValue={Number(userBidPrice)}
           bidTokenInfo={bidTokenInfo}
-          totalSupply={totalSupply}
+          tokenTotalSupply={tokenTotalSupply}
           auctionTokenDecimals={auctionTokenDecimals}
           formatter={formatFdvValue}
           onClick={() => panToPrice(Number(userBidPrice))}

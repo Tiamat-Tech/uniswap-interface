@@ -1,8 +1,8 @@
 import { TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { USDC_MAINNET, USDT } from 'uniswap/src/constants/tokens'
 import { AssetType } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getEarnSwapUpsellOutputCurrencyId } from 'uniswap/src/features/earn/swapUpsell'
 import {
   TransactionOriginType,
@@ -202,17 +202,6 @@ describe('maybeAddEarnSwapUpsellPopup', () => {
     })
 
     expect(popupRegistry.addPopup).toHaveBeenCalledWith(...expectedUpsellPopupArgs)
-  })
-
-  it('does not register the upsell popup when Earn is disabled', () => {
-    maybeAddEarnSwapUpsellPopup({
-      isEarnEnabled: false,
-      status: TransactionStatus.Success,
-      typeInfo: createSwapTypeInfo(),
-      transactionId: 'tx-1',
-    })
-
-    expect(popupRegistry.addPopup).not.toHaveBeenCalled()
   })
 
   it('registers the upsell popup immediately when the swap confirmation popup is not visible', () => {

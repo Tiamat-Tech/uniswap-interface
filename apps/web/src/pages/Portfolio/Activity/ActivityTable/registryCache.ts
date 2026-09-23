@@ -5,23 +5,17 @@ import { ActivityRowFragments } from '~/pages/Portfolio/Activity/ActivityTable/a
 const MAX_CACHE_SIZE = 500
 const fragmentsCache = new Map<string, ActivityRowFragments>()
 
-type ActivityRowFragmentsCacheOptions = { isEarnActivityDisplayEnabled?: boolean }
-
-export function getCachedActivityRowFragments(
-  details: TransactionDetails,
-  { isEarnActivityDisplayEnabled = true }: ActivityRowFragmentsCacheOptions = {},
-): ActivityRowFragments | undefined {
-  return fragmentsCache.get(getTransactionCacheKey(details, { isEarnActivityDisplayEnabled }))
+export function getCachedActivityRowFragments(details: TransactionDetails): ActivityRowFragments | undefined {
+  return fragmentsCache.get(getTransactionCacheKey(details))
 }
 
 export function cacheActivityRowFragments({
   details,
   fragments,
-  isEarnActivityDisplayEnabled = true,
 }: {
   details: TransactionDetails
   fragments: ActivityRowFragments
-} & ActivityRowFragmentsCacheOptions): void {
+}): void {
   if (fragmentsCache.size >= MAX_CACHE_SIZE) {
     const firstKey = fragmentsCache.keys().next().value
 
@@ -30,13 +24,10 @@ export function cacheActivityRowFragments({
     }
   }
 
-  fragmentsCache.set(getTransactionCacheKey(details, { isEarnActivityDisplayEnabled }), fragments)
+  fragmentsCache.set(getTransactionCacheKey(details), fragments)
 }
 
-function getTransactionCacheKey(
-  details: TransactionDetails,
-  { isEarnActivityDisplayEnabled }: { isEarnActivityDisplayEnabled: boolean },
-): string {
+function getTransactionCacheKey(details: TransactionDetails): string {
   const updatedTime = 'updatedTime' in details ? details.updatedTime : undefined
 
   if (details.typeInfo.type === TransactionType.Plan) {
@@ -45,7 +36,6 @@ function getTransactionCacheKey(
       details.id,
       details.status,
       updatedTime,
-      isEarnActivityDisplayEnabled,
       details.typeInfo.planStatus,
       details.typeInfo.earnAction,
       details.typeInfo.inputCurrencyId,

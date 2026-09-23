@@ -1,7 +1,7 @@
 import { GqlResult } from '@universe/api'
+import { Flex } from '@universe/mycelium'
 import { memo, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { ExpandoRow } from 'uniswap/src/components/ExpandoRow/ExpandoRow'
 import { TokenOption } from 'uniswap/src/components/lists/items/types'

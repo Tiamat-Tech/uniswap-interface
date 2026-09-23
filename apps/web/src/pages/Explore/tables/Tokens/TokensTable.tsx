@@ -3,22 +3,21 @@
 import { ApolloError } from '@apollo/client'
 import { createColumnHelper } from '@tanstack/react-table'
 import type { RankedMultichainToken } from '@uniswap/client-data-api/dist/data/v2/types_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { InfoCircle } from '@universe/mycelium/icons/InfoCircle'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useMedia } from 'ui/src'
-import { InfoCircle } from 'ui/src/components/icons/InfoCircle'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber.web'
-import { WRAPPED_NATIVE_CURRENCY } from 'uniswap/src/constants/tokens'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { useFeatureFlaggedChainIds } from 'uniswap/src/features/chains/hooks/useFeatureFlaggedChainIds'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { useRWAWhitelist } from 'uniswap/src/features/rwa/useRWAWhitelist'
 import { ElementName, SectionName, UniswapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { FiatNumberType, NumberType } from 'utilities/src/format/types'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 import { SparklineChart } from '~/components/Charts/SparklineChart'
@@ -27,6 +26,14 @@ import { Table } from '~/components/Table'
 import { Cell } from '~/components/Table/Cell'
 import { TableText } from '~/components/Table/shared/TableText'
 import { HeaderCell } from '~/components/Table/styled'
+import {
+  DATA_COLUMN_CONTENT_WIDTH_PX,
+  getDataColumnSizing,
+  getFixedColumnSizing,
+  getFlexColumnSizing,
+  SPARKLINE_COLUMN_WIDTH_PX,
+  VOLUME_COLUMN_GAP_PX,
+} from '~/components/Table/utils/columnSizing'
 import { TokenSortMethod } from '~/components/Tokens/constants'
 import { SparklineMap } from '~/data/types'
 import { getTokenDetailsURL, OrderDirection, unwrapToken } from '~/data/util'
@@ -40,6 +47,8 @@ import {
 } from '~/features/Explore/state/listTokens/utils/multichainVolume'
 import { useExploreParams } from '~/pages/Explore/redirects'
 import { LivePriceCell } from '~/pages/Explore/tables/Tokens/LivePriceCell'
+import { getNativeBrandingChainId } from '~/pages/Explore/tables/Tokens/nativeBrandingChainId'
+import { findRankedTokenRWAMatch } from '~/pages/Explore/tables/Tokens/rankedTokenIssuer'
 import { getTokenDescriptionColumnSize, TokenDescription } from '~/pages/Explore/tables/Tokens/TokenDescription'
 import { TokenTableHeader } from '~/pages/Explore/tables/Tokens/TokenTableHeader'
 import { useTokenTableSortStore } from '~/pages/Explore/tables/Tokens/tokenTableSortStore'
@@ -60,6 +69,7 @@ export function TokenTable({
   loading,
   error,
   loadMore,
+  categoryId,
 }: {
   tokens?: readonly RankedMultichainToken[]
   tokenSortRank: Record<string, number>
@@ -67,12 +77,12 @@ export function TokenTable({
   loading: boolean
   error?: ApolloError | boolean
   loadMore?: ({ onComplete }: { onComplete?: () => void }) => void
+  categoryId?: string
 }) {
   const { t } = useTranslation()
   const trace = useTrace()
   const { convertFiatAmountFormatted, formatPercent } = useLocalizationContext()
   const { defaultChainId } = useEnabledChains()
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
   const { sortMethod, sortAscending } = useTokenTableSortStore((s) => ({
     sortMethod: s.sortMethod,
     sortAscending: s.sortAscending,
@@ -85,6 +95,7 @@ export function TokenTable({
   const chainFilter = useExploreParams().chainName
   const exploreChainId = chainFilter ? getChainIdFromChainUrlParam(chainFilter) : undefined
   const featureFlaggedChainIds = useFeatureFlaggedChainIds()
+  const rwaWhitelist = useRWAWhitelist()
 
   const tokenTableValues: TokenTableValue[] | undefined = useMemo(
     () =>
@@ -110,26 +121,14 @@ export function TokenTable({
         const delta1dAbs = delta1d !== undefined ? Math.abs(delta1d) : undefined
         const rowKey = multichainTokenKey(rankedToken)
         const tokenSortIndex = tokenSortRank[rowKey]
-        // Raw addresses read is safe here: it only probes the mainnet leg for native-currency
-        // branding, and mainnet is always registered and never flag-gated.
-        const mainnetAddress = mc.addresses[String(UniverseChainId.Mainnet)]
-        const mainnetIsWrappedNative = Boolean(
-          mainnetAddress &&
-          areAddressesEqual({
-            addressInput1: { address: mainnetAddress, chainId: UniverseChainId.Mainnet },
-            addressInput2: {
-              address: WRAPPED_NATIVE_CURRENCY[UniverseChainId.Mainnet]?.address,
-              chainId: UniverseChainId.Mainnet,
-            },
-          }),
-        )
         const unwrappedToken = unwrapToken(
-          // Ethereum L2s each brand their native currency differently (e.g. Robinhood's is "Robinhood ETH"),
-          // but they're all fundamentally the same ETH asset — so when this grouping includes a mainnet
-          // deployment, prefer mainnet's canonical "Ethereum"/"ETH" branding regardless of the primary chain.
-          // Otherwise (e.g. Polygon's native POL, which has no mainnet deployment), keep the primary chain's
-          // own native-currency branding.
-          { chainId, nativeCurrencyChainId: mainnetIsWrappedNative ? UniverseChainId.Mainnet : chainId },
+          {
+            chainId,
+            // Chain-filtered pages keep the filtered chain's own native branding; the unfiltered
+            // page prefers mainnet's canonical branding when the grouping has a mainnet native leg
+            // — see getNativeBrandingChainId.
+            nativeCurrencyChainId: getNativeBrandingChainId({ multichainToken: mc, chainId, exploreChainId }),
+          },
           {
             address,
             name: mc.name,
@@ -139,6 +138,10 @@ export function TokenTable({
         )
         const chainIdsByVolume =
           getChainIdsByVolume({ rankedToken, timePeriod, allowedChainIds: featureFlaggedChainIds }) ?? []
+        const rwaMatch = findRankedTokenRWAMatch({ multichainToken: mc, rwaWhitelist })
+        // Same identity rule as the TDP header (getRWAHeaderIdentity): a matched RWA shows the registry
+        // asset name ("Tesla") next to its issuer tag instead of the on-chain name ("Tesla (Ondo)").
+        const name = rwaMatch ? rwaMatch.asset.name || rwaMatch.asset.symbol : unwrappedToken.name
         // Count and TDP link mode derive from the same filtered set as the "N networks" label,
         // or a flag-disabled leg desyncs them. The volume cell's info affordance gates separately
         // on the visible breakdown (hasVolumeBreakdown), matching the popover's own condition.
@@ -160,13 +163,16 @@ export function TokenTable({
             chainIdsByVolume,
             tokenDescription: (
               <TokenDescription
-                chainFilter={chainFilter}
+                chainFilterId={exploreChainId}
                 chainIdsByVolume={chainIdsByVolume}
-                name={unwrappedToken.name}
+                name={name}
                 symbol={unwrappedToken.symbol}
                 address={unwrappedToken.address}
                 chainId={chainId as UniverseChainId}
                 logoUrl={mc.project?.logoUrl}
+                categoryIds={mc.categoryIds}
+                scopedCategoryId={categoryId}
+                issuer={rwaMatch?.token.issuer}
               />
             ),
             testId: `${TestID.TokenTableRowPrefix}${unwrappedToken.address}`,
@@ -219,6 +225,7 @@ export function TokenTable({
         ]
       }) ?? [],
     [
+      categoryId,
       chainFilter,
       exploreChainId,
       convertFiatAmountFormatted,
@@ -226,6 +233,7 @@ export function TokenTable({
       featureFlaggedChainIds,
       filterString,
       formatPercent,
+      rwaWhitelist,
       sparklines,
       timePeriod,
       tokenSortRank,
@@ -275,7 +283,7 @@ export function TokenTable({
         : null,
       columnHelper.accessor((row) => row.tokenDescription, {
         id: 'tokenDescription',
-        size: getTokenDescriptionColumnSize(isLg),
+        ...getFlexColumnSizing(getTokenDescriptionColumnSize(isLg)),
         header: () => (
           <HeaderCell justifyContent="flex-start">
             <Text variant="body3" color="$neutral2" fontWeight="500">
@@ -293,7 +301,7 @@ export function TokenTable({
       }),
       columnHelper.accessor((row) => row.token, {
         id: 'price',
-        maxSize: 140,
+        ...getDataColumnSizing(DATA_COLUMN_CONTENT_WIDTH_PX.price),
         header: () => (
           <HeaderCell clickable justifyContent="flex-end">
             <TokenTableHeader
@@ -311,7 +319,7 @@ export function TokenTable({
       }),
       columnHelper.accessor((row) => row.percentChange1hr, {
         id: 'percentChange1hr',
-        maxSize: 100,
+        ...getDataColumnSizing(DATA_COLUMN_CONTENT_WIDTH_PX.percentChange),
         header: () => (
           <HeaderCell clickable>
             <TokenTableHeader
@@ -329,7 +337,7 @@ export function TokenTable({
       }),
       columnHelper.accessor((row) => row.percentChange1d, {
         id: 'percentChange1d',
-        maxSize: 140,
+        ...getDataColumnSizing(DATA_COLUMN_CONTENT_WIDTH_PX.percentChange),
         header: () => (
           <HeaderCell clickable justifyContent="flex-end">
             <TokenTableHeader
@@ -347,7 +355,7 @@ export function TokenTable({
       }),
       columnHelper.accessor((row) => row.fdv, {
         id: 'fdv',
-        maxSize: 120,
+        ...getDataColumnSizing(DATA_COLUMN_CONTENT_WIDTH_PX.fiatStat),
         header: () => (
           <HeaderCell clickable justifyContent="flex-end">
             <TokenTableHeader
@@ -373,8 +381,10 @@ export function TokenTable({
       }),
       columnHelper.accessor((row) => row.volume, {
         id: 'volume',
-        meta: { overflowVisible: true },
-        maxSize: 150,
+        ...getDataColumnSizing(DATA_COLUMN_CONTENT_WIDTH_PX.volume, {
+          meta: { overflowVisible: true },
+          gapPx: VOLUME_COLUMN_GAP_PX,
+        }),
         header: () => (
           <HeaderCell clickable>
             <TokenTableHeader
@@ -433,7 +443,7 @@ export function TokenTable({
                         width={VOLUME_INFO_ICON_WIDTH}
                         alignItems="flex-end"
                         top={0}
-                        right={`-${VOLUME_INFO_ICON_WIDTH}px`}
+                        right={-VOLUME_INFO_ICON_WIDTH}
                         bottom={0}
                         opacity={0}
                         cursor="default"
@@ -452,7 +462,7 @@ export function TokenTable({
       }),
       columnHelper.accessor((row) => row.sparkline, {
         id: 'sparkline',
-        maxSize: 120,
+        ...getFixedColumnSizing(SPARKLINE_COLUMN_WIDTH_PX),
         header: () => (
           <HeaderCell>
             <Text variant="body3" color="$neutral2" fontWeight="500">
@@ -469,6 +479,7 @@ export function TokenTable({
 
   return (
     <Table
+      virtualized
       columns={columns}
       data={tokenTableValues}
       loading={loading}
@@ -478,7 +489,6 @@ export function TokenTable({
       loadMore={loadMore}
       maxWidth={1200}
       defaultPinnedColumns={['index', 'tokenDescription']}
-      virtualized={isV2TokensEnabled}
       getRowId={(row) => row.rowKey}
     />
   )

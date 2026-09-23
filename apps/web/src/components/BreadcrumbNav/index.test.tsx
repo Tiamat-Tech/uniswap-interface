@@ -1,6 +1,6 @@
 import userEvent from '@testing-library/user-event'
+import { UniverseChainId } from '@universe/chains'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { CurrentPageBreadcrumb } from '~/components/BreadcrumbNav'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'

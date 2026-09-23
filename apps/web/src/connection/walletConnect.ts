@@ -1,5 +1,5 @@
 import { isWebAndroid, isWebIOS } from '@universe/environment'
-import { zIndexes } from 'ui/src/theme'
+import { zIndexes } from '@universe/mycelium'
 import { type CreateConnectorFn, createConnector } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 import UNIWALLET_ICON from '~/assets/wallets/uniswap-wallet-icon.png'

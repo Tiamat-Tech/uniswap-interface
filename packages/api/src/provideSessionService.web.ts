@@ -1,8 +1,9 @@
+import { isSessionServiceEnabled } from '@universe/api/src/isSessionServiceEnabled'
 import { provideDeviceIdService } from '@universe/api/src/provideDeviceIdService'
 import { provideSessionStorage } from '@universe/api/src/provideSessionStorage'
 import { provideUniswapIdentifierService } from '@universe/api/src/provideUniswapIdentifierService'
 import { getTransport, type Interceptors } from '@universe/api/src/transport'
-import { isWebApp, REQUEST_SOURCE } from '@universe/environment'
+import { isE2eTestEnv, isWebApp, REQUEST_SOURCE } from '@universe/environment'
 import {
   createNoopSessionService,
   createSessionClient,
@@ -15,14 +16,23 @@ import type { Logger } from 'utilities/src/logger/logger'
 
 function provideSessionService(ctx: {
   getBaseUrl: () => string
-  getIsSessionServiceEnabled: () => boolean
+  getIsSessionServiceEnabled?: () => boolean
   getLogger?: () => Logger
   /** Optional custom UniswapIdentifierService. If not provided, uses default localStorage-based service. */
   uniswapIdentifierService?: UniswapIdentifierService
   /** Optional ConnectRPC interceptors for the session transport */
   interceptors?: Interceptors
 }): SessionService {
-  if (!ctx.getIsSessionServiceEnabled()) {
+  // Default (no explicit flag): sessions are disabled under web e2e so every data-path
+  // client (uniswap/trading/FOR/livePrices/bundler) skips session-gated hosts that are
+  // blackholed in CI (net::ERR_NAME_NOT_RESOLVED), and enabled everywhere else. An
+  // explicit getIsSessionServiceEnabled still wins, preserving the DisableSessionsForPlan
+  // kill switch (() => false ⇒ noop) in prod.
+  const isEnabled = isSessionServiceEnabled({
+    getIsSessionServiceEnabled: ctx.getIsSessionServiceEnabled,
+    getDefault: () => !isE2eTestEnv(),
+  })
+  if (!isEnabled) {
     return createNoopSessionService()
   }
   if (isWebApp) {

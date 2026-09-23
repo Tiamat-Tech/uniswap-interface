@@ -1,14 +1,13 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import type { UniverseChainId } from '@universe/chains'
+import { Button, Flex, iconSizes, Text } from '@universe/mycelium'
+import { Edit } from '@universe/mycelium/icons/Edit'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text, useMedia } from 'ui/src'
-import { Edit } from 'ui/src/components/icons/Edit'
-import { iconSizes } from 'ui/src/theme'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { DoubleCurrencyLogo } from '~/components/Logo/DoubleLogo'
-import type { PoolData } from '~/data/pools/usePoolData'
+import type { PoolData } from '~/data/pools/poolData'
 import { CreatingPoolInfo } from '~/features/Liquidity/Create/CreatingPoolInfo'
 import { useDefaultInitialPrice } from '~/features/Liquidity/Create/hooks/useDefaultInitialPrice'
 import { PositionFlowStep } from '~/features/Liquidity/Create/types'
@@ -36,7 +35,6 @@ export const EditSelectTokensStep = ({ poolData }: { poolData?: PoolData }) => {
   const { TOKEN0, TOKEN1 } = display
   const chainId = (TOKEN0?.chainId ?? TOKEN1?.chainId) as UniverseChainId | undefined
   const media = useMedia()
-  const isAddLiquidityRevamp = useFeatureFlag(FeatureFlags.AddLiquidityRevamp)
 
   // Same fee-badge tooltip as the review modal / select step: the context's served protocol fee for an
   // existing tier, else the curve for a not-yet-created vanilla v4 pool.
@@ -56,7 +54,7 @@ export const EditSelectTokensStep = ({ poolData }: { poolData?: PoolData }) => {
     skip: creatingPoolOrPair,
   })
 
-  if (poolData && media.xl && isAddLiquidityRevamp) {
+  if (poolData && media.xl) {
     return (
       <ExpandablePoolInfo
         currency0={TOKEN0 ?? undefined}

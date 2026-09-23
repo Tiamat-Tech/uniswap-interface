@@ -1,3 +1,5 @@
+import type { ColorTokens } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import {
   BarPrice,
   CrosshairMode,
@@ -9,7 +11,6 @@ import {
   Logical,
   TimeChartOptions,
 } from 'lightweight-charts'
-import { ColorTokens, useSporeColors } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { uuid } from 'utilities/src/primitives/uuid'
@@ -28,6 +29,7 @@ export interface ChartUtilParams<TDataType extends SeriesDataItemType> {
 }
 
 export interface ChartDataParams<TDataType extends SeriesDataItemType> {
+  /** Color of the price data line. Resolved theme colors type here directly: `colors.accent1.val` is token-typed (`SporeThemeColorToken` ⊂ `ColorTokens`, INFRA-3563). */
   color?: ColorTokens
   data: TDataType[]
   /** Repesents whether `data` is stale. If true, stale UI will appear */
@@ -116,6 +118,11 @@ export abstract class ChartModel<TDataType extends SeriesDataItemType> {
 
     // Disable mouse wheel to allow page scrolling; pinch handled via custom wheel listener below
     this.api = createChart(chartDiv, {
+      // v5 defaults the TradingView attribution logo ON and lifts a hovered
+      // series above its pane siblings; keep v4's rendered behavior (later
+      // layout applyOptions deep-merge and don't reset these).
+      layout: { attributionLogo: false },
+      hoveredSeriesOnTop: false,
       handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
       handleScale: { mouseWheel: false, pinch: true, axisPressedMouseMove: false },
     })

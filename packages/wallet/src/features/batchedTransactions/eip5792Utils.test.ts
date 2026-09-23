@@ -1,6 +1,6 @@
 import { BigNumber } from '@ethersproject/bignumber'
+import { UniverseChainId } from '@universe/chains'
 import { expectSaga } from 'redux-saga-test-plan'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   ClassicTransactionDetails,
   TransactionReceipt,

@@ -1,12 +1,12 @@
 import { FetchError } from '@universe/api'
-import type { AppTFunction } from 'ui/src/i18n/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import {
   EarnReviewBlockingMessage,
   getEarnDepositQuoteErrorMessage,
 } from 'uniswap/src/features/earn/EarnReviewBlockingMessage'
 import type { useEarnInsufficientGasWarning } from 'uniswap/src/features/earn/hooks/useEarnInsufficientGasWarning'
 import { render, screen } from 'uniswap/src/test/test-utils'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 
 const noInsufficientGasWarning = {
   hasInsufficientGas: false,

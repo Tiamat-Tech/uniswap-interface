@@ -47,7 +47,7 @@ test.describe(
       await graphql.waitForResponse('TokenWeb')
       // .first(): the loaded page renders the name in both the breadcrumb and the header
       await expect(page.getByText('test token').first()).toBeVisible()
-      await expect(page.getByText('Missing chart data')).toBeVisible()
+      await expect(page.getByText('No pricing data available')).toBeVisible()
       await expect(page.getByText('No stats available')).toBeVisible()
       await expect(page.getByText('No token information available')).toBeVisible()
     })

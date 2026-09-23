@@ -1,6 +1,6 @@
-import { Flex, Text } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
+import { Flex, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
 
 type InlineAlertBannerVariant = 'info' | 'warning'
 

@@ -5,16 +5,6 @@ import { useShareAction } from '~/components/StickyCollapsibleHeader/HeaderActio
 const mockSetCopied = vi.fn()
 const mockOpenTwitterShareWindow = vi.fn()
 
-vi.mock('@tamagui/core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tamagui/core')>()
-  return {
-    ...actual,
-    useTheme: () => ({
-      neutral2: { val: '#000000', get: () => '#000000', variable: 'var(--neutral2)' },
-    }),
-  }
-})
-
 const mockUseSearchParams = vi.fn(() => [new URLSearchParams()])
 vi.mock('react-router', () => ({
   useSearchParams: () => mockUseSearchParams(),

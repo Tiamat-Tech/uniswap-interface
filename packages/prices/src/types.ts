@@ -11,15 +11,14 @@ export interface TokenIdentifier {
 
 /**
  * Which pipeline produced the cached price. Surfaced in analytics so we can
- * segment user behavior by data source without joining on the Statsig experiment.
+ * segment user behavior by data source.
  *
  *   aurora_ws            — pushed over the live WebSocket
  *   realtime_ws          — pushed over the realtime WebSocket channel (chain-position versioned)
  *   pool_ws              — pushed over the per-pool spot-price WebSocket channel, USD-composed client-side
- *   aurora_rest_fallback — fetched via GetTokenPrices without preferQuotePrices
- *   tapi_quote           — fetched via GetTokenPrices with preferQuotePrices=true
+ *   aurora_rest_fallback — fetched via GetTokenPrices
  */
-export type PriceSource = 'aurora_ws' | 'realtime_ws' | 'pool_ws' | 'aurora_rest_fallback' | 'tapi_quote'
+export type PriceSource = 'aurora_ws' | 'realtime_ws' | 'pool_ws' | 'aurora_rest_fallback'
 
 /**
  * Token price data with timestamp.

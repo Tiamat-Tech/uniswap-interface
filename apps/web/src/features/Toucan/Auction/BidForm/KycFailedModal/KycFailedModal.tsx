@@ -1,7 +1,7 @@
+import { Anchor, Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { UserLock } from '@universe/mycelium/icons/UserLock'
+import { X } from '@universe/mycelium/icons/X'
 import { useTranslation } from 'react-i18next'
-import { Anchor, Button, Flex, Text, TouchableArea } from 'ui/src'
-import { UserLock } from 'ui/src/components/icons/UserLock'
-import { X } from 'ui/src/components/icons/X'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 
@@ -54,7 +54,7 @@ export function KycFailedModal({ isOpen, onClose, providerName = 'Predicate' }: 
               alignSelf="center"
               textAlign="center"
               fontSize="$small"
-              lineHeight="$spacing12"
+              lineHeight={12}
               textDecorationLine="none"
             >
               {t('toucan.kyc.failed.contactSupport', { provider: providerName })}

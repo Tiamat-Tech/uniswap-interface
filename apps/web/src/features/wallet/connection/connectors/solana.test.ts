@@ -15,9 +15,9 @@ vi.mock('utilities/src/time/timing', () => ({
 // Import mocked modules to get references to their functions
 import { WalletName, WalletReadyState } from '@solana/wallet-adapter-base'
 import { useWallet } from '@solana/wallet-adapter-react'
+import { Platform } from '@universe/chains'
 import { AccessPattern, ConnectorStatus } from 'uniswap/src/features/accounts/store/types/Connector'
 import { SigningCapability } from 'uniswap/src/features/accounts/store/types/Wallet'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { sleep } from 'utilities/src/time/timing'
 import { ExternalConnector, ExternalWallet } from '~/features/accounts/store/types'
 import { GetConnectorFn } from '~/features/wallet/connection/services/createConnectionService'

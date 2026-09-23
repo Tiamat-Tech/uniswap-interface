@@ -6,20 +6,22 @@ import {
   type ListTopAuctionsResponse,
 } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
 import type { SearchTokensResponse } from '@uniswap/client-data-api/dist/data/v1/search_pb'
-import { SearchType, type SearchAuction } from '@uniswap/client-data-api/dist/data/v1/searchTypes_pb'
-import { type GqlResult } from '@universe/api'
-import { DynamicConfigs, useDynamicConfigValue, VerifiedAuctionsConfigKey } from '@universe/gating'
+import { SearchType as SearchTypeV1 } from '@uniswap/client-data-api/dist/data/v1/searchTypes_pb'
+import { type SearchAuction, type SearchResponse, SearchType } from '@uniswap/client-data-api/dist/data/v2/search_pb'
+import { type UniverseChainId, Platform } from '@universe/chains'
+import {
+  DynamicConfigs,
+  useDynamicConfigValue,
+  useIsV2EndpointsSearchEnabled,
+  VerifiedAuctionsConfigKey,
+} from '@universe/gating'
 import { useCallback, useMemo } from 'react'
 import { type AuctionOption, OnchainItemListOptionType } from 'uniswap/src/components/lists/items/types'
-import {
-  fetchAuctionByAddress,
-  useSearchTokensAndPoolsQuery,
-} from 'uniswap/src/data/apiClients/dataApiService/search/searchTokensAndPools'
+import { useSearchQuery } from 'uniswap/src/data/apiClients/dataApiService/search/search'
+import { fetchAuctionByAddress, useSearchV1Query } from 'uniswap/src/data/apiClients/dataApiService/search/searchV1'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isTestnetChain } from 'uniswap/src/features/chains/utils'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { NUMBER_OF_RESULTS_LONG } from 'uniswap/src/features/search/SearchModal/constants'
 import { useCurrencyInfos } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import {
@@ -29,6 +31,14 @@ import {
 } from 'uniswap/src/features/toucan/auctionMetadata'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
+import type { DerivedQueryResult } from 'utilities/src/reactQuery/types'
+
+/**
+ * Plain data.v2 auction shape, the canonical type for search auction results. v1 SearchAuction
+ * messages carry the identical fields and satisfy it structurally, so results from either
+ * endpoint flow through the same helpers.
+ */
+export type SearchAuctionResult = PlainMessage<SearchAuction>
 
 function lowercaseAscii(value: string): string {
   return value.replace(/[A-Z]/g, (char) => String.fromCharCode(char.charCodeAt(0) + 32))
@@ -55,7 +65,7 @@ function getAuctionAddressFromAuctionId(auctionId: string): string | undefined {
   return getValidEvmAddress(auctionAddress)
 }
 
-function getSearchAuctionAddress(auction: SearchAuction): string {
+function getSearchAuctionAddress(auction: SearchAuctionResult): string {
   const auctionAddress = getValidEvmAddress(auction.auctionAddress)
   if (auctionAddress) {
     return auctionAddress
@@ -89,18 +99,21 @@ function parseVolumeUsd(totalBidVolumeUsd: string | undefined): number | undefin
 
 async function fetchOverrideMatchedAuctions(
   matches: Array<{ chainId: number; tokenAddress: string }>,
-): Promise<SearchAuction[]> {
+): Promise<SearchAuctionResult[]> {
   // allSettled so one failed match doesn't drop the rest (supplementary results, graceful degradation).
   const results = await Promise.allSettled(
     matches.map((match) => fetchAuctionByAddress({ chainId: match.chainId, address: match.tokenAddress })),
   )
-  return results
-    .filter((result): result is PromiseFulfilledResult<SearchAuction | undefined> => result.status === 'fulfilled')
-    .map((result) => result.value)
-    .filter((auction): auction is SearchAuction => auction !== undefined)
+  const auctions: SearchAuctionResult[] = []
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value !== undefined) {
+      auctions.push(result.value)
+    }
+  }
+  return auctions
 }
 
-function mergeAuctions(primary: SearchAuction[], supplementary: SearchAuction[]): SearchAuction[] {
+function mergeAuctions(primary: SearchAuctionResult[], supplementary: SearchAuctionResult[]): SearchAuctionResult[] {
   const seen = new Set(primary.map((auction) => auction.auctionId))
   const merged = [...primary]
   for (const auction of supplementary) {
@@ -139,7 +152,7 @@ export function searchAuctionToAuctionOption({
   currencyInfo,
   isVerified,
 }: {
-  auction: SearchAuction
+  auction: SearchAuctionResult
   currencyInfo: Maybe<CurrencyInfo>
   isVerified: boolean
 }): AuctionOption {
@@ -195,6 +208,7 @@ export function auctionWithStatsToAuctionOption({
     ...tokenMetadata,
     currencyInfo,
     committedVolumeUsd: parseVolumeUsd(auction.totalBidVolumeUsd),
+    uniqueBidderCount: auctionWithStats.uniqueBidderCount,
     isVerified,
   }
 }
@@ -209,8 +223,9 @@ export function useSearchAuctions({
   chainFilter: UniverseChainId | null
   skip: boolean
   size?: number
-}): GqlResult<AuctionOption[]> {
+}): DerivedQueryResult<AuctionOption[]> {
   const { chains: enabledChainIds, isTestnetModeEnabled } = useEnabledChains({ platform: Platform.EVM })
+  const isSearchV2Enabled = useIsV2EndpointsSearchEnabled()
 
   const verifiedAuctionIds: string[] = useDynamicConfigValue({
     config: DynamicConfigs.VerifiedAuctions,
@@ -218,29 +233,46 @@ export function useSearchAuctions({
     defaultValue: DEFAULT_VERIFIED_AUCTION_IDS,
   })
 
-  const input = useMemo(
+  const chainIds = useMemo(() => (chainFilter ? [chainFilter] : enabledChainIds), [chainFilter, enabledChainIds])
+
+  const inputV1 = useMemo(
     () => ({
       searchQuery: searchQuery ?? undefined,
-      chainIds: chainFilter ? [chainFilter] : enabledChainIds,
-      searchType: SearchType.AUCTION,
+      chainIds,
+      searchType: SearchTypeV1.AUCTION,
       page: 1,
       size,
     }),
-    [searchQuery, chainFilter, size, enabledChainIds],
+    [searchQuery, chainIds, size],
   )
 
-  const selectAuctions = useCallback((response: SearchTokensResponse): SearchAuction[] => response.auctions, [])
+  const selectAuctionsV1 = useCallback((response: SearchTokensResponse): SearchAuctionResult[] => response.auctions, [])
 
-  const {
-    data: auctions,
-    error,
-    isPending,
-    refetch: refetchPrimaryAuctions,
-  } = useSearchTokensAndPoolsQuery<SearchAuction[]>({
+  const v1Result = useSearchV1Query<SearchAuctionResult[]>({
+    input: inputV1,
+    enabled: !skip && Boolean(searchQuery) && !isSearchV2Enabled,
+    select: selectAuctionsV1,
+  })
+
+  const input = useMemo(
+    () => ({
+      searchQuery: searchQuery ?? undefined,
+      chainIds,
+      types: [SearchType.AUCTION],
+      maxResults: size,
+    }),
+    [searchQuery, chainIds, size],
+  )
+
+  const selectAuctions = useCallback((response: SearchResponse): SearchAuctionResult[] => response.auctions, [])
+
+  const v2Result = useSearchQuery<SearchAuctionResult[]>({
     input,
-    enabled: !skip && Boolean(searchQuery),
+    enabled: !skip && Boolean(searchQuery) && isSearchV2Enabled,
     select: selectAuctions,
   })
+
+  const { data: auctions, error, isLoading, refetch: refetchPrimaryAuctions } = isSearchV2Enabled ? v2Result : v1Result
 
   // Restrict curated override matches to the active chain set so a chain-filtered search
   // doesn't surface an override auction from a chain the user filtered out.
@@ -252,7 +284,7 @@ export function useSearchAuctions({
     return findAuctionOverrideMatches(searchQuery).filter((match) => allowedChainIds.has(match.chainId))
   }, [searchQuery, chainFilter, enabledChainIds])
 
-  const { data: overrideAuctions, refetch: refetchOverrideAuctions } = useQuery<SearchAuction[]>({
+  const { data: overrideAuctions, refetch: refetchOverrideAuctions } = useQuery<SearchAuctionResult[]>({
     queryKey: [ReactQueryCacheKey.DataApiService, 'auctionOverrideMatches', overrideMatches],
     queryFn: () => fetchOverrideMatchedAuctions(overrideMatches),
     enabled: !skip && Boolean(searchQuery) && overrideMatches.length > 0,
@@ -298,13 +330,8 @@ export function useSearchAuctions({
   }, [filteredAuctions, currencyInfoMap, verifiedAuctionIds])
 
   return useMemo(
-    () => ({
-      data: auctionOptions,
-      loading: !skip && Boolean(searchQuery) && isPending,
-      error: error ?? undefined,
-      refetch,
-    }),
-    [auctionOptions, skip, searchQuery, isPending, error, refetch],
+    () => ({ data: auctionOptions, isLoading, error, refetch }),
+    [auctionOptions, isLoading, error, refetch],
   )
 }
 
@@ -316,7 +343,7 @@ export function useTopAuctionOptions({
   chainFilter: UniverseChainId | null
   skip: boolean
   size?: number
-}): GqlResult<AuctionOption[]> {
+}): DerivedQueryResult<AuctionOption[]> {
   const { isTestnetModeEnabled } = useEnabledChains()
 
   const verifiedAuctionIds: string[] = useDynamicConfigValue({
@@ -337,7 +364,7 @@ export function useTopAuctionOptions({
   const {
     data: topAuctions,
     error,
-    isPending,
+    isLoading,
     refetch,
   } = useQuery<PlainMessage<ListTopAuctionsResponse>, Error>({
     queryKey: [ReactQueryCacheKey.AuctionApi, 'listTopAuctions', params],
@@ -394,7 +421,7 @@ export function useTopAuctionOptions({
   }, [auctions, currencyInfoMap, verifiedAuctionIds])
 
   return useMemo(
-    () => ({ data: auctionOptions, loading: !skip && isPending, error: error ?? undefined, refetch }),
-    [auctionOptions, skip, isPending, error, refetch],
+    () => ({ data: auctionOptions, isLoading, error, refetch }),
+    [auctionOptions, isLoading, error, refetch],
   )
 }

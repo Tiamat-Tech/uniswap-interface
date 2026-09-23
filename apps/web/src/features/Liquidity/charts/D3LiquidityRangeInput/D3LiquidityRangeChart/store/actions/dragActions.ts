@@ -99,8 +99,18 @@ export function createDragActions(get: () => ChartStoreState) {
             finalMaxTick = lineType === 'min' ? constrainedSwapTick : otherTick
           }
         } else {
-          finalMinTick = lineType === 'min' ? constrainedTick : otherTick
-          finalMaxTick = lineType === 'min' ? otherTick : constrainedTick
+          // applyMinHeightConstraint is a PIXEL floor, so at low zoom it can still snap onto the
+          // other handle's tick. Keep a spacing between the bounds, on the side being dragged.
+          // The 'min' side is load-bearing: handleTickRangeChange's clampMaxTick backstop only
+          // pushes max up, which there would move the handle the user isn't dragging. The 'max'
+          // side agrees with the backstop and is kept for symmetry.
+          const separatedTick =
+            lineType === 'min'
+              ? Math.min(constrainedTick, otherTick - tickSpacing)
+              : Math.max(constrainedTick, otherTick + tickSpacing)
+
+          finalMinTick = lineType === 'min' ? separatedTick : otherTick
+          finalMaxTick = lineType === 'min' ? otherTick : separatedTick
         }
 
         return {
@@ -143,9 +153,8 @@ export function createDragActions(get: () => ChartStoreState) {
             maxTick,
           })
 
-          // Call callbacks once when drag ends
-          actions.handleTickChange({ changeType: 'min', tick: minTick })
-          actions.handleTickChange({ changeType: 'max', tick: maxTick })
+          // Dragging one handle past the other swaps them, so both edges can move
+          actions.handleTickRangeChange({ minTick, maxTick })
         })
     },
 
@@ -203,8 +212,7 @@ export function createDragActions(get: () => ChartStoreState) {
 
         // Call callbacks only when drag ends
         if (isEnd) {
-          actions.handleTickChange({ changeType: 'min', tick: newMinTick })
-          actions.handleTickChange({ changeType: 'max', tick: newMaxTick })
+          actions.handleTickRangeChange({ minTick: newMinTick, maxTick: newMaxTick })
         }
       }
 

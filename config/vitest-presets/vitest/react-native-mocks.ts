@@ -21,66 +21,129 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
+// RNGH Pressable host: a DOM button with RN Pressable semantics — state-function
+// style/children resolution, press handlers mapped to their DOM equivalents, and
+// testID → data-testid. Direct consumers (e.g. mycelium's TouchableAreaCompat
+// native leg) need the RN contract; Tamagui-styled consumers pre-resolve styles
+// and events, so their pass-through props render exactly as before.
+// Function declaration (not const): mock factories can run while this module is
+// still evaluating, same constraint as getGestureRegistry below.
+function makeMockRNGHPressable(): any {
+  return React.forwardRef((props: any, ref) => {
+    const {
+      style,
+      children,
+      onPress,
+      onPressIn,
+      onPressOut,
+      onLongPress,
+      testID,
+      accessibilityRole,
+      // Responder-pipeline press wiring (mycelium's TouchableAreaCompat native
+      // leg dispatches through it instead of the gesture props): a click drives
+      // one full grant → release. Destructured off so responder props never
+      // land on the DOM button as unknown attributes.
+      onStartShouldSetResponder,
+      onResponderGrant,
+      onResponderRelease,
+      onResponderTerminate,
+      onResponderTerminationRequest,
+      ...rest
+    } = props
+    const responderClick =
+      onResponderGrant && onResponderRelease
+        ? (event: any): void => {
+            onResponderGrant(event)
+            onResponderRelease(event)
+          }
+        : undefined
+    const resolvedStyle = typeof style === 'function' ? style({ pressed: false }) : style
+    const flatStyle = Array.isArray(resolvedStyle)
+      ? Object.assign({}, ...resolvedStyle.flat(Infinity).filter(Boolean))
+      : resolvedStyle
+    const resolvedChildren = typeof children === 'function' ? children({ pressed: false }) : children
+    return React.createElement(
+      'button',
+      {
+        ...rest,
+        ref,
+        style: flatStyle,
+        'data-testid': testID ?? rest['data-testid'],
+        role: rest.role ?? accessibilityRole,
+        onClick: rest.onClick ?? onPress ?? responderClick,
+        onMouseDown: rest.onMouseDown ?? onPressIn,
+        onMouseUp: rest.onMouseUp ?? onPressOut,
+        onContextMenu: rest.onContextMenu ?? onLongPress,
+      },
+      resolvedChildren,
+    )
+  })
+}
+
 // Mock react-native-gesture-handler
-vi.mock('react-native-gesture-handler', () => ({
-  PanGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  TapGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  FlingGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  ForceTouchGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  LongPressGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  PinchGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  RotationGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  RawButton: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
-  BaseButton: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
-  RectButton: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
-  BorderlessButton: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
-  NativeViewGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  TouchableWithoutFeedback: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  TouchableHighlight: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  TouchableOpacity: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
-  TouchableNativeFeedback: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  createNativeWrapper: vi.fn(),
-  State: { UNDETERMINED: 0, FAILED: 1, BEGAN: 2, CANCELLED: 3, ACTIVE: 4, END: 5 },
-  Swipeable: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  DrawerLayout: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  Directions: {},
-  GestureHandlerRootView: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  FlatList: React.forwardRef((props: any, ref) => {
-    const { data, renderItem, ListEmptyComponent, ListHeaderComponent, ListFooterComponent, ...rest } = props
-    const children = []
-    if (ListHeaderComponent) {
-      children.push(React.createElement(ListHeaderComponent, { key: 'header' }))
-    }
-    if (data?.length && renderItem) {
-      data.forEach((item: any, index: number) => {
-        children.push(React.createElement(React.Fragment, { key: index }, renderItem({ item, index, separators: {} })))
-      })
-    } else if (ListEmptyComponent) {
-      children.push(
-        React.isValidElement(ListEmptyComponent)
-          ? React.cloneElement(ListEmptyComponent, { key: 'empty' })
-          : React.createElement(ListEmptyComponent, { key: 'empty' }),
-      )
-    }
-    if (ListFooterComponent) {
-      children.push(React.createElement(ListFooterComponent, { key: 'footer' }))
-    }
-    return React.createElement('div', { ...rest, ref }, children)
-  }),
-  ScrollView: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
-  Pressable: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
-  GestureDetector: ({ children }: any) => children,
-  Gesture: {
-    Pan: () => makeChainableGesture(),
-    Tap: () => makeChainableGesture(),
-    Fling: () => makeChainableGesture(),
-    LongPress: () => makeChainableGesture(),
-    Native: () => makeChainableGesture(),
-    Simultaneous: (...gestures: any[]) => gestures,
-    Exclusive: (...gestures: any[]) => gestures,
-    Race: (...gestures: any[]) => gestures,
-  },
-}))
+vi.mock('react-native-gesture-handler', () => {
+  return {
+    Pressable: makeMockRNGHPressable(),
+    PanGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    TapGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    FlingGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    ForceTouchGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    LongPressGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    PinchGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    RotationGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    RawButton: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
+    BaseButton: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
+    RectButton: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
+    BorderlessButton: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
+    NativeViewGestureHandler: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    TouchableWithoutFeedback: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    TouchableHighlight: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    TouchableOpacity: React.forwardRef((props: any, ref) => React.createElement('button', { ...props, ref })),
+    TouchableNativeFeedback: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    createNativeWrapper: vi.fn(),
+    State: { UNDETERMINED: 0, FAILED: 1, BEGAN: 2, CANCELLED: 3, ACTIVE: 4, END: 5 },
+    Swipeable: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    DrawerLayout: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    Directions: {},
+    GestureHandlerRootView: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    FlatList: React.forwardRef((props: any, ref) => {
+      const { data, renderItem, ListEmptyComponent, ListHeaderComponent, ListFooterComponent, ...rest } = props
+      const children = []
+      if (ListHeaderComponent) {
+        children.push(React.createElement(ListHeaderComponent, { key: 'header' }))
+      }
+      if (data?.length && renderItem) {
+        data.forEach((item: any, index: number) => {
+          children.push(
+            React.createElement(React.Fragment, { key: index }, renderItem({ item, index, separators: {} })),
+          )
+        })
+      } else if (ListEmptyComponent) {
+        children.push(
+          React.isValidElement(ListEmptyComponent)
+            ? React.cloneElement(ListEmptyComponent, { key: 'empty' })
+            : React.createElement(ListEmptyComponent, { key: 'empty' }),
+        )
+      }
+      if (ListFooterComponent) {
+        children.push(React.createElement(ListFooterComponent, { key: 'footer' }))
+      }
+      return React.createElement('div', { ...rest, ref }, children)
+    }),
+    ScrollView: React.forwardRef((props: any, ref) => React.createElement('div', { ...props, ref })),
+    GestureDetector: ({ children }: any) => children,
+    Gesture: {
+      Pan: () => makeChainableGesture(),
+      Tap: () => makeChainableGesture(),
+      Fling: () => makeChainableGesture(),
+      LongPress: () => makeChainableGesture(),
+      Native: () => makeChainableGesture(),
+      Simultaneous: (...gestures: any[]) => gestures,
+      Exclusive: (...gestures: any[]) => gestures,
+      Race: (...gestures: any[]) => gestures,
+    },
+  }
+})
 
 // Minimal stand-in for react-native-gesture-handler/jest-utils that works with the recording
 // gesture mock above (fires the recorded handlers through the RNGH state machine states)
@@ -200,10 +263,6 @@ vi.mock('moti', () => ({
 // Mock moti/author specifically to fix ES module import issue
 vi.mock('moti/author', () => ({}))
 
-// Mock @tamagui/animations-moti
-vi.mock('@tamagui/animations-moti', () => ({
-  createAnimations: vi.fn(() => ({})),
-}))
 
 // Chainable no-op layout-animation builder (FadeIn.duration(...).delay(...) etc.)
 function makeMockLayoutAnimation(): any {

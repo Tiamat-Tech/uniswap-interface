@@ -1,7 +1,7 @@
+import { fonts, spacing } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useRef } from 'react'
 import type { TextInput } from 'react-native'
-import { useSporeColors } from 'ui/src'
-import { fonts, spacing } from 'ui/src/theme'
 import { useBottomSheetContext } from 'uniswap/src/components/modals/BottomSheetContext'
 import { BottomSheetTextInput } from 'uniswap/src/components/modals/Modal'
 import type { GasFieldTextInputProps } from 'uniswap/src/features/gas/components/NetworkCostEditor/GasFieldTextInput'
@@ -10,6 +10,7 @@ export function GasFieldTextInput({
   accessibilityLabel,
   autoFocus,
   keyboardType,
+  maxLength,
   value,
   onChangeText,
 }: GasFieldTextInputProps): JSX.Element {
@@ -31,6 +32,7 @@ export function GasFieldTextInput({
       ref={inputRef}
       accessibilityLabel={accessibilityLabel}
       keyboardType={keyboardType}
+      maxLength={maxLength}
       placeholderTextColor={colors.neutral3.val}
       style={{
         flex: 1,

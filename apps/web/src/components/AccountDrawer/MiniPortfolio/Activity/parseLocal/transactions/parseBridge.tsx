@@ -1,9 +1,10 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
-import { Flex, styled, Text } from 'ui/src'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import { Arrow } from 'ui/src/components/arrow/Arrow'
 import { iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { BridgeTransactionInfo } from 'uniswap/src/features/transactions/types/transactionDetails'
 import i18n from 'uniswap/src/i18n'
 import { currencyIdToChain } from 'uniswap/src/utils/currencyId'
@@ -12,11 +13,9 @@ import { getCurrencyFromCurrencyId } from '~/components/AccountDrawer/MiniPortfo
 import type { FormatNumberFunctionType } from '~/components/AccountDrawer/MiniPortfolio/Activity/parseLocal/types'
 import type { Activity } from '~/components/AccountDrawer/MiniPortfolio/Activity/types'
 
+// Typography = the legacy `variant: 'body2'` preset, inlined.
 const StyledBridgeAmountText = styled(Text, {
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-  variant: 'body2',
+  base: '[font-family:var(--stext-font-book)] text-[16px] [line-height:20.8px] [font-weight:485] whitespace-nowrap text-ellipsis overflow-hidden',
 })
 
 export function getBridgeDescriptor({

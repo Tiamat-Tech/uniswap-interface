@@ -1,7 +1,6 @@
-import type { AppTFunction } from 'ui/src/i18n/types'
+import type { UniverseChainId } from '@universe/chains'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EarnInlineError } from 'uniswap/src/features/earn/EarnInlineError'
 import { useEarnInsufficientGasWarning } from 'uniswap/src/features/earn/hooks/useEarnInsufficientGasWarning'
 import {
@@ -9,6 +8,7 @@ import {
   isEarnNoRoutesQuoteError,
 } from 'uniswap/src/features/earn/quoteError'
 import { InsufficientNativeTokenWarning } from 'uniswap/src/features/transactions/components/InsufficientNativeTokenWarning/InsufficientNativeTokenWarning'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 
 export function EarnReviewBlockingMessage({
   executionErrorMessage,

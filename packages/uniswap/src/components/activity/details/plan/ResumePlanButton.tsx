@@ -1,8 +1,8 @@
 import { TradingApi } from '@universe/api'
+import { Button, SpinningLoader } from '@universe/mycelium'
 import { formatUnits } from 'ethers/lib/utils'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, SpinningLoader } from 'ui/src'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { useIsPriceChangeInterrupted } from 'uniswap/src/features/transactions/swap/plan/intermediaryState/useIsPriceChangeInterrupted'
 import { useResumePlanMutation } from 'uniswap/src/features/transactions/swap/plan/intermediaryState/useResumePlanMutation'
@@ -12,11 +12,9 @@ import { useEvent } from 'utilities/src/react/hooks'
 export function ResumePlanButton({
   typeInfo,
   onSuccess,
-  isEarnActivityDisplayEnabled = true,
 }: {
   typeInfo: PlanTransactionInfo
   onSuccess?: () => void
-  isEarnActivityDisplayEnabled?: boolean
 }): JSX.Element | null {
   const { planId, inputCurrencyId, outputCurrencyId, inputCurrencyAmountRaw } = typeInfo
   const { t } = useTranslation()
@@ -54,14 +52,9 @@ export function ResumePlanButton({
         outputCurrencyId,
         inputCurrencyAmount,
         earnAction: typeInfo.earnAction,
-        isEarnActivityDisplayEnabled,
       })
     }
   })
-
-  if (typeInfo.earnAction && !isEarnActivityDisplayEnabled) {
-    return null
-  }
 
   // A loading state should be shown if:
   // - The mutation is pending

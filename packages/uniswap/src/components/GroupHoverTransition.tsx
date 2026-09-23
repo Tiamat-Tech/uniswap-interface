@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { memo, ReactNode } from 'react'
-import { Flex } from 'ui/src'
 
 interface GroupHoverTransitionProps {
   defaultContent: ReactNode
@@ -14,9 +14,10 @@ interface GroupHoverTransitionProps {
 }
 
 /**
- * Renders two content slots and uses Tamagui's $group-hover (or $group-item-hover) to slide
- * from default to hover when the parent with `group` is hovered. Translate-only (no fade).
- * Requires a parent with the `group` prop (e.g. <Flex group> or <Flex group="item">).
+ * Renders two content slots and slides from default to hover when the ancestor group anchor is
+ * hovered (or when the explicit `isHovered` flag is set). Translate-only (no fade).
+ * The group path requires a mycelium ancestor with the `group` prop (e.g. <Flex group> or
+ * <Flex group="item">); a Tamagui anchor publishes no marker this component can read.
  * Caller should ensure defaultContent and hoverContent each have the given height.
  */
 function _GroupHoverTransition({

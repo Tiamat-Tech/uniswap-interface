@@ -133,7 +133,11 @@ const SPECIAL_CASE_TOKEN_COLORS: { [key: string]: string } = {
 
 const COINGECKO_IMAGE_ID_PATTERN = /^https:\/\/(?:assets|coin-images)\.coingecko\.com\/coins\/images\/(\d+)\//i
 
-function getCoinGeckoImageId(imageUrl: string): string | undefined {
+function getCoinGeckoImageId(imageUrl: unknown): string | undefined {
+  if (typeof imageUrl !== 'string') {
+    return undefined
+  }
+
   return imageUrl.match(COINGECKO_IMAGE_ID_PATTERN)?.[1]
 }
 

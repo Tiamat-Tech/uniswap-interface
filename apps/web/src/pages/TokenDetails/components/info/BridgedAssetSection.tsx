@@ -26,6 +26,7 @@ export function BridgedAssetSection({
         currencyInfo0: currencyInfo,
         onContinue: () => {
           // bridged assets are never native, so `address` is always a real token address here
+          // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- chain name URL slug, not an address
           navigate(`/swap/?chain=${currencyChain.toLowerCase()}&outputCurrency=${address}`)
           closeModal()
         },

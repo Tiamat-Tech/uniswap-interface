@@ -1,8 +1,7 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, zIndexes } from '@universe/mycelium'
 import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
 import { formatUnits } from '~/chains'
 import { TOOLTIP_CONFIG } from '~/features/Toucan/Auction/BidDistributionChart/constants'
 import {
@@ -25,7 +24,7 @@ interface ChartBarTooltipProps {
   totalVolume: number
   tickQ96?: string
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals: number
   formatter: (amount: number) => string
   volumeFormatter: (amount: number) => string
@@ -45,7 +44,7 @@ export const ChartBarTooltip = forwardRef<HTMLDivElement, ChartBarTooltipProps>(
     totalVolume,
     tickQ96,
     bidTokenInfo,
-    totalSupply,
+    tokenTotalSupply,
     auctionTokenDecimals,
     formatter,
     volumeFormatter,
@@ -87,7 +86,7 @@ export const ChartBarTooltip = forwardRef<HTMLDivElement, ChartBarTooltipProps>(
   const tickDisplay = formatTickForDisplay({
     tickValue,
     bidTokenInfo,
-    totalSupply,
+    tokenTotalSupply,
     auctionTokenDecimals,
     formatter,
   })

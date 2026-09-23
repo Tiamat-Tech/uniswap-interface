@@ -3,6 +3,7 @@ import type { Currency, CurrencyAmount, Percent } from '@uniswap/sdk-core'
 import { TradeType } from '@uniswap/sdk-core'
 import type { ChainedQuoteResponse } from '@universe/api'
 import { TradingApi } from '@universe/api'
+import { areEvmAddressesEqual } from '@universe/chains'
 import { getPlanCompoundSlippageTolerance } from 'uniswap/src/features/transactions/swap/plan/slippage'
 import {
   type BaseTrade,
@@ -10,7 +11,6 @@ import {
   createBaseTradeAmounts,
   getQuotePriceDifference,
 } from 'uniswap/src/features/transactions/swap/types/base'
-import { areEvmAddressesEqual } from 'uniswap/src/utils/addresses'
 
 const EARN_DEPOSIT_ACTION = 'deposit'
 const EARN_DEPOSIT_PREVIEW_TYPE = 'DEPOSIT'

@@ -1,7 +1,6 @@
+import { Flex, Text, TouchableArea, zIndexes } from '@universe/mycelium'
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
 import { useCurrentLanguageInfo } from 'uniswap/src/features/language/hooks'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -32,6 +31,13 @@ export type DateRangePickerCardProps = {
   ariaLabelEnd: string
   /** Hex color extracted from the token image. Drives the active input border + calendar accent fills. */
   tokenColor?: TokenAccentHex
+  /**
+   * Traced element names for the two inputs. Default to the auction's own start/end so
+   * existing callers are unchanged; the pre-bid row overrides them so its presses don't
+   * land in the same bucket as the Duration row's.
+   */
+  traceElementStart?: ElementName
+  traceElementEnd?: ElementName
   onChange: (next: { startDate: Date | undefined; endDate: Date | undefined }) => void
 }
 
@@ -52,6 +58,7 @@ function DateInputCard({
   locale,
   position,
   activeBorderColor,
+  traceElement,
 }: {
   label: string
   date: Date | undefined
@@ -64,6 +71,7 @@ function DateInputCard({
   /** Determines which corners get the larger 16px radius vs the 4px "shared edge" radius. */
   position: 'start' | 'end'
   activeBorderColor: string
+  traceElement: ElementName
 }) {
   const outerRadius = 16
   const innerRadius = 4
@@ -74,7 +82,7 @@ function DateInputCard({
     borderBottomRightRadius: position === 'end' ? outerRadius : innerRadius,
   }
   return (
-    <Trace logPress element={position === 'start' ? ElementName.AuctionStartDatetime : ElementName.AuctionEndDatetime}>
+    <Trace logPress element={traceElement}>
       <TouchableArea
         flex={1}
         flexBasis={0}
@@ -128,6 +136,8 @@ export const DateRangePickerCard = forwardRef<DateRangePickerCardHandle, DateRan
       ariaLabelStart,
       ariaLabelEnd,
       tokenColor,
+      traceElementStart = ElementName.AuctionStartDatetime,
+      traceElementEnd = ElementName.AuctionEndDatetime,
       onChange,
     },
     ref,
@@ -329,6 +339,7 @@ export const DateRangePickerCard = forwardRef<DateRangePickerCardHandle, DateRan
             locale={locale}
             position="start"
             activeBorderColor={activeBorderColor}
+            traceElement={traceElementStart}
             onPress={handleOpenForStart}
           />
           <DateInputCard
@@ -341,6 +352,7 @@ export const DateRangePickerCard = forwardRef<DateRangePickerCardHandle, DateRan
             locale={locale}
             position="end"
             activeBorderColor={activeBorderColor}
+            traceElement={traceElementEnd}
             onPress={handleOpenForEnd}
           />
         </Flex>

@@ -1,10 +1,10 @@
 import { WalletBalanceCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags } from '@universe/gating'
 import {
   getWalletBalancesQuery,
   PortfolioBalancePart,
 } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   usePortfolioBalanceBreakdown,
   usePortfolioBalancePart,
@@ -120,7 +120,7 @@ describe(usePortfolioBalancePart, () => {
     })
   })
 
-  describe('tokens-only default (flag off)', () => {
+  describe('pools flag off (default)', () => {
     beforeEach(() => {
       mockUseFeatureFlag.mockReturnValue(false)
     })
@@ -131,11 +131,11 @@ describe(usePortfolioBalancePart, () => {
       expect(mockUseGetWalletBalancesQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }))
     })
 
-    it('sends an empty include_categories array (tokens-only)', () => {
+    it('sends include_categories=[EARN_VAULTS] (earn is always included)', () => {
       renderHookWithProviders(() => usePortfolioBalancePart({ part: PortfolioBalancePart.Total, evmAddress: '0x123' }))
 
       const input = mockUseGetWalletBalancesQuery.mock.calls.at(-1)?.[0]?.input
-      expect(input?.includeCategories).toEqual([])
+      expect(input?.includeCategories).toEqual([WalletBalanceCategory.EARN_VAULTS])
     })
 
     it.each([
@@ -155,11 +155,11 @@ describe(usePortfolioBalancePart, () => {
       mockUseFeatureFlag.mockImplementation((flag) => flag === FeatureFlags.PortfolioPoolsBalances)
     })
 
-    it('sends include_categories=[POOLS]', () => {
+    it('sends include_categories=[POOLS, EARN_VAULTS]', () => {
       renderHookWithProviders(() => usePortfolioBalancePart({ part: PortfolioBalancePart.Total, evmAddress: '0x123' }))
 
       const input = mockUseGetWalletBalancesQuery.mock.calls.at(-1)?.[0]?.input
-      expect(input?.includeCategories).toEqual([WalletBalanceCategory.POOLS])
+      expect(input?.includeCategories).toEqual([WalletBalanceCategory.POOLS, WalletBalanceCategory.EARN_VAULTS])
     })
 
     it.each([
@@ -279,7 +279,7 @@ describe(usePortfolioBalancePart, () => {
             evmAddress: '0x123',
             svmAddress: 'svm456',
             chainIds: [UniverseChainId.Mainnet],
-            includeCategories: [],
+            includeCategories: [WalletBalanceCategory.EARN_VAULTS],
             modifier: EXPECTED_MAINNET_MODIFIER,
           },
         }),
@@ -460,34 +460,24 @@ describe(usePortfolioBalanceBreakdown, () => {
     earn: { balanceUSD: 200, percentChange: 4, absoluteChangeUSD: 20 },
   }
 
-  it('enables the query and returns the full breakdown with [POOLS] in requestedCategories when the flag is on', () => {
+  it('enables the query and returns the full breakdown with [POOLS, EARN_VAULTS] in requestedCategories when the pools flag is on', () => {
     mockUseFeatureFlag.mockImplementation((flag) => flag === FeatureFlags.PortfolioPoolsBalances)
 
     const { result } = renderHookWithProviders(() => usePortfolioBalanceBreakdown({ evmAddress: '0x123' }))
 
     expect(mockUseGetWalletBalancesQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }))
     expect(result.current.data).toEqual(EXPECTED_BREAKDOWN)
-    expect(result.current.requestedCategories).toEqual([WalletBalanceCategory.POOLS])
-  })
-
-  it('includes [POOLS, EARN_VAULTS] in requestedCategories when both balance flags are on', () => {
-    mockUseFeatureFlag.mockImplementation(
-      (flag) => flag === FeatureFlags.PortfolioPoolsBalances || flag === FeatureFlags.Earn,
-    )
-
-    const { result } = renderHookWithProviders(() => usePortfolioBalanceBreakdown({ evmAddress: '0x123' }))
-
     expect(result.current.requestedCategories).toEqual([WalletBalanceCategory.POOLS, WalletBalanceCategory.EARN_VAULTS])
   })
 
-  it('still enables the query and returns data with empty requestedCategories when the flag is off', () => {
+  it('still enables the query and returns data with [EARN_VAULTS] in requestedCategories when the pools flag is off', () => {
     mockUseFeatureFlag.mockReturnValue(false)
 
     const { result } = renderHookWithProviders(() => usePortfolioBalanceBreakdown({ evmAddress: '0x123' }))
 
     expect(mockUseGetWalletBalancesQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }))
     expect(result.current.data).toEqual(EXPECTED_BREAKDOWN)
-    expect(result.current.requestedCategories).toEqual([])
+    expect(result.current.requestedCategories).toEqual([WalletBalanceCategory.EARN_VAULTS])
   })
 
   it('disables the query when no evm/svm address is provided', () => {

@@ -1,13 +1,10 @@
-import type { ConnectError } from '@connectrpc/connect'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { PollingInterval } from 'uniswap/src/constants/misc'
+import { Platform } from '@universe/chains'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import {
   POSITION_STATUS_FILTER_TO_STATUSES,
   PositionStatusFilterValue,
 } from 'uniswap/src/features/positions/components/PositionStatusFilter'
-import { useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
+import { SORT_BY_USD_VALUE_DESC, useWalletPositions } from 'uniswap/src/features/positions/hooks/useWalletPositions'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { useEvent } from 'utilities/src/react/hooks'
 import { usePendingLiquidityTransactionsChangeListener } from 'wallet/src/features/transactions/hooks/usePendingLiquidityTransactionsChangeListener'
@@ -16,7 +13,8 @@ export interface PoolsListRenderData {
   positions: PositionInfo[]
   hiddenPositions: PositionInfo[]
   hasData: boolean
-  error: ConnectError | null
+  // Widened from ConnectError: useWalletPositions forwards either data source's query error.
+  error: Error | null
   isFetching: boolean
   isFetchingNextPage: boolean
   isFetchingFirstPage: boolean
@@ -34,15 +32,11 @@ export type PoolsTabRenderData = Omit<PoolsListRenderData, 'onListEndReached'>
 
 /**
  * Provides the Home Pools tab's positions + pagination for the outer feed FlatList. Fetches all
- * statuses + hidden at the default page size so it shares the ListPositions cache key with
+ * statuses + hidden at the default page size so it shares the wallet positions cache key with
  * `usePoolsTabVisibility` — opening the tab triggers no extra request.
  */
 export function usePoolsListRenderData({ owner, skip }: { owner: string; skip: boolean }): PoolsListRenderData {
   const { chains } = useEnabledChains({ platform: Platform.EVM })
-  // The Home heartbeat coordinator only refreshes positions when this flag is on — otherwise
-  // this query must keep its own poll running, or positions would never refresh.
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-
   const {
     positions,
     hiddenPositions,
@@ -60,8 +54,10 @@ export function usePoolsListRenderData({ owner, skip }: { owner: string; skip: b
     statuses: POSITION_STATUS_FILTER_TO_STATUSES[PositionStatusFilterValue.All],
     includeHidden: true,
     autoFetchAllPages: false,
+    ...SORT_BY_USD_VALUE_DESC,
     disabled: skip,
-    pollInterval: isDataLivelinessEnabled ? undefined : PollingInterval.Normal,
+    // No pollInterval — the Home heartbeat coordinator refreshes positions on its 60s full tick
+    // while the Pools tab is active.
   })
 
   usePendingLiquidityTransactionsChangeListener(refetch)

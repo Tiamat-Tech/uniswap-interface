@@ -134,7 +134,7 @@ export function updateBidDistributionOverlays({
       formatFdvValue: createParams.formatFdvValue,
       fdvLabel: createParams.fdvLabel,
       bidTokenInfo: next.bidTokenInfo,
-      totalSupply: next.totalSupply,
+      tokenTotalSupply: next.tokenTotalSupply,
       auctionTokenDecimals: next.auctionTokenDecimals,
       colors: createParams.colors,
       canExtendToBid: canExtend,

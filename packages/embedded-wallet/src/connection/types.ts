@@ -1,5 +1,5 @@
+import type { UniverseChainId } from '@universe/chains'
 import type { GetCapabilitiesCore } from '@universe/embedded-wallet/src/connection/eip5792Types'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { PublicClient } from 'viem'
 
 export type Listener = (payload: any) => void

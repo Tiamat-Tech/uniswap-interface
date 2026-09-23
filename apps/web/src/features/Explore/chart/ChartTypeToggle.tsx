@@ -1,6 +1,8 @@
+import { Flex, Text } from '@universe/mycelium'
+import { SegmentedControl, SegmentedControlOption } from '@universe/mycelium/segmented-control-compat'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, SegmentedControl, SegmentedControlOption, Text, useMedia } from 'ui/src'
 import { ChartType } from '~/components/Charts/utils'
 import { MouseoverTooltip } from '~/components/Tooltip'
 

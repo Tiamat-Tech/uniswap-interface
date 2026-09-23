@@ -1,8 +1,10 @@
-import { Flex, Skeleton } from 'ui/src'
+import { Flex, Skeleton } from '@universe/mycelium'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
 export function TokenLaunchedBannerSkeleton() {
   return (
     <Flex
+      testID={TestID.TokenLaunchedBannerSkeleton}
       position="relative"
       overflow="hidden"
       borderRadius="$rounded12"

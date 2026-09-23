@@ -31,7 +31,10 @@ export type {
   PopoverContentStyledVariantProps,
   WebBottomSheetCompatProps,
 } from './props'
+// The hover-timing mapper is pure data — safe (and meaningful) on native.
+export { mapHoverableToDelays, type PopoverCompatHoverableProps, type PopoverCompatHoverDelays } from './hover'
 // The z-index bridge is pure react + data — safe (and meaningful) on native.
+export { OVERLAY_PORTAL_CONTAINER_ATTRIBUTE } from './portal-container'
 export { EffectiveOverlayZIndexContext, OVERLAY_Z_INDEXES, stackingLayerAbove, useStackingLayerAbove } from './z-index'
 
 /**

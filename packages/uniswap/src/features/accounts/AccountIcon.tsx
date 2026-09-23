@@ -1,6 +1,15 @@
 import { isWebPlatform } from '@universe/environment'
+import {
+  type ColorTokens,
+  Flex,
+  type FlexProps,
+  Unicon,
+  UniversalImage,
+  UniversalImageResizeMode,
+  useSporeColors,
+} from '@universe/mycelium'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { useState } from 'react'
-import { ColorTokens, Flex, FlexProps, Unicon, UniversalImage, UniversalImageResizeMode, useSporeColors } from 'ui/src'
 import { Eye } from 'ui/src/components/icons/Eye'
 import { useAvatar } from 'uniswap/src/features/address/avatar'
 
@@ -16,14 +25,14 @@ interface AccountIconProps {
   showBorder?: boolean // Display border stroke around image
   borderWidth?: FlexProps['borderWidth']
   borderColor?: ColorTokens
-  transition?: FlexProps['transition']
+  // string (not the full compat transition union): forwarded to UniversalImageStyle and the icon, which take CSS strings only
+  transition?: string
 }
 
 // We want to animate the icon only on web, as on Android the opacity is not being increased.
 const ACCOUNT_ICON_WEB_STYLING: FlexProps = isWebPlatform
   ? {
-      animation: 'fast',
-      animateOnly: ['opacity'],
+      transition: `opacity ${SPORE_ANIMATION_CURVE_CSS.fast}`,
       enterStyle: { opacity: 0 },
     }
   : {}
@@ -68,7 +77,7 @@ export function AccountIcon({
       transition={transition}
       {...flexProps}
     >
-      <Flex fill {...ACCOUNT_ICON_WEB_STYLING}>
+      <Flex fill centered {...ACCOUNT_ICON_WEB_STYLING}>
         <UniversalImage
           // Background lives on the image's own view (painted behind its pixels) rather than a
           // separate backdrop layer, which Fabric view-flattening composites over the avatar.

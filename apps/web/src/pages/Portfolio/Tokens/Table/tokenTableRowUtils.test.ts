@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { DEFAULT_NATIVE_ADDRESS } from 'uniswap/src/features/chains/evm/rpc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getPrimaryStablecoin, isStablecoinAddress } from 'uniswap/src/features/chains/utils'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { currencyAddress, currencyId } from 'uniswap/src/utils/currencyId'

@@ -1,18 +1,17 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import type { Currency, CurrencyAmount } from '@uniswap/sdk-core'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { areAddressesEqual, Platform } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import { Button, Flex, Main, styled } from 'ui/src'
+import { Button } from 'ui/src'
 import { ArrowDown } from 'ui/src/components/icons/ArrowDown'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { RotateLeft } from 'ui/src/components/icons/RotateLeft'
-import { useGetPositionQuery } from 'uniswap/src/data/apiClients/dataApiService/positions/getPosition'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { parseRestPosition } from 'uniswap/src/features/positions/parseRestPosition'
+import { useGetPositionInfo } from 'uniswap/src/features/positions/hooks/useGetPositionInfo'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { InterfacePageName, ModalName, SectionName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -23,7 +22,6 @@ import { getErrorMessageToDisplay } from 'uniswap/src/features/transactions/liqu
 import type { TransactionStep } from 'uniswap/src/features/transactions/steps/types'
 import { useWallet } from 'uniswap/src/features/wallet/hooks/useWallet'
 import { isSignerMnemonicAccountDetails } from 'uniswap/src/features/wallet/types/AccountDetails'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { currencyId, currencyIdToAddress } from 'uniswap/src/utils/currencyId'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 import { BreadcrumbNavLink } from '~/components/BreadcrumbNav'
@@ -56,17 +54,25 @@ import { MultichainContextProvider } from '~/state/multichain/MultichainContext'
 import { liquiditySaga } from '~/state/sagas/liquidity/liquiditySaga'
 import { useChainIdFromUrlParam } from '~/utils/params/chainParams'
 
-const BodyWrapper = styled(Main, {
-  backgroundColor: '$surface1',
-  display: 'flex',
-  flexDirection: 'row',
-  gap: 60,
-  mt: '1rem',
-  mx: 'auto',
-  width: '100%',
-  zIndex: '$default',
-  p: 24,
-})
+function BodyWrapper({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <Flex
+      tag="main"
+      backgroundColor="$surface1"
+      display="flex"
+      flexDirection="row"
+      gap={60}
+      // A class, not `mt`, so the value stays rem-based rather than pinned to a px token.
+      className="mt-4"
+      mx="auto"
+      width="100%"
+      zIndex="$default"
+      p={24}
+    >
+      {children}
+    </Flex>
+  )
+}
 
 function MigrateInner({
   positionInfo,
@@ -79,10 +85,9 @@ function MigrateInner({
 }) {
   const { pairAddress } = useParams<{ tokenId: string; chainName: string; pairAddress: string }>()
   const trace = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const { t } = useTranslation()
 
-  const { setStep, setCurrentTransactionStep } = useCreateLiquidityContext()
+  const { setStep, setCurrentTransactionStep, creatingPoolOrPair, poolId } = useCreateLiquidityContext()
   const { version: initialProtocolVersion } = positionInfo
 
   const [transactionSteps, setTransactionSteps] = useState<TransactionStep[]>([])
@@ -170,9 +175,12 @@ function MigrateInner({
             currency1AmountUsd: currency1FiatAmount,
             poolId: positionInfo.poolId,
             version: ProtocolVersion.V3,
-            isCentralizedPricesEnabled,
           }),
           action: 'V3->V4',
+          createPool: creatingPoolOrPair,
+          // poolId is the destination pool's reference identifier: contract address for v2/v3, poolId for v4
+          outputPoolAddress: poolId,
+          outputPoolHookAddress: txInfo.migratePositionRequestArgs?.outputPosition?.pool?.hooks,
         },
       }),
     )
@@ -193,7 +201,8 @@ function MigrateInner({
     currency0Amount.currency,
     currency1Amount.currency,
     overrideBatchedTransactions,
-    isCentralizedPricesEnabled,
+    creatingPoolOrPair,
+    poolId,
   ])
 
   const { disableContinue: disableContinueForGeo, geoRestriction } = useMigrateGeoGate({
@@ -358,7 +367,7 @@ export function MigrateV3() {
   const protocolVersion = pathname.includes('v2') ? ProtocolVersion.V2 : ProtocolVersion.V3
 
   const urlState = useLiquidityUrlState()
-  const { data, isLoading: positionLoading } = useGetPositionQuery(
+  const { positionInfo, isLoading: positionLoading } = useGetPositionInfo(
     account.address
       ? {
           owner: account.address,
@@ -369,10 +378,6 @@ export function MigrateV3() {
         }
       : undefined,
   )
-
-  const position = data?.position
-
-  const positionInfo = useMemo(() => parseRestPosition(position), [position])
 
   // Need the migrating (source) position when migrating out of range positions.
   const migratingPosition = useMigratingPosition(positionInfo)
@@ -390,7 +395,6 @@ export function MigrateV3() {
   // TODO (WEB-4920): show error state for non-v3 position here.
   if (
     positionLoading ||
-    !position ||
     !positionInfo ||
     (initialProtocolVersion !== ProtocolVersion.V3 && initialProtocolVersion !== ProtocolVersion.V2)
   ) {

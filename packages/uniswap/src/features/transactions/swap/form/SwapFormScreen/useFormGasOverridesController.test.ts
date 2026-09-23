@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { useGasChipDispatch } from 'uniswap/src/features/gas/hooks/useGasChipDispatch'
 import {
   useTransactionSettingsActions,
@@ -7,7 +7,10 @@ import {
 } from 'uniswap/src/features/transactions/components/settings/stores/transactionSettingsStore/useTransactionSettingsStore'
 import { useSwapFormScreenStore } from 'uniswap/src/features/transactions/swap/form/stores/swapFormScreenStore/useSwapFormScreenStore'
 import { useFormGasOverridesController } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/useFormGasOverridesController'
-import { useSwapFormStoreDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
+import {
+  useSwapFormStore,
+  useSwapFormStoreDerivedSwapInfo,
+} from 'uniswap/src/features/transactions/swap/stores/swapFormStore/useSwapFormStore'
 
 vi.mock('uniswap/src/features/gas/hooks/useGasChipDispatch')
 vi.mock(
@@ -32,12 +35,16 @@ const mockUseGasChipDispatch = useGasChipDispatch as ReturnType<typeof vi.fn>
 const mockUseTransactionSettingsStore = useTransactionSettingsStore as unknown as ReturnType<typeof vi.fn>
 const mockUseTransactionSettingsActions = useTransactionSettingsActions as ReturnType<typeof vi.fn>
 const mockUseSwapFormScreenStore = useSwapFormScreenStore as unknown as ReturnType<typeof vi.fn>
+const mockUseSwapFormStore = useSwapFormStore as unknown as ReturnType<typeof vi.fn>
 const mockUseSwapFormStoreDerivedSwapInfo = useSwapFormStoreDerivedSwapInfo as unknown as ReturnType<typeof vi.fn>
 
 describe('useFormGasOverridesController', () => {
   const setGasOverrides = vi.fn()
+  const updateSwapForm = vi.fn()
+  let focusOnCurrencyField: 'input' | 'output' | undefined
 
   beforeEach(() => {
+    focusOnCurrencyField = 'input'
     vi.clearAllMocks()
     mockUseTransactionSettingsStore.mockImplementation((selector: (s: { gasOverrides: undefined }) => unknown) =>
       selector({ gasOverrides: undefined }),
@@ -45,6 +52,14 @@ describe('useFormGasOverridesController', () => {
     mockUseTransactionSettingsActions.mockReturnValue({ setGasOverrides })
     mockUseSwapFormScreenStore.mockImplementation((selector: (s: { isCrossChain: boolean }) => unknown) =>
       selector({ isCrossChain: false }),
+    )
+    mockUseSwapFormStore.mockImplementation(
+      (
+        selector: (s: {
+          updateSwapForm: typeof updateSwapForm
+          focusOnCurrencyField: typeof focusOnCurrencyField
+        }) => unknown,
+      ) => selector({ updateSwapForm, focusOnCurrencyField }),
     )
     // No trade/quote → no quote-derived fallback (these tests only assert modal state).
     mockUseSwapFormStoreDerivedSwapInfo.mockImplementation(
@@ -64,6 +79,7 @@ describe('useFormGasOverridesController', () => {
     expect(result.current.isEditorOpen).toBe(true)
     expect(result.current.isAutoTooltipOpen).toBe(false)
     expect(result.current.isCrosschainOpen).toBe(false)
+    expect(updateSwapForm).toHaveBeenCalledWith({ focusOnCurrencyField: undefined })
   })
 
   it('opens the auto-tooltip modal when dispatch returns auto-tooltip', () => {
@@ -102,5 +118,37 @@ describe('useFormGasOverridesController', () => {
 
     expect(setGasOverrides).toHaveBeenCalledWith(undefined)
     expect(result.current.isEditorOpen).toBe(false)
+    expect(updateSwapForm).toHaveBeenLastCalledWith({ focusOnCurrencyField: 'input' })
+  })
+
+  it('restores the previously focused field when editor closes', () => {
+    focusOnCurrencyField = 'output'
+    mockUseGasChipDispatch.mockReturnValue({ dispatch: () => ({ type: 'editor' }) })
+
+    const { result } = renderHook(() =>
+      useFormGasOverridesController({ tx: undefined, chainId: UniverseChainId.Mainnet }),
+    )
+
+    act(() => result.current.onPress())
+    act(() => result.current.onCloseModal())
+
+    expect(result.current.isEditorOpen).toBe(false)
+    expect(updateSwapForm).toHaveBeenLastCalledWith({ focusOnCurrencyField: 'output' })
+  })
+
+  it('leaves the amount fields unfocused when the editor was opened with no field focused', () => {
+    focusOnCurrencyField = undefined
+    mockUseGasChipDispatch.mockReturnValue({ dispatch: () => ({ type: 'editor' }) })
+
+    const { result } = renderHook(() =>
+      useFormGasOverridesController({ tx: undefined, chainId: UniverseChainId.Mainnet }),
+    )
+
+    act(() => result.current.onPress())
+    act(() => result.current.onCloseModal())
+
+    // Re-focusing here would pop the keyboard back open on native for a user
+    // who had dismissed it before opening the editor.
+    expect(updateSwapForm).toHaveBeenLastCalledWith({ focusOnCurrencyField: undefined })
   })
 })

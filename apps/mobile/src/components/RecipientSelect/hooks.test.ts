@@ -1,10 +1,10 @@
 import { PreloadedState } from '@reduxjs/toolkit'
 import { waitFor } from '@testing-library/react-native'
+import { UniverseChainId } from '@universe/chains'
 import { toIncludeSameMembers } from 'jest-extended'
 import { MobileState } from 'src/app/mobileReducer'
 import { renderHookWithProviders } from 'src/test/render'
 import { SearchableRecipient } from 'uniswap/src/features/address/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TransactionsState } from 'uniswap/src/features/transactions/slice'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import {

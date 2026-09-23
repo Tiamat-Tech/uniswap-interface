@@ -12,7 +12,9 @@
     "utilities": "workspace:*"
   },
   "devDependencies": {
+    "@testing-library/react": "16.3.0",
     "@types/node": "22.19.17",
+    "jsdom": "20.0.3",
     "vitest": "3.2.1"
   },
   "scripts": {

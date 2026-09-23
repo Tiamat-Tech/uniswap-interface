@@ -7,6 +7,23 @@ import {
   MIN_CUSTOM_PRICE_RANGE_PERCENT_FROM_CLEARING,
 } from '~/pages/Liquidity/CreateAuction/types'
 const CUSTOM_PRICE_RANGE_ID_PREFIX = 'custom-range-'
+/**
+ * Identifies the derived full-range remainder in hover/histogram lookups keyed by entry id. It is
+ * never stored: the prefix above keeps real row ids from colliding with it.
+ */
+export const FULL_RANGE_REMAINDER_ENTRY_ID = 'full-range-remainder'
+
+/**
+ * The band the migrator's implicit position covers — the whole range. Exported so the editor row,
+ * the review table and {@link withFullRangeRemainderEntry} all render one shape.
+ */
+export const FULL_RANGE_REMAINDER_BOUNDS: Pick<
+  CustomPriceRangeEntry,
+  'minPercentFromClearing' | 'maxPercentFromClearing'
+> = {
+  minPercentFromClearing: MIN_CUSTOM_PRICE_RANGE_PERCENT_FROM_CLEARING,
+  maxPercentFromClearing: CUSTOM_PRICE_RANGE_POSITIVE_INFINITY,
+}
 const CUSTOM_PRICE_RANGE_PERCENT_PRECISION = 10 ** 5
 
 function roundCustomPriceRangePercent(percent: number): number {
@@ -39,6 +56,82 @@ function getNextCustomPriceRangeId(entries: CustomPriceRangeEntry[]): string {
 
 export function getCustomPriceRangeLiquidityTotal(entries: CustomPriceRangeEntry[]): number {
   return roundCustomPriceRangePercent(entries.reduce((sum, entry) => sum + entry.liquidityPercent, 0))
+}
+
+/**
+ * Decimals the UI renders a liquidity percent at. Entries are stored to
+ * {@link CUSTOM_PRICE_RANGE_PERCENT_PRECISION} (5 decimals), so a remainder can be non-zero and
+ * still round away here — see {@link shouldShowFullRangeRemainder}.
+ */
+export const CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS = 4
+
+/**
+ * The share of the LP budget the rows leave unallocated. The migrator opens a single full-range
+ * position for exactly this slice (`PositionPlanner.resolve` appends one carrying whatever the
+ * concentrated positions do not consume), so it is a real position, not a validation shortfall.
+ * An over-allocated set reports 0 — its problem is the overshoot, not a remainder.
+ */
+export function getCustomPriceRangeFullRangeRemainderPercent(entries: CustomPriceRangeEntry[]): number {
+  return clampCustomPriceRangeLiquidityPercent(100 - getCustomPriceRangeLiquidityTotal(entries))
+}
+
+/**
+ * Why the allocated total is unusable, or `undefined` when it is fine. The editor picks its error
+ * copy from this and {@link isCustomPriceRangeAllocationValid} gates the step on it, so the bounds
+ * cannot drift into blocking without a message or explaining while advancing.
+ */
+export type CustomPriceRangeTotalProblem = 'unallocated' | 'overAllocated'
+
+export function getCustomPriceRangeTotalProblem(
+  entries: CustomPriceRangeEntry[],
+): CustomPriceRangeTotalProblem | undefined {
+  const total = getCustomPriceRangeLiquidityTotal(entries)
+  if (total <= 0) {
+    return 'unallocated'
+  }
+  if (total > 100) {
+    return 'overAllocated'
+  }
+  return undefined
+}
+
+/**
+ * Whether the remainder earns a row of its own. Two cases where it does not:
+ *
+ * - a total of zero, where the remainder is the whole budget but the editor is already blocking on
+ *   "allocate liquidity to at least one range" — a "Full range 100%" row beside that contradicts it;
+ * - a remainder below display precision, which would render as a `0%` row (three rows of 33.33333
+ *   leave 0.00001 behind, and the inputs accept those five decimals).
+ */
+export function shouldShowFullRangeRemainder(entries: CustomPriceRangeEntry[]): boolean {
+  if (getCustomPriceRangeTotalProblem(entries) !== undefined) {
+    return false
+  }
+  const displayScale = 10 ** CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS
+  return Math.round(getCustomPriceRangeFullRangeRemainderPercent(entries) * displayScale) / displayScale > 0
+}
+
+/**
+ * `entries` plus the full-range remainder as a synthetic entry, for consumers that render it as one
+ * more range — the histogram. Returns `entries` unchanged when the remainder does not earn a row.
+ *
+ * Prepended, not appended. The histogram sorts widest band first and its comparator returns 0 on a
+ * tie, so a stable sort keeps input order; a real range ties the remainder whenever it spans
+ * -100 / +∞, which the default row does. First place is what puts the remainder on the bottom
+ * layer, behind the ranges it backs.
+ */
+export function withFullRangeRemainderEntry(entries: CustomPriceRangeEntry[]): CustomPriceRangeEntry[] {
+  if (!shouldShowFullRangeRemainder(entries)) {
+    return entries
+  }
+  return [
+    {
+      id: FULL_RANGE_REMAINDER_ENTRY_ID,
+      liquidityPercent: getCustomPriceRangeFullRangeRemainderPercent(entries),
+      ...FULL_RANGE_REMAINDER_BOUNDS,
+    },
+    ...entries,
+  ]
 }
 
 /** Removes rows with no liquidity allocated. Sum of remaining percents is unchanged. */
@@ -104,24 +197,10 @@ export function removeCustomPriceRangeEntry(
     return entries
   }
 
-  const removedEntry = entries.find((entry) => entry.id === entryId)
-  if (!removedEntry) {
-    return entries
-  }
-
-  const nextEntries = entries.filter((entry) => entry.id !== entryId)
-  const lastEntry = nextEntries[nextEntries.length - 1]!
-
-  return nextEntries.map((entry) =>
-    entry.id === lastEntry.id
-      ? {
-          ...entry,
-          liquidityPercent: clampCustomPriceRangeLiquidityPercent(
-            entry.liquidityPercent + removedEntry.liquidityPercent,
-          ),
-        }
-      : entry,
-  )
+  // The removed row's percent is not pushed onto a surviving row: with totals below 100 allowed,
+  // it simply becomes remainder and the full-range position absorbs it. Rows the user did not
+  // touch keep the numbers they were given.
+  return entries.filter((entry) => entry.id !== entryId)
 }
 
 function isFiniteCustomPriceRangeValue(value: CustomPriceRangeValue): value is number {
@@ -152,11 +231,19 @@ export function isCustomPriceRangeEntryValid(entry: CustomPriceRangeEntry): bool
   return true
 }
 
+/**
+ * Totals below 100% are valid — the remainder becomes a full-range position
+ * ({@link getCustomPriceRangeFullRangeRemainderPercent}). The two ends still are not:
+ * over-allocation reverts in `PositionPlanner` (`totalWeight > MPS`), and a total of zero leaves no
+ * concentrated position to define — every row strips out before the request is built, and a
+ * zero-weight definition reverts as `ZeroPositionWeight`. A launch that wants only a full-range
+ * position selects the full-range strategy instead.
+ */
 export function isCustomPriceRangeAllocationValid(entries: CustomPriceRangeEntry[]): boolean {
   return (
     entries.length > 0 &&
     entries.length <= MAX_CUSTOM_PRICE_RANGE_ENTRIES &&
-    getCustomPriceRangeLiquidityTotal(entries) === 100 &&
+    getCustomPriceRangeTotalProblem(entries) === undefined &&
     entries.every(isCustomPriceRangeEntryValid)
   )
 }

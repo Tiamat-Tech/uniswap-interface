@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { Flex, Text } from 'ui/src'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 
 export function NoDappConnections(): JSX.Element {

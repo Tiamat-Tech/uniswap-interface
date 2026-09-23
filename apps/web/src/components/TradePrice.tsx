@@ -1,6 +1,6 @@
 import { Currency, Price } from '@uniswap/sdk-core'
+import { Text, TouchableArea } from '@universe/mycelium'
 import { useMemo } from 'react'
-import { Text, TouchableArea } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'

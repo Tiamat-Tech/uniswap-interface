@@ -1,16 +1,15 @@
-import { ApolloError } from '@apollo/client'
 import { type Currency } from '@uniswap/sdk-core'
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
+import { BREAKPOINT_PX } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
-import { Flex } from 'ui/src'
-import { breakpoints } from 'ui/src/theme'
-import { AddressStringFormat, normalizeAddress } from 'uniswap/src/utils/addresses'
+import { PoolSortFields } from '~/data/pools/poolStats'
 import { usePoolsFromTokenAddress } from '~/data/pools/usePoolsFromTokenAddress'
-import { PoolSortFields } from '~/data/pools/useTopPools'
 import { OrderDirection } from '~/data/util'
-import { ExploreTablesFilterStoreContextProvider } from '~/features/Explore/state/exploreTablesFilterStore'
-import { useUpdateManualOutage } from '~/hooks/useUpdateManualOutage'
 import { PoolsTable } from '~/pages/Explore/tables/Pools/PoolTable'
 import { PoolTableStoreContextProvider, usePoolTableStore } from '~/pages/Explore/tables/Pools/poolTableStore'
+import { useTDPStore } from '~/pages/TokenDetails/context/useTDPStore'
+import { useMultichainTokenEntries } from '~/pages/TokenDetails/hooks/useMultichainTokenEntries'
 
 const HIDDEN_COLUMNS = [PoolSortFields.VolOverTvl, PoolSortFields.RewardApr]
 
@@ -18,7 +17,7 @@ const HIDDEN_COLUMNS = [PoolSortFields.VolOverTvl, PoolSortFields.RewardApr]
 // (1200px AppBody cap − padding − column gap − swap rail) drops under the table's ~740px
 // min content width — the leading columns pin and the table scrolls. Above $xxl the
 // padding drops and the panel fits the table.
-const PIN_COLUMNS_BELOW_WIDTH = breakpoints.xxl + 1
+const PIN_COLUMNS_BELOW_WIDTH = BREAKPOINT_PX.xxl + 1
 
 function TokenDetailsPoolsTableContent({
   referenceCurrency,
@@ -36,32 +35,30 @@ function TokenDetailsPoolsTableContent({
     () => ({ sortBy: sortMethod, sortDirection: sortAscending ? OrderDirection.Asc : OrderDirection.Desc }),
     [sortAscending, sortMethod],
   )
-  const { pools, loading, errorV2, errorV3, loadMore } = usePoolsFromTokenAddress({
+  const multiChainMap = useTDPStore((s) => s.multiChainMap)
+  const multichainEntries = useMultichainTokenEntries(multiChainMap)
+  const { pools, loading, isError, loadMore } = usePoolsFromTokenAddress({
     tokenAddress: referenceToken.address,
     sortState,
     chainId: referenceCurrency.chainId,
     isNative,
     multichain: isMultichainView,
+    multichainEntries,
   })
-  const combinedError =
-    errorV2 && errorV3
-      ? new ApolloError({
-          errorMessage: `Could not retrieve V2 and V3 Pools for token ${referenceToken.address} on chain: ${chainId}`,
-        })
-      : undefined
   const allDataStillLoading = loading && !pools.length
-  useUpdateManualOutage({ chainId, errorV3, errorV2, trigger: pools })
 
   return (
-    <Flex data-testid={`tdp-pools-table-${normalizeAddress(referenceToken.address, AddressStringFormat.Lowercase)}`}>
+    <Flex testID={`tdp-pools-table-${normalizeAddress(referenceToken.address, AddressStringFormat.Lowercase)}`}>
       <PoolsTable
         pools={pools}
         loading={allDataStillLoading}
-        error={combinedError}
+        error={isError}
         maxHeight={600}
         maxWidth={PIN_COLUMNS_BELOW_WIDTH}
         hiddenColumns={HIDDEN_COLUMNS}
         loadMore={loadMore}
+        // Multichain view lists pools across chains, so only scope the hook registry when it's one chain
+        chainId={isMultichainView ? undefined : chainId}
         surface="tdp"
       />
     </Flex>
@@ -76,10 +73,8 @@ export function TokenDetailsPoolsTable({
   isMultichainView: boolean
 }): JSX.Element {
   return (
-    <ExploreTablesFilterStoreContextProvider>
-      <PoolTableStoreContextProvider>
-        <TokenDetailsPoolsTableContent referenceCurrency={referenceCurrency} isMultichainView={isMultichainView} />
-      </PoolTableStoreContextProvider>
-    </ExploreTablesFilterStoreContextProvider>
+    <PoolTableStoreContextProvider>
+      <TokenDetailsPoolsTableContent referenceCurrency={referenceCurrency} isMultichainView={isMultichainView} />
+    </PoolTableStoreContextProvider>
   )
 }

@@ -1,6 +1,6 @@
 import { CurrencyAmount, Ether, Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { LaunchAuctionErrorModal } from '~/pages/Liquidity/CreateAuction/components/LaunchAuctionErrorModal'
 import { PriceSettingsSection } from '~/pages/Liquidity/CreateAuction/components/PriceSettingsSection'
 import { RaiseCurrency } from '~/pages/Liquidity/CreateAuction/types'
@@ -22,9 +22,7 @@ vi.mock('~/pages/Liquidity/CreateAuction/components/FloorPriceSelector', () => (
 
 vi.mock('uniswap/src/features/tokens/useCurrencyInfo', async () => {
   const { Ether, Token } = await vi.importActual<typeof import('@uniswap/sdk-core')>('@uniswap/sdk-core')
-  const { UniverseChainId } = await vi.importActual<typeof import('uniswap/src/features/chains/types')>(
-    'uniswap/src/features/chains/types',
-  )
+  const { UniverseChainId } = await vi.importActual<typeof import('@universe/chains')>('@universe/chains')
   const eth = Ether.onChain(UniverseChainId.Mainnet)
   const usdc = new Token(UniverseChainId.Mainnet, '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', 6, 'USDC')
 

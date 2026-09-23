@@ -1,13 +1,14 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Switch, Text } from 'ui/src'
+import { Button, Switch } from 'ui/src'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
-import useResizeObserver from 'use-resize-observer'
 import { ErrorCallout } from '~/components/ErrorCallout'
 import {
   NumericalInputMimic,
   NumericalInputSymbolContainer,
   NumericalInputWrapper,
+  useMeasuredFieldWidth,
 } from '~/components/NumericalInput/LargeAmountInput'
 import { StyledPercentInput } from '~/components/PercentInput'
 import { LiquidityModalDetailRows } from '~/features/Liquidity/LiquidityModalDetailRows'
@@ -26,12 +27,12 @@ const isValidPercentageInput = (value: string): boolean => {
 }
 
 export function RemoveLiquidityForm() {
-  const hiddenObserver = useResizeObserver<HTMLElement>()
   const { t } = useTranslation()
 
   const { percent, positionInfo, setPercent, setStep, percentInvalid, unwrapNativeCurrency, setUnwrapNativeCurrency } =
     useRemoveLiquidityModalContext()
   const { gasFeeEstimateUSD, txContext, error, refetch } = useRemoveLiquidityTxContext()
+  const { ref: hiddenObserverRef, fieldWidth: percentFieldWidth } = useMeasuredFieldWidth(percent)
 
   if (!positionInfo) {
     throw new Error('RemoveLiquidityModal must have an initial state when opening')
@@ -86,8 +87,8 @@ export function RemoveLiquidityForm() {
           backgroundColor="$surface2"
           borderTopLeftRadius="$rounded12"
           borderTopRightRadius="$rounded12"
-          borderBottomLeftRadius={canUnwrap ? '$rounded0' : '$rounded12'}
-          borderBottomRightRadius={canUnwrap ? '$rounded0' : '$rounded12'}
+          borderBottomLeftRadius={canUnwrap ? '$none' : '$rounded12'}
+          borderBottomRightRadius={canUnwrap ? '$none' : '$rounded12'}
           p="$padding16"
           gap="$gap12"
         >
@@ -104,12 +105,12 @@ export function RemoveLiquidityForm() {
                   }
                 }}
                 placeholder="0"
-                fieldWidth={percent && hiddenObserver.width ? hiddenObserver.width + 1 : undefined}
+                fieldWidth={percentFieldWidth}
                 maxDecimals={0}
                 maxLength={3}
               />
               <NumericalInputSymbolContainer showPlaceholder={!percent}>%</NumericalInputSymbolContainer>
-              <NumericalInputMimic ref={hiddenObserver.ref}>{percent}</NumericalInputMimic>
+              <NumericalInputMimic ref={hiddenObserverRef}>{percent}</NumericalInputMimic>
             </NumericalInputWrapper>
           </Flex>
           <Flex row gap="$gap8" width="100%" justifyContent="center">

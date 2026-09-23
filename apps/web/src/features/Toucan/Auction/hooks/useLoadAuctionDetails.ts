@@ -1,13 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { GetAuctionRequest } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
+import { UniverseChainId, EVMUniverseChainId, AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useEffect, useMemo, useRef } from 'react'
 import { auctionQueries } from 'uniswap/src/data/apiClients/dataApiService/auctions/auctionQueries'
-import { EVMUniverseChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { logger } from 'utilities/src/logger/logger'
 import { useAuctionTokenInfo } from '~/features/Toucan/Auction/hooks/useAuctionTokenInfo'
 import { AuctionDetails, AuctionDetailsLoadState } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStoreActions } from '~/features/Toucan/Auction/store/useAuctionStore'
+import {
+  logAuctionDetailsErrorOnce,
+  logMissingTokenTotalSupplyOnce,
+} from '~/features/Toucan/Auction/utils/auctionDetailsLogGuards'
 import { computePreBidEndBlock, ParsedAuctionStepLike } from '~/features/Toucan/Auction/utils/preBidEndBlock'
 import { resolveAuctionTokenLogo } from '~/features/Toucan/Auction/utils/tokenMetadata'
+import { hasTokenTotalSupply } from '~/features/Toucan/Auction/utils/tokenTotalSupply'
 import { getAuctionMetadata } from '~/features/Toucan/Config/config'
 import { getPollingIntervalMs } from '~/utils/averageBlockTimeMs'
 
@@ -35,12 +41,13 @@ export function useLoadAuctionDetails(
   const {
     data: auctionData,
     error: auctionError,
+    errorUpdateCount,
     isLoading: isAuctionLoading,
   } = useQuery(
     auctionQueries.getAuction({
       params: new GetAuctionRequest({
         chainId,
-        address: auctionAddress?.toLowerCase(),
+        address: auctionAddress ? normalizeAddress(auctionAddress, AddressStringFormat.Lowercase) : undefined,
       }),
       enabled: Boolean(chainId && auctionAddress),
       refetchInterval: chainId ? getPollingIntervalMs(chainId) : false,
@@ -111,9 +118,6 @@ export function useLoadAuctionDetails(
         ? baseAuctionDetails.clearingPrice
         : baseAuctionDetails.floorPrice
 
-    // Use the token total supply from the API, falling back to the auction supply when absent
-    const tokenTotalSupply = baseAuctionDetails.tokenTotalSupply ?? baseAuctionDetails.totalSupply
-
     // Logo precedence: config override (authoritative) -> creator-uploaded API image ->
     // indexed token logo -> TokenLogo placeholder. The override is resolved explicitly so it
     // wins over the API image, while the API image still beats the indexed logo.
@@ -132,7 +136,6 @@ export function useLoadAuctionDetails(
     const auctionDetails: AuctionDetails = {
       ...baseAuctionDetails,
       clearingPrice,
-      tokenTotalSupply,
       token,
       preBidEndBlock: computePreBidEndBlock(
         (apiAuction as unknown as { parsedAuctionSteps?: ParsedAuctionStepLike[] }).parsedAuctionSteps,
@@ -142,7 +145,22 @@ export function useLoadAuctionDetails(
 
     setAuctionDetails(auctionDetails)
     setAuctionDetailsLoadState(AuctionDetailsLoadState.Success)
-  }, [auctionData, apiAuction, tokenInfo, setAuctionDetails, setAuctionDetailsLoadState])
+
+    // `tokenTotalSupply` is the token's entire supply, while `totalSupply` is only the slice
+    // deposited into the auction contract.
+    logMissingTokenTotalSupplyOnce({
+      keyParts: [chainId, auctionAddress],
+      isTerminal: !hasTokenTotalSupply(baseAuctionDetails.tokenTotalSupply),
+      log: () => {
+        logger.warn('useLoadAuctionDetails.ts', 'useLoadAuctionDetails', 'Auction is missing tokenTotalSupply', {
+          chainId,
+          auctionAddress,
+          tokenAddress: baseAuctionDetails.tokenAddress,
+          tokenTotalSupply: baseAuctionDetails.tokenTotalSupply,
+        })
+      },
+    })
+  }, [auctionData, apiAuction, tokenInfo, chainId, auctionAddress, setAuctionDetails, setAuctionDetailsLoadState])
 
   // Handle auction fetch errors
   useEffect(() => {
@@ -154,5 +172,42 @@ export function useLoadAuctionDetails(
 
     setAuctionDetails(null)
     setAuctionDetailsLoadState(AuctionDetailsLoadState.Error, auctionError.message)
-  }, [auctionError, apiAuction, setAuctionDetails, setAuctionDetailsLoadState])
+
+    // This is the root stall, and until now nothing reported it. Without auction details there are
+    // no start/end blocks, so `computeAuctionProgress` cannot even reach ENDED: the outcome stays
+    // UNKNOWN, the launched banner holds its skeleton, and the checkpoint diagnostics stay silent by
+    // design because their ENDED gate is unreachable. Reporting it there would name the symptom;
+    // this names the cause — GetAuction never resolved for this address.
+    //
+    // Gated on a *second* settled failure, because "no data in hand" is not the same as terminal.
+    // The `apiAuction` early return only establishes that nothing has arrived yet — on first mount
+    // there has never been a success to retain, so a transient failure that exhausts its retries
+    // reaches here, reports a permanent stall, and consumes the once-per-session key. The next poll
+    // recovers and the genuinely permanent failure later in the session is then silent.
+    //
+    // `errorUpdateCount` is incremented by query-core's "error" action, which fires once per *fetch*
+    // after retries are exhausted (`failureCount` is the per-attempt counter). So `> 1` means the
+    // failure survived a full retry cycle and a subsequent poll — independent of the retry constant.
+    logAuctionDetailsErrorOnce({
+      keyParts: [chainId, auctionAddress],
+      isTerminal: errorUpdateCount > 1,
+      log: () => {
+        // Stable message — Datadog error tracking counts occurrences of this exact string. The
+        // underlying query error rides on `cause` so its stack survives the rewrap.
+        const detailsError = new Error('Failed to load auction details', { cause: auctionError })
+        logger.error(detailsError, {
+          tags: { file: 'useLoadAuctionDetails.ts', function: 'useLoadAuctionDetails' },
+          extra: { chainId, auctionAddress, error: auctionError.message },
+        })
+      },
+    })
+  }, [
+    auctionError,
+    apiAuction,
+    chainId,
+    auctionAddress,
+    errorUpdateCount,
+    setAuctionDetails,
+    setAuctionDetailsLoadState,
+  ])
 }

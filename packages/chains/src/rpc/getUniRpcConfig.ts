@@ -1,6 +1,13 @@
 import { logger } from 'utilities/src/logger/logger'
 import { UniverseChainId } from './types'
 
+/**
+ * Opt-in header for UniRPC v2 swap protection: `eth_sendRawTransaction` calls
+ * carrying it are routed through protected orderflow by the gateway, replacing
+ * direct client calls to endpoints like rpc.flashbots.net/fast.
+ */
+export const UNI_SWAP_PROTECTION_HEADER = 'x-uni-swap-protection'
+
 export interface UniRpcConfig {
   rpcUrl: string
   headers: Record<string, string>

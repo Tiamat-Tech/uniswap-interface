@@ -1,6 +1,6 @@
 import { FetchError } from '@universe/api'
-import type { AppTFunction } from 'ui/src/i18n/types'
 import { isEarnNoRoutesQuoteError } from 'uniswap/src/features/earn/quoteError'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 
 export enum EarnTradingApiErrorDetail {
   InsufficientRedeemableBalance = 'EARN_INSUFFICIENT_REDEEMABLE_BALANCE',

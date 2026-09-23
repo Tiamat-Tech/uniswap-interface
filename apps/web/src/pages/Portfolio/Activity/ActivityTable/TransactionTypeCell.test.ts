@@ -1,3 +1,5 @@
+// These must stay the same modules TransactionTypeCell imports — the assertions below compare
+// icon component identity, so swapping only one side would fail.
 import { ArrowDownToLine } from 'ui/src/components/icons/ArrowDownToLine'
 import { ArrowUpToLine } from 'ui/src/components/icons/ArrowUpToLine'
 import { Receipt } from 'ui/src/components/icons/Receipt'

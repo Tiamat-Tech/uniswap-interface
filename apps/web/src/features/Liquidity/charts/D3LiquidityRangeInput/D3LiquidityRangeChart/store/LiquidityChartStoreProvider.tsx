@@ -13,6 +13,13 @@ interface LiquidityChartStoreProviderProps {
   children: ReactNode
   minTick?: number
   maxTick?: number
+  /** Current tick in visual space — pre-negated when priceInverted, matching the chart's currentTick prop */
+  currentTick: number
+  currentPrice?: number
+  creatingPoolOrPair?: boolean
+  /** True once the user has edited the initial-price field — distinguishes a deliberate price edit
+   * from the streamed reference re-seeding on its own, so a preset only recenters on the former. */
+  isInitialPriceDirty?: boolean
   isFullRange?: boolean
   baseCurrency: Maybe<Currency>
   quoteCurrency: Maybe<Currency>
@@ -23,6 +30,7 @@ interface LiquidityChartStoreProviderProps {
   onInputModeChange: (inputMode: RangeAmountInputPriceMode) => void
   onMinTickChange: (tick?: number) => void
   onMaxTickChange: (tick?: number) => void
+  onMinMaxTickChange: (ticks: { minTick?: number; maxTick?: number }) => void
   onTimePeriodChange?: (timePeriod: GraphQLApi.HistoryDuration) => void
   setIsFullRange: (isFullRange: boolean) => void
 }
@@ -31,10 +39,19 @@ function LiquidityChartStoreProviderInner({
   children,
   minTick,
   maxTick,
+  currentTick,
+  currentPrice,
+  tickSpacing,
   isFullRange,
-}: PropsWithChildren<Pick<LiquidityChartStoreProviderProps, 'minTick' | 'maxTick' | 'isFullRange'>>) {
+  isInitialPriceDirty,
+}: PropsWithChildren<
+  Pick<
+    LiquidityChartStoreProviderProps,
+    'minTick' | 'maxTick' | 'currentTick' | 'currentPrice' | 'tickSpacing' | 'isFullRange' | 'isInitialPriceDirty'
+  >
+>) {
   const store = useContext(LiquidityChartStoreContext)
-  const { syncIsFullRangeFromParent } = useLiquidityChartStoreActions()
+  const { syncIsFullRangeFromParent, syncCurrentTickFromParent } = useLiquidityChartStoreActions()
 
   // Sync minTick and maxTick
   useEffect(() => {
@@ -47,6 +64,13 @@ function LiquidityChartStoreProviderInner({
       maxTick,
     })
   }, [minTick, maxTick, isFullRange, store])
+
+  // Sync currentTick/currentPrice/tickSpacing — while creating, the first two change on every
+  // initial-price edit and the spacing changes with the fee tier, none of which remount the store.
+  // isInitialPriceDirty rides along so the action can tell a user edit from a self-moving re-seed.
+  useEffect(() => {
+    syncCurrentTickFromParent({ currentTick, currentPrice, tickSpacing, isInitialPriceDirty })
+  }, [currentTick, currentPrice, tickSpacing, isInitialPriceDirty, syncCurrentTickFromParent])
 
   // Sync isFullRange
   useEffect(() => {
@@ -61,6 +85,10 @@ export function LiquidityChartStoreProvider({
   inputMode,
   minTick,
   maxTick,
+  currentTick,
+  currentPrice,
+  creatingPoolOrPair,
+  isInitialPriceDirty,
   tickSpacing,
   baseCurrency,
   quoteCurrency,
@@ -72,6 +100,7 @@ export function LiquidityChartStoreProvider({
   onInputModeChange,
   onMinTickChange,
   onMaxTickChange,
+  onMinMaxTickChange,
   onTimePeriodChange,
   setIsFullRange,
 }: LiquidityChartStoreProviderProps) {
@@ -80,6 +109,9 @@ export function LiquidityChartStoreProvider({
       inputMode,
       minTick,
       maxTick,
+      currentTick,
+      currentPrice,
+      creatingPoolOrPair,
       tickSpacing,
       baseCurrency,
       quoteCurrency,
@@ -91,6 +123,7 @@ export function LiquidityChartStoreProvider({
       onInputModeChange,
       onMinTickChange,
       onMaxTickChange,
+      onMinMaxTickChange,
       onTimePeriodChange,
       setIsFullRange,
     }),
@@ -98,7 +131,15 @@ export function LiquidityChartStoreProvider({
 
   return (
     <LiquidityChartStoreContext.Provider value={store}>
-      <LiquidityChartStoreProviderInner minTick={minTick} maxTick={maxTick} isFullRange={isFullRange}>
+      <LiquidityChartStoreProviderInner
+        minTick={minTick}
+        maxTick={maxTick}
+        currentTick={currentTick}
+        currentPrice={currentPrice}
+        tickSpacing={tickSpacing}
+        isFullRange={isFullRange}
+        isInitialPriceDirty={isInitialPriceDirty}
+      >
         {children}
       </LiquidityChartStoreProviderInner>
     </LiquidityChartStoreContext.Provider>

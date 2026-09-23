@@ -1,7 +1,6 @@
 import { isWebAppDesktop } from '@universe/environment'
+import { Flex, spacing } from '@universe/mycelium'
 import { useRef } from 'react'
-import { Flex } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 import { getDefaultTokenOptionsCount } from 'uniswap/src/components/CurrencyInputPanel/DefaultTokenOptions/constants'
 import { DefaultTokenOptions } from 'uniswap/src/components/CurrencyInputPanel/DefaultTokenOptions/DefaultTokenOptions'
 import { CurrencyField } from 'uniswap/src/types/currency'

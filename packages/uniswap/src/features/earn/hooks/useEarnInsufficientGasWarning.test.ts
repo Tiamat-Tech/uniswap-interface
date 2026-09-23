@@ -1,8 +1,8 @@
 import { CurrencyAmount } from '@uniswap/sdk-core'
 import { type ChainedQuoteResponse, TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { WarningLabel } from 'uniswap/src/components/modals/WarningModal/types'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   getEarnQuoteGasFeeChecks,
   getInsufficientGasWarning,

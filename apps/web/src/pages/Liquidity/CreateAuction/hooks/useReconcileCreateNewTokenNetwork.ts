@@ -1,5 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
+import { useStatsigClientStatus } from '@universe/gating'
 import { useEffect } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useCreateAuctionStoreActions } from '~/pages/Liquidity/CreateAuction/CreateAuctionContext'
 
 /**
@@ -17,10 +18,20 @@ export function useReconcileCreateNewTokenNetwork({
   allowedNetworks: UniverseChainId[]
 }): void {
   const { updateCreateNewTokenField } = useCreateAuctionStoreActions()
+  const { isStatsigReady } = useStatsigClientStatus()
 
   useEffect(() => {
-    if (allowedNetworks.length > 0 && !allowedNetworks.includes(selectedNetwork)) {
+    // Absent is not disallowed. While readiness is unreported the chain rollout flags read as
+    // their default (false), so a flag-gated launch chain (Arc) is transiently missing from
+    // `allowedNetworks` — on first load, and again whenever `updateUserAsync` re-enters `Loading`
+    // mid-session (wallet connect). Snapping against that partial list would drop a chain the user
+    // picked for the rest of the session: nothing re-selects it once the flag reads true again.
+    if (!isStatsigReady || allowedNetworks.length === 0) {
+      return
+    }
+
+    if (!allowedNetworks.includes(selectedNetwork)) {
       updateCreateNewTokenField('network', allowedNetworks[0])
     }
-  }, [allowedNetworks, selectedNetwork, updateCreateNewTokenField])
+  }, [allowedNetworks, isStatsigReady, selectedNetwork, updateCreateNewTokenField])
 }

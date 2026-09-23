@@ -1,5 +1,6 @@
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { GasFeeResult, TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useMemo } from 'react'
 import { usePrepareAndSignDappTransaction } from 'src/app/features/dappRequests/hooks/usePrepareAndSignDappTransaction'
@@ -8,7 +9,6 @@ import { DappRequestStoreItemForSendCallsTxn } from 'src/app/features/dappReques
 import { useSignDelegationAuthorization } from 'uniswap/src/contexts/UniswapContext'
 import { useWalletEncode4337Query } from 'uniswap/src/data/apiClients/tradingApi/useWalletEncode4337Query'
 import { useWalletEncode7702Query } from 'uniswap/src/data/apiClients/tradingApi/useWalletEncode7702Query'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { buildGasServiceUrgencyOverride } from 'uniswap/src/features/gas/components/NetworkCostEditor/buildGasServiceUrgencyOverride'
 import type { GasFeeOverrides } from 'uniswap/src/features/gas/types'
 import { transformTradingApiUserOpToRpcUserOp } from 'uniswap/src/features/smartWallet/userOp/transformTradingApiUserOp'
@@ -16,6 +16,7 @@ import { toTradingApiSupportedChainId } from 'uniswap/src/features/transactions/
 import { EthTransaction } from 'uniswap/src/types/walletConnect'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import type { RpcUserOperation } from 'viem/account-abstraction'
+import { safeNormalizeSendCalls } from 'wallet/src/features/batchedTransactions/normalizeSendCalls'
 import { transformCallsToTransactionRequests } from 'wallet/src/features/batchedTransactions/utils'
 import { useLiveAccountDelegationDetails } from 'wallet/src/features/smartWallet/hooks/useLiveAccountDelegationDetails'
 import { SignedTransactionRequest } from 'wallet/src/features/transactions/executeTransaction/types'
@@ -138,19 +139,23 @@ export function usePrepareAndSignSendCallsTransaction({
     | undefined
   const shouldUse4337 = Boolean(paymasterCapability?.url && is7677GasSponsorshipEnabled)
 
-  // --- 4337 path ---
+  // Persisted requests may predate the strict intake validation. Keep preparation total so the
+  // scanning content can render its blocked state instead of crashing before it mounts.
+  const normalizeResult = useMemo(() => safeNormalizeSendCalls(request.dappRequest.calls), [request.dappRequest.calls])
   const transformedCalls = useMemo(
     () =>
-      chainId
+      chainId && normalizeResult.ok
         ? transformCallsToTransactionRequests({
-            calls: request.dappRequest.calls,
+            calls: normalizeResult.calls,
             chainId,
             accountAddress: account.address,
           })
         : [],
-    [chainId, request.dappRequest.calls, account.address],
+    [chainId, normalizeResult, account.address],
   )
+  const canEncodeCalls = transformedCalls.length > 0
 
+  // --- 4337 path ---
   // When this is a first sponsored sendCalls on an undelegated wallet, the 7702
   // delegation auth is signed up front and bundled into encode_4337 (see the hook below).
   const delegationData = useLiveAccountDelegationDetails({
@@ -160,7 +165,7 @@ export function usePrepareAndSignSendCallsTransaction({
 
   const { encode4337Data, isEncode4337Loading, encode4337Error, isDelegationAuthLoading } =
     useEncode4337WithDelegationAuth({
-      shouldUse4337,
+      shouldUse4337: shouldUse4337 && canEncodeCalls,
       chainId,
       account,
       paymasterCapability,
@@ -173,14 +178,15 @@ export function usePrepareAndSignSendCallsTransaction({
   // encoding waits until it's available.
   const delegationAddress = delegationData?.contractAddress
   const { data: encoded7702data } = useWalletEncode7702Query({
-    enabled: !shouldUse4337 && !!chainId && !!account.address && !!delegationAddress,
-    params: delegationAddress
-      ? {
-          calls: transformedCalls,
-          smartContractDelegationAddress: delegationAddress,
-          walletAddress: account.address,
-        }
-      : undefined,
+    enabled: !shouldUse4337 && canEncodeCalls && !!chainId && !!account.address && !!delegationAddress,
+    params:
+      delegationAddress && canEncodeCalls
+        ? {
+            calls: transformedCalls,
+            smartContractDelegationAddress: delegationAddress,
+            walletAddress: account.address,
+          }
+        : undefined,
   })
 
   const encodedTransaction = encoded7702data?.encoded

@@ -1,10 +1,17 @@
 /* oxlint-disable typescript/no-unnecessary-condition */
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { resolveNewPoolTickSpacing } from '@uniswap/liquidity-launcher-sdk'
 import { Percent } from '@uniswap/sdk-core'
 import { FeeAmount } from '@uniswap/v3-sdk'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { DYNAMIC_FEE_AMOUNT, MAX_LP_FEE } from 'uniswap/src/constants/pools'
 import type { FeeBreakdown } from 'uniswap/src/features/fees/types'
-import { DYNAMIC_FEE_DATA, type DynamicFeeData, type FeeData } from 'uniswap/src/features/positions/types'
+import {
+  DYNAMIC_FEE_DATA,
+  type DynamicFeeData,
+  type FeeData,
+  type PositionRewardApr,
+} from 'uniswap/src/features/positions/types'
 import i18n from 'uniswap/src/i18n'
 import { PercentNumberDecimals } from 'utilities/src/format/types'
 import { BIPS_BASE } from '~/constants/misc'
@@ -23,11 +30,32 @@ export function validateFeeTier(feeTier: string): string {
   return feeTier
 }
 
-// tick spacing must be a whole number >= 1. Newly created tiers use a 1x fee-tier multiplier when
-// `useSingleTickSpacing` is set (behind the L2DefaultTickSpacing flag); otherwise 2x.
-export function calculateTickSpacingFromFeeAmount(feeAmount: number, useSingleTickSpacing: boolean): number {
-  const feeMultiplier = useSingleTickSpacing ? 1 : 2
-  return Math.max(Math.round((feeMultiplier * feeAmount) / 100), 1)
+/**
+ * Tick spacing for a newly created v4 tier: a hundredth of the fee amount, floored at 1 (tick spacing must
+ * be a whole number >= 1).
+ *
+ * Deliberately tighter than the v3 `TICK_SPACINGS` table backing {@link defaultFeeTiers}, which is the 2x
+ * schedule this flow used before the cutover — at one fee amount that table yields twice this spacing
+ * (0.30% → 60, not 30). Tick spacing is part of a pool's identity, so the two schedules name *different*
+ * pools at the same fee: anything asking "does a pool already exist at this tier" must match on fee amount
+ * rather than on a key derived here, or it will miss the pre-cutover pool and create an empty one beside
+ * it. See `getCreatedPoolAtFeeAmount`.
+ */
+export function calculateTickSpacingFromFeeAmount(feeAmount: number): number {
+  return Math.max(Math.round(feeAmount / 100), 1)
+}
+
+/**
+ * Re-keys a fee tier to the pool the liquidity launcher would CREATE at that fee: same fee amount,
+ * tick spacing from the launcher SDK's derivation instead of the v3 `TICK_SPACINGS` table behind
+ * {@link defaultFeeTiers}. New-pool candidates (CCA availability checks, the launcher flow's selected
+ * tier) must carry this spacing or they name a different pool id than the one the backend will
+ * initialize. Never use for a pool that already exists — its spacing is part of its identity and stays
+ * whatever it was created with (see the SDK's `resolveNewPoolTickSpacing` contract). Dynamic-fee tiers
+ * pass through untouched: their fee amount is a flag, not a bip value to derive spacing from.
+ */
+export function toNewPoolFeeData(fee: FeeData): FeeData {
+  return isDynamicFeeTier(fee) ? fee : { ...fee, tickSpacing: resolveNewPoolTickSpacing(fee.feeAmount) }
 }
 
 const SMALLEST_FEE_TIER_STEP_PERCENT = 0.0001
@@ -50,37 +78,45 @@ export function getSteppedFeePercent(current: string, direction: 'up' | 'down'):
   return validateFeeTier((parseFloat(current) + SMALLEST_FEE_TIER_STEP_PERCENT).toFixed(MAX_FEE_TIER_DECIMALS))
 }
 
+/**
+ * Identifies a pool by its (fee amount, tick spacing) pair. A dynamic-fee pool needs no extra
+ * marker: its fee amount is the v4 dynamic-fee flag, a value no static tier can reach.
+ */
+export function getFeeTierKey({ feeTier, tickSpacing }: { feeTier: number; tickSpacing: number }): string
+export function getFeeTierKey({ feeTier, tickSpacing }: { feeTier?: number; tickSpacing?: number }): string | undefined
 export function getFeeTierKey({
   feeTier,
   tickSpacing,
-  isDynamicFee,
-}: {
-  feeTier: number
-  tickSpacing: number
-  isDynamicFee?: boolean
-}): string
-export function getFeeTierKey({
-  feeTier,
-  tickSpacing,
-  isDynamicFee,
 }: {
   feeTier?: number
   tickSpacing?: number
-  isDynamicFee?: boolean
-}): string | undefined
-export function getFeeTierKey({
-  feeTier,
-  tickSpacing,
-  isDynamicFee,
-}: {
-  feeTier?: number
-  tickSpacing?: number
-  isDynamicFee?: boolean
 }): string | undefined {
   if (feeTier === undefined || tickSpacing === undefined) {
     return undefined
   }
-  return `${feeTier}-${tickSpacing}${isDynamicFee ? '-dynamic' : ''}`
+  return `${feeTier}-${tickSpacing}`
+}
+
+/**
+ * Pools already deployed at a fee amount, at whatever tick spacing each carries.
+ *
+ * The counterpart to {@link getFeeTierKey} for existence questions: a key pins one tick spacing, but the
+ * same fee names as many pools as there are spacings, and {@link calculateTickSpacingFromFeeAmount} no
+ * longer agrees with the v3 `TICK_SPACINGS` behind {@link defaultFeeTiers}. Keying an existence check off
+ * either schedule misses the pools deployed under the other, and creating on that miss initializes an
+ * empty pool at the same fee beside a deep one. Every "is this tier taken" check goes through here.
+ */
+export function createdPoolsAtFeeAmount({
+  feeTierData,
+  fee,
+}: {
+  feeTierData: Record<string, FeeTierData>
+  fee: FeeData
+}): FeeTierData[] {
+  return Object.values(feeTierData).filter(
+    (data) =>
+      data.created && data.fee.feeAmount === fee.feeAmount && isDynamicFeeTier(data.fee) === isDynamicFeeTier(fee),
+  )
 }
 
 export function getFeeTierTitle(feeAmount: number, isDynamic?: boolean): string {
@@ -120,11 +156,7 @@ export function mergeFeeTiers({
       continue
     }
 
-    const key = getFeeTierKey({
-      feeTier: feeTier.feeAmount,
-      tickSpacing: feeTier.tickSpacing,
-      isDynamicFee: isDynamicFeeTier(feeTier),
-    })
+    const key = getFeeTierKey({ feeTier: feeTier.feeAmount, tickSpacing: feeTier.tickSpacing })
     if (key) {
       result[key] = {
         fee: feeTier,
@@ -158,7 +190,7 @@ function getDefaultFeeTiersForChain(
 
   return feeData.reduce(
     (acc, fee) => {
-      acc[getFeeTierKey({ feeTier: fee.feeAmount, tickSpacing: fee.tickSpacing, isDynamicFee: fee.isDynamic })] = fee
+      acc[getFeeTierKey({ feeTier: fee.feeAmount, tickSpacing: fee.tickSpacing })] = fee
       return acc
     },
     {} as Record<string, { isDynamic: boolean; feeAmount: FeeAmount; tickSpacing: number }>,
@@ -181,11 +213,8 @@ export function getDefaultFeeTiersForChainWithDynamicFeeTier({
 
   return {
     ...feeTiers,
-    [getFeeTierKey({
-      feeTier: DYNAMIC_FEE_DATA.feeAmount,
-      tickSpacing: DYNAMIC_FEE_DATA.tickSpacing,
-      isDynamicFee: DYNAMIC_FEE_DATA.isDynamic,
-    })]: DYNAMIC_FEE_DATA,
+    [getFeeTierKey({ feeTier: DYNAMIC_FEE_DATA.feeAmount, tickSpacing: DYNAMIC_FEE_DATA.tickSpacing })]:
+      DYNAMIC_FEE_DATA,
   }
 }
 
@@ -203,17 +232,24 @@ export function getCommonFeeTiersWithData({
   feeTierData: Record<string, FeeTierData>
   protocolVersion: ProtocolVersion
 }): Array<{ value: FeeData; title: string; created: boolean }> {
-  return Object.entries(getDefaultFeeTiersForChain(chainId, protocolVersion)).map(([key, feeData]) => ({
-    value: feeData,
-    title: getFeeTierTitle(feeData.feeAmount, feeData.isDynamic),
-    created: feeTierData[key]?.created ?? false,
-  }))
+  return Object.values(getDefaultFeeTiersForChain(chainId, protocolVersion)).map((feeData) => {
+    // The canonical tiers carry v3 spacings; a launch selects the pool the launcher will create, so
+    // the tier's value must carry the launcher-derived spacing (0.30% → 30, not the v3 table's 60).
+    const value = toNewPoolFeeData(feeData)
+    return {
+      value,
+      title: getFeeTierTitle(value.feeAmount, value.isDynamic),
+      // By fee amount, not this tier's key: a pool deployed at the same fee under either spacing
+      // schedule must disable the box, or CCA could deploy a second pool beside a deep one.
+      created: createdPoolsAtFeeAmount({ feeTierData, fee: value }).length > 0,
+    }
+  })
 }
 
 /**
  * A fee tier option rendered by `FeeTierSelector`. `protocolFee` (pips) is the backend's per-pool
- * value when a pool exists; `feeBreakdown` is set only for the new-default v4 tiers (behind
- * `V4ProtocolFeeDisplay`); `disabledReason*` mark a non-selectable tier (e.g. an existing CCA pool).
+ * value when a pool exists; `feeBreakdown` is set only for the new-default v4 tiers;
+ * `disabledReason*` mark a non-selectable tier (e.g. an existing CCA pool).
  */
 export interface FeeTierOption {
   value: FeeData
@@ -221,6 +257,8 @@ export interface FeeTierOption {
   selectionPercent?: Percent
   tvl: string | undefined
   boostedApr?: number
+  // The tokens `boostedApr` is paid in, as the tier's pool serves them.
+  rewards?: PositionRewardApr[]
   protocolFee?: number
   feeBreakdown?: FeeBreakdown
   // Whether a pool already exists at this tier. `false` renders a "Not created" label in place of TVL
@@ -247,6 +285,7 @@ export function getDefaultFeeTiersWithData({
     selectionPercent: feeTierData[key]?.percentage,
     tvl: feeTierData[key]?.tvl,
     boostedApr: feeTierData[key]?.boostedApr,
+    rewards: feeTierData[key]?.rewards,
     protocolFee: feeTierData[key]?.protocolFee,
   }))
 
@@ -260,6 +299,7 @@ export function getDefaultFeeTiersWithData({
           selectionPercent: data.percentage,
           tvl: data.tvl,
           boostedApr: data.boostedApr,
+          rewards: data.rewards,
           protocolFee: data.protocolFee,
         }))
         // if tvl is less than MIN_FEE_TIER_TVL and not default fee tier, filter it out
@@ -268,11 +308,7 @@ export function getDefaultFeeTiersWithData({
           return (
             parseFloat(feeTier.tvl) >= MIN_FEE_TIER_TVL ||
             Object.keys(defaultFeeTiersForChain).includes(
-              getFeeTierKey({
-                feeTier: feeTier.value.feeAmount,
-                tickSpacing: feeTier.value.tickSpacing,
-                isDynamicFee: feeTier.value.isDynamic,
-              }),
+              getFeeTierKey({ feeTier: feeTier.value.feeAmount, tickSpacing: feeTier.value.tickSpacing }),
             )
           )
         })
@@ -287,18 +323,43 @@ export function getDefaultFeeTiersWithData({
       (feeTier) =>
         feeTier.value !== undefined &&
         Object.keys(feeTierData).includes(
-          getFeeTierKey({
-            feeTier: feeTier.value.feeAmount,
-            tickSpacing: feeTier.value.tickSpacing,
-            isDynamicFee: feeTier.value.isDynamic,
-          }),
+          getFeeTierKey({ feeTier: feeTier.value.feeAmount, tickSpacing: feeTier.value.tickSpacing }),
         ),
     )
     .sort(sortFeeTiersByTvl)
 }
 
 export function isDynamicFeeTier(feeData?: FeeData): feeData is DynamicFeeData {
-  return feeData?.isDynamic || feeData?.feeAmount === DYNAMIC_FEE_DATA.feeAmount
+  return feeData?.isDynamic ?? false
+}
+
+/**
+ * Resolves a URL-supplied fee tier, or undefined when it can't name a real pool.
+ *
+ * URL params are the one fee source that can be internally inconsistent — the schema behind
+ * `parseAsFeeData` and the legacy `feeTier` param both check shape, not meaning. Two rules, applied
+ * in order, and both URL entry points go through here so they can't drift:
+ *
+ * 1. Either signal marks the tier dynamic, and the fee amount follows. Consumers split on which
+ *    field they read (the tier key and the v4 pool id hash off `feeAmount`, the display forks on
+ *    `isDynamic`), so a disagreeing pair would resolve to two different pools.
+ * 2. What survives must be a fee the v4-sdk accepts: a whole number under the protocol cap, or
+ *    exactly the dynamic-fee flag. Anything else reaches the `V4Pool` constructor and trips its fee
+ *    invariant mid-render. Bounded after step 1, so `?feeTier=2000000&isDynamic=true` resolves to
+ *    the flag rather than being rejected for a fee amount that was never meaningful.
+ */
+export function parseFeeDataFromUrl(fee: FeeData): FeeData | undefined {
+  const resolved =
+    fee.isDynamic || fee.feeAmount === DYNAMIC_FEE_AMOUNT
+      ? { ...fee, isDynamic: true, feeAmount: DYNAMIC_FEE_AMOUNT }
+      : fee
+
+  const feeInRange =
+    Number.isInteger(resolved.feeAmount) &&
+    (resolved.feeAmount === DYNAMIC_FEE_AMOUNT || (resolved.feeAmount >= 0 && resolved.feeAmount < MAX_LP_FEE))
+  const spacingInRange = Number.isInteger(resolved.tickSpacing) && resolved.tickSpacing > 0
+
+  return feeInRange && spacingInRange ? resolved : undefined
 }
 
 const sortFeeTiersByTvl = (a: { tvl: string }, b: { tvl: string }) => {

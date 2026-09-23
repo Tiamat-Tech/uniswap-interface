@@ -1,12 +1,10 @@
+import { UniverseChainId } from '@universe/chains'
 import { isMobileApp, isWebPlatform } from '@universe/environment'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { borderRadii, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { memo } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { Tooltip } from 'ui/src/components/tooltip/Tooltip'
-import { borderRadii } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { PortfolioBalance } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
@@ -27,7 +25,6 @@ export const NetworkBalanceRow = memo(function NetworkBalanceRow({
   balance,
   onPress,
 }: NetworkBalanceRowProps): JSX.Element {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const { convertFiatAmountFormatted, formatNumberOrString } = useLocalizationContext()
   const { chainId } = balance.currencyInfo.currency
 
@@ -42,7 +39,6 @@ export const NetworkBalanceRow = memo(function NetworkBalanceRow({
           numericValue={balance.balanceUSD ?? undefined}
           value={formattedUsdValue}
           textVariant="$subheading2"
-          disableAnimations={!isDataLivelinessEnabled}
         />
         <Text variant={isMobileApp ? 'subheading2' : 'body2'} color="$neutral2">
           {formattedBalance}

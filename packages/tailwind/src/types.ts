@@ -19,6 +19,31 @@ export const typographyClasses = [
 export type TypographyClass = (typeof typographyClasses)[number]
 
 /**
+ * ui/src/theme fonts variants as `<Text variant />` tokens: $body2 → variant="body2".
+ *
+ * Tamagui-free home for `FontVariantToken` (INFRA-3290). Membership is pinned to `FontVariant`
+ * (./tokens.ts, kebab-case names from the `--typography-*` custom properties) by the compile-time
+ * check beside it, and mirrored by `ui/src/theme/fontVariants.ts` for the legacy `ui/src/theme`
+ * export surface.
+ */
+export type FontVariantToken =
+  | '$heading1'
+  | '$heading2'
+  | '$heading3'
+  | '$subheading1'
+  | '$subheading2'
+  | '$body1'
+  | '$body2'
+  | '$body3'
+  | '$body4'
+  | '$body5'
+  | '$buttonLabel1'
+  | '$buttonLabel2'
+  | '$buttonLabel3'
+  | '$buttonLabel4'
+  | '$monospace'
+
+/**
  * Mycelium color tokens.
  *
  * `'background'`, the deprecated `'accent3'`/`'accent3-hovered'` neutral1
@@ -55,6 +80,7 @@ export type ColorToken =
   | 'accent3'
   | 'accent3-hovered'
   | 'accent4'
+  | 'pools-brand-green'
   | 'success'
   | 'success-hovered'
   | 'success-secondary'

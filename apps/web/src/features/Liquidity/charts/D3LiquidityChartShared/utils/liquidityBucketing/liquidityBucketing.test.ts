@@ -308,8 +308,11 @@ describe('buildBucketChartEntries', () => {
         startTick: -177420,
         endTick: 177480,
         liquidityActive: 455979558458n,
+        // Amounts are scoped to the max-liquidity segment [-60, 60) — the entry at tick 0 —
+        // and exclude the neighboring segment's entry at tick 60 even though it starts
+        // inside this bucket's [-177420, 177480) range.
         amount0Locked: 8.411022058540207e24,
-        amount1Locked: 464686.23114,
+        amount1Locked: 455979.558458,
         segmentStartTick: -60,
         segmentEndTick: 60,
         price0: 50683601,
@@ -335,5 +338,62 @@ describe('buildBucketChartEntries', () => {
         price0: 7.5890313e-24,
       },
     ])
+  })
+
+  it('scopes locked amounts to the max-liquidity segment when a bucket merges several segments (LP-288)', () => {
+    // One bucket spanning all three segments of TICK_DATA. The bar's height and the tooltip's
+    // price range / bps width describe only the max-liquidity segment [-60, 60), so the locked
+    // amounts must come from that segment alone — not from every entry inside the bucket.
+    const buckets = buildBuckets({
+      segments: buildSegmentsFromRawTicks(TICK_DATA),
+      visibleMinTick: -887220,
+      visibleMaxTick: 887220,
+      desiredBars: 1,
+      tickSpacing: 60,
+    })
+    expect(buckets).toHaveLength(1)
+    expect(buckets[0].segmentStartTick).toBe(-60)
+    expect(buckets[0].segmentEndTick).toBe(60)
+
+    const bucketChartEntries = buildBucketChartEntries({
+      buckets,
+      liquidityData: SORTED_TICK_DATA_WITH_LIQUIDITY_ACTIVE,
+      baseCurrency: USDT,
+      quoteCurrency: USDC,
+      priceInverted: false,
+      protocolVersion: ProtocolVersion.V4,
+    })
+
+    // Only the entry at tick 0 lies inside [-60, 60); the entries at -887220 and 60 belong to
+    // neighboring segments and must not inflate this bar's amounts.
+    expect(bucketChartEntries[0].amount0Locked).toBe(8.411022058540207e24)
+    expect(bucketChartEntries[0].amount1Locked).toBe(455979.558458)
+  })
+
+  it('falls back to the nearest entry at or below the segment start when no entry lies inside the segment', () => {
+    // The covering entry can start before segmentStartTick (e.g. the synthetic active-tick
+    // entry replaces the initialized tick at the segment start); the floor lookup must then
+    // pick up the nearest entry at or below the segment start.
+    const buckets = buildBuckets({
+      segments: buildSegmentsFromRawTicks(TICK_DATA),
+      visibleMinTick: -887220,
+      visibleMaxTick: 887220,
+      desiredBars: 1,
+      tickSpacing: 60,
+    })
+    expect(buckets[0].segmentStartTick).toBe(-60)
+    expect(buckets[0].segmentEndTick).toBe(60)
+
+    const floorOnlyLiquidityData = [SORTED_TICK_DATA_WITH_LIQUIDITY_ACTIVE[0]] // single entry at -887220
+    const bucketChartEntries = buildBucketChartEntries({
+      buckets,
+      liquidityData: floorOnlyLiquidityData,
+      baseCurrency: USDT,
+      quoteCurrency: USDC,
+      priceInverted: false,
+      protocolVersion: ProtocolVersion.V4,
+    })
+    expect(bucketChartEntries[0].amount0Locked).toBe(8732.830609)
+    expect(bucketChartEntries[0].amount1Locked).toBe(8732.830609)
   })
 })

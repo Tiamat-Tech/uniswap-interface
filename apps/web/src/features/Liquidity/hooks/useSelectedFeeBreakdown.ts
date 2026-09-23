@@ -1,5 +1,4 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useMemo } from 'react'
 import { getCreateTierFeeBreakdown } from 'uniswap/src/features/fees/feeCurve'
 import { feeAmountToBps } from 'uniswap/src/features/fees/feeUnits'
@@ -12,11 +11,10 @@ import { isDynamicFeeTier } from '~/features/Liquidity/utils/feeTiers'
 /**
  * Fee breakdown for the tier a create/migrate flow has settled on, shared by every surface that shows
  * it (the selector header, the review modal, the edit summary). `servedProtocolFee` is the protocol
- * fee (integer pips) served for the selected tier's pool — from the create context, which fetches it
- * once via GetProtocolFees. Served → split from it. Otherwise (a not-yet-created pool) it's computed:
+ * fee (integer pips) served for the selected tier's pool, off the pool row the create context already
+ * has. Served → split from it. Otherwise (a not-yet-created pool) it's computed:
  * a vanilla v4 tier from the governance curve, a v2/v3 tier from the subtractive fee-switch schedule;
- * a hooked v4 pool → `unavailable`. Dynamic tiers have no fixed rate → no breakdown. Flag-gated
- * (returns `undefined` when off).
+ * a hooked v4 pool → `unavailable`. Dynamic tiers have no fixed rate → no breakdown.
  */
 export function useSelectedFeeBreakdown({
   protocolVersion,
@@ -29,12 +27,7 @@ export function useSelectedFeeBreakdown({
   servedProtocolFee: number | undefined
   hook: string | undefined
 }): FeeBreakdown | undefined {
-  const isFeeDisplayEnabled = useFeatureFlag(FeatureFlags.V4ProtocolFeeDisplay)
-
   return useMemo(() => {
-    if (!isFeeDisplayEnabled) {
-      return undefined
-    }
     const isV2 = protocolVersion === ProtocolVersion.V2
     // v2 carries no explicit fee tier; fall back to the fixed 0.30% tier so the breakdown still renders.
     const selected = isV2 ? DEFAULT_FEE_DATA : fee
@@ -52,5 +45,5 @@ export function useSelectedFeeBreakdown({
       })
     }
     return getCreateTierFeeBreakdown({ feeAmount: selected.feeAmount, protocolVersion, hook })
-  }, [isFeeDisplayEnabled, protocolVersion, fee, servedProtocolFee, hook])
+  }, [protocolVersion, fee, servedProtocolFee, hook])
 }

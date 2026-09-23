@@ -1,10 +1,14 @@
+import type { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
-import { OnchainItemListOptionType, type SearchModalOption } from 'uniswap/src/components/lists/items/types'
+import {
+  OnchainItemListOptionType,
+  type SearchModalListOption,
+  type SearchModalOption,
+} from 'uniswap/src/components/lists/items/types'
 import type { OnchainItemSection } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { pickPrimaryChainToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/pickPrimaryChainToken'
 import type { IssuerToken, Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
 import type { CurrencyInfo, SearchMultichainParent } from 'uniswap/src/features/dataApi/types'
 import { dedupeCurrencyIds } from 'uniswap/src/features/search/SearchModal/utils/dedupeCurrencyIds'
@@ -131,10 +135,10 @@ function gatherRwaIssuerSearchMultichainParents({
 export function useRwaIssuerCurrencyInfos({
   sections,
 }: {
-  sections?: OnchainItemSection<SearchModalOption>[]
+  sections?: OnchainItemSection<SearchModalListOption>[]
 }): Map<string, CurrencyInfo> {
   const { chains: enabledChainIds } = useEnabledChains()
-  const options = useMemo(() => (sections ?? []).flatMap((s) => s.data), [sections])
+  const options = useMemo(() => (sections ?? []).flatMap((s) => s.data.flat()), [sections])
   const currencyIds = useMemo(
     () => gatherRwaIssuerPrimaryCurrencyIds({ options, enabledChainIds }),
     [options, enabledChainIds],

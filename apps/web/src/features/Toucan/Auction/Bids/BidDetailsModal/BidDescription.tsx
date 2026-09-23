@@ -1,5 +1,5 @@
+import { Text } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Text } from 'ui/src'
 
 interface BidDescriptionProps {
   description: ReactNode

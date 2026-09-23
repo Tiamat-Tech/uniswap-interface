@@ -9,34 +9,19 @@
  * the dropdown-set classes suite. Byte-parity against the styled(Text)
  * legacy twins is ledgered (see the filter-select exclusions ledger).
  */
-import { lookupToken, SPACE_TOKEN_PX, type SporeSpaceToken } from '../compat/tokens'
+import { type CompatEmission, composeCompatEmission } from '../compat/compose'
 import { flexCompatClassName } from '../flex-compat/compile'
-import type { FlexCompatProps } from '../flex-compat/props'
+import { BASE_CLASSES, flexStyleClasses } from '../flex-compat/flex-style-classes'
+import type { FlexCompatProps, FlexCompatStyleProps } from '../flex-compat/props'
 import { textCompatClassName } from '../text-compat/compile'
 
 /**
  * The legacy `dropdownStyle`/`buttonStyle` FlexProps leaks (children managed
- * by the compat), with `borderWidth` widened to the space tokens real call
- * sites pass (`'$spacing1'` in the DropdownSelector button defaults) —
- * normalized to pixels at compile time, same as menu-compat containerStyles.
+ * by the compat). `borderWidth` takes the `$space` tokens real call sites pass
+ * (`'$spacing1'` in the DropdownSelector button defaults) straight from the
+ * base compat contract, resolved by the emitter (INFRA-3232).
  */
-export type FilterSelectDropdownStyles = Omit<FlexCompatProps, 'children' | 'borderWidth'> & {
-  borderWidth?: number | SporeSpaceToken
-}
-
-function normalizeStyles(styles: FilterSelectDropdownStyles): FlexCompatProps {
-  const { borderWidth, ...rest } = styles
-  if (typeof borderWidth !== 'string') {
-    return borderWidth === undefined && !Object.hasOwn(styles, 'borderWidth')
-      ? (rest as FlexCompatProps)
-      : ({ ...rest, borderWidth } as FlexCompatProps)
-  }
-  const px = lookupToken(SPACE_TOKEN_PX, borderWidth)
-  if (px === undefined) {
-    throw new Error(`filter-select-compat: unknown space token for borderWidth "${borderWidth}"`)
-  }
-  return { ...rest, borderWidth: px } as FlexCompatProps
-}
+export type FilterSelectDropdownStyles = Omit<FlexCompatProps, 'children'>
 
 /** The legacy DropdownContent styled() defaults, verbatim (position/animation stay with the positioner). */
 export const FILTER_SELECT_CARD_DEFAULTS_COMPAT: FilterSelectDropdownStyles = {
@@ -53,12 +38,35 @@ export const FILTER_SELECT_CARD_DEFAULTS_COMPAT: FilterSelectDropdownStyles = {
 
 /** Compile the dropdown card: legacy defaults + the dropdownStyle overrides (spread semantics). */
 export function filterSelectCardClassName(dropdownStyle?: FilterSelectDropdownStyles): string {
-  return flexCompatClassName(normalizeStyles({ ...FILTER_SELECT_CARD_DEFAULTS_COMPAT, ...dropdownStyle }))
+  return flexCompatClassName({ ...FILTER_SELECT_CARD_DEFAULTS_COMPAT, ...dropdownStyle })
 }
 
-/** Compile the trigger buttonStyle leak through the same normalization. */
+/** Compile the trigger buttonStyle leak through the same compiler. */
 export function filterSelectButtonStyleClassName(buttonStyle: FilterSelectDropdownStyles): string {
-  return flexCompatClassName(normalizeStyles(buttonStyle))
+  return flexCompatClassName(buttonStyle)
+}
+
+function filterSelectFlexEmission(props: FlexCompatProps): CompatEmission {
+  return composeCompatEmission<FlexCompatStyleProps>({
+    props,
+    baseClasses: BASE_CLASSES,
+    styleClasses: flexStyleClasses,
+    fixedClasses: filterSelectFixedCompatClasses,
+  })
+}
+
+/**
+ * The dropdown card for rendering (INFRA-3217): caller `dropdownStyle` values
+ * outside the closed set (e.g. `maxHeight: 320`, `width: 280`) ride the
+ * inline-value lane instead of shipping a dead class.
+ */
+export function filterSelectCardEmission(dropdownStyle?: FilterSelectDropdownStyles): CompatEmission {
+  return filterSelectFlexEmission({ ...FILTER_SELECT_CARD_DEFAULTS_COMPAT, ...dropdownStyle })
+}
+
+/** The trigger buttonStyle leak for rendering, through the same emitter. */
+export function filterSelectButtonStyleEmission(buttonStyle: FilterSelectDropdownStyles): CompatEmission {
+  return filterSelectFlexEmission(buttonStyle)
 }
 
 /**
@@ -92,3 +100,13 @@ export const FILTER_SELECT_CHECK_CLASS_NAME = 'flex shrink-0 text-neutral1'
  * width syncing (the legacy AdaptiveDropdown measured the trigger itself).
  */
 export const FILTER_SELECT_MATCH_TRIGGER_WIDTH_CLASS_NAME = 'w-[var(--anchor-width)]'
+
+/**
+ * Every class the filter-select chrome compiles to (dropdown card defaults,
+ * item label) — the filter select's contribution to the generated
+ * compat-class safelist. The literal chrome constants above are picked up by
+ * the same generator.
+ */
+export function filterSelectFixedCompatClasses(): string[] {
+  return [filterSelectCardClassName(), filterSelectItemLabelClassName(), FILTER_SELECT_ITEM_FRAME_CLASS_NAME]
+}

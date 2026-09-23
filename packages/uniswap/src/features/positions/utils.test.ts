@@ -1,8 +1,14 @@
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { CurrencyAmount, Percent, Token } from '@uniswap/sdk-core'
+import { TickMath } from '@uniswap/v3-sdk'
+import { Pool as V4Pool, Position as V4Position } from '@uniswap/v4-sdk'
+import { UniverseChainId } from '@universe/chains'
+import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
+import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import {
   filterAndSortPositions,
+  getExactSharePercent,
   getFeeLabel,
   getIsPermissioned,
   getPositionKey,
@@ -172,5 +178,69 @@ describe('getIsPermissioned', () => {
   it('returns undefined for non-V4 positions', () => {
     expect(getIsPermissioned({ version: ProtocolVersion.V3 } as PositionInfo)).toBeUndefined()
     expect(getIsPermissioned({ version: ProtocolVersion.V2 } as PositionInfo)).toBeUndefined()
+  })
+})
+
+// LP-1564: a pool row served with its price pinned to the bottom of the tick range makes token0
+// worth ~1e-39 raw token1 units, so a position holding only token0 is worth a positive fraction of
+// a single raw token1 unit. Values are from the reported wallet: V4 tokenId 1039089, Base ETH/USDC.
+describe('getExactSharePercent', () => {
+  const usdcBase = new Token(8453, '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', 6, 'USDC', 'USD Coin')
+  const degeneratePool = new V4Pool(
+    nativeOnChain(8453),
+    usdcBase,
+    30,
+    1,
+    ZERO_ADDRESS,
+    TickMath.getSqrtRatioAtTick(TickMath.MIN_TICK),
+    '0',
+    TickMath.MIN_TICK,
+  )
+  const dustPosition = new V4Position({
+    pool: degeneratePool,
+    liquidity: '612822055934',
+    tickLower: -198100,
+    tickUpper: -195750,
+  })
+  const value0 = degeneratePool.token0Price.quote(dustPosition.amount0)
+  const value1 = dustPosition.amount1
+  const totalValue = value0.add(value1)
+
+  it('values the whole position above zero but below one raw unit of token1', () => {
+    expect(totalValue.greaterThan(0)).toBe(true)
+    expect(totalValue.quotient.toString()).toBe('0')
+  })
+
+  it('throws when the same split is taken on the floored quotients', () => {
+    expect(() => new Percent(value0.quotient, totalValue.quotient).toFixed(2)).toThrow('[big.js] Division by zero')
+  })
+
+  it('splits a sub-base-unit total exactly', () => {
+    // Below tickLower the position is entirely token0.
+    expect(getExactSharePercent(value0, totalValue)?.toFixed(2)).toBe('100.00')
+    expect(getExactSharePercent(value1, totalValue)?.toFixed(2)).toBe('0.00')
+  })
+
+  it('matches the floored split when the total is comfortably above one base unit', () => {
+    const whole0 = CurrencyAmount.fromRawAmount(usdcBase, '3000000')
+    const whole1 = CurrencyAmount.fromRawAmount(usdcBase, '1000000')
+    const wholeTotal = whole0.add(whole1)
+
+    expect(getExactSharePercent(whole0, wholeTotal)?.toFixed(2)).toBe('75.00')
+    expect(getExactSharePercent(whole1, wholeTotal)?.toFixed(2)).toBe('25.00')
+  })
+
+  // The precondition is enforced, not just documented: `Fraction.divide` puts the divisor's
+  // numerator in the denominator, so a caller that skipped the `total.greaterThan(0)` check would
+  // otherwise rebuild the `Percent(_, 0)` this helper exists to prevent.
+  it('returns undefined for a zero total instead of building a zero denominator', () => {
+    const zero = CurrencyAmount.fromRawAmount(usdcBase, 0)
+    expect(getExactSharePercent(zero, zero)).toBeUndefined()
+    expect(getExactSharePercent(CurrencyAmount.fromRawAmount(usdcBase, '1000000'), zero)).toBeUndefined()
+  })
+
+  it('returns undefined for a negative total', () => {
+    const negative = CurrencyAmount.fromRawAmount(usdcBase, '1000000').multiply(-1)
+    expect(getExactSharePercent(CurrencyAmount.fromRawAmount(usdcBase, '1000000'), negative)).toBeUndefined()
   })
 })

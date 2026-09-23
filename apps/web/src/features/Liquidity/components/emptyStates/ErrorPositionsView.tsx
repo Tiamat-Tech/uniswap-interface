@@ -1,6 +1,6 @@
+import { Button, Flex, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 
 export function ErrorPositionsView({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation()

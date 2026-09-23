@@ -25,9 +25,9 @@ import { requestMockScenario } from './mock'
 const SCENARIO = 'notification.getNotifications.canned'
 const MOCK_NOTIFICATION_ID = 'mock:notification-service'
 
-const backendUrl = process.env.INTEGRATION_BACKEND_URL ?? 'https://entry-gateway.backend-staging.api.uniswap.org'
+const backendUrl = process.env['INTEGRATION_BACKEND_URL'] ?? 'https://entry-gateway.backend-staging.api.uniswap.org'
 
-const enabled = Boolean(process.env.INTEGRATION_TEST_MOCK_SCENARIO)
+const enabled = Boolean(process.env['INTEGRATION_TEST_MOCK_SCENARIO'])
 
 describe.runIf(enabled)('x-experiments live integration (notification service)', () => {
   let session: Awaited<ReturnType<typeof createTestSessionContext>>

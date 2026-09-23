@@ -6,10 +6,12 @@
 
 import { ActivityFilterType } from '~/pages/Portfolio/Activity/Filters/activityFilterTypes'
 
+export type ActivityCellVariant = 'full' | 'compact'
+
 /**
  * Represents the amount/token data for different transaction types
  */
-type ActivityAmountModel =
+export type ActivityAmountModel =
   | {
       kind: 'pair'
       inputCurrencyId: string

@@ -1,5 +1,5 @@
+import type { UniverseChainId } from '@universe/chains'
 import { useCallback } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { addTransaction } from 'uniswap/src/features/transactions/slice'
 import type {
   InterfaceTransactionDetails,

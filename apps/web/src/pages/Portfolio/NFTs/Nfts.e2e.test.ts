@@ -182,6 +182,27 @@ test.describe(
         await miCard.hover()
         await expect(page.getByTestId(TestID.PortfolioNftCardViewOnLink).first()).toBeVisible()
       })
+
+      test('should open OpenSea when clicking the NFT image', async ({ page }) => {
+        const card = page.getByTestId(MOCK_NFT_CARD_IDS.iGotPlenty)
+        await expect(card).toBeVisible()
+
+        await page.evaluate(() => {
+          const openedUrls: string[] = []
+          const windowWithSpy = window as Window & { __openedUrls?: string[] }
+          windowWithSpy.__openedUrls = openedUrls
+          window.open = (url?: string | URL): Window | null => {
+            openedUrls.push(String(url))
+            return null
+          }
+        })
+
+        await card.locator(`[data-testid^="${TestID.NftsListItemPrefix}"]`).click()
+
+        await expect
+          .poll(async () => page.evaluate(() => (window as Window & { __openedUrls?: string[] }).__openedUrls ?? []))
+          .toEqual(['https://opensea.io/item/ethereum/0x3C90502f0CB0ad0A48c51357E65Ff15247A1D88E/21'])
+      })
     })
   },
 )

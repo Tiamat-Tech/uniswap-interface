@@ -1,4 +1,4 @@
-import type { UniRpcConfig } from './getUniRpcConfig'
+import { UNI_SWAP_PROTECTION_HEADER, type UniRpcConfig } from './getUniRpcConfig'
 import type { RpcConfig } from './rpcUrlSelector'
 import { RPCType, UniverseChainId } from './types'
 
@@ -22,20 +22,30 @@ interface RpcConfigResolverCtx {
 export function createRpcConfigResolver(ctx: RpcConfigResolverCtx): RpcConfigResolver {
   const promote = ctx.asUniRpcConfig ?? ((config: RpcConfig): RpcConfig => config)
   return (input: RpcConfigResolverInput): RpcConfig | null => {
-    if (input.rpcType !== RPCType.Private) {
-      const uniRpcConfig = ctx.resolveUniRpcConfig({ chainId: input.chainId })
-      if (uniRpcConfig) {
-        return {
-          rpcUrl: uniRpcConfig.rpcUrl,
-          isUniRpc: true,
-          headers: uniRpcConfig.headers,
-          getRequestHeaders: uniRpcConfig.getRequestHeaders,
-          credentials: uniRpcConfig.credentials,
-        }
+    let config: RpcConfig | null = null
+    const uniRpcConfig = ctx.resolveUniRpcConfig({ chainId: input.chainId })
+    if (uniRpcConfig) {
+      config = {
+        rpcUrl: uniRpcConfig.rpcUrl,
+        isUniRpc: true,
+        headers: uniRpcConfig.headers,
+        getRequestHeaders: uniRpcConfig.getRequestHeaders,
+        credentials: uniRpcConfig.credentials,
       }
     }
 
-    const legacyConfig = ctx.selectLegacyRpcUrl(input.chainId, input.rpcType)
-    return legacyConfig ? promote(legacyConfig) : legacyConfig
+    if (!config) {
+      const legacyConfig = ctx.selectLegacyRpcUrl(input.chainId, input.rpcType)
+      config = legacyConfig ? promote(legacyConfig) : legacyConfig
+    }
+
+    // Invariant: every gateway-bound Private config carries the protection header,
+    // regardless of which branch produced it (primary or promoted legacy). Downstream
+    // consumers (privateRpcProvider label, watcher poll skip) key on isUniRpc and must
+    // never diverge from what actually goes on the wire.
+    if (config?.isUniRpc && input.rpcType === RPCType.Private) {
+      return { ...config, headers: { ...config.headers, [UNI_SWAP_PROTECTION_HEADER]: 'true' } }
+    }
+    return config
   }
 }

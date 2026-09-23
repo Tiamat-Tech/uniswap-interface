@@ -1,7 +1,7 @@
 import { TradeType } from '@uniswap/sdk-core'
 import { TradingApi, UNCONNECTED_ADDRESS } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { GetQuoteRequestResult } from 'uniswap/src/features/transactions/swap/hooks/useTrade/createGetQuoteRequestArgs'
 import type {
   IndicativeQuoteRequest,

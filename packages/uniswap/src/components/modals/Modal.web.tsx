@@ -1,12 +1,15 @@
 import { isExtensionApp, isWebApp } from '@universe/environment'
 import { useEffect, useState } from 'react'
+// AdaptiveWebModal/WebModalWithBottomAttachment stay on ui/src pending INFRA-3513: the INFRA-3316 rebuild
+// took the cluster off Tamagui Dialog/Sheet but two tamagui imports remain (`useMedia` in
+// ui/src/components/modal/AdaptiveWebModal.web.tsx, `isTouchable` in WebBottomSheet.web.tsx). Once
+// INFRA-3513 lands, the cluster is Tamagui-free and this ui/src import is a completed state, not a hold.
 // oxlint-disable-next-line no-restricted-imports -- needed here
 import { AdaptiveWebModal, WebModalWithBottomAttachment } from 'ui/src/components/modal/AdaptiveWebModal'
 import { INTERFACE_NAV_HEIGHT } from 'ui/src/theme'
 import type { ModalProps } from 'uniswap/src/components/modals/ModalProps'
+import { WEB_MODAL_ANIMATION_MS } from 'uniswap/src/constants/misc'
 import Trace from 'uniswap/src/features/telemetry/Trace'
-
-const ANIMATION_MS = 200
 
 export function Modal({
   children,
@@ -55,7 +58,7 @@ export function Modal({
     if (!isModalOpen) {
       const tm = setTimeout(() => {
         setFullyClosed(true)
-      }, ANIMATION_MS)
+      }, WEB_MODAL_ANIMATION_MS)
 
       return () => {
         clearTimeout(tm)

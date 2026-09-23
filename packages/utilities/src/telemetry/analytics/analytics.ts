@@ -19,6 +19,8 @@ export type AnalyticsInitConfig = {
   transportProvider: ApplicationTransport
   allowed: boolean
   initHash?: string
+  /** Serving-stack cohort marker ('workers' | 'ecs') attached to every event. */
+  buildType?: string
   userIdGetter?: () => Promise<string>
   debugBridge?: AnalyticsDebugBridge
 }

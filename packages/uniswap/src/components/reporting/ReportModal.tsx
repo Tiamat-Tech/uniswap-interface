@@ -1,8 +1,10 @@
-import { isAndroid, isMobileApp, isMobileWeb, isWebPlatform } from '@universe/environment'
+import { isAndroid, isIOS, isMobileApp, isMobileWeb, isWebPlatform } from '@universe/environment'
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { CheckboxCompat as Checkbox } from '@universe/mycelium/checkbox-compat'
+import type { GeneratedIcon } from '@universe/mycelium/icons'
+import { X } from '@universe/mycelium/icons/X'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Checkbox, Flex, GeneratedIcon, Text, TouchableArea } from 'ui/src'
-import { X } from 'ui/src/components/icons/X'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import type { BaseModalProps } from 'uniswap/src/components/modals/ModalProps'
 import { useBottomSheetSafeKeyboard } from 'uniswap/src/components/modals/useBottomSheetSafeKeyboard'
@@ -79,13 +81,16 @@ export function ReportModal<T extends string>({
 
   return (
     <Modal
+      enableBlurKeyboardOnGesture
+      keyboardBehavior={isIOS ? 'fillParent' : undefined}
+      keyboardBlurBehavior="restore"
       name={modalName}
       isModalOpen={isOpen}
       overrideInnerContainer={isMobileApp}
       snapPoints={isAndroid ? ANDROID_SNAP_POINTS : undefined}
       onClose={onClose}
     >
-      <ReportModalContent keyboardHeight={keyboardHeight}>
+      <ReportModalContent>
         {isWebPlatform && !isMobileWeb && (
           <TouchableArea alignItems="flex-end" role="none" onPress={onClose}>
             <X size="$icon.20" color="$neutral3" />

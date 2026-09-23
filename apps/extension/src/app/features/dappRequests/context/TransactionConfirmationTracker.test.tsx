@@ -1,10 +1,10 @@
 import { act, render, renderHook, screen } from '@testing-library/react'
+import { UniverseChainId } from '@universe/chains'
 import { PropsWithChildren } from 'react'
 import {
   TransactionConfirmationTrackerProvider,
   useTransactionConfirmationTracker,
 } from 'src/app/features/dappRequests/context/TransactionConfirmationTracker'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 // Helper component to test the hook
 function TestComponent({ children }: PropsWithChildren): JSX.Element {

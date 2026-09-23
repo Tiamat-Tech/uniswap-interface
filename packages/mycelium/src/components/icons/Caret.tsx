@@ -1,9 +1,10 @@
 import { memo } from 'react'
 import type { ReactElement } from 'react'
+import type { IconProps } from '../factories/createIcon'
 import { ArrowChange } from './ArrowChange'
 
 type Props = {
-  size?: number | string
+  size?: IconProps['size']
   direction?: 'n' | 's'
   color?: string
 }
@@ -25,9 +26,7 @@ export function _Caret({ size = 24, color, direction = 'n' }: Props): ReactEleme
   // A literal, not `var(--color-black)`: that's a Tailwind @theme variable pruned from
   // the compiled CSS when no black utility is used, and an undefined var() in the svg
   // `color` presentation attribute degrades to the inherited text color (white in dark mode).
-  return (
-    <ArrowChange color={color ?? '#000000'} size={size} strokeWidth={2} style={{ transform: `rotate(${degree})` }} />
-  )
+  return <ArrowChange color={color ?? '#000000'} size={size} strokeWidth={2} rotate={degree} />
 }
 
 export const Caret = memo(_Caret)

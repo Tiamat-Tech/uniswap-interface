@@ -1,7 +1,14 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, type GeneratedIcon, type IconProps, SpinningLoader, Text } from 'ui/src'
+// Base gaps, awaiting a primitives-owner fix: mycelium exports no SpinningLoader (its only
+// spinner is ButtonCompat's private, Button-context-coupled ButtonSpinner), and GeneratedIcon /
+// IconProps are absent from the root barrel — the @universe/mycelium/components pair is
+// structurally incompatible with ui's (Ref<SVGSVGElement> vs Ref<Svg>).
+import { type GeneratedIcon, type IconProps, SpinningLoader } from 'ui/src'
+// These icons stay on ui/src: they are stored as values on a ui GeneratedIcon-typed field
+// (`IconComponent`), so they convert only once that type does.
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { ArrowDownToLine } from 'ui/src/components/icons/ArrowDownToLine'
 import { ArrowUpToLine } from 'ui/src/components/icons/ArrowUpToLine'
@@ -20,7 +27,6 @@ import { getTransactionTypeFilterOptions } from '~/pages/Portfolio/Activity/Filt
 
 interface TransactionTypeCellProps {
   transaction: TransactionDetails
-  isEarnActivityDisplayEnabled?: boolean
 }
 
 interface TransactionTypeCellIconProps {
@@ -62,7 +68,7 @@ export function shouldShowCancelTimeoutWarning({
   return isCancelTimeoutEnabled && isUniswapX(transaction) && isCancelTimedOut(transaction, nowMs)
 }
 
-function TransactionTypeCellInner({ transaction, isEarnActivityDisplayEnabled = true }: TransactionTypeCellProps) {
+function TransactionTypeCellInner({ transaction }: TransactionTypeCellProps) {
   const { t } = useTranslation()
   const isCancelTimeoutEnabled = useFeatureFlag(FeatureFlags.LimitCancelTimeout)
   const isTemporaryStatus = TEMPORARY_TRANSACTION_STATUSES.includes(transaction.status)
@@ -81,7 +87,6 @@ function TransactionTypeCellInner({ transaction, isEarnActivityDisplayEnabled = 
       getTransactionSummaryTitle({
         tx: transaction,
         t,
-        isEarnActivityDisplayEnabled,
       }) ?? t('transaction.details.transaction')
 
     return (
@@ -92,17 +97,13 @@ function TransactionTypeCellInner({ transaction, isEarnActivityDisplayEnabled = 
     )
   }
 
-  const { typeLabel } = buildActivityRowFragments(transaction, {
-    isEarnActivityDisplayEnabled,
-  })
+  const { typeLabel } = buildActivityRowFragments(transaction)
 
   // Get the icon from the filter options based on base group
   const transactionTypeOptions = getTransactionTypeFilterOptions(t)
   const typeOption = typeLabel?.baseGroup ? transactionTypeOptions[typeLabel.baseGroup] : null
   const displayTransactionType =
-    isEarnActivityDisplayEnabled &&
-    transaction.typeInfo.type === TransactionType.Plan &&
-    transaction.typeInfo.earnAction
+    transaction.typeInfo.type === TransactionType.Plan && transaction.typeInfo.earnAction
       ? getEarnPlanTransactionType(transaction.typeInfo.earnAction)
       : transaction.typeInfo.type
   const isVaultWithdraw =

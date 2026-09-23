@@ -1,7 +1,7 @@
 import type { BottomSheetModal as BaseModal, BottomSheetView } from '@gorhom/bottom-sheet'
+import { type ColorTokens, type SheetSnapPointsMode, type SpaceTokens, type View } from '@universe/mycelium'
 import type { ComponentProps, PropsWithChildren, ReactNode } from 'react'
 import type { SharedValue } from 'react-native-reanimated'
-import type { ColorTokens, GetProps, Sheet, SpaceTokens, View } from 'ui/src'
 import type { HandleBarProps } from 'uniswap/src/components/modals/HandleBar'
 import type { ModalNameType } from 'uniswap/src/features/telemetry/constants'
 
@@ -17,7 +17,7 @@ export type ModalProps = PropsWithChildren<{
   name: ModalNameType
   enableDynamicSizing?: boolean
   onClose?: () => void
-  snapPointsMode?: GetProps<typeof Sheet>['snapPointsMode']
+  snapPointsMode?: SheetSnapPointsMode
   snapPoints?: Array<string | number>
   stackBehavior?: ComponentProps<typeof BaseModal>['stackBehavior']
   containerComponent?: ComponentProps<typeof BaseModal>['containerComponent']
@@ -28,16 +28,19 @@ export type ModalProps = PropsWithChildren<{
   blurredBackground?: boolean
   dismissOnBackPress?: boolean
   isDismissible?: boolean
-  // defaults to isDismissible; set false to keep handle/backdrop dismissal but stop drags on the sheet content from dismissing (e.g. long scrollable content)
+  // native default: on for multi-detent sheets, and in `Modal` also for fullScreen sheets left with no
+  // handle or backdrop; pass explicitly to override
   enableContentPanningGesture?: boolean
   overrideInnerContainer?: boolean
-  position?: ComponentProps<typeof View>['position']
+  position?: 'absolute' | 'relative' | 'static' | 'unset'
   renderBehindTopInset?: boolean
   renderBehindBottomInset?: boolean
   hideKeyboardOnDismiss?: boolean
   hideKeyboardOnSwipeDown?: boolean
   // native only; 'restore' settles the sheet back to its resting position after the keyboard hides (gorhom default: 'none')
   keyboardBlurBehavior?: ComponentProps<typeof BaseModal>['keyboardBlurBehavior']
+  // native only; controls how the sheet responds when the keyboard appears (gorhom default: 'interactive')
+  keyboardBehavior?: ComponentProps<typeof BaseModal>['keyboardBehavior']
   // native only; blur the focused BottomSheetTextInput as soon as a sheet pan starts. Required when the sheet hosts a
   // BottomSheetTextInput: with the keyboard registered as shown, gorhom's pan-end worklet calls Dimensions.get (a
   // non-worklet host function) on the UI runtime and hard-crashes; blurring at pan start keeps that branch unreachable.
@@ -54,17 +57,17 @@ export type ModalProps = PropsWithChildren<{
   // TODO MOB-2526 refactor Modal to more platform-agnostic
   alignment?: 'center' | 'top'
   hideScrim?: boolean
-  maxWidth?: ComponentProps<typeof View>['maxWidth']
-  maxHeight?: ComponentProps<typeof View>['maxHeight']
+  maxWidth?: number
+  maxHeight?: number | '100%' | `${number}vh`
   height?: 'max-content' | 'auto' | '100vh' | '100%' | number | null
-  padding?: SpaceTokens
-  paddingX?: SpaceTokens
-  paddingY?: SpaceTokens
-  pt?: SpaceTokens
-  pb?: SpaceTokens
+  padding?: SpaceTokens | number
+  paddingX?: SpaceTokens | number
+  paddingY?: SpaceTokens | number
+  pt?: SpaceTokens | number
+  pb?: SpaceTokens | number
   mx?: SpaceTokens
   bottomAttachment?: ReactNode
-  gap?: ComponentProps<typeof View>['gap']
+  gap?: SpaceTokens | number
   flex?: ComponentProps<typeof View>['flex']
   zIndex?: number
   borderWidth?: number

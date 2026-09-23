@@ -1,12 +1,13 @@
+import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { UniverseChainId, Platform, getValidAddress } from '@universe/chains'
 import { createParser, parseAsJson } from 'nuqs'
 import { WRAPPED_NATIVE_CURRENCY } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import type { FeeData } from 'uniswap/src/features/positions/types'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { z } from 'zod'
 import { assume0xAddress } from '~/chains'
 import { PositionFlowStep, PriceRangeState, RangeAmountInputPriceMode } from '~/features/Liquidity/Create/types'
+import { parseFeeDataFromUrl } from '~/features/Liquidity/utils/feeTiers'
+import { getProtocolVersionFromLabel, getProtocolVersionLabel } from '~/features/Liquidity/utils/protocolVersion'
 import { checkIsNative } from '~/hooks/Tokens'
 import { DepositState } from '~/types/liquidity'
 import { PositionField } from '~/types/position'
@@ -32,13 +33,20 @@ const depositStateSchema: z.ZodSchema<Partial<DepositState>> = z
   })
   .partial()
 
+// Shape only — `parseFeeDataFromUrl` owns the fee/flag reconciliation and the range contract, so
+// both URL entry points enforce one rule set. zod still rejects NaN and Infinity here.
 const feeDataSchema: z.ZodSchema<FeeData | undefined> = z.object({
   feeAmount: z.number(),
   tickSpacing: z.number(),
   isDynamic: z.boolean(),
 })
 
-export const parseAsFeeData = parseAsJson((v) => feeDataSchema.parse(v))
+// `?? null` rather than undefined: nuqs reads null as "no value", so a rejected fee falls back to
+// the default tier instead of being written into state.
+export const parseAsFeeData = parseAsJson((v) => {
+  const fee = feeDataSchema.parse(v)
+  return (fee && parseFeeDataFromUrl(fee)) ?? null
+})
 
 export const parseAsPriceRangeState = parseAsJson((v) => priceRangeStateSchema.parse(v)).withDefault({})
 
@@ -96,6 +104,19 @@ export const parseAsChainId = createParser({
   serialize: (value: UniverseChainId | undefined) => {
     return value ? getChainUrlParam(value) : ''
   },
+})
+
+// Serialized as the display label (`v4`) rather than the numeric enum, matching the `protocolVersion`
+// param the pool links already write.
+export const parseAsProtocolVersion = createParser({
+  parse: (query: string) => {
+    if (!query || typeof query !== 'string') {
+      return null
+    }
+
+    return getProtocolVersionFromLabel(query) ?? null
+  },
+  serialize: (value: ProtocolVersion) => getProtocolVersionLabel(value) ?? '',
 })
 
 export const parseAsPositionFlowStep = createParser({

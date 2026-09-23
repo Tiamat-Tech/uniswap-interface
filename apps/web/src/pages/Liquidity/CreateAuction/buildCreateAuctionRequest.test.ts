@@ -1,5 +1,6 @@
+import { PERMANENT_TIMELOCK_REQUEST_SECONDS, isPermanentTimelock } from '@uniswap/liquidity-launcher-sdk'
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { describe, expect, it } from 'vitest'
 import { zeroAddress } from '~/chains'
@@ -60,6 +61,7 @@ function build(store: Store): ReturnType<typeof buildCreateAuctionRequest> {
     walletAddress: WALLET_ADDRESS,
     currencyAddress: zeroAddress,
     salt: SALT,
+    isQuickLaunch: false,
   })
 }
 
@@ -129,6 +131,7 @@ describe('buildCreateAuctionRequest', () => {
       walletAddress: WALLET_ADDRESS,
       currencyAddress: zeroAddress,
       salt: SALT,
+      isQuickLaunch: false,
     })
 
     // The full mint is deposited; the un-auctioned half is returned to the creator.
@@ -154,6 +157,70 @@ describe('buildCreateAuctionRequest', () => {
     expect(request?.pool?.reservedSupplyForLp).toBe('500')
     // Existing tokens deposit only the slice and keep the rest in the wallet — nothing is returned.
     expect(request?.auction?.returnedSupply).toBeUndefined()
+  })
+
+  // The wizard's "Start date" is where EMISSION begins. The contract has one startBlock — when
+  // bidding opens — so with a pre-bid window that is the pre-bid start, and the wizard's start
+  // date rides on `prebid_end_time_unix` instead. Getting this backwards would launch an auction
+  // that opens at the wrong time, silently, on an immutable contract.
+  describe('pre-bid window', () => {
+    const START = new Date('2026-06-15T00:00:00.000Z')
+    const PRE_BID_START = new Date('2026-06-14T23:45:00.000Z')
+    const START_UNIX = BigInt(START.getTime() / 1000)
+    const PRE_BID_START_UNIX = BigInt(PRE_BID_START.getTime() / 1000)
+
+    it('omits the field and sends the start date as the auction start when there is no window', () => {
+      const request = build(buildableStore())
+
+      expect(request?.auction?.startTimeUnix).toBe(START_UNIX)
+      expect(request?.auction?.prebidEndTimeUnix).toBeUndefined()
+    })
+
+    it('opens the auction at the pre-bid start and carries the start date as the boundary', () => {
+      const store = buildableStore()
+      store.getState().actions.setPreBidStartTime(PRE_BID_START)
+
+      const request = build(store)
+
+      // Bidding opens 15 minutes early...
+      expect(request?.auction?.startTimeUnix).toBe(PRE_BID_START_UNIX)
+      // ...and emission still begins on the date the creator chose.
+      expect(request?.auction?.prebidEndTimeUnix).toBe(START_UNIX)
+      // The end date is untouched — the window grows at the front, never the back.
+      expect(request?.auction?.endTimeUnix).toBe(BigInt(new Date('2026-06-18T00:00:00.000Z').getTime() / 1000))
+    })
+
+    it('never sends a pre-bid window on a quick launch, which has no module for one', () => {
+      // A window configured in the advanced flow must not survive a switch into quick launch and
+      // ship a pre-bid period on an immutable auction the creator was never shown one on.
+      const store = buildableStore()
+      store.getState().actions.setPreBidStartTime(PRE_BID_START)
+
+      const { tokenForm, configureAuction, customizePool } = store.getState()
+      const request = buildCreateAuctionRequest({
+        tokenForm,
+        configureAuction,
+        customizePool,
+        walletAddress: WALLET_ADDRESS,
+        currencyAddress: zeroAddress,
+        salt: SALT,
+        isQuickLaunch: true,
+      })
+
+      expect(request?.auction?.prebidEndTimeUnix).toBeUndefined()
+      // ...and the auction opens at the start date, not the stale pre-bid start.
+      expect(request?.auction?.startTimeUnix).toBe(START_UNIX)
+    })
+
+    it('suppresses the request when the pre-bid start is not before the start date', () => {
+      // Sending it as a plain auction would drop a window the creator explicitly asked for and
+      // cannot see is missing, so the launch button stays disabled instead.
+      for (const preBidStart of [START, new Date(START.getTime() + 60_000)]) {
+        const store = buildableStore()
+        store.getState().actions.setPreBidStartTime(preBidStart)
+        expect(build(store)).toBeUndefined()
+      }
+    })
   })
 
   describe('existing-token source validity', () => {
@@ -231,6 +298,7 @@ describe('buildCreateAuctionRequest', () => {
       walletAddress: WALLET_ADDRESS,
       currencyAddress: zeroAddress,
       salt: SALT,
+      isQuickLaunch: false,
     })
 
     const kind = request?.pool?.lpAllocation?.kind
@@ -281,6 +349,19 @@ describe('buildCreateAuctionRequest', () => {
       const request = build(store)
       expect(request?.pool?.poolOwner).toBe(WALLET_ADDRESS)
       expect(request?.pool?.liquidityLock?.mode?.case).toBe('buybackBurn')
+    })
+
+    // LP-1362: the horizon on the wire is the SDK's, and it must clear the SDK's own
+    // classification threshold. Both assertions are expressed in SDK constants, so moving either
+    // one in the SDK moves this test with it instead of silently desyncing the create flow.
+    it('requests the SDK permanent horizon, which the classifier reads back as permanent', () => {
+      const store = permanentStore()
+      store.getState().actions.setBuybackAndBurnEnabled(true)
+      const unlockTimeUnix = build(store)?.pool?.liquidityLock?.unlockTimeUnix
+      const endTimeSeconds = BigInt(Math.floor(new Date('2026-06-18T00:00:00.000Z').getTime() / 1000))
+
+      expect(unlockTimeUnix).toBe(endTimeSeconds + PERMANENT_TIMELOCK_REQUEST_SECONDS)
+      expect(isPermanentTimelock({ endTimeSeconds, unlockTimeSeconds: unlockTimeUnix! })).toBe(true)
     })
 
     it('keeps the timelocked lock for permanent fees-forwarder (the lock contract must hold the LP)', () => {
@@ -353,6 +434,7 @@ describe('buildCreateAuctionRequest', () => {
       walletAddress: WALLET_ADDRESS,
       currencyAddress: zeroAddress,
       salt: SALT,
+      isQuickLaunch: false,
     })
 
     expect(request).toBeUndefined()

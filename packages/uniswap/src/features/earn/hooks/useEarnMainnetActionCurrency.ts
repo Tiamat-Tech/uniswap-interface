@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useTokenProjects } from 'uniswap/src/features/dataApi/tokenProjects/tokenProjects'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'

@@ -1,7 +1,8 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { memo, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, Tooltip, TouchableArea } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import type { TieredNetworkOptions } from 'uniswap/src/components/network/NetworkFilterV2/types'
 import {
@@ -9,7 +10,6 @@ import {
   NETWORK_CHIP_COMPACT_VISIBLE_COUNT,
 } from 'uniswap/src/components/TokenSelectorV2/constants'
 import { HorizontalFadeScroll } from 'uniswap/src/components/TokenSelectorV2/HorizontalFadeScroll'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 

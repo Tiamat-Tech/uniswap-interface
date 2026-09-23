@@ -1,5 +1,6 @@
-import { Flex, Text } from 'ui/src'
-import { Pools } from 'ui/src/components/icons/Pools'
+import { Flex, Text } from '@universe/mycelium'
+import { Pools } from '@universe/mycelium/icons/Pools'
+import type { TestIDType } from 'uniswap/src/test/fixtures/testIDs'
 
 export const BUTTON_AREA_WIDTH = 160 * 2
 
@@ -8,6 +9,7 @@ interface PositionsEmptyStateLayoutProps {
   description: string
   action: JSX.Element
   withBorder?: boolean
+  testID?: TestIDType
 }
 
 export function PositionsEmptyStateLayout({
@@ -15,10 +17,12 @@ export function PositionsEmptyStateLayout({
   description,
   action,
   withBorder = false,
+  testID,
 }: PositionsEmptyStateLayoutProps): JSX.Element {
   return (
     <Flex
       width="100%"
+      testID={testID}
       {...(!withBorder && {
         centered: true,
         alignSelf: 'center',

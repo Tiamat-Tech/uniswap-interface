@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { config } from 'uniswap/src/config'
 import {
   getQuicknodeChainId,
@@ -5,7 +6,6 @@ import {
   getQuicknodeEndpointUrl,
   getUniRpcEndpointUrl,
 } from 'uniswap/src/features/chains/evm/rpc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 vi.mock('uniswap/src/config', () => ({
   config: {

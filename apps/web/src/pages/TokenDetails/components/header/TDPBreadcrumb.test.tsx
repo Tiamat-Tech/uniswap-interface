@@ -1,5 +1,4 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import type { RWAAsset, RWAToken } from 'uniswap/src/features/rwa/types'
 import { TDPBreadcrumb } from '~/pages/TokenDetails/components/header/TDPBreadcrumb'
 import type { TDPState } from '~/pages/TokenDetails/context/createTDPStore'
@@ -8,14 +7,6 @@ import { useTDPRWAMatch } from '~/pages/TokenDetails/hooks/useTDPRWAMatch'
 import { TokenFromList } from '~/state/lists/tokenFromList'
 import { mocked } from '~/test-utils/mocked'
 import { render, screen } from '~/test-utils/render'
-
-vi.mock('@universe/gating', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@universe/gating')>()
-  return {
-    ...actual,
-    useFeatureFlag: vi.fn(),
-  }
-})
 
 vi.mock('~/pages/TokenDetails/context/useTDPStore', () => ({
   useTDPStore: vi.fn(),
@@ -85,7 +76,6 @@ function mockTDPStore(currency: TokenFromList): void {
 describe('TDPBreadcrumb', () => {
   beforeEach(() => {
     mockUseLocation.mockReturnValue({ ...defaultLocation, state: undefined })
-    mocked(useFeatureFlag).mockImplementation((flag) => flag === FeatureFlags.RWAUXExplore)
     mocked(useTDPRWAMatch).mockReturnValue(undefined)
   })
 
@@ -124,7 +114,7 @@ describe('TDPBreadcrumb', () => {
     expect(screen.queryByRole('link', { name: /Launches/i })).not.toBeInTheDocument()
   })
 
-  it('renders Tokens, Stocks, and current symbol for RWA tokens when explore table flag is on', () => {
+  it('renders Tokens, Stocks, and current symbol for RWA tokens', () => {
     mockTDPStore(TSLA)
     mocked(useTDPRWAMatch).mockReturnValue({
       asset: TSLA_ASSET,
@@ -135,19 +125,6 @@ describe('TDPBreadcrumb', () => {
     expect(screen.getByRole('link', { name: /Tokens/i })).toHaveAttribute('href', '/explore/tokens')
     expect(screen.getByRole('link', { name: /Stocks/i })).toHaveAttribute('href', '/explore/tokens?category=stocks')
     expect(screen.getByText('TSLA')).toBeInTheDocument()
-  })
-
-  it('hides Stocks breadcrumb for RWA tokens when explore table flag is off', () => {
-    mockTDPStore(TSLA)
-    mocked(useFeatureFlag).mockReturnValue(false)
-    mocked(useTDPRWAMatch).mockReturnValue({
-      asset: TSLA_ASSET,
-      token: TSLA_TOKEN,
-    })
-    render(<TDPBreadcrumb />)
-
-    expect(screen.getByRole('link', { name: /Tokens/i })).toHaveAttribute('href', '/explore/tokens')
-    expect(screen.queryByRole('link', { name: /Stocks/i })).not.toBeInTheDocument()
   })
 
   it('ignores location state from for RWA tokens so the trail stays consistent', () => {

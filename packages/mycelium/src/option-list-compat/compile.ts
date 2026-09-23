@@ -156,3 +156,22 @@ export const SELECT_ALL_CLEAR_HEADER_CLASS_NAMES = {
   selectAll: 'cursor-pointer text-[12px] font-medium text-accent1 disabled:cursor-default disabled:opacity-30',
   clear: 'cursor-pointer text-[12px] font-medium text-neutral1',
 } as const
+
+/**
+ * Every class the option-list chrome compiles to (row frame incl. both hover
+ * radii, labels, section headers incl. the sticky payload) — the option
+ * list's contribution to the generated compat-class safelist. The literal
+ * chrome constants above are picked up by the same generator.
+ */
+export function optionListFixedCompatClasses(): string[] {
+  return [
+    optionRowFrameClassName(),
+    optionRowFrameClassName({ borderRadius: '$rounded16' }),
+    optionRowLabelClassName(),
+    optionListSectionHeaderClassName(),
+    optionListSectionHeaderClassName({ sticky: true }),
+    optionListSectionHeaderTitleClassName(),
+    OPTION_ROW_ACTIVE_CLASS_NAME,
+    OPTION_ROW_PILE_ITEM_CLASS_NAME,
+  ]
+}

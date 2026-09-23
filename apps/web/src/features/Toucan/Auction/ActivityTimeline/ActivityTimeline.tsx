@@ -1,6 +1,7 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, TouchableArea } from 'ui/src'
 import { HeightAnimator } from 'ui/src/animations/components/HeightAnimator'
 import { AnglesMaximize } from 'ui/src/components/icons/AnglesMaximize'
 import { AnglesMinimize } from 'ui/src/components/icons/AnglesMinimize'
@@ -13,10 +14,12 @@ import {
   TimelineEventType,
   useTimelineEvents,
 } from '~/features/Toucan/Auction/ActivityTimeline/useTimelineEvents'
+import { useAuctionDisplayState } from '~/features/Toucan/Auction/hooks/useAuctionDisplayState'
 import { useAuctionKycStatus } from '~/features/Toucan/Auction/hooks/useAuctionKycStatus'
 import { useAuctionTokenColor } from '~/features/Toucan/Auction/hooks/useAuctionTokenColor'
 import { useBidTokenInfo } from '~/features/Toucan/Auction/hooks/useBidTokenInfo'
 import { useAuctionStore, useIsAuctionFailed } from '~/features/Toucan/Auction/store/useAuctionStore'
+import { shouldShowClaimOnlyTimeline } from '~/features/Toucan/Auction/utils/auctionDisplayVisibility'
 import { formatTokenAmountWithSymbol } from '~/features/Toucan/Auction/utils/fixedPointFdv'
 import { isTradingRestrictedUntilTge } from '~/features/Toucan/Config/config'
 import { createDottedBackgroundStyles } from '~/utils/createDottedBackgroundStyles'
@@ -25,15 +28,10 @@ const TRACK_WIDTH = 20
 const DOT_SIZE = 8
 const ACTIVE_DOT_SIZE = 14
 
+// Tamagui web emits `flex: 1` as grow:1 + shrink:1 over the base's basis-auto.
 const TimelineCard = styled(TouchableArea, {
-  borderRadius: '$rounded16',
-  borderWidth: 1,
-  borderColor: '$surface3',
-  px: '$spacing16',
-  py: '$spacing12',
-  gap: '$spacing4',
-  flex: 1,
-  overflow: 'hidden',
+  platform: 'web',
+  base: 'rounded-16 border border-surface3 px-[16px] py-[12px] gap-[4px] grow shrink basis-auto overflow-hidden',
 })
 
 function ActiveCardBackground({ tokenColor }: { tokenColor: string }) {
@@ -218,6 +216,8 @@ export function ActivityTimeline() {
   const tradingRestrictedUntilTge = Boolean(
     tokenAddress && chainId && isTradingRestrictedUntilTge({ chainId, tokenAddress }),
   )
+  const displayState = useAuctionDisplayState()
+  const showClaimOnlyCopy = shouldShowClaimOnlyTimeline(displayState)
 
   const strings = useMemo(
     (): Record<TimelineEventType, TimelineEventStrings> => ({
@@ -255,18 +255,24 @@ export function ActivityTimeline() {
             description: t('toucan.timeline.tokensClaimable.restricted.description'),
             futureDescription: t('toucan.timeline.tokensClaimable.restricted.description.future'),
           }
-        : {
-            label: t('toucan.timeline.tokensClaimable'),
-            description: t('toucan.timeline.tokensClaimable.description'),
-            futureDescription: t('toucan.timeline.tokensClaimable.description.future'),
-          },
+        : showClaimOnlyCopy
+          ? {
+              label: t('toucan.timeline.tokensClaimable.noPool'),
+              description: t('toucan.timeline.tokensClaimable.noPool.description'),
+              futureDescription: t('toucan.timeline.tokensClaimable.noPool.description.future'),
+            }
+          : {
+              label: t('toucan.timeline.tokensClaimable'),
+              description: t('toucan.timeline.tokensClaimable.description'),
+              futureDescription: t('toucan.timeline.tokensClaimable.description.future'),
+            },
       'auction-failed': {
         label: t('toucan.timeline.auctionFailed'),
         description: t('toucan.timeline.auctionFailed.description', { requiredAmount: requiredAmountFormatted }),
         futureDescription: t('toucan.timeline.auctionFailed.description', { requiredAmount: requiredAmountFormatted }),
       },
     }),
-    [t, tradingRestrictedUntilTge, requiredAmountFormatted],
+    [t, tradingRestrictedUntilTge, showClaimOnlyCopy, requiredAmountFormatted],
   )
 
   const events = useTimelineEvents({ auctionDetails, strings, auctionHasPresale, allowlistEndBlock, isAuctionFailed })

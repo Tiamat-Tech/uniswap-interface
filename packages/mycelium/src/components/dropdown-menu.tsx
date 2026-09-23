@@ -16,7 +16,7 @@ function DropdownMenuTrigger({
   return (
     <DropdownMenuPrimitive.Trigger
       data-slot="dropdown-menu-trigger"
-      className={cn('hover:!scale-100 active:!scale-100', className)}
+      className={cn('cursor-pointer hover:!scale-100 active:!scale-100', className)}
       {...props}
     />
   )
@@ -74,7 +74,8 @@ function DropdownMenuSeparator({
   return (
     <DropdownMenuPrimitive.Separator
       data-slot="dropdown-menu-separator"
-      className={cn('-mx-1 my-1 h-px bg-surface3', className)}
+      // mx-0/w-full: flush with the option text box, matching menuSeparatorClassName() in ../menu-compat/compile.ts
+      className={cn('mx-0 my-1 h-px w-full bg-surface3', className)}
       {...props}
     />
   )

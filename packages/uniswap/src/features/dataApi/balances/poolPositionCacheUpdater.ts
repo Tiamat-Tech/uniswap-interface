@@ -16,8 +16,8 @@ export type PoolPositionCacheUpdater = (hidden: boolean, position: PositionInfo)
  * this writer bridges the gap. The server reconciles on the next poll via the pool include/exclude
  * overrides written into the modifier.
  *
- * USD comes from `position.totalValueUsd` (server-provided on `pools.v1.Position`). When absent
- * the count still moves and USD reconciles on next poll.
+ * USD is `position.totalValueUsd + position.uncollectedFeesUsd`, matching the BE pools balance
+ * (principal + uncollected fees).
  */
 export function usePoolPositionCacheUpdater(evmAddress?: string, svmAddress?: string): PoolPositionCacheUpdater {
   const { chains: chainIds } = useEnabledChains()
@@ -27,7 +27,7 @@ export function usePoolPositionCacheUpdater(evmAddress?: string, svmAddress?: st
   const writeDelta = useMemo(() => createWalletBalancesVisibilityUpdater(queryClient), [queryClient])
 
   return useEvent((hidden: boolean, position: PositionInfo) => {
-    const valueUsd = position.totalValueUsd ?? 0
+    const valueUsd = (position.totalValueUsd ?? 0) + (position.uncollectedFeesUsd ?? 0)
     writeDelta({
       input: { evmAddress, svmAddress, chainIds, modifier },
       deltaUsd: hidden ? -valueUsd : valueUsd,

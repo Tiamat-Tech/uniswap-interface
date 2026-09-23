@@ -40,6 +40,7 @@ describe(useRecentTransfersByAddress, () => {
       fetchNextPage: vi.fn(),
       hasNextPage: false,
       isFetchingNextPage: false,
+      isFetchNextPageError: false,
     })
 
     const { result } = renderHook(() => useRecentTransfersByAddress('0x0000000000000000000000000000000000000001'))

@@ -1,3 +1,4 @@
+import { UniverseChainId, Platform } from '@universe/chains'
 import { ARBITRUM_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/arbitrum'
 import { ARC_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/arc'
 import { AVALANCHE_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/avalanche'
@@ -21,8 +22,7 @@ import { XLAYER_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/xlayer'
 import { ZKSYNC_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/zksync'
 import { ZORA_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/zora'
 import { SOLANA_CHAIN_INFO } from 'uniswap/src/features/chains/svm/info/solana'
-import { UniverseChainId, UniverseChainInfo } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
+import { UniverseChainInfo } from 'uniswap/src/features/chains/types'
 import { getNonEmptyArrayOrThrow } from 'utilities/src/primitives/array'
 
 export function getChainInfo(chainId: UniverseChainId): UniverseChainInfo {

@@ -1,11 +1,11 @@
+import { ColorTokens, Flex, type FlexCompatProps, Text } from '@universe/mycelium'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ColorTokens, Flex, FlexProps, Text } from 'ui/src'
 
 interface NewTagProps {
   backgroundColor?: ColorTokens
   textColor?: ColorTokens
-  ml?: FlexProps['ml']
+  ml?: FlexCompatProps['ml']
   exclamation?: boolean
 }
 

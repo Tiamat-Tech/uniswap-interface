@@ -1,8 +1,8 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { getFeatureFlag } from '@universe/gating'
 import createSagaMiddleware from 'redux-saga'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   addTransaction,
   cancelTransaction,

@@ -1,4 +1,4 @@
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
+import { EVMUniverseChainId } from '@universe/chains'
 import { useReadContract } from 'wagmi'
 import { type Address, erc20Abi } from '~/chains'
 // Since v2 positions are ERC20s, when they are closed, the liquidity token is burned.

@@ -1,4 +1,5 @@
 import { ALL_NETWORKS_ARG, CustomRankingType, GqlResult } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { useCallback, useMemo } from 'react'
 import { OnchainItemListOptionType, TokenOption } from 'uniswap/src/components/lists/items/types'
 import { type PortfolioBalancesResult } from 'uniswap/src/components/TokenSelector/hooks/usePortfolioBalancesForAddressById'
@@ -7,7 +8,6 @@ import {
   tokenRankingsStatToMarketData,
   useTokenRankingsQuery,
 } from 'uniswap/src/data/apiClients/dataApiService/exploreV1/tokenRankings'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { normalizeCurrencyIdForMapLookup } from 'uniswap/src/utils/currencyId'
 
 /**
@@ -75,7 +75,6 @@ export function useTrendingTokensOptionsV2({
 
   const refetch = useCallback(() => {
     portfolioBalancesByIdRefetch?.()
-    // oxlint-disable-next-line no-void
     void refetchTokens()
   }, [portfolioBalancesByIdRefetch, refetchTokens])
 

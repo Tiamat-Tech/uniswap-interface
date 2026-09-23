@@ -1,9 +1,10 @@
+import { cn, Flex } from '@universe/mycelium'
+import type { FlexCompatProps as FlexProps } from '@universe/mycelium'
 import { PropsWithChildren } from 'react'
-import { Flex, FlexProps } from 'ui/src'
 
-export const Card = ({ children, ...rest }: PropsWithChildren<FlexProps>) => {
+export const Card = ({ children, className, ...rest }: PropsWithChildren<FlexProps>) => {
   return (
-    <Flex width="100%" padding="1rem" borderRadius="$rounded12" {...rest}>
+    <Flex width="100%" className={cn('p-[1rem]', className)} borderRadius="$rounded12" {...rest}>
       {children}
     </Flex>
   )

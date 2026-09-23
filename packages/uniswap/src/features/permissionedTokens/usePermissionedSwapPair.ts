@@ -1,4 +1,5 @@
 import { type CheckPermissionsResult, UNCONNECTED_ADDRESS } from '@universe/api'
+import { AddressStringFormat, normalizeAddress, normalizeTokenAddressForCache } from '@universe/chains'
 import { useCheckPermissionsQuery } from 'uniswap/src/data/apiClients/tradingApi/useCheckPermissionsQuery'
 import type { PermissionedTokenStatus } from 'uniswap/src/features/permissionedTokens/useTokenKYCStatus'
 import { sanitizeUrl } from 'utilities/src/format/urls'
@@ -46,8 +47,14 @@ export function usePermissionedSwapPair({
   walletAddress: string | undefined
 }): PermissionedSwapPairResult {
   // BE matches on lowercased addresses (on-chain adapter map keyed by lowercase).
-  const inputAddress = inputCurrency && !inputCurrency.isNative ? inputCurrency.address?.toLowerCase() : undefined
-  const outputAddress = outputCurrency && !outputCurrency.isNative ? outputCurrency.address?.toLowerCase() : undefined
+  const inputAddress =
+    inputCurrency && !inputCurrency.isNative && inputCurrency.address
+      ? normalizeTokenAddressForCache(inputCurrency.address)
+      : undefined
+  const outputAddress =
+    outputCurrency && !outputCurrency.isNative && outputCurrency.address
+      ? normalizeTokenAddressForCache(outputCurrency.address)
+      : undefined
 
   // Cross-chain pair: API only accepts one chainId per request, so we can't reliably
   // verify both sides. Skip the query and fail open. (queryFn-level error is already
@@ -60,7 +67,7 @@ export function usePermissionedSwapPair({
   const params =
     chainId && tokens.length > 0
       ? {
-          walletAddress: (walletAddress ?? UNCONNECTED_ADDRESS).toLowerCase(),
+          walletAddress: normalizeAddress(walletAddress ?? UNCONNECTED_ADDRESS, AddressStringFormat.Lowercase),
           tokens,
           chainId,
         }
@@ -72,8 +79,12 @@ export function usePermissionedSwapPair({
     return { ...EMPTY_RESULT, isLoading }
   }
 
-  const inputResult = inputAddress ? data.results.find((r) => r.token.toLowerCase() === inputAddress) : undefined
-  const outputResult = outputAddress ? data.results.find((r) => r.token.toLowerCase() === outputAddress) : undefined
+  const inputResult = inputAddress
+    ? data.results.find((r) => normalizeTokenAddressForCache(r.token) === inputAddress)
+    : undefined
+  const outputResult = outputAddress
+    ? data.results.find((r) => normalizeTokenAddressForCache(r.token) === outputAddress)
+    : undefined
 
   const inputAdapterAddress = isPermissionedResult(inputResult) ? inputResult.adapterTokenAddress : undefined
   const outputAdapterAddress = isPermissionedResult(outputResult) ? outputResult.adapterTokenAddress : undefined

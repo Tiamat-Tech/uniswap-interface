@@ -34,6 +34,11 @@ export interface ValuationSliderProps {
   floorPriceQ96?: bigint
   /** Tick size in Q96 format */
   tickSizeQ96?: bigint
+  /**
+   * Hard upper bound from a maxBidPrice() validation hook, in Q96. The track never
+   * extends past it, so the slider cannot produce a price the hook would revert.
+   */
+  maxBidPriceQ96?: bigint
   /** Decimals of the auction/base token */
   auctionTokenDecimals?: number
   /** Total supply of the auction token (raw string) for FDV calculation */
@@ -50,4 +55,8 @@ export interface ValuationSliderProps {
   //  TokenPrice (default): input shows token price, slider shows FDV
   //  Fdv: input shows FDV, slider shows token price
   inputType?: ValuationInputType
+  /** Whether a typed entry was capped to the ceiling; surfaces the message in the label. */
+  showCeilingHint?: boolean
+  /** The ceiling as a formatted FDV, for that message. Absent when the auction has none. */
+  maxBidPriceFdvFormatted?: string
 }

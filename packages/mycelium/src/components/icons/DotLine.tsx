@@ -1,10 +1,11 @@
 import { createIcon } from '../factories/createIcon'
+import { Line, Svg } from '../factories/svg-elements'
 
 export const [DotLine, AnimatedDotLine] = createIcon({
   name: 'DotLine',
   getIcon: (props) => (
-    <svg width="100%" viewBox="850 0 300 200" {...props}>
-      <line
+    <Svg viewBox="850 0 300 200" {...props}>
+      <Line
         x1="0"
         x2="3000"
         y1="100"
@@ -14,6 +15,6 @@ export const [DotLine, AnimatedDotLine] = createIcon({
         strokeLinecap="round"
         strokeDasharray="1, 45"
       />
-    </svg>
+    </Svg>
   ),
 })

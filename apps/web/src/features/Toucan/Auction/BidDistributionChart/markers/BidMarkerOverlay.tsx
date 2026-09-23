@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import { BidMarker } from '~/features/Toucan/Auction/BidDistributionChart/markers/BidMarker'
 import { MarkerPosition } from '~/features/Toucan/Auction/BidDistributionChart/markers/types'
 import { BidTokenInfo } from '~/features/Toucan/Auction/store/types'

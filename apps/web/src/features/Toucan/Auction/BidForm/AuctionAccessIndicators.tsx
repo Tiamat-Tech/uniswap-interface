@@ -1,36 +1,47 @@
 import { KycVerificationStatus } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { EnvelopeCheck } from '@universe/mycelium/icons/EnvelopeCheck'
+import { EnvelopeLock } from '@universe/mycelium/icons/EnvelopeLock'
+import { QuestionInCircleFilled } from '@universe/mycelium/icons/QuestionInCircleFilled'
+import { UserCheck } from '@universe/mycelium/icons/UserCheck'
+import { UserLock } from '@universe/mycelium/icons/UserLock'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, TouchableArea } from 'ui/src'
-import { EnvelopeCheck } from 'ui/src/components/icons/EnvelopeCheck'
-import { EnvelopeLock } from 'ui/src/components/icons/EnvelopeLock'
-import { QuestionInCircleFilled } from 'ui/src/components/icons/QuestionInCircleFilled'
-import { UserCheck } from 'ui/src/components/icons/UserCheck'
-import { UserLock } from 'ui/src/components/icons/UserLock'
 import { InfoTooltip } from 'uniswap/src/components/tooltip/InfoTooltip'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useAuctionKycStatus } from '~/features/Toucan/Auction/hooks/useAuctionKycStatus'
+import { useIsQuickLaunchAuction } from '~/features/Toucan/Auction/hooks/useIsQuickLaunchAuction'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 
-const IconContainer = styled(Flex, {
-  width: 24,
-  height: 24,
-  borderRadius: '$roundedFull',
-  justifyContent: 'center',
-  alignItems: 'center',
-  variants: {
-    active: {
-      true: {
-        background: '$statusSuccess2',
-      },
-      false: {
-        background: '$surface3',
-      },
-    },
-  },
-})
+// No rest spread on purpose: TouchableArea injects legacy color props into unmarked direct
+// children; the icons inside set explicit colors, so the injected props must not reach the Flex.
+const IconContainer = ({ active, children }: { active: boolean; children?: ReactNode }): JSX.Element => (
+  <Flex
+    width={24}
+    height={24}
+    borderRadius="$roundedFull"
+    justifyContent="center"
+    alignItems="center"
+    backgroundColor={active ? '$statusSuccess2' : '$surface3'}
+  >
+    {children}
+  </Flex>
+)
 
-export function AuctionAccessIndicators(): JSX.Element | null {
+interface AuctionAccessIndicatorsProps {
+  /**
+   * The auction's ceiling, formatted as an FDV. Passed in rather than derived here so the
+   * header and the bid form quote one value from one derivation.
+   */
+  maxBidPriceFdvFormatted?: string
+  bidTokenSymbol?: string
+}
+
+export function AuctionAccessIndicators({
+  maxBidPriceFdvFormatted,
+  bidTokenSymbol,
+}: AuctionAccessIndicatorsProps): JSX.Element | null {
   const { t } = useTranslation()
   const auctionAddress = useAuctionStore((state) => state.auctionAddress)
   const chainId = useAuctionStore((state) => state.auctionDetails?.chainId)
@@ -40,6 +51,9 @@ export function AuctionAccessIndicators(): JSX.Element | null {
     auctionAddress,
     chainId,
   })
+
+  // QuickLaunch: quick launches have no max-FDV input, so the help copy only mentions a budget.
+  const isQuickLaunch = useIsQuickLaunchAuction()
 
   const getWhitelistTooltipText = (): string | undefined => {
     if (kycStatus.isAllowlisted) {
@@ -60,7 +74,7 @@ export function AuctionAccessIndicators(): JSX.Element | null {
   }
 
   const whitelistTooltipContent = (
-    <Flex p="$padding4">
+    <Flex p="$spacing4">
       <Text variant="body4" color="$neutral1">
         {getWhitelistTooltipText()}
       </Text>
@@ -68,12 +82,30 @@ export function AuctionAccessIndicators(): JSX.Element | null {
   )
 
   const verificationTooltipContent = (
-    <Flex p="$padding4">
+    <Flex p="$spacing4">
       <Text variant="body4" color="$neutral1">
         {getVerificationTooltipText()}
       </Text>
     </Flex>
   )
+
+  // The ceiling is explained up here as well as on the slider, because the slider only says
+  // it once a bid has already run into the limit. Quick launches included: their peg is
+  // clamped to the ceiling too (useBidFormController), and with the max-FDV input hidden
+  // this tooltip is the ONLY place that would mention it.
+  const ceilingTooltipText = maxBidPriceFdvFormatted
+    ? t('toucan.auction.bidForm.maxBidPriceNotice.tooltip', {
+        value: maxBidPriceFdvFormatted,
+        symbol: bidTokenSymbol ? ` ${bidTokenSymbol}` : '',
+      })
+    : undefined
+
+  const placeABidTooltipText = [
+    isQuickLaunch ? t('toucan.bidForm.placeABid.tooltip.quickLaunch') : t('toucan.bidForm.placeABid.tooltip'),
+    ceilingTooltipText,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <Flex flexDirection="row" gap="$spacing8" justifyContent="space-between">
@@ -84,7 +116,7 @@ export function AuctionAccessIndicators(): JSX.Element | null {
         <InfoTooltip
           placement="top"
           trigger={<QuestionInCircleFilled color="$neutral2" size="$icon.20" />}
-          text={t('toucan.bidForm.placeABid.tooltip')}
+          text={placeABidTooltipText}
         />
         {kycStatus.auctionHasPresale && (
           <InfoTooltip

@@ -58,6 +58,7 @@ describe('getFeatureFlagName', () => {
 
   it('resolves platform-specific flags for their client', () => {
     expect(getFeatureFlagName(FeatureFlags.AATestWeb, FeatureFlagClient.Web)).toBe('aatest_web')
+    expect(getFeatureFlagName(FeatureFlags.TokenProvenance, FeatureFlagClient.Web)).toBe('token_provenance')
     expect(getFeatureFlagName(FeatureFlags.UwULink, FeatureFlagClient.Wallet)).toBe('uwu-link')
   })
 
@@ -77,6 +78,9 @@ describe('getFeatureFlagName', () => {
   it('throws for a flag that is not mapped on the requested platform', () => {
     expect(() => getFeatureFlagName(FeatureFlags.AATestWeb, FeatureFlagClient.Wallet)).toThrow(
       'Feature AATestWeb does not have a name mapped for this application',
+    )
+    expect(() => getFeatureFlagName(FeatureFlags.TokenProvenance, FeatureFlagClient.Wallet)).toThrow(
+      'Feature TokenProvenance does not have a name mapped for this application',
     )
     expect(() => getFeatureFlagName(FeatureFlags.UwULink, FeatureFlagClient.Web)).toThrow(
       'Feature UwULink does not have a name mapped for this application',

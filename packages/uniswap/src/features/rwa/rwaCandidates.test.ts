@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { nativeOnChain, USDC_MAINNET } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getRWACandidatesFromCurrency } from 'uniswap/src/features/rwa/rwaCandidates'
 
 describe(getRWACandidatesFromCurrency, () => {

@@ -1,6 +1,6 @@
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { useRef, useState } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   FloorPriceSelector,
   type FloorPriceSelectorHandle,

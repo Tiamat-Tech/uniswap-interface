@@ -1,10 +1,10 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, Tooltip } from 'ui/src'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { getSymbolDisplayText } from 'uniswap/src/utils/currency'
@@ -23,7 +23,6 @@ export const ChainBalanceRow = memo(function ChainBalanceRowInner({
   valueUsd: number | undefined
 }): JSX.Element {
   const { t } = useTranslation()
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const { formatNumberOrString, convertFiatAmountFormatted } = useLocalizationContext()
   const shortenedSymbol = getSymbolDisplayText(symbol)
   const networkName = getChainLabel(chainId as UniverseChainId)
@@ -64,7 +63,6 @@ export const ChainBalanceRow = memo(function ChainBalanceRowInner({
         numericValue={valueUsd}
         textVariant="$body3"
         value={convertFiatAmountFormatted(valueUsd, NumberType.FiatTokenQuantity)}
-        disableAnimations={!isDataLivelinessEnabled}
       />
     </Flex>
   )

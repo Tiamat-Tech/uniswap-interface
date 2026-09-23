@@ -11,6 +11,7 @@ export enum SectionName {
   HomePoolsTab = 'home-pools-tab',
   HomeTokensTab = 'home-tokens-tab',
   ImportAccountForm = 'import-account-form',
+  MarginPositionsTable = 'margin-positions-table',
   MigrateSelectTokensStep = 'migrate-select-tokens-step',
   MigratePriceRangeStep = 'migrate-price-range-step',
   MiniPortfolio = 'mini-portfolio',
@@ -45,5 +46,6 @@ export enum SectionName {
   CreatePositionPriceRangeStep = 'create-position-price-range-step',
   CreatePositionSelectTokensStep = 'create-position-select-tokens-step',
   ExploreRecentTransactions = 'explore-recent-transactions',
+  ExploreTrendingTokensSection = 'explore-trending-tokens-section',
   // alphabetize additional values.
 }

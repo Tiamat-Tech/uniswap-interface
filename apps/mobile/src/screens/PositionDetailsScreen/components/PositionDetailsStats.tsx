@@ -1,8 +1,8 @@
 import { PositionStatus } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { Flex, Text } from '@universe/mycelium'
 import { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PositionStatusPill } from 'src/screens/PositionDetailsScreen/components/PositionStatusPill'
-import { Flex, Text } from 'ui/src'
 
 interface PositionDetailsStatsProps {
   status: PositionStatus

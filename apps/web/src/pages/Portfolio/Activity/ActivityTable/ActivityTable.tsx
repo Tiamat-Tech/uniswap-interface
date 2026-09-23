@@ -1,8 +1,8 @@
 import { ColumnDef, createColumnHelper, Row } from '@tanstack/react-table'
+import { Flex, Text, useIsTouchDevice } from '@universe/mycelium'
+import { ArrowRight } from '@universe/mycelium/icons/ArrowRight'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useIsTouchDevice } from 'ui/src'
-import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
 import { TransactionDetails } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { Table } from '~/components/Table'
@@ -19,16 +19,13 @@ interface ActivityTableProps {
   data: TransactionDetails[]
   loading?: boolean
   error?: boolean
-  isEarnActivityDisplayEnabled?: boolean
   rowWrapper?: (row: Row<TransactionDetails>, content: JSX.Element) => JSX.Element
 }
 
 export function useActivityTableColumns({
   showLoadingSkeleton,
-  isEarnActivityDisplayEnabled = true,
 }: {
   showLoadingSkeleton: boolean
-  isEarnActivityDisplayEnabled?: boolean
 }): ColumnDef<TransactionDetails, any>[] {
   const { t } = useTranslation()
   const isTouchDevice = useIsTouchDevice()
@@ -78,10 +75,7 @@ export function useActivityTableColumns({
           }
           return (
             <Cell justifyContent="flex-start">
-              <TransactionTypeCell
-                transaction={info.row.original}
-                isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-              />
+              <TransactionTypeCell transaction={info.row.original} />
             </Cell>
           )
         },
@@ -108,10 +102,7 @@ export function useActivityTableColumns({
           }
           return (
             <Cell justifyContent="flex-start">
-              <ActivityAmountCell
-                transaction={info.row.original}
-                isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-              />
+              <ActivityAmountCell transaction={info.row.original} />
             </Cell>
           )
         },
@@ -138,10 +129,7 @@ export function useActivityTableColumns({
           }
           return (
             <Cell justifyContent="flex-start">
-              <ActivityAddressCell
-                transaction={info.row.original}
-                isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-              />
+              <ActivityAddressCell transaction={info.row.original} />
             </Cell>
           )
         },
@@ -172,25 +160,18 @@ export function useActivityTableColumns({
         },
       }),
     ],
-    [t, columnHelper, showLoadingSkeleton, isTouchDevice, isEarnActivityDisplayEnabled],
+    [t, columnHelper, showLoadingSkeleton, isTouchDevice],
   )
 }
 
-function ActivityTableInner({
-  data,
-  loading = false,
-  error = false,
-  isEarnActivityDisplayEnabled = true,
-  rowWrapper,
-}: ActivityTableProps): JSX.Element {
+function ActivityTableInner({ data, loading = false, error = false, rowWrapper }: ActivityTableProps): JSX.Element {
   const showLoadingSkeleton = loading || error
 
   // Initialize address lookup for batch fetching
-  useActivityAddressLookup(data, { isEarnActivityDisplayEnabled })
+  useActivityAddressLookup(data)
 
   const columns = useActivityTableColumns({
     showLoadingSkeleton,
-    isEarnActivityDisplayEnabled,
   })
 
   return (

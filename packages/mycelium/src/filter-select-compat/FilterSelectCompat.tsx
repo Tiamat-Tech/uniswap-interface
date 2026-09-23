@@ -21,6 +21,7 @@
  */
 import * as React from 'react'
 import { cn } from '../cn'
+import { mergeCompatStyle } from '../compat/compose'
 import { resolveMenuColor } from '../menu-compat/compile'
 import type { MenuCompatIconComponent } from '../menu-compat/types'
 import { CheckmarkCircleGlyph } from '../option-list-compat/icons'
@@ -31,8 +32,8 @@ import {
   FILTER_SELECT_CHECK_CLASS_NAME,
   FILTER_SELECT_ITEM_FRAME_CLASS_NAME,
   FILTER_SELECT_MATCH_TRIGGER_WIDTH_CLASS_NAME,
-  filterSelectButtonStyleClassName,
-  filterSelectCardClassName,
+  filterSelectButtonStyleEmission,
+  filterSelectCardEmission,
   filterSelectItemLabelClassName,
 } from './compile'
 import type { FilterSelectCompatProps } from './types'
@@ -93,6 +94,11 @@ export function FilterSelectCompat({
     }
   }
 
+  // Strict emission path (INFRA-3217): caller style leaks outside the closed
+  // set (e.g. `maxHeight: 320`, `width: 280`) ride the inline-value lane.
+  const cardEmission = filterSelectCardEmission(dropdownStyle)
+  const buttonEmission = buttonStyle === undefined ? undefined : filterSelectButtonStyleEmission(buttonStyle)
+
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <DropdownMenuTrigger
@@ -107,12 +113,10 @@ export function FilterSelectCompat({
             tooltipLabel={tooltipText}
             testID={dataTestId}
             // The legacy DropdownSelector buttonStyle defaults; the FlexProps
-            // leak is honored through the card compiler's token mapping.
-            className={cn(
-              'h-[40px] min-w-[140px] rounded-[12px] border border-surface3',
-              buttonStyleClassName(buttonStyle),
-            )}
-            style={containerStyle}
+            // leak is honored through the card compiler's token mapping —
+            // out-of-set values ride the inline-value lane (INFRA-3217).
+            className={cn('h-[40px] min-w-[140px] rounded-[12px] border border-surface3', buttonEmission?.className)}
+            style={mergeCompatStyle(buttonEmission?.style, containerStyle)}
           />
         }
       >
@@ -135,9 +139,10 @@ export function FilterSelectCompat({
         // Legacy AdaptiveDropdown never moves focus on close; ledgered with the a11y upgrade.
         finalFocus={false}
         className={cn(
-          filterSelectCardClassName(dropdownStyle),
+          cardEmission.className,
           matchTriggerWidth === true && FILTER_SELECT_MATCH_TRIGGER_WIDTH_CLASS_NAME,
         )}
+        style={cardEmission.style}
       >
         <EffectiveOverlayZIndexContext.Provider value={stackingLayerNumber}>
           {Object.entries(options).map(([value, option], index) => (
@@ -169,13 +174,4 @@ export function FilterSelectCompat({
       </DropdownMenuContent>
     </DropdownMenu>
   )
-}
-
-/** Honor the class-mappable subset of the legacy buttonStyle FlexProps leak. */
-function buttonStyleClassName(buttonStyle: FilterSelectCompatProps['buttonStyle']): string | undefined {
-  if (buttonStyle === undefined) {
-    return undefined
-  }
-  // The leak compiles through the same Flex compat the card uses.
-  return filterSelectButtonStyleClassName(buttonStyle)
 }

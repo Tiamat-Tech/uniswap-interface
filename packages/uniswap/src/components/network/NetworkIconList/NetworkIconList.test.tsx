@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { NetworkIconList } from 'uniswap/src/components/network/NetworkIconList/NetworkIconList'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { render } from 'uniswap/src/test/test-utils'
 import { afterEach, beforeEach, vi } from 'vitest'
 
@@ -12,7 +12,7 @@ vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', async (importOrigi
   }
 })
 
-describe(NetworkIconList, () => {
+describe('NetworkIconList', () => {
   it('renders empty when no chainIds provided', () => {
     const tree = render(<NetworkIconList chainIds={[]} />)
     expect(tree).toMatchSnapshot()
@@ -36,7 +36,7 @@ describe(NetworkIconList, () => {
   })
 })
 
-describe(`${NetworkIconList.name} showNumberBadge`, () => {
+describe('NetworkIconList showNumberBadge', () => {
   /** Five unique enabled chains so real display logic shows 3 icons + overflow badge (+2). */
   const chainIdsForOverflow = [
     UniverseChainId.Mainnet,
@@ -69,5 +69,12 @@ describe(`${NetworkIconList.name} showNumberBadge`, () => {
     const { getByTestId } = render(<NetworkIconList chainIds={chainIdsForOverflow} showNumberBadge />)
 
     expect(getByTestId('network-icon-list-overflow-badge')).toBeTruthy()
+  })
+
+  it('renders the overflow count in the badge', () => {
+    const { getByTestId, getByText } = render(<NetworkIconList chainIds={chainIdsForOverflow} showNumberBadge />)
+
+    expect(getByTestId('network-icon-list-overflow-badge')).toBeTruthy()
+    expect(getByText('2')).toBeTruthy()
   })
 })

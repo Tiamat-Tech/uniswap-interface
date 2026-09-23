@@ -1,5 +1,5 @@
 import { Currency, Price } from '@uniswap/sdk-core'
-import { Text, TextProps } from 'ui/src'
+import { Text, type TextCompatProps as TextProps } from '@universe/mycelium'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { formatPositionPrice } from 'uniswap/src/features/positions/formatPositionPrice'

@@ -1,8 +1,7 @@
+import { Button, Flex, iconSizes, Skeleton, Text, TouchableArea } from '@universe/mycelium'
+import { X } from '@universe/mycelium/icons/X'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Skeleton, Text, TouchableArea } from 'ui/src'
-import { X } from 'ui/src/components/icons/X'
-import { iconSizes } from 'ui/src/theme'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { Modal } from 'uniswap/src/components/modals/Modal'
@@ -10,7 +9,6 @@ import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
-import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
 import { useEvent } from 'utilities/src/react/hooks'
 import type {
@@ -19,6 +17,8 @@ import type {
 } from '~/features/Liquidity/LPIncentives/buildLpIncentiveRewards'
 import { lpRewardsCollectKey, useCollectLpRewards } from '~/features/Liquidity/LPIncentives/hooks/useCollectLpRewards'
 import { useLpIncentiveRewards } from '~/features/Liquidity/LPIncentives/hooks/useLpIncentiveRewards'
+import { rewardCurrencyId, rewardSymbol } from '~/features/Liquidity/LPIncentives/utils'
+import { useDocumentScrollLock } from '~/hooks/useDocumentScrollLock'
 
 interface LpIncentivesRewardsModalProps {
   isOpen: boolean
@@ -42,22 +42,25 @@ function RewardTokenRow({
   isClaiming,
 }: { row: LpIncentiveRewardRow; formatUsd: (value: number) => string } & CollectControls): JSX.Element {
   const { t } = useTranslation()
-  const currencyInfo = useCurrencyInfo(buildCurrencyId(row.token.chainId, row.token.address))
+  // rewardCurrencyId, not the raw address: a native reward token arrives at the zero address, which
+  // matches no token-list entry and left the row's logo blank. The collect call below keeps the
+  // served address — that is what the claim contract expects.
+  const currencyInfo = useCurrencyInfo(rewardCurrencyId(row.token))
   const key = lpRewardsCollectKey(row.token.chainId, [row.token.address])
   const onCollect = useEvent(() => collect({ chainId: row.token.chainId, tokenAddresses: [row.token.address] }))
   // An unpriced reward is still claimable, so the row falls back to naming the token — a USD
   // figure is the only label a priced row carries, and "$0.00" would misreport a real balance.
   const { usdValue } = row
   const isUnpriced = usdValue === undefined
-  // `||`, not `??`: `token.symbol` is a protobuf string field, so it's '' rather than undefined when
-  // the backend has no symbol. An unlisted token would otherwise label a live Collect button blank.
-  const symbol = currencyInfo?.currency.symbol || row.token.symbol || '—'
+  // Placeholder rather than nothing: this symbol can occupy the USD slot, and an unlisted token
+  // would otherwise label a live Collect button blank.
+  const symbol = rewardSymbol(currencyInfo, row.token) ?? '—'
   const label = usdValue === undefined ? symbol : formatUsd(usdValue)
 
   return (
     <Flex row alignItems="center" justifyContent="space-between" gap="$gap12" minHeight={48}>
       <Flex row alignItems="center" gap="$gap12" fill>
-        <CurrencyLogo currencyInfo={currencyInfo} size={iconSizes.icon24} />
+        <CurrencyLogo currencyInfo={currencyInfo} size={iconSizes.icon24} hideNetworkLogo />
         {/* Dimmed when unpriced so a symbol occupying the USD slot doesn't read as an amount —
             a token whose symbol looks like a dollar figure would otherwise be indistinguishable. */}
         <Text variant="body1" color={isUnpriced ? '$neutral2' : '$neutral1'}>
@@ -227,6 +230,8 @@ export function LpIncentivesRewardsModal({
     }
   }, [isOpen, clearError])
 
+  useDocumentScrollLock(isOpen)
+
   return (
     <Modal
       name={ModalName.LpIncentivesRewards}
@@ -235,6 +240,7 @@ export function LpIncentivesRewardsModal({
       alignment="center"
       maxWidth={420}
       padding="$spacing24"
+      disableRemoveScroll
     >
       <Flex gap="$gap16">
         <Flex row alignItems="center" justifyContent="space-between">

@@ -1,5 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { FunctionComponent, SVGProps } from 'react'
-import { Flex, Text, useSporeColors } from 'ui/src'
 import { opacifyRaw } from 'ui/src/theme'
 import { ReactComponent as Bloom } from '~/assets/svg/positions-empty/bloom.svg'
 import { ReactComponent as Butterfly } from '~/assets/svg/positions-empty/butterfly.svg'

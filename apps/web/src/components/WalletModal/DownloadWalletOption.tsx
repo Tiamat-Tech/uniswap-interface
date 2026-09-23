@@ -1,7 +1,8 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Image, Text } from 'ui/src'
+import { Image } from 'ui/src'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useEvent } from 'utilities/src/react/hooks'
@@ -24,14 +25,15 @@ function BackgroundImage({ backgroundImage, isHovered }: BackgroundImageProps) {
       width="100%"
       height="100%"
       borderRadius="$rounded16"
-      zIndex="$zero"
+      zIndex={0}
       opacity={isHovered ? 0.54 : 1}
-      animation="fast"
       maxHeight={72}
       style={{
         background: `url(${backgroundImage})`,
         backgroundRepeat: 'no-repeat',
         backgroundSize: 'cover',
+        // Scoped to opacity (the only animated property) — the legacy Tamagui `fast` preset
+        transition: 'opacity 100ms cubic-bezier(0.17, 0.67, 0.45, 1)',
       }}
     />
   )
@@ -61,7 +63,7 @@ export const DownloadWalletOption = () => {
         position="relative"
         onHoverIn={() => setOptionHovered(true)}
         onHoverOut={() => setOptionHovered(false)}
-        data-testid="download-uniswap-wallet"
+        testID="download-uniswap-wallet"
       >
         <BackgroundImage backgroundImage="/images/extension_promo/background_connector.png" isHovered={optionHovered} />
         <OptionContainer onPress={onClickDownload} hideBackground>

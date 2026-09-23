@@ -1,14 +1,13 @@
+import { areAddressesEqual, Platform } from '@universe/chains'
 import { generateRandomBytes } from '@universe/cryptography'
 import { ensure0xHex, uint8ToHex } from '@universe/encoding'
 import { useState } from 'react'
 import { useCreateAuctionMutation } from 'uniswap/src/data/apiClients/dataApiService/auctions/useCreateAuctionMutation'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { AuctionEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import type { AuctionCreateFailedProperties, AuctionCreateFailedStep } from 'uniswap/src/features/telemetry/types'
 import { validateTransactionRequest } from 'uniswap/src/features/transactions/swap/utils/trade'
 import { ValidatedTransactionRequest } from 'uniswap/src/features/transactions/types/transactionRequests'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { logger } from 'utilities/src/logger/logger'
 import { useEvent } from 'utilities/src/react/hooks'
 import { getAuctionCreateFailedDiagnostics } from '~/pages/Liquidity/CreateAuction/analytics'
@@ -20,6 +19,7 @@ import {
   TokenMode,
   XVerification,
 } from '~/pages/Liquidity/CreateAuction/types'
+import { getAuctionOpenTime, getEffectivePreBidStartTime } from '~/pages/Liquidity/CreateAuction/utils/duration'
 import {
   EmissionScheduleError,
   getAuctionEmissionScheduleError,
@@ -105,6 +105,11 @@ interface UseCreateAuctionSubmitParams {
    */
   existingTokenWalletBalanceRaw?: bigint
   /**
+   * Whether the wizard is in quick-launch mode (`useIsQuickLaunchMode`). Threaded into the request
+   * builder so the decoupled graduation price (field 8) is sent ONLY for quick launches.
+   */
+  isQuickLaunch: boolean
+  /**
    * Builds `Auction Create Failed` properties. Called by this hook at pre-submission failure points
    * (`build_request` for local validation, `create_auction_request` when the endpoint throws).
    */
@@ -179,6 +184,7 @@ export function useCreateAuctionSubmit(params: UseCreateAuctionSubmitParams): Us
     currencyAddress,
     xVerification,
     existingTokenWalletBalanceRaw,
+    isQuickLaunch,
     getCreateFailedProperties,
   } = params
   const createAuctionMutation = useCreateAuctionMutation()
@@ -211,7 +217,23 @@ export function useCreateAuctionSubmit(params: UseCreateAuctionSubmitParams): Us
       return undefined
     }
 
-    if (configureAuction.startTime && configureAuction.startTime.getTime() <= Date.now()) {
+    // Quick launch has no pre-bid module, and the request builder drops the field there. Derive
+    // the same mode-gated value so this guard and the request agree on when the auction opens.
+    const effectivePreBidStartTime = getEffectivePreBidStartTime({
+      preBidStartTime: configureAuction.preBidStartTime,
+      isQuickLaunch,
+    })
+
+    // The auction OPENS at the pre-bid start when there is one — earlier than the Duration start
+    // date — and that is the timestamp the backend converts to `startBlock` and rejects if past.
+    // Watching `startTime` here would leave the whole pre-bid window (15 minutes by default) as a
+    // band where the client waves a stale launch through and the backend rejects it after a wallet
+    // round-trip.
+    const auctionOpenTime = getAuctionOpenTime({
+      startTime: configureAuction.startTime,
+      preBidStartTime: effectivePreBidStartTime,
+    })
+    if (auctionOpenTime && auctionOpenTime.getTime() <= Date.now()) {
       const err = new AuctionStartTimePassedError()
       setError(err)
       reportAuctionCreateFailed({ getCreateFailedProperties, failedStep: 'build_request', error: err, diagnostics })
@@ -253,6 +275,10 @@ export function useCreateAuctionSubmit(params: UseCreateAuctionSubmitParams): Us
       getAuctionEmissionScheduleError({
         startTime: configureAuction.startTime,
         endTime: configureAuction.endTime,
+        // Mirror the request that is about to be built. The ramp length happens not to depend on
+        // the pre-bid length today, but this check exists to catch what the backend would reject,
+        // so it derives from the same inputs the backend will see rather than that coincidence.
+        preBidStartTime: effectivePreBidStartTime,
         chainId: configureAuction.committed?.totalSupply.currency.chainId,
       }) === EmissionScheduleError.WindowTooShort
     ) {
@@ -270,6 +296,7 @@ export function useCreateAuctionSubmit(params: UseCreateAuctionSubmitParams): Us
       currencyAddress: currencyAddress ?? '',
       salt: ensure0xHex(uint8ToHex(generateRandomBytes(32))),
       xVerificationToken: xVerification?.xVerificationToken,
+      isQuickLaunch,
     })
 
     if (!request) {

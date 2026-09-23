@@ -1,8 +1,8 @@
+import { Platform } from '@universe/chains'
 import {
   buildAccountAddressesByPlatform,
   isAccountAddressesByPlatform,
 } from 'uniswap/src/data/apiClients/dataApiService/utils/buildAccountAddressesByPlatform'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 
 const TEST_EVM_ADDRESS = '0x1234567890123456789012345678901234567890'
 const TEST_SVM_ADDRESS = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'

@@ -8,11 +8,12 @@
         "/pages/Explore/",
         "/features/Explore/state",
         "/pages/Launches/",
-        "/pages/Liquidity/CreateAuction/"
+        "/pages/Liquidity/CreateAuction/",
+        "/pages/TokenDetails/"
       ],
       "importPrefixes": ["~/features/Toucan/", "features/Toucan/"],
       "bareModuleSources": ["~/features/Toucan", "features/Toucan"],
-      "message": "Toucan feature code may only be imported from pages/Explore/, features/explore/state, pages/Launches/, pages/Liquidity/CreateAuction/, or from within features/Toucan/."
+      "message": "Toucan feature code may only be imported from pages/Explore/, features/explore/state, pages/Launches/, pages/Liquidity/CreateAuction/, pages/TokenDetails/, or from within features/Toucan/."
     },
     {
       "id": "liquidity-feature",
@@ -27,7 +28,6 @@
         "/pages/Liquidity/",
         "/pages/Migrate/",
         "/pages/PoolDetails/",
-        "/pages/PoolFinder/",
         "/pages/Portfolio/",
         "/pages/Positions/",
         "/pages/RemoveLiquidity/",
@@ -69,6 +69,27 @@
       "importPrefixes": ["~/features/Explore/", "features/Explore/"],
       "bareModuleSources": ["~/features/Explore", "features/Explore"],
       "message": "The Explore feature may only be imported from pages/AddLiquidity/, pages/Explore/, pages/Landing/, pages/Launches/, pages/PoolDetails/, pages/Positions/, pages/TokenDetails/, features/Toucan/ or from within features/Explore/."
+    },
+    {
+      "id": "swap-ui-views",
+      "mode": "importerDenylist",
+      "deniedImporterPathMarkers": [["/features/transactions/swap/", "/views/"]],
+      "importPrefixes": [
+        "uniswap/src/features/telemetry",
+        "utilities/src/telemetry",
+        "uniswap/src/components/modals",
+        "uniswap/src/features/transactions/swap/stores/",
+        "uniswap/src/features/transactions/swap/form/stores/",
+        "uniswap/src/features/transactions/swap/review/stores/",
+        "uniswap/src/features/transactions/swap/plan/",
+        "uniswap/src/features/transactions/components/settings/stores",
+        "uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext",
+        "uniswap/src/contexts/UniswapContext",
+        "@universe/gating/",
+        "@tanstack/react-query"
+      ],
+      "bareModuleSources": ["@universe/gating", "@universe/compliance", "react-redux", "redux"],
+      "message": "Swap views (files under a views/ directory in the swap tree) are presentational: data in via props, actions out via callbacks. No store reads, analytics, feature flags, data fetching, or modal shells; keep those in the adapter and pass the result down as props. See scripts/swap-ui/POLICIES.md."
     },
     {
       "id": "web-state-import-denylist",

@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
 
 export function ViewDetailsTrailingArrow(): JSX.Element {

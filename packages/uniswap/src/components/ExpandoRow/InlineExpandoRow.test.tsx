@@ -1,4 +1,4 @@
-import { Text } from 'ui/src'
+import { Text } from '@universe/mycelium'
 import { InlineExpandoRow } from 'uniswap/src/components/ExpandoRow/InlineExpandoRow'
 import { fireEvent, render, screen } from 'uniswap/src/test/test-utils'
 

@@ -1,7 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, TouchableArea } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Flex, TouchableArea } from 'ui/src'
 import type { IssuerToken, Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   EXPANDABLE_ASSET_ISSUER_GAP_SEARCH_PX,
   EXPANDABLE_ASSET_ISSUER_ROW_MIN_HEIGHT_PX,
@@ -15,8 +15,9 @@ import { TestID } from 'uniswap/src/test/fixtures/testIDs'
  * Inner `$surface1` block; issuer sub-rows (or table sub-row slots) render as children inside it.
  *
  * - `table` (default): keeps `gap/px/py="$spacing4"`. The table aligns issuer columns with the parent
- *   row by bleeding rows outward by `EXPANDABLE_ASSET_INNER_PADDING_X_PX` (`IssuerTableRowHoverProvider`),
- *   and sizes the expand animation via `getExpandableIssuerPanelHeightPx({ variant: 'table' })`.
+ *   row by bleeding rows outward by `EXPANDABLE_ASSET_ISSUER_ROW_ALIGNMENT_INSET_X_PX` (shell + inner
+ *   padding, via `IssuerTableRowHoverProvider`), and sizes the expand animation via
+ *   `getExpandableIssuerPanelHeightPx({ variant: 'table' })`.
  * - `search`: transparent, `$surface5`-bordered, rounded, clipped block with a 2px gap
  *   (`EXPANDABLE_ASSET_ISSUER_GAP_SEARCH_PX`) between rows. Each row paints its own `$surface1` fill, so the gaps
  *   reveal the `$surface2` shell behind the panel (per Figma). Issuer rows carry their own `px="$spacing8"` indent.
@@ -51,6 +52,7 @@ export function ExpandableIssuerPanelContainer({
       gap="$spacing4"
       px="$spacing4"
       py="$spacing4"
+      $platform-web={{ overflow: 'clip' }}
     >
       {children}
     </Flex>
@@ -61,6 +63,7 @@ type ExpandableIssuerRowsProps = {
   asset: Rwa
   enabledChainIds: readonly UniverseChainId[]
   variant: ExpandableAssetGroupVariant
+  chainFilter?: UniverseChainId
   onIssuerPress?: (issuer: IssuerToken) => void
   /** When set, OWNS the issuer row (a single TouchableArea: tap=navigate, long-press=menu) so there is no nested
    *  TouchableArea. Receives the navigation `onPress` + the default identity body, renders the row in place of the
@@ -76,6 +79,7 @@ export function ExpandableIssuerRows({
   asset,
   enabledChainIds,
   variant,
+  chainFilter,
   onIssuerPress,
   renderIssuerRow,
   getIssuerHref,
@@ -85,7 +89,13 @@ export function ExpandableIssuerRows({
     <ExpandableIssuerPanelContainer variant={variant}>
       {asset.issuerTokens.map((issuer) => {
         const issuerRow = (
-          <ExpandableIssuerIdentity asset={asset} issuer={issuer} enabledChainIds={enabledChainIds} variant={variant} />
+          <ExpandableIssuerIdentity
+            asset={asset}
+            issuer={issuer}
+            enabledChainIds={enabledChainIds}
+            variant={variant}
+            chainFilter={chainFilter}
+          />
         )
         const onPress = (): void => onIssuerPress?.(issuer)
         const onModifierPress = (): void => onIssuerModifierPress?.(issuer)

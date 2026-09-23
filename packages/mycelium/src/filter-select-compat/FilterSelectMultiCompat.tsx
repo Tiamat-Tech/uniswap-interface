@@ -15,7 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '../shadc
 import { TriggerButtonCompat } from '../trigger-button-compat/TriggerButtonCompat'
 import {
   FILTER_SELECT_MATCH_TRIGGER_WIDTH_CLASS_NAME,
-  filterSelectCardClassName,
+  filterSelectCardEmission,
   filterSelectItemLabelClassName,
 } from './compile'
 import type { FilterSelectMultiCompatProps } from './types'
@@ -59,6 +59,10 @@ export function FilterSelectMultiCompat({
 
   const showHeader = onSelectAll !== undefined && onClear !== undefined
 
+  // Strict emission path (INFRA-3217): caller `dropdownStyle` values outside
+  // the closed set ride the inline-value lane.
+  const cardEmission = filterSelectCardEmission(dropdownStyle)
+
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <DropdownMenuTrigger
@@ -80,9 +84,10 @@ export function FilterSelectMultiCompat({
         // Legacy AdaptiveDropdown never moves focus on close; ledgered with the a11y upgrade.
         finalFocus={false}
         className={cn(
-          filterSelectCardClassName(dropdownStyle),
+          cardEmission.className,
           matchTriggerWidth === true && FILTER_SELECT_MATCH_TRIGGER_WIDTH_CLASS_NAME,
         )}
+        style={cardEmission.style}
       >
         <EffectiveOverlayZIndexContext.Provider value={stackingLayerNumber}>
           {showHeader && (

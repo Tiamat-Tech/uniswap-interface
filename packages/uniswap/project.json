@@ -40,6 +40,21 @@
         "cwd": "{projectRoot}"
       }
     },
+    "test:shard": {
+      "command": "vitest run --shard=${VITEST_SHARD:-1/1}",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "dependsOn": ["^prepare", "prepare"],
+      "inputs": [
+        "sourceFiles",
+        "^production",
+        "{projectRoot}/**/*.test.*",
+        "{projectRoot}/**/*.spec.*",
+        { "env": "VITEST_SHARD" }
+      ],
+      "cache": true
+    },
     "snapshots": {
       "command": "vitest run -u",
       "options": {

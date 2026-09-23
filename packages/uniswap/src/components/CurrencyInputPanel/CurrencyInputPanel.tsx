@@ -1,8 +1,7 @@
 import { isExtensionApp, isMobileWeb, isWebAppDesktop } from '@universe/environment'
-//! tamagui-ignore
-// tamagui-ignore
+import { Flex, TouchableArea } from '@universe/mycelium'
 import { forwardRef, memo, useCallback } from 'react'
-import { Flex, TouchableArea, useIsShortMobileDevice, useShakeAnimation } from 'ui/src'
+import { useIsShortMobileDevice, useShakeAnimation } from 'ui/src'
 import {
   AmountInputPresets,
   PRESET_BUTTON_PROPS,

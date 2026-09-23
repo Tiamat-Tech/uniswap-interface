@@ -2,13 +2,22 @@ import { type PlainMessage } from '@bufbuild/protobuf'
 import {
   ProtectionInfo,
   AttackType as RestAttackType,
-  ProtectionResult as RestProtectionResult,
-  SafetyLevel as RestSafetyLevel,
   SpamCode as RestSpamCode,
   TokenMetadata,
 } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import { type TokenFees, type TokenSafety } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import { GraphQLApi, SpamCode } from '@universe/api'
+import {
+  fromGraphQLProtectionResult,
+  fromGraphQLSafetyLevel,
+  fromRestProtectionResult,
+  fromRestSafetyLevel,
+  fromV2Verdict,
+  parseAttackTypes,
+  parseProtectionResult,
+  parseSafetyLevel,
+  SafetyLevel,
+} from 'uniswap/src/features/dataApi/safety'
 import { AttackType, SafetyInfo, TokenList } from 'uniswap/src/features/dataApi/types'
 
 // TokenFees.{buy_fee,sell_fee} are fraction-of-1 doubles (e.g. 0.05 === 5%) per the v2 proto.
@@ -17,54 +26,52 @@ export function fractionToBpsString(fraction?: number): string | undefined {
   return fraction !== undefined ? String(Math.round(fraction * 10_000)) : undefined
 }
 
-function getTokenListFromSafetyLevel(safetyInfo?: GraphQLApi.SafetyLevel): TokenList {
-  switch (safetyInfo) {
-    case GraphQLApi.SafetyLevel.Blocked:
+function getTokenListFromSafetyLevel(safetyLevel?: SafetyLevel): TokenList {
+  switch (safetyLevel) {
+    case SafetyLevel.Blocked:
       return TokenList.Blocked
-    case GraphQLApi.SafetyLevel.Verified:
+    case SafetyLevel.Verified:
       return TokenList.Default
     default:
       return TokenList.NonDefault
   }
 }
 
-// Priority based on Token Protection PRD spec
-function getHighestPriorityAttackType(
-  attackTypes?: (GraphQLApi.ProtectionAttackType | undefined)[],
-): AttackType | undefined {
-  if (!attackTypes || attackTypes.length === 0) {
+// Attack-type display priority per the Token Protection PRD spec — the single ordered source
+// every mapper below selects from. ExitScamRisk is Blockaid's lowest-confidence bucket, so any
+// more specific signal outranks it.
+const ATTACK_TYPE_PRIORITY: AttackType[] = [
+  AttackType.Honeypot,
+  AttackType.Impersonator,
+  AttackType.Airdrop,
+  AttackType.HighFees,
+  AttackType.ExitScamRisk,
+]
+
+/**
+ * Highest-priority attack type among already-domain-mapped values. A non-empty input whose
+ * values all fall outside the priority list collapses to Other; empty input means no attack.
+ */
+function getHighestPriorityAttackType(attackTypes: AttackType[]): AttackType | undefined {
+  if (attackTypes.length === 0) {
     return undefined
   }
   const attackTypeSet = new Set(attackTypes)
-  if (attackTypeSet.has(GraphQLApi.ProtectionAttackType.Honeypot)) {
-    return AttackType.Honeypot
-  } else if (attackTypeSet.has(GraphQLApi.ProtectionAttackType.Impersonator)) {
-    return AttackType.Impersonator
-  } else if (attackTypeSet.has(GraphQLApi.ProtectionAttackType.AirdropPattern)) {
-    return AttackType.Airdrop
-  } else if (attackTypeSet.has(GraphQLApi.ProtectionAttackType.HighFees)) {
-    return AttackType.HighFees
-  } else {
-    return AttackType.Other
-  }
+  return ATTACK_TYPE_PRIORITY.find((attackType) => attackTypeSet.has(attackType)) ?? AttackType.Other
 }
 
-// Priority based on Token Protection PRD spec for REST API
-function getHighestPriorityRestAttackType(attackTypes?: RestAttackType[]): AttackType | undefined {
-  if (!attackTypes || attackTypes.length === 0) {
-    return undefined
-  }
-  if (attackTypes.includes(RestAttackType.HONEYPOT)) {
-    return AttackType.Honeypot
-  } else if (attackTypes.includes(RestAttackType.IMPERSONATOR)) {
-    return AttackType.Impersonator
-  } else if (attackTypes.includes(RestAttackType.AIRDROP_PATTERN)) {
-    return AttackType.Airdrop
-  } else if (attackTypes.includes(RestAttackType.HIGH_FEES)) {
-    return AttackType.HighFees
-  } else {
-    return AttackType.Other
-  }
+const GRAPHQL_ATTACK_TYPES: Partial<Record<GraphQLApi.ProtectionAttackType, AttackType>> = {
+  [GraphQLApi.ProtectionAttackType.Honeypot]: AttackType.Honeypot,
+  [GraphQLApi.ProtectionAttackType.Impersonator]: AttackType.Impersonator,
+  [GraphQLApi.ProtectionAttackType.AirdropPattern]: AttackType.Airdrop,
+  [GraphQLApi.ProtectionAttackType.HighFees]: AttackType.HighFees,
+}
+
+const REST_ATTACK_TYPES: Partial<Record<RestAttackType, AttackType>> = {
+  [RestAttackType.HONEYPOT]: AttackType.Honeypot,
+  [RestAttackType.IMPERSONATOR]: AttackType.Impersonator,
+  [RestAttackType.AIRDROP_PATTERN]: AttackType.Airdrop,
+  [RestAttackType.HIGH_FEES]: AttackType.HighFees,
 }
 
 export function getCurrencySafetyInfo(
@@ -72,9 +79,13 @@ export function getCurrencySafetyInfo(
   protectionInfo?: NonNullable<GraphQLApi.TokenQuery['token']>['protectionInfo'],
 ): SafetyInfo {
   return {
-    tokenList: getTokenListFromSafetyLevel(safetyLevel),
-    attackType: getHighestPriorityAttackType(protectionInfo?.attackTypes),
-    protectionResult: protectionInfo?.result ?? GraphQLApi.ProtectionResult.Unknown,
+    tokenList: getTokenListFromSafetyLevel(fromGraphQLSafetyLevel(safetyLevel)),
+    attackType: getHighestPriorityAttackType(
+      (protectionInfo?.attackTypes ?? []).map((attackType) =>
+        attackType ? (GRAPHQL_ATTACK_TYPES[attackType] ?? AttackType.Other) : AttackType.Other,
+      ),
+    ),
+    protectionResult: fromGraphQLProtectionResult(protectionInfo?.result),
     blockaidFees: protectionInfo?.blockaidFees
       ? {
           buyFeePercent: protectionInfo.blockaidFees.buy ? protectionInfo.blockaidFees.buy * 100 : undefined,
@@ -84,27 +95,21 @@ export function getCurrencySafetyInfo(
   }
 }
 
-export function mapRestProtectionResultToProtectionResult(result?: RestProtectionResult): GraphQLApi.ProtectionResult {
-  switch (result) {
-    case RestProtectionResult.MALICIOUS:
-      return GraphQLApi.ProtectionResult.Malicious
-    case RestProtectionResult.SPAM:
-      return GraphQLApi.ProtectionResult.Spam
-    case RestProtectionResult.BENIGN:
-      return GraphQLApi.ProtectionResult.Benign
-    default:
-      return GraphQLApi.ProtectionResult.Unknown
-  }
-}
-
+/**
+ * SafetyInfo from the data.v1 REST shape. `safetyLevel` is already the domain enum — callers map
+ * the protobuf level through fromRestSafetyLevel / getRestTokenSafetyInfo first; `protectionInfo`
+ * is the raw v1 protobuf message.
+ */
 export function getRestCurrencySafetyInfo(
-  safetyLevel?: GraphQLApi.SafetyLevel,
+  safetyLevel?: SafetyLevel,
   protectionInfo?: PlainMessage<ProtectionInfo>,
 ): SafetyInfo {
   return {
     tokenList: getTokenListFromSafetyLevel(safetyLevel),
-    attackType: getHighestPriorityRestAttackType(protectionInfo?.attackTypes),
-    protectionResult: mapRestProtectionResultToProtectionResult(protectionInfo?.result),
+    attackType: getHighestPriorityAttackType(
+      (protectionInfo?.attackTypes ?? []).map((attackType) => REST_ATTACK_TYPES[attackType] ?? AttackType.Other),
+    ),
+    protectionResult: fromRestProtectionResult(protectionInfo?.result),
     blockaidFees: undefined,
   }
 }
@@ -112,11 +117,10 @@ export function getRestCurrencySafetyInfo(
 export function getRestTokenSafetyInfo(metadata?: Pick<TokenMetadata, 'spamCode' | 'safetyLevel'>): {
   isSpam: boolean
   spamCodeValue: SpamCode
-  mappedSafetyLevel: GraphQLApi.SafetyLevel | undefined
+  mappedSafetyLevel: SafetyLevel | undefined
 } {
   let isSpam = false
   let spamCodeValue = SpamCode.LOW
-  let mappedSafetyLevel: GraphQLApi.SafetyLevel | undefined
 
   switch (metadata?.spamCode) {
     case RestSpamCode.SPAM:
@@ -132,64 +136,29 @@ export function getRestTokenSafetyInfo(metadata?: Pick<TokenMetadata, 'spamCode'
       break
   }
 
-  switch (metadata?.safetyLevel) {
-    case RestSafetyLevel.VERIFIED:
-      mappedSafetyLevel = GraphQLApi.SafetyLevel.Verified
-      break
-    case RestSafetyLevel.MEDIUM_WARNING:
-      mappedSafetyLevel = GraphQLApi.SafetyLevel.MediumWarning
-      break
-    case RestSafetyLevel.STRONG_WARNING:
-      mappedSafetyLevel = GraphQLApi.SafetyLevel.StrongWarning
-      break
-    case RestSafetyLevel.BLOCKED:
-      mappedSafetyLevel = GraphQLApi.SafetyLevel.Blocked
-      break
-    default:
-      break
-  }
-
-  return { isSpam, spamCodeValue, mappedSafetyLevel }
+  return { isSpam, spamCodeValue, mappedSafetyLevel: fromRestSafetyLevel(metadata?.safetyLevel) }
 }
 
-function mapV2VerdictToProtectionResult(verdict?: string): GraphQLApi.ProtectionResult {
-  switch (verdict) {
-    case 'Benign':
-      return GraphQLApi.ProtectionResult.Benign
-    case 'Malicious':
-      return GraphQLApi.ProtectionResult.Malicious
-    case 'Spam':
-      return GraphQLApi.ProtectionResult.Spam
-    case 'Warning':
-      return GraphQLApi.ProtectionResult.Warning
-    default:
-      return GraphQLApi.ProtectionResult.Unknown
-  }
+const V2_ATTACK_FEATURES: Partial<Record<AttackType, Set<string>>> = {
+  [AttackType.Honeypot]: new Set(['HONEYPOT']),
+  [AttackType.Impersonator]: new Set([
+    'IMPERSONATOR',
+    'IMPERSONATOR_HIGH_CONFIDENCE',
+    'IMPERSONATOR_MEDIUM_CONFIDENCE',
+    'IMPERSONATOR_LOW_CONFIDENCE',
+    'IMPERSONATOR_SENSITIVE_ASSET',
+  ]),
+  [AttackType.Airdrop]: new Set(['AIRDROP_PATTERN']),
+  [AttackType.HighFees]: new Set(['HIGH_TRANSFER_FEE', 'HIGH_BUY_FEE', 'HIGH_SELL_FEE']),
+  [AttackType.ExitScamRisk]: new Set(['EXIT_SCAM_RISK']),
 }
-
-const HONEYPOT_FEATURES = new Set(['HONEYPOT'])
-const IMPERSONATOR_FEATURES = new Set([
-  'IMPERSONATOR',
-  'IMPERSONATOR_HIGH_CONFIDENCE',
-  'IMPERSONATOR_MEDIUM_CONFIDENCE',
-  'IMPERSONATOR_LOW_CONFIDENCE',
-  'IMPERSONATOR_SENSITIVE_ASSET',
-])
-const AIRDROP_FEATURES = new Set(['AIRDROP_PATTERN'])
-const HIGH_FEES_FEATURES = new Set(['HIGH_TRANSFER_FEE', 'HIGH_BUY_FEE', 'HIGH_SELL_FEE'])
 
 function getAttackTypeFromV2Safety(verdict?: string, features?: string[]): AttackType | undefined {
-  if (features?.some((feature) => HONEYPOT_FEATURES.has(feature))) {
-    return AttackType.Honeypot
-  }
-  if (features?.some((feature) => IMPERSONATOR_FEATURES.has(feature))) {
-    return AttackType.Impersonator
-  }
-  if (features?.some((feature) => AIRDROP_FEATURES.has(feature))) {
-    return AttackType.Airdrop
-  }
-  if (features?.some((feature) => HIGH_FEES_FEATURES.has(feature))) {
-    return AttackType.HighFees
+  const match = ATTACK_TYPE_PRIORITY.find((attackType) =>
+    features?.some((feature) => V2_ATTACK_FEATURES[attackType]?.has(feature)),
+  )
+  if (match) {
+    return match
   }
   if (verdict === 'Malicious' || verdict === 'Warning') {
     return AttackType.Other
@@ -204,8 +173,8 @@ function getAttackTypeFromV2Safety(verdict?: string, features?: string[]): Attac
 // SafetyInfo itself should become V2-native and this direction should reverse — see follow-up
 // ticket to migrate gqlTokenToCurrencyInfo onto it.
 //
-// See getRestCurrencySafetyInfoV2 for the ListTokens/search counterpart — it shares this same
-// verdict→protectionResult and features→attackType mapping.
+// See getRestCurrencySafetyInfoV2 for the ListTokens/search counterpart — it shares the same
+// fromV2Verdict and features→attackType mapping.
 export function getV2CurrencySafetyInfo(
   safety?: PlainMessage<TokenSafety>,
   fees?: PlainMessage<TokenFees>,
@@ -219,7 +188,7 @@ export function getV2CurrencySafetyInfo(
   return {
     tokenList,
     attackType: getAttackTypeFromV2Safety(safety?.verdict, safety?.features),
-    protectionResult: mapV2VerdictToProtectionResult(safety?.verdict),
+    protectionResult: fromV2Verdict(safety?.verdict),
     // same fraction-of-1 convention as v1 ProtectionInfo.blockaidFees, converted to percent
     blockaidFees:
       fees?.buyFee !== undefined || fees?.sellFee !== undefined
@@ -238,20 +207,20 @@ export function getV2CurrencySafetyInfo(
  */
 export function getRestTokenSafetyInfoV2(safety?: { isSpam: boolean; isVerified: boolean; isBlocked: boolean }): {
   isSpam: boolean
-  mappedSafetyLevel: GraphQLApi.SafetyLevel | undefined
+  mappedSafetyLevel: SafetyLevel | undefined
 } {
   if (safety?.isBlocked) {
-    return { isSpam: safety.isSpam, mappedSafetyLevel: GraphQLApi.SafetyLevel.Blocked }
+    return { isSpam: safety.isSpam, mappedSafetyLevel: SafetyLevel.Blocked }
   }
   if (safety?.isVerified) {
-    return { isSpam: safety.isSpam, mappedSafetyLevel: GraphQLApi.SafetyLevel.Verified }
+    return { isSpam: safety.isSpam, mappedSafetyLevel: SafetyLevel.Verified }
   }
   return { isSpam: safety?.isSpam ?? false, mappedSafetyLevel: undefined }
 }
 
 /**
  * v2 counterpart to getRestCurrencySafetyInfo, used for the ListTokens/search path. Shares
- * mapV2VerdictToProtectionResult and getAttackTypeFromV2Safety with getV2CurrencySafetyInfo
+ * fromV2Verdict and getAttackTypeFromV2Safety with getV2CurrencySafetyInfo
  * (TokenRankings) since both consume the same data.v2.TokenSafety/TokenFees shape.
  */
 export function getRestCurrencySafetyInfoV2(
@@ -268,7 +237,7 @@ export function getRestCurrencySafetyInfoV2(
   return {
     tokenList: getTokenListFromSafetyLevel(mappedSafetyLevel),
     attackType: getAttackTypeFromV2Safety(safety?.verdict, safety?.features),
-    protectionResult: mapV2VerdictToProtectionResult(safety?.verdict),
+    protectionResult: fromV2Verdict(safety?.verdict),
     // same fraction-of-1 convention as v1 ProtectionInfo.blockaidFees, converted to percent
     blockaidFees:
       fees?.buyFee !== undefined || fees?.sellFee !== undefined
@@ -277,5 +246,25 @@ export function getRestCurrencySafetyInfoV2(
             sellFeePercent: fees.sellFee !== undefined ? fees.sellFee * 100 : undefined,
           }
         : undefined,
+  }
+}
+
+/**
+ * SafetyInfo from the string-shaped safety/protection fields served by the search/explore v1
+ * REST endpoints (which proxy GraphQL, so values are serialized GraphQL enums — capitalized
+ * `result`/`attackTypes` that uppercase onto the domain). Replaces the deleted
+ * `parseSafetyLevel`/`parseProtectionInfo` pair from `@universe/api`.
+ */
+export function parseCurrencySafetyInfo(
+  safetyLevel?: string,
+  protectionInfo?: { result: string; attackTypes: string[] },
+): SafetyInfo {
+  return {
+    tokenList: getTokenListFromSafetyLevel(parseSafetyLevel(safetyLevel)),
+    attackType: getHighestPriorityAttackType(parseAttackTypes(protectionInfo?.attackTypes)),
+    protectionResult: parseProtectionResult(protectionInfo?.result),
+    // The search/explore v1 protection payload carries only result/attackTypes — no fee data
+    // exists on this path (the deleted parseProtectionInfo returned the same two fields).
+    blockaidFees: undefined,
   }
 }

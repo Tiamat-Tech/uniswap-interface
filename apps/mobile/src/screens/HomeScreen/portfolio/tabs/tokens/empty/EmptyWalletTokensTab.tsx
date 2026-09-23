@@ -1,13 +1,16 @@
 import { GraphQLApi } from '@universe/api'
 import { DynamicConfigs, HomeScreenExploreTokensConfigKey, useDynamicConfigValue } from '@universe/gating'
+import { Flex, LinearGradient, Text, useIsDarkMode } from '@universe/mycelium'
+import { withSporeCurve } from '@universe/tailwind/animations/reanimated'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LayoutRectangle } from 'react-native'
+import type { EntryExitAnimationFunction } from 'react-native-reanimated'
 import { useSelector } from 'react-redux'
 import { TokenItem } from 'src/components/explore/TokenItem'
 import { TokenItemData } from 'src/components/explore/TokenItemData'
-import { AnimatePresence, Flex, LinearGradient, Text, useIsDarkMode } from 'ui/src'
 import { SwirlyArrowDown } from 'ui/src/components/icons'
+import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { spacing, zIndexes } from 'ui/src/theme'
 import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useMultichainExploreMetricsAnalytics } from 'uniswap/src/features/explore/useMultichainExploreMetricsAnalytics'
@@ -136,28 +139,38 @@ const EmptyWalletTokenRow = memo(function EmptyWalletTokenRowInner({
   )
 })
 
+// Reanimated legs of the legacy Tamagui 'quick' presence fade (enter/exit opacity 0).
+const fadeInQuick: EntryExitAnimationFunction = () => {
+  'worklet'
+  return {
+    initialValues: { opacity: 0 },
+    animations: { opacity: withSporeCurve('quick', 1) },
+  }
+}
+
+const fadeOutQuick: EntryExitAnimationFunction = () => {
+  'worklet'
+  return {
+    initialValues: { opacity: 1 },
+    animations: { opacity: withSporeCurve('quick', 0) },
+  }
+}
+
 function FooterElement(): JSX.Element {
   const { t } = useTranslation()
   const hasUsedExplore = useSelector(selectHasUsedExplore)
 
   return (
-    <AnimatePresence>
+    <>
       {!hasUsedExplore && (
-        <Flex
-          centered
-          animation="quick"
-          enterStyle={{ opacity: 0 }}
-          exitStyle={{ opacity: 0 }}
-          gap="$spacing8"
-          pt="$spacing8"
-        >
+        <AnimatedFlex centered entering={fadeInQuick} exiting={fadeOutQuick} gap="$spacing8" pt="$spacing8">
           <Text color="$neutral3" variant="subheading2">
             {t('home.explore.footer')}
           </Text>
           <SwirlyArrowDown color="$neutral3" size="$icon.28" />
-        </Flex>
+        </AnimatedFlex>
       )}
-    </AnimatePresence>
+    </>
   )
 }
 

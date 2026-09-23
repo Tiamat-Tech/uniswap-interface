@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId, AddressStringFormat, normalizeAddress } from '@universe/chains'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { AuctionEventName } from 'uniswap/src/features/telemetry/constants'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -60,6 +60,7 @@ function buildableParams(overrides: Partial<Params> = {}): Params {
     customizePool,
     walletAddress: WALLET,
     currencyAddress: zeroAddress,
+    isQuickLaunch: false,
     ...overrides,
   }
 }
@@ -91,6 +92,7 @@ function existingTokenParams(depositRaw: string, overrides: Partial<Params> = {}
     customizePool,
     walletAddress: WALLET,
     currencyAddress: zeroAddress,
+    isQuickLaunch: false,
     ...overrides,
   }
 }
@@ -136,6 +138,7 @@ describe('useCreateAuctionSubmit', () => {
         customizePool,
         walletAddress: WALLET,
         currencyAddress: zeroAddress,
+        isQuickLaunch: false,
       }),
     )
 
@@ -165,6 +168,97 @@ describe('useCreateAuctionSubmit', () => {
     expect(returned).toBeUndefined()
     expect(mockMutateAsync).not.toHaveBeenCalled()
     expect(result.current.error).toBeInstanceOf(AuctionStartTimePassedError)
+  })
+
+  // With a pre-bid window the auction OPENS at the pre-bid start, which is earlier than the
+  // Duration start date. The launch-time staleness guard has to watch that earlier timestamp:
+  // otherwise there is a window (15 minutes with the seeded default) where the auction's own
+  // start is already in the past, the client waves it through, and the backend rejects the
+  // request with the SDK's "Auction time cannot be in the past" after a wallet round-trip.
+  it('errors without calling the mutation when the PRE-BID start has already passed', async () => {
+    const params = buildableParams()
+    const stale: Params = {
+      ...params,
+      configureAuction: {
+        ...params.configureAuction,
+        // Emission start is still comfortably in the future...
+        startTime: new Date(Date.now() + MS_PER_DAY),
+        // ...but bidding was due to open a minute ago.
+        preBidStartTime: new Date(Date.now() - 60_000),
+      },
+    }
+    const { result } = renderHook(() => useCreateAuctionSubmit(stale))
+
+    let returned: Awaited<ReturnType<typeof result.current.onLaunch>>
+    await act(async () => {
+      returned = await result.current.onLaunch()
+    })
+
+    expect(returned).toBeUndefined()
+    expect(mockMutateAsync).not.toHaveBeenCalled()
+    expect(result.current.error).toBeInstanceOf(AuctionStartTimePassedError)
+  })
+
+  it('still launches when the pre-bid start is in the future', async () => {
+    mockMutateAsync.mockResolvedValue({
+      transactions: [{ to: '0xto', from: WALLET, data: '0x', value: '0x0', chainId: 1 }],
+      predictedTokenAddress: '0xToken',
+      predictedAuctionAddress: '0xAuction',
+      atomicallyBundleable: true,
+      requestId: 'req-prebid',
+    })
+    mockValidate.mockImplementation((req: unknown) => req)
+
+    const params = buildableParams()
+    const withWindow: Params = {
+      ...params,
+      configureAuction: {
+        ...params.configureAuction,
+        preBidStartTime: new Date(Date.now() + MS_PER_DAY - 15 * 60_000),
+      },
+    }
+    const { result } = renderHook(() => useCreateAuctionSubmit(withWindow))
+
+    await act(async () => {
+      await result.current.onLaunch()
+    })
+
+    // The guard must not fire on a valid window — this is the control for the test above.
+    expect(result.current.error).toBeUndefined()
+    expect(mockMutateAsync).toHaveBeenCalledOnce()
+  })
+
+  // Quick launch never renders the pre-bid module and the request builder drops the field there,
+  // so this guard must not reject a stale value the request will not send — that would disable a
+  // launch over a field the creator cannot see or clear.
+  it('ignores a stale pre-bid start in quick-launch mode', async () => {
+    mockMutateAsync.mockResolvedValue({
+      transactions: [{ to: '0xto', from: WALLET, data: '0x', value: '0x0', chainId: 1 }],
+      predictedTokenAddress: '0xToken',
+      predictedAuctionAddress: '0xAuction',
+      atomicallyBundleable: true,
+      requestId: 'req-quick-launch',
+    })
+    mockValidate.mockImplementation((req: unknown) => req)
+
+    const params = buildableParams({ isQuickLaunch: true })
+    const stale: Params = {
+      ...params,
+      configureAuction: {
+        ...params.configureAuction,
+        startTime: new Date(Date.now() + MS_PER_DAY),
+        // Left over from the manual flow before the switch — the request omits it.
+        preBidStartTime: new Date(Date.now() - 60_000),
+      },
+    }
+    const { result } = renderHook(() => useCreateAuctionSubmit(stale))
+
+    await act(async () => {
+      await result.current.onLaunch()
+    })
+
+    expect(result.current.error).toBeUndefined()
+    expect(mockMutateAsync).toHaveBeenCalledOnce()
   })
 
   it('errors without calling the mutation when the deposit exceeds the wallet balance', async () => {
@@ -211,7 +305,10 @@ describe('useCreateAuctionSubmit', () => {
     })
 
     const params = buildableParams({
-      xVerification: { xVerificationToken: 'token-1', boundWalletAddress: WALLET.toLowerCase() },
+      xVerification: {
+        xVerificationToken: 'token-1',
+        boundWalletAddress: normalizeAddress(WALLET, AddressStringFormat.Lowercase),
+      },
     })
     const { result } = renderHook(() => useCreateAuctionSubmit(params))
 

@@ -1,7 +1,8 @@
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
+import { normalizeTwitterHandle } from 'uniswap/src/features/dataApi/tokenDetails/tokenMetadataUtils'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 
 export function useExistingTokenProjectMetadata(currencyInfo: Maybe<CurrencyInfo>): {
@@ -27,7 +28,7 @@ export function useExistingTokenProjectMetadata(currencyInfo: Maybe<CurrencyInfo
 
   const description = project?.description ?? ''
   const websiteLink = project?.homepageUrl ?? ''
-  const xHandle = project?.twitterName ?? ''
+  const xHandle = normalizeTwitterHandle(project?.twitterName) ?? ''
   const isLoading = loading && !skip
 
   return useMemo(

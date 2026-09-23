@@ -10,6 +10,8 @@ export type LimitInfo = {
   parsedLimitPrice?: Price<Currency, Currency>
   limitOrderTrade?: LimitOrderTrade
   marketPrice?: Price<Currency, Currency>
+  // True when the market-price reference was rejected by a safety check, vs still loading
+  marketPriceRejected?: boolean
   fee?: SwapFeeInfo
 }
 

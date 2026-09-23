@@ -1,19 +1,18 @@
+import { areAddressesEqual, Platform } from '@universe/chains'
 import { isExtensionApp } from '@universe/environment'
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { Flex, iconSizes, Separator, Skeleton, SpaceTokens, Text, TouchableArea } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { ChevronsIn } from '@universe/mycelium/icons/ChevronsIn'
+import { ChevronsOut } from '@universe/mycelium/icons/ChevronsOut'
+import { memo, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch, useSelector } from 'react-redux'
-import { Flex, Separator, SpaceTokens, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { ChevronsIn } from 'ui/src/components/icons/ChevronsIn'
-import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
-import { Skeleton } from 'ui/src/loading/Skeleton'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
+import { AccountType } from 'uniswap/src/features/accounts/types'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { usePortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { EarnAnalyticsSurface, EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import { useEarnVaults } from 'uniswap/src/features/earn/hooks/useEarnVaults'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { useLogEarnSurfaceViewed } from 'uniswap/src/features/earn/hooks/useLogEarnSurfaceViewed'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { hasEarnPosition } from 'uniswap/src/features/earn/utils'
@@ -28,6 +27,8 @@ import { setHasSeenUnfundedEarnCardReveal } from 'wallet/src/features/behaviorHi
 import { DiscoveryVaultRow } from 'wallet/src/features/earn/DiscoveryVaultRow'
 import { EARNING_CARD_FRAME_PROPS } from 'wallet/src/features/earn/earnCardStyles'
 import { UnfundedEarnCard } from 'wallet/src/features/earn/UnfundedEarnCard'
+import { useEarnCardExpansion } from 'wallet/src/features/earn/useEarnCardExpansion'
+import { useAccounts } from 'wallet/src/features/wallet/hooks'
 
 type EarningEntry = {
   vault: EarnVaultInfo
@@ -37,12 +38,16 @@ type EarningEntry = {
 }
 
 export function HomeScreenEarningSection({
+  earnCardExpansionRequestId,
   evmAddress,
   isRevealReady,
   mb,
   mt,
   mx,
+  onEarnCardExpansionRequestHandled,
 }: {
+  /** Expands the card whenever a Home Earn deeplink request arrives. */
+  earnCardExpansionRequestId?: number
   evmAddress: Address
   /** Holds the unfunded card's one-time reveal until the section is actually visible. See UnfundedEarnCard. */
   isRevealReady?: boolean
@@ -52,16 +57,36 @@ export function HomeScreenEarningSection({
   mt?: SpaceTokens
   /** Optional horizontal margin, applied only when the section renders content. */
   mx?: SpaceTokens
+  /** Called after a rendered funded or unfunded card applies the matching expansion request. */
+  onEarnCardExpansionRequestHandled?: (requestId: number) => void
 }): JSX.Element | null {
-  const isEarnEnabled = useIsEarnEnabled()
   const { isTestnetModeEnabled } = useEnabledChains()
-  const isEarnAvailable = isEarnEnabled && !isTestnetModeEnabled
+  const isEarnAvailable = !isTestnetModeEnabled
+  // Keyed to the rendered address (not the active account) so future non-active-address
+  // consumers gate on the right wallet; case-insensitive since the prop's casing isn't
+  // guaranteed to match the accounts-map key.
+  const accounts = useAccounts()
+  const isViewOnlyWallet = useMemo(
+    () =>
+      Object.values(accounts).some(
+        (account) =>
+          account.type === AccountType.Readonly &&
+          areAddressesEqual({
+            addressInput1: { address: account.address, platform: Platform.EVM },
+            addressInput2: { address: evmAddress, platform: Platform.EVM },
+          }),
+      ),
+    [accounts, evmAddress],
+  )
 
   const { vaultsSortedByPosition, positionsByVaultId, isLoadingVaults, isLoadingPositions, isError, refetch } =
     useEarnVaults({ account: evmAddress, enabled: isEarnAvailable })
 
   // Gates the unfunded discovery card: only wallets holding something are prompted to earn.
-  const { data: portfolioTotal } = usePortfolioTotalValue({ evmAddress, enabled: isEarnAvailable })
+  const { data: portfolioTotal } = usePortfolioTotalValue({
+    evmAddress,
+    enabled: isEarnAvailable && !isViewOnlyWallet,
+  })
   const hasWalletBalance = (portfolioTotal?.balanceUSD ?? 0) > 0
 
   const entries = useMemo<EarningEntry[]>(() => {
@@ -77,16 +102,25 @@ export function HomeScreenEarningSection({
   }, [vaultsSortedByPosition, positionsByVaultId])
 
   // Vaults the wallet hasn't deposited into, surfaced as discovery rows when the card is expanded.
+  // View-only wallets can't deposit, so zero-deposit vault CTAs (discovery rows and the
+  // unfunded card, which requires discovery vaults) are hidden entirely.
   const discoveryVaults = useMemo<EarnVaultInfo[]>(
     () =>
-      vaultsSortedByPosition
-        .filter((vault) => !hasEarnPosition(positionsByVaultId.get(vault.id)))
-        .sort((vaultA, vaultB) => vaultB.apyPercent - vaultA.apyPercent),
-    [vaultsSortedByPosition, positionsByVaultId],
+      isViewOnlyWallet
+        ? []
+        : vaultsSortedByPosition
+            .filter((vault) => !hasEarnPosition(positionsByVaultId.get(vault.id)))
+            .sort((vaultA, vaultB) => vaultB.apyPercent - vaultA.apyPercent),
+    [isViewOnlyWallet, vaultsSortedByPosition, positionsByVaultId],
   )
   const isLoading = isLoadingVaults || isLoadingPositions
   const isUnfundedCardVisible =
-    entries.length === 0 && !isError && !isLoading && hasWalletBalance && discoveryVaults.length > 0
+    entries.length === 0 &&
+    !isError &&
+    !isLoading &&
+    hasWalletBalance &&
+    !isViewOnlyWallet &&
+    discoveryVaults.length > 0
 
   const dispatch = useDispatch()
   const hasSeenReveal = useSelector(selectHasSeenUnfundedEarnCardReveal)
@@ -100,7 +134,9 @@ export function HomeScreenEarningSection({
   }, [isEarningCardVisible, hasSeenReveal, dispatch])
 
   useLogEarnSurfaceViewed({
-    entryPoint: EarnEntryPoint.PortfolioEarnSection,
+    // The funded earning card and the unfunded discovery card are different surfaces to the
+    // user — keep them separable in analytics.
+    entryPoint: isUnfundedCardVisible ? EarnEntryPoint.HomeUnfundedEarnCard : EarnEntryPoint.PortfolioEarnSection,
     isVisible: isEarnAvailable && (entries.length > 0 || isUnfundedCardVisible),
     surface: isExtensionApp ? EarnAnalyticsSurface.Extension : EarnAnalyticsSurface.Mobile,
   })
@@ -122,12 +158,32 @@ export function HomeScreenEarningSection({
       return hasSeenReveal ? <EarningCardSkeleton mb={mb} mt={mt} mx={mx} /> : null
     }
     if (isUnfundedCardVisible) {
-      return <UnfundedEarnCard vaults={discoveryVaults} isRevealReady={isRevealReady} mb={mb} mt={mt} mx={mx} />
+      return (
+        <UnfundedEarnCard
+          vaults={discoveryVaults}
+          earnCardExpansionRequestId={earnCardExpansionRequestId}
+          isRevealReady={isRevealReady}
+          mb={mb}
+          mt={mt}
+          mx={mx}
+          onEarnCardExpansionRequestHandled={onEarnCardExpansionRequestHandled}
+        />
+      )
     }
     return null
   }
 
-  return <EarningCard entries={entries} discoveryVaults={discoveryVaults} mb={mb} mt={mt} mx={mx} />
+  return (
+    <EarningCard
+      entries={entries}
+      discoveryVaults={discoveryVaults}
+      earnCardExpansionRequestId={earnCardExpansionRequestId}
+      mb={mb}
+      mt={mt}
+      mx={mx}
+      onEarnCardExpansionRequestHandled={onEarnCardExpansionRequestHandled}
+    />
+  )
 }
 
 function EarningErrorCard({
@@ -199,20 +255,27 @@ function EarningCardSkeleton({ mb, mt, mx }: { mb?: SpaceTokens; mt?: SpaceToken
 function EarningCard({
   entries,
   discoveryVaults,
+  earnCardExpansionRequestId,
   mb,
   mt,
   mx,
+  onEarnCardExpansionRequestHandled,
 }: {
   entries: EarningEntry[]
   discoveryVaults: EarnVaultInfo[]
+  earnCardExpansionRequestId?: number
   mb?: SpaceTokens
   mt?: SpaceTokens
   mx?: SpaceTokens
+  onEarnCardExpansionRequestHandled?: (requestId: number) => void
 }): JSX.Element {
   const { t } = useTranslation()
   const { formatPercent, convertFiatAmountFormatted } = useLocalizationContext()
   const { navigateToEarnVault } = useWalletNavigation()
-  const [isExpanded, setIsExpanded] = useState(false)
+  const { isExpanded, toggleExpanded } = useEarnCardExpansion({
+    earnCardExpansionRequestId,
+    onEarnCardExpansionRequestHandled,
+  })
   const onSelectVault = useCallback(
     ({ vault, position }: { vault: EarnVaultInfo; position?: EarnPositionInfo }) => {
       navigateToEarnVault({ analyticsEntryPoint: EarnEntryPoint.PortfolioEarnSection, vault, position })
@@ -229,8 +292,6 @@ function EarningCard({
     })
     return { totalUsd: total, weightedApy: total > 0 ? weighted / total : 0 }
   }, [entries])
-
-  const toggleExpanded = (): void => setIsExpanded((prev) => !prev)
 
   return (
     <Flex {...EARNING_CARD_FRAME_PROPS} mt={mt} mb={mb ?? EARNING_CARD_FRAME_PROPS.mb} mx={mx}>

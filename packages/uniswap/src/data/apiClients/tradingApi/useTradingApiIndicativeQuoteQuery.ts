@@ -31,7 +31,13 @@ export function useTradingApiIndicativeQuoteQuery({
     queryKey,
     queryFn: params
       ? async (): ReturnType<typeof TradingApiClient.fetchQuote> => {
-          logSwapQuoteFetch({ chainId: params.tokenInChainId, isQuickRoute: true })
+          logSwapQuoteFetch({
+            chainId: params.tokenInChainId,
+            tokenOutChainId: params.tokenOutChainId,
+            tokenIn: params.tokenIn,
+            tokenOut: params.tokenOut,
+            isQuickRoute: true,
+          })
           return await TradingApiClient.fetchQuote({
             ...params,
             routingPreference: TradingApi.RoutingPreference.FASTEST,

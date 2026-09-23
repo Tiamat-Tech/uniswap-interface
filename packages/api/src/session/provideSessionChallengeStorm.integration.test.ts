@@ -16,6 +16,7 @@
  * Invariant (same as the sessions-package storm test): full init cycles (InitSession
  * RPCs) are CONSTANT in the number of gated quote polls — O(1), not O(M).
  */
+import { QueryObserver } from '@tanstack/react-query'
 import { SharedQueryClient } from '@universe/api/src/clients/base/SharedQueryClient'
 import { createTradingApiFetchClient } from '@universe/api/src/clients/trading/createTradingApiFetchClient'
 import { __resetSessionForTests, bootstrapSession, tryProvideSession } from '@universe/api/src/session/provideSession'
@@ -31,6 +32,8 @@ import {
   InMemoryDeviceIdService,
   InMemorySessionStorage,
   InMemoryUniswapIdentifierService,
+  MaxChallengeRetriesError,
+  sessionInitQuery,
 } from '@universe/sessions'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -81,7 +84,6 @@ function buildStuckSessionServices(): {
     getSessionService: () => sessionService,
     challengeSolverService,
     performanceTracker: { now: () => 0 },
-    getIsSessionUpgradeAutoEnabled: () => true,
   })
 
   return { initService, sessionService, initCycles: () => initCount, challenges: () => challengeCount }
@@ -147,5 +149,23 @@ describe('bootstrapSession production wiring — stuck-session challenge storm',
     //   Post-fix: 1 vs 1 (ready() fast-paths `error`) → equal → PASS.
     expect(manyPolls.initCycles).toBe(fewPolls.initCycles)
     expect(manyPolls.challenges).toBe(fewPolls.challenges)
+  })
+
+  it('propagates a failed session refetch from recover()', async () => {
+    const services = buildStuckSessionServices()
+    const session = bootstrapSession({ getService: () => services.initService })
+    const observer = new QueryObserver(SharedQueryClient, sessionInitQuery({ getService: () => services.initService }))
+
+    const unsubscribe = observer.subscribe(() => undefined)
+
+    try {
+      await vi.waitFor(() => {
+        expect(observer.getCurrentResult().isError).toBe(true)
+      })
+      await expect(session.recover()).rejects.toBeInstanceOf(MaxChallengeRetriesError)
+      expect(services.initCycles()).toBe(2)
+    } finally {
+      unsubscribe()
+    }
   })
 })

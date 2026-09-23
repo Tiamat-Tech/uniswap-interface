@@ -1,16 +1,15 @@
+import { borderRadii, TouchableArea } from '@universe/mycelium'
 import type { PropsWithChildren } from 'react'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ContextMenuAction, ContextMenuOnPressNativeEvent } from 'react-native-context-menu-view'
 import ContextMenu from 'react-native-context-menu-view'
-import { TouchableArea } from 'ui/src'
-import { borderRadii } from 'ui/src/theme'
+import { useContextMenuPressGate } from 'uniswap/src/components/menus/hooks/useContextMenuPressGate'
 import type { PositionItemContextMenuProps } from 'uniswap/src/components/portfolio/PositionItem/PositionItemContextMenu'
 import { useReportPositionAction } from 'uniswap/src/features/positions/hooks/useReportPositionAction'
 import { useTogglePositionVisibility } from 'uniswap/src/features/positions/hooks/useTogglePositionVisibility'
 import { ElementName, SectionName, UniswapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
-import { noop } from 'utilities/src/react/noop'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 
 type NativeMenuAction = {
@@ -83,9 +82,16 @@ export function PositionItemContextMenu({
 
   const style = useMemo(() => ({ borderRadius: borderRadii.rounded16 }), [])
 
+  const isMenuEnabled = menuActions.length > 0
+
+  const { onPressIn, onPressOut, handlePress } = useContextMenuPressGate({
+    onPress: onRowPress,
+    isMenuEnabled,
+  })
+
   return (
-    <ContextMenu actions={actions} disabled={menuActions.length === 0} style={style} onPress={onContextMenuPress}>
-      <TouchableArea onLongPress={noop} onPress={onRowPress ?? noop}>
+    <ContextMenu actions={actions} disabled={!isMenuEnabled} style={style} onPress={onContextMenuPress}>
+      <TouchableArea onPress={handlePress} onPressIn={onPressIn} onPressOut={onPressOut}>
         {children}
       </TouchableArea>
     </ContextMenu>

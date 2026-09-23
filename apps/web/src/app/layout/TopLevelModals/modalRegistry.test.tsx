@@ -38,9 +38,7 @@ describe('ModalRegistry', () => {
       const { container } = render(
         <ModalRenderer modalName={'INVALID_MODAL' as (typeof ModalName)[keyof typeof ModalName]} />,
       )
-      expect(container.innerHTML).toBe(
-        '<span style="display: contents;" class=""><div style="display: contents;"></div></span>',
-      )
+      expect(container.innerHTML).toBe('')
     })
 
     it('renders AddressClaimModal when modal is open', async () => {

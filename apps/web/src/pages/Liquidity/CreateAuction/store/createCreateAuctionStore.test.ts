@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { describe, expect, it } from 'vitest'
 import { tryParseCurrencyAmount } from '~/lib/utils/tryParseCurrencyAmount'
 import { getCustomPriceRangeLiquidityTotal } from '~/pages/Liquidity/CreateAuction/customPriceRanges'
@@ -11,6 +11,7 @@ import {
   MAX_POST_AUCTION_LIQUIDITY_TIERS,
   PostAuctionLiquidityAllocationType,
   PriceRangeStrategy,
+  RaiseCurrency,
   TokenMode,
 } from '~/pages/Liquidity/CreateAuction/types'
 import { percentOfSoldToLiquidityFromDepositAndLiquidityAmount } from '~/pages/Liquidity/CreateAuction/utils'
@@ -291,17 +292,20 @@ describe('createCreateAuctionStore', () => {
     })
   })
 
-  it('removes custom range rows and transfers liquidity percent to the last remaining row', () => {
+  it('removes custom range rows without moving their liquidity percent onto another row', () => {
     const store = createCreateAuctionStore()
     const { actions } = store.getState()
 
     actions.setPriceRangeStrategy(PriceRangeStrategy.CUSTOM_RANGE)
     actions.addCustomPriceRangePreset(CUSTOM_PRICE_RANGE_PRESETS[0])
     actions.addCustomPriceRangePreset(CUSTOM_PRICE_RANGE_PRESETS[1])
+    actions.updateCustomPriceRangeLiquidityPercent('custom-range-1', 60)
     actions.updateCustomPriceRangeLiquidityPercent('custom-range-2', 25)
     actions.removeCustomPriceRange('custom-range-2')
 
-    expect(store.getState().customizePool.customPriceRanges.map((entry) => entry.liquidityPercent)).toEqual([100, 25])
+    // The removed 25% is not redistributed: it drops out of the total and the full-range position
+    // picks it up.
+    expect(store.getState().customizePool.customPriceRanges.map((entry) => entry.liquidityPercent)).toEqual([60, 0])
   })
 
   it('limits custom price ranges to the maximum entry count', () => {
@@ -338,5 +342,76 @@ describe('createCreateAuctionStore', () => {
 
     actions.setXVerification(undefined)
     expect(store.getState().xVerification).toBeUndefined()
+  })
+
+  it('clears a stale quick-launch graduation pin on a floor edit', () => {
+    const store = createCreateAuctionStore()
+    const { actions } = store.getState()
+
+    // Simulate a quick-launch handoff that pinned a graduation price.
+    actions.setGraduationPrice('0.000000004')
+    expect(store.getState().configureAuction.graduationPrice).toBe('0.000000004')
+
+    // A manual floor edit must drop the pin so it can't ship on a manually-configured auction
+    // whose floor may now exceed it (backend enforces graduation >= floor).
+    actions.setFloorPrice('0.1')
+    expect(store.getState().configureAuction.graduationPrice).toBeUndefined()
+  })
+
+  it('clears both mode-specific fields when the quick-launch toggle flips', () => {
+    const store = createCreateAuctionStore()
+    const { actions } = store.getState()
+
+    actions.setGraduationPrice('0.000000004')
+    actions.setPreBidStartTime(new Date('2026-06-15T00:00:00.000Z'))
+
+    actions.setQuickLaunch(true)
+
+    // The graduation pin is quick-launch-only and the pre-bid window is manual-only; each has to
+    // drop on the toggle so neither rides a mode switch onto an auction that never displayed it.
+    expect(store.getState().configureAuction.graduationPrice).toBeUndefined()
+    expect(store.getState().configureAuction.preBidStartTime).toBeUndefined()
+  })
+})
+
+// The store keeps the selection as the user made it; resolving it against the launch chain is the
+// read sites' job (`useEffectiveRaiseCurrency`, covered by its own test and the step tests). So
+// these assert the stored value — asserting through the resolver would pass whatever the store did.
+describe('stored raise currency with the picker hidden', () => {
+  it('keeps a stablecoin selection on a chain whose options differ', () => {
+    const store = createCreateAuctionStore()
+    const { actions } = store.getState()
+    actions.updateCreateNewTokenField('network', UniverseChainId.Mainnet)
+    actions.setRaiseCurrency(RaiseCurrency.STABLECOIN)
+    actions.commitTokenFormAndAdvance()
+
+    expect(store.getState().configureAuction.raiseCurrency).toBe(RaiseCurrency.STABLECOIN)
+  })
+
+  it('keeps the selection and the floor price when committing on a same-token chain', () => {
+    const store = createCreateAuctionStore()
+    const { actions } = store.getState()
+    actions.setRaiseCurrency(RaiseCurrency.STABLECOIN)
+    actions.setFloorPrice('0.25')
+    actions.updateCreateNewTokenField('network', UniverseChainId.Arc)
+    actions.commitTokenFormAndAdvance()
+
+    const { raiseCurrency, floorPrice } = store.getState().configureAuction
+    expect(raiseCurrency).toBe(RaiseCurrency.STABLECOIN)
+    expect(floorPrice).toBe('0.25')
+  })
+
+  it('leaves the selection untouched when the network changes after the commit', () => {
+    const store = createCreateAuctionStore()
+    const { actions } = store.getState()
+    actions.updateCreateNewTokenField('network', UniverseChainId.Mainnet)
+    actions.setRaiseCurrency(RaiseCurrency.STABLECOIN)
+    actions.commitTokenFormAndAdvance()
+    // Reachable from the step indicator: the network changes without the commit running again.
+    actions.updateCreateNewTokenField('network', UniverseChainId.Arc)
+
+    const { tokenForm, configureAuction } = store.getState()
+    expect(configureAuction.raiseCurrency).toBe(RaiseCurrency.STABLECOIN)
+    expect(tokenForm.mode === TokenMode.CREATE_NEW && tokenForm.network).toBe(UniverseChainId.Arc)
   })
 })

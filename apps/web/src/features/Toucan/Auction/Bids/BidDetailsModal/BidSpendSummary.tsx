@@ -1,5 +1,5 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
 import { useBidStatusColors } from '~/features/Toucan/Auction/hooks/useBidStatusColors'
 import { type BidDisplayState } from '~/features/Toucan/Auction/utils/bidDetails'

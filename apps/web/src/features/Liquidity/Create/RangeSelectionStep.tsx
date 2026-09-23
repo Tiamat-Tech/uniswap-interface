@@ -1,13 +1,19 @@
 /* oxlint-disable max-lines */
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { Button, Flex, Text } from '@universe/mycelium'
+import { ENTER_EXIT_PRESET_CLASSES } from '@universe/mycelium/compat'
+import { Presence } from '@universe/mycelium/presence'
+import { SegmentedControl } from '@universe/mycelium/segmented-control-compat'
+import { useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, Button, Flex, SegmentedControl, Text, useMedia, useSporeColors } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { fonts, zIndexes } from 'ui/src/theme'
+import { fonts } from 'ui/src/theme/fonts'
+import { zIndexes } from 'ui/src/theme/zIndexes'
 import { AmountInput } from 'uniswap/src/components/AmountInput/AmountInput'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { PositionInfo } from 'uniswap/src/features/positions/types'
+import { useEvent } from 'utilities/src/react/hooks'
 import { LPGeoRestrictionBanner } from '~/components/GeoRestriction/LPGeoRestrictionBanner'
 import { D3LiquidityRangeInput } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeInput'
 import { useDefaultInitialPrice } from '~/features/Liquidity/Create/hooks/useDefaultInitialPrice'
@@ -19,6 +25,7 @@ import { RangeSelectionInput } from '~/features/Liquidity/Create/RangeAmountInpu
 import { PriceRangeState } from '~/features/Liquidity/Create/types'
 import { DisplayCurrentPrice } from '~/features/Liquidity/DisplayCurrentPrice'
 import type { LPGeoRestrictionCopy } from '~/features/Liquidity/useLPGeoRestriction'
+import { clampMaxTick, clampMinTick, setMinMaxTickRange } from '~/features/Liquidity/utils/clampTickRange'
 import { getBaseAndQuoteCurrencies } from '~/features/Liquidity/utils/currency'
 import { getPriceDifference } from '~/features/Liquidity/utils/getPriceDifference'
 import { isInvalidPrice, isInvalidRange } from '~/features/Liquidity/utils/priceRangeInfo'
@@ -104,19 +111,17 @@ const InitialPriceInput = () => {
 
   const handleSelectInitialPriceBaseToken = useCallback(
     (option: string) => {
-      if (option === TOKEN0?.symbol) {
-        setPriceRangeState((prevState) => ({
-          ...prevState,
-          priceInverted: false,
-          initialPrice: otherCurrencyPrice ?? '',
-        }))
-      } else {
-        setPriceRangeState((prevState) => ({
-          ...prevState,
-          priceInverted: true,
-          initialPrice: otherCurrencyPrice ?? '',
-        }))
-      }
+      // Inverting the denomination makes any range set in the old orientation meaningless, so clear
+      // the ticks (as the existing-pool token toggle does). Otherwise the stale ticks survive the
+      // chart's remount and `reset` reuses them via `providedMinTick`/`providedMaxTick` instead of
+      // recomputing the default range in the new orientation.
+      setPriceRangeState((prevState) => ({
+        ...prevState,
+        priceInverted: option !== TOKEN0?.symbol,
+        initialPrice: otherCurrencyPrice ?? '',
+        minTick: undefined,
+        maxTick: undefined,
+      }))
     },
     [TOKEN0?.symbol, otherCurrencyPrice, setPriceRangeState],
   )
@@ -204,16 +209,9 @@ const InitialPriceInput = () => {
             <Text variant="body2" color="$neutral2" $md={{ variant: 'body3' }} flexShrink={0}>
               {quoteCurrency?.symbol} = 1 {baseCurrency?.symbol}
             </Text>
-            <AnimatePresence>
+            <Presence>
               {priceDifference?.warning && (
-                <Flex
-                  row
-                  alignItems="center"
-                  gap="$spacing4"
-                  animation="fast"
-                  exitStyle={{ opacity: 0 }}
-                  enterStyle={{ opacity: 0 }}
-                >
+                <Flex row alignItems="center" gap="$spacing4" className={ENTER_EXIT_PRESET_CLASSES.fadeInOut}>
                   <AlertTriangleFilled
                     size={16}
                     color={priceDifference.warning === WarningSeverity.Medium ? '$statusWarning' : '$statusCritical'}
@@ -233,7 +231,7 @@ const InitialPriceInput = () => {
                   </Text>
                 </Flex>
               )}
-            </AnimatePresence>
+            </Presence>
           </Flex>
         </Flex>
         <Flex
@@ -302,6 +300,7 @@ export const SelectPriceRangeStep = ({
     positionState: { fee, hook, migratingPosition },
     currencies,
     creatingPoolOrPair,
+    poolHasNoActiveLiquidity,
     poolOrPairLoading,
     poolId,
     protocolVersion,
@@ -337,6 +336,30 @@ export const SelectPriceRangeStep = ({
     },
     [TOKEN0?.symbol, setPriceRangeState],
   )
+
+  // The chart store is built in a useState initializer, so it holds whichever callbacks it was
+  // given on the first render for its whole life. useEvent keeps the identity stable while the body
+  // reads the latest tickSpacing — without it, a fee-tier change would clamp with the old spacing
+  // even though the store's own spacing is synced.
+  const setMinTick = useEvent((tick?: number) => {
+    const tickSpacing = poolOrPair && 'tickSpacing' in poolOrPair ? poolOrPair.tickSpacing : undefined
+    setPriceRangeState((prev) => ({
+      ...prev,
+      minTick: tickSpacing === undefined ? tick : clampMinTick({ tick, maxTick: prev.maxTick, tickSpacing }),
+    }))
+  })
+
+  const setMaxTick = useEvent((tick?: number) => {
+    const tickSpacing = poolOrPair && 'tickSpacing' in poolOrPair ? poolOrPair.tickSpacing : undefined
+    setPriceRangeState((prev) => ({
+      ...prev,
+      maxTick: tickSpacing === undefined ? tick : clampMaxTick({ tick, minTick: prev.minTick, tickSpacing }),
+    }))
+  })
+
+  const setMinMaxTick = useEvent(({ minTick, maxTick }: { minTick?: number; maxTick?: number }) => {
+    setPriceRangeState((prev) => setMinMaxTickRange({ prev, minTick, maxTick }))
+  })
 
   const handleSelectRange = useCallback(
     (option: RangeSelection) => {
@@ -474,6 +497,7 @@ export const SelectPriceRangeStep = ({
               quoteCurrency={quoteCurrency}
               sdkCurrencies={currencies.sdk}
               creatingPoolOrPair={creatingPoolOrPair}
+              poolHasNoActiveLiquidity={poolHasNoActiveLiquidity}
               currencyControlOptions={controlOptions}
               priceInverted={priceRangeState.priceInverted}
               feeTier={fee.feeAmount}
@@ -483,6 +507,7 @@ export const SelectPriceRangeStep = ({
               protocolVersion={protocolVersion}
               poolId={poolId}
               poolOrPairLoading={poolOrPairLoading}
+              isInitialPriceDirty={priceRangeState.isInitialPriceDirty}
               price={price}
               currentPrice={Number(price?.toSignificant())}
               inputMode={priceRangeState.inputMode}
@@ -491,22 +516,9 @@ export const SelectPriceRangeStep = ({
               maxTick={priceRangeState.maxTick}
               isFullRange={priceRangeState.fullRange}
               handleSelectToken={handleSelectToken}
-              setMinTick={(tick) => {
-                setPriceRangeState((prev) => {
-                  if (tick !== undefined && prev.maxTick !== undefined && tick >= prev.maxTick) {
-                    return { ...prev, minTick: prev.maxTick - poolOrPair.tickSpacing }
-                  }
-                  return { ...prev, minTick: tick }
-                })
-              }}
-              setMaxTick={(tick) => {
-                setPriceRangeState((prev) => {
-                  if (tick !== undefined && prev.minTick !== undefined && tick <= prev.minTick) {
-                    return { ...prev, maxTick: prev.minTick + poolOrPair.tickSpacing }
-                  }
-                  return { ...prev, maxTick: tick }
-                })
-              }}
+              setMinTick={setMinTick}
+              setMaxTick={setMaxTick}
+              setMinMaxTick={setMinMaxTick}
               setIsFullRange={(isFullRange: boolean) => {
                 handleSelectRange(isFullRange ? RangeSelection.FULL : RangeSelection.CUSTOM)
               }}

@@ -343,7 +343,7 @@ describe('usePortfolioChartSeries', () => {
     expect(result.current.availableCategories).toEqual([PortfolioChartCategory.Tokens, PortfolioChartCategory.Earn])
   })
 
-  it('omits disabled Earn and pools categories even when the response contains their series', () => {
+  it('omits the disabled pools category even when the response contains its series', () => {
     const chartData = makeChartResponse({
       points: [{ timestamp: 1700000000, value: 190 }],
       tokens: [{ timestamp: 1700000000, value: 100 }],
@@ -355,7 +355,6 @@ describe('usePortfolioChartSeries', () => {
         chartData,
         selectedPeriod: ChartPeriod.DAY,
         selectedCategory: PortfolioChartCategory.Total,
-        earnEnabled: true,
         poolsEnabled: false,
       }),
     )

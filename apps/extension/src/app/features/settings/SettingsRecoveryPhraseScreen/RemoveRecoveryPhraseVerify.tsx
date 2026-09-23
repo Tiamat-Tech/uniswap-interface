@@ -1,3 +1,6 @@
+import { Flex, inputStyles, Text } from '@universe/mycelium'
+import { LabeledCheckboxCompat as LabeledCheckbox } from '@universe/mycelium/checkbox-compat'
+import { TrashFilled } from '@universe/mycelium/icons/TrashFilled'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
@@ -6,8 +9,6 @@ import { PasswordInput } from 'src/app/components/PasswordInput'
 import { removeAllDappConnectionsFromExtension } from 'src/app/features/dapp/actions'
 import { SettingsRecoveryPhrase } from 'src/app/features/settings/SettingsRecoveryPhraseScreen/SettingsRecoveryPhrase'
 import { focusOrCreateOnboardingTab } from 'src/app/navigation/focusOrCreateOnboardingTab'
-import { Flex, inputStyles, LabeledCheckbox, Text } from 'ui/src'
-import { TrashFilled } from 'ui/src/components/icons'
 import { setIsTestnetModeEnabled } from 'uniswap/src/features/settings/slice'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -59,10 +60,9 @@ export function RemoveRecoveryPhraseVerify(): JSX.Element {
     await Keyring.removePassword()
 
     await removeAllDappConnectionsFromExtension()
-    // oxlint-disable-next-line typescript/await-thenable -- biome-parity: oxlint is stricter here
-    await dispatch(setIsTestnetModeEnabled(false))
+    dispatch(setIsTestnetModeEnabled(false))
 
-    await dispatch(
+    dispatch(
       editAccountActions.trigger({
         type: EditAccountAction.Remove,
         accounts: accountsToRemove,

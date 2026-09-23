@@ -1,12 +1,29 @@
 import { EarnPlanAction, PlanStatus, PlanStepStatus, SwapType } from '@uniswap/client-data-api/dist/data/v1/plan_pb'
 import type { PlanActivity, PlanTransaction, TokenAmount } from '@uniswap/client-data-api/dist/data/v1/types_pb'
+import { TradingApi } from '@universe/api'
 import { EarnAction } from '@universe/api/src/clients/trading/__generated__/models/EarnAction'
+import { UniverseChainId } from '@universe/chains'
 import { DAI } from 'uniswap/src/constants/tokens'
 import { AssetType } from 'uniswap/src/entities/assets'
 import extractPlanDetails from 'uniswap/src/features/activity/extract/extractPlanDetails'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { SAMPLE_SEED_ADDRESS_1, SAMPLE_SEED_ADDRESS_2 } from 'uniswap/src/test/fixtures'
+
+// The DAPI `SwapType` enum has no MARGIN_* members yet (indexer migration is separate work) —
+// stub the DAPI→TAPI mapper so SwapType.UNKNOWN simulates a future margin activity reaching this
+// extractor, while every other SwapType keeps its real mapping (other tests rely on that).
+vi.mock('uniswap/src/features/activity/extract/statusMappers', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('uniswap/src/features/activity/extract/statusMappers')>()
+  return {
+    ...actual,
+    mapDAPIPlanActivitySwapTypeToTAPIPlanStepType: (
+      swapType: Parameters<typeof actual.mapDAPIPlanActivitySwapTypeToTAPIPlanStepType>[0],
+    ): TradingApi.PlanStepType | undefined =>
+      swapType === SwapType.UNKNOWN
+        ? TradingApi.PlanStepType.MARGIN_OPEN
+        : actual.mapDAPIPlanActivitySwapTypeToTAPIPlanStepType(swapType),
+  }
+})
 
 const PLAN_ID = 'plan-id'
 const SWAPPER = SAMPLE_SEED_ADDRESS_1
@@ -155,5 +172,25 @@ describe(extractPlanDetails, () => {
     )
 
     expect(details?.typeInfo.earnAction).toBeUndefined()
+  })
+
+  it('does not throw on an activity that maps to a MARGIN_* step type and routes it to CHAINED', () => {
+    const details = extractPlanDetails(
+      planTransaction({
+        assetsIn: [tokenAmount(DAI.address, '1000000')],
+        assetsOut: [tokenAmount(VAULT_ADDRESS, '999000')],
+        activities: [
+          planActivity({
+            swapType: SwapType.UNKNOWN, // stubbed above to resolve to MARGIN_OPEN
+            tokenInAddress: DAI.address,
+            tokenOutAddress: VAULT_ADDRESS,
+            tokenInAmount: '1000000',
+            tokenOutAmount: '999000',
+          }),
+        ],
+      }),
+    )
+
+    expect(details?.typeInfo.stepDetails[0]?.routing).toBe(TradingApi.Routing.CHAINED)
   })
 })

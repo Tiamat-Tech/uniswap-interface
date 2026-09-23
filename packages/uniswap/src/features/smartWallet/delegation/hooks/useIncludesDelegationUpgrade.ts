@@ -1,6 +1,6 @@
+import type { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useUniswapContextSelector } from 'uniswap/src/contexts/UniswapContext'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 /**
  * Returns true when a pending transaction's delegation is a smart wallet *update*

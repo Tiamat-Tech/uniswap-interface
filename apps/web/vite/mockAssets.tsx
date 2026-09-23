@@ -35,6 +35,14 @@ vi.mock('ui/src/components/Unicon', () => ({
     return React.createElement('span', { 'data-testid': 'unicon' }, '🔵')
   },
 }))
+// The mycelium Unicon gets the same placeholder: converted call sites otherwise render the real
+// SVG (address-derived paths), which is avatar noise in web snapshots exactly like the legacy one.
+vi.mock('@universe/mycelium', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  Unicon: ({ ..._props }: any) => {
+    return React.createElement('span', { 'data-testid': 'unicon' }, '🔵')
+  },
+}))
 
 vi.mock('ui/src/assets', () => ({
   ALL_NETWORKS_LOGO: 'all-networks-logo.png',

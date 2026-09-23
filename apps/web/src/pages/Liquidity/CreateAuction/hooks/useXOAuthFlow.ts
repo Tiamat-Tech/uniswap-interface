@@ -1,8 +1,8 @@
 import { GetXAuthUrlRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/x_verification_pb'
+import { Platform } from '@universe/chains'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { XVerificationClient } from 'uniswap/src/data/apiClients/liquidityService/XVerificationClient'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useActiveAddress } from '~/features/accounts/store/hooks'
 import { useCreateAuctionStoreActions } from '~/pages/Liquidity/CreateAuction/CreateAuctionContext'
 

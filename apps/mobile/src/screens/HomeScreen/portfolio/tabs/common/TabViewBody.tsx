@@ -1,3 +1,4 @@
+import { useDeviceDimensions } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useCallback, useMemo, useState } from 'react'
 import { Freeze } from 'react-freeze'
 import type { SharedValue } from 'react-native-reanimated'
@@ -8,7 +9,6 @@ import { HomeScreenPoolsTab } from 'src/screens/HomeScreen/portfolio/tabs/pools/
 import type { PoolsTabRenderData } from 'src/screens/HomeScreen/portfolio/tabs/pools/hooks/usePoolsListRenderData'
 import { HomeScreenTokensTab } from 'src/screens/HomeScreen/portfolio/tabs/tokens/HomeScreenTokensTab'
 import { HomeTab, type HomeRoute, type NftTabRenderData } from 'src/screens/HomeScreen/portfolio/types'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
 import type { PositionStatusFilterValue } from 'uniswap/src/features/positions/components/PositionStatusFilter'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
@@ -116,6 +116,7 @@ export const TabViewBody = memo(function TabViewBodyInner({
                 <HomeScreenPoolsTab
                   testID={TestID.PoolsTab}
                   owner={owner}
+                  isActiveTab={isActive}
                   bodyOffsetY={bodyOffsetY}
                   poolsListRenderData={poolsListRenderData}
                   statusFilter={poolsStatusFilter}

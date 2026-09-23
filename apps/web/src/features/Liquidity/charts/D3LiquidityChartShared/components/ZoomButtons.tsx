@@ -1,13 +1,12 @@
-import { Flex, TouchableArea, TouchableAreaProps } from 'ui/src'
-import { Expand } from 'ui/src/components/icons/Expand'
-import { SearchMinus } from 'ui/src/components/icons/SearchMinus'
-import { SearchPlus } from 'ui/src/components/icons/SearchPlus'
+import { Flex, TouchableArea, type TouchableAreaCompatProps } from '@universe/mycelium'
+import { Expand } from '@universe/mycelium/icons/Expand'
+import { SearchMinus } from '@universe/mycelium/icons/SearchMinus'
+import { SearchPlus } from '@universe/mycelium/icons/SearchPlus'
 
-const ZoomOptionButton = ({ children, ...props }: TouchableAreaProps) => {
+const ZoomOptionButton = ({ children, ...props }: TouchableAreaCompatProps) => {
   return (
     <TouchableArea
-      animation="100ms"
-      animateOnly={['opacity']}
+      transition="opacity 100ms ease-in-out"
       backgroundColor="$transparent"
       hoverStyle={{ backgroundColor: '$transparent', opacity: 0.8 }}
       pressStyle={{ backgroundColor: '$surface3', opacity: 0.8 }}

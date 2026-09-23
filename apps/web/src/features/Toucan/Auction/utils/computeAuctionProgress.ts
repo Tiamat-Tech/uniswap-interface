@@ -1,7 +1,8 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import type { Checkpoint } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
 import type { AuctionDetails, AuctionProgressData } from '~/features/Toucan/Auction/store/types'
-import { AuctionOutcome, AuctionProgressState } from '~/features/Toucan/Auction/store/types'
+import { AuctionCheckpointLoadState, AuctionOutcome, AuctionProgressState } from '~/features/Toucan/Auction/store/types'
+import { safeBigInt } from '~/features/Toucan/Auction/utils/safeBigInt'
 
 function getAuctionProgressState({
   currentBlock,
@@ -28,39 +29,61 @@ function getAuctionProgressState({
 }
 
 /**
- * Computes whether the auction has graduated (required currency raised)
- * Graduation occurs when currencyRaised >= requiredCurrencyRaised
+ * Whether the auction has graduated (currencyRaised >= requiredCurrencyRaised), or undefined
+ * while either side is absent or malformed — so no caller can read missing data as a shortfall.
+ * Both are proto3 strings: an omitted field arrives as `''`, so a falsy check could not tell it
+ * apart from a real `'0'`. safeBigInt draws that line.
+ *
+ * Exported so `useAuctionCheckpointDiagnostics` can ask "is this pair decidable?" against the
+ * checkpoint being published this render, rather than against the store's `hasMetThreshold` (which
+ * still reflects the previous checkpoint at that point in the commit). Undecidability must mean the
+ * same thing in both places or the diagnostic and the outcome drift apart.
+ *
  * @param currencyRaised - Currency raised from checkpoint (bigint string)
  * @param requiredCurrencyRaised - Required currency to graduate (bigint string)
- * @returns Whether the auction has graduated
  */
-function computeIsGraduated({
+export function computeIsGraduated({
   currencyRaised,
   requiredCurrencyRaised,
 }: {
   currencyRaised: string | undefined
   requiredCurrencyRaised: string | undefined
-}): boolean {
-  if (!currencyRaised || !requiredCurrencyRaised) {
-    return false
+}): boolean | undefined {
+  const raised = safeBigInt(currencyRaised)
+  const required = safeBigInt(requiredCurrencyRaised)
+  if (raised === null || required === null) {
+    return undefined
   }
-  try {
-    return BigInt(currencyRaised) >= BigInt(requiredCurrencyRaised)
-  } catch {
-    return false
-  }
+  return raised >= required
 }
 
 /**
  * Derives the explicit auction outcome. There is no failure flag on-chain or in the API:
  * a failed launch is an ended auction that never graduated.
  */
-function computeOutcome({ state, isGraduated }: { state: AuctionProgressState; isGraduated: boolean }): AuctionOutcome {
+function computeOutcome({
+  state,
+  hasMetThreshold,
+  checkpointSettledEmpty,
+}: {
+  state: AuctionProgressState
+  hasMetThreshold: boolean | undefined
+  checkpointSettledEmpty: boolean
+}): AuctionOutcome {
   switch (state) {
     case AuctionProgressState.UNKNOWN:
       return AuctionOutcome.UNKNOWN
     case AuctionProgressState.ENDED:
-      return isGraduated ? AuctionOutcome.GRADUATED : AuctionOutcome.FAILED
+      if (hasMetThreshold !== undefined) {
+        return hasMetThreshold ? AuctionOutcome.GRADUATED : AuctionOutcome.FAILED
+      }
+      // Threshold undecided. A *settled* checkpoint is authoritative about its own emptiness: the
+      // response arrived and carried no checkpoint, so this ended auction never raised anything
+      // and genuinely failed. In flight is not authoritative (wait), and neither is an error —
+      // GetLatestCheckpoint 404s on an address it can't resolve to an auction, and calling that a
+      // failed launch is exactly the false accusation this function exists to avoid. Both keep
+      // UNKNOWN; the error is logged in useAuctionCheckpointDiagnostics so it isn't a silent wait.
+      return checkpointSettledEmpty ? AuctionOutcome.FAILED : AuctionOutcome.UNKNOWN
     default:
       // Graduation can latch before the end block; the outcome stays ACTIVE until the auction ends.
       return AuctionOutcome.ACTIVE
@@ -74,16 +97,21 @@ function computeOutcome({ state, isGraduated }: { state: AuctionProgressState; i
  * @param params.currentBlock - The current block number
  * @param params.auctionDetails - The auction details containing start/end blocks and amount
  * @param params.checkpointData - Live checkpoint data containing totalCleared for graduation
+ * @param params.checkpointLoadState - Whether the checkpoint request has settled. Required, not
+ *   defaulted: an omitted load state would silently read as "still loading" and strand an ended
+ *   auction on UNKNOWN forever, which is the failure mode this parameter was added to close.
  * @returns Computed auction progress state and derived values
  */
 export function computeAuctionProgress({
   currentBlock,
   auctionDetails,
   checkpointData,
+  checkpointLoadState,
 }: {
   currentBlock: number | undefined
   auctionDetails: AuctionDetails | null
   checkpointData: PlainMessage<Checkpoint> | null
+  checkpointLoadState: AuctionCheckpointLoadState
 }): AuctionProgressData {
   const startBlockNum = auctionDetails?.startBlock ? Number(auctionDetails.startBlock) : undefined
   const endBlockNum = auctionDetails?.endBlock ? Number(auctionDetails.endBlock) : undefined
@@ -106,17 +134,22 @@ export function computeAuctionProgress({
     }
   }
 
-  // Graduation occurs when currencyRaised >= requiredCurrencyRaised
-  const isGraduated = computeIsGraduated({
+  // Graduation occurs when currencyRaised >= requiredCurrencyRaised; undefined until both load.
+  const hasMetThreshold = computeIsGraduated({
     currencyRaised: checkpointData?.currencyRaised,
     requiredCurrencyRaised: auctionDetails?.requiredCurrencyRaised,
   })
+
+  const checkpointSettledEmpty = checkpointLoadState === AuctionCheckpointLoadState.Success && !checkpointData
 
   return {
     state,
     blocksRemaining,
     progressPercentage,
-    isGraduated,
-    outcome: computeOutcome({ state, isGraduated }),
+    hasMetThreshold,
+    // Undecided collapses to false here (fail closed for the boolean consumers); `hasMetThreshold`
+    // and `outcome` are the fields that distinguish undecided from genuinely below target.
+    isGraduated: hasMetThreshold === true,
+    outcome: computeOutcome({ state, hasMetThreshold, checkpointSettledEmpty }),
   }
 }

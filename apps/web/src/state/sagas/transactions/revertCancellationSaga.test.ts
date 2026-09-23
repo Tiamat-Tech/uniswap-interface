@@ -1,6 +1,5 @@
 import { TradingApi } from '@universe/api'
 import { getFeatureFlag } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { buildSingleCancellation } from 'uniswap/src/features/transactions/cancel/cancelOrderFactory'
@@ -40,6 +39,7 @@ vi.mock('uniswap/src/features/telemetry/send', () => ({ sendAnalyticsEvent: vi.f
 vi.mock('~/hooks/useSelectChain', () => ({ useSelectChain: vi.fn() }))
 
 import { configureStore } from '@reduxjs/toolkit'
+import { UniverseChainId } from '@universe/chains'
 import createSagaMiddleware from 'redux-saga'
 // Import after mocks
 import { revertCancellationSaga } from '~/state/sagas/transactions/revertCancellationSaga'

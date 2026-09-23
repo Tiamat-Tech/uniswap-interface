@@ -1,15 +1,17 @@
 import { DefaultTheme, NavigationContainer, NavigationIndependentTree } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React from 'react'
 import { exploreNavigationRef } from 'src/app/navigation/navigationRef'
 import { navNativeStackOptions } from 'src/app/navigation/navStackOptions'
 import { startTracking, stopTracking } from 'src/app/navigation/trackingHelpers'
 import { ExploreStackParamList } from 'src/app/navigation/types'
 import { HorizontalEdgeGestureTarget } from 'src/components/layout/screens/EdgeGestureTarget'
+import { CategoryDetailsScreen } from 'src/screens/CategoryDetailsScreen/CategoryDetailsScreen'
+import { CollectionsScreen } from 'src/screens/CollectionsScreen/CollectionsScreen'
 import { ExploreScreen } from 'src/screens/ExploreScreen'
 import { ExternalProfileScreen } from 'src/screens/ExternalProfileScreen'
 import { TokenDetailsScreen } from 'src/screens/TokenDetailsScreen/TokenDetailsScreen'
-import { useSporeColors } from 'ui/src'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
 
 const ExploreStack = createNativeStackNavigator<ExploreStackParamList>()
@@ -43,6 +45,18 @@ export function ExploreStackNavigator({
               component={TokenDetailsScreen}
               name={MobileScreens.TokenDetails}
               // Edge-only swipe-back: full-screen gesture fights the vertical list scroll on iOS and pops back on near-vertical drags.
+              options={tokenDetailsScreenOptions}
+            />
+            <ExploreStack.Screen
+              component={CategoryDetailsScreen}
+              name={MobileScreens.CategoryDetails}
+              // Edge-only swipe-back, same rationale as TokenDetails: the screen body is a vertical list.
+              options={tokenDetailsScreenOptions}
+            />
+            <ExploreStack.Screen
+              component={CollectionsScreen}
+              name={MobileScreens.Collections}
+              // Edge-only swipe-back, same rationale as TokenDetails: the screen body is a vertical list.
               options={tokenDetailsScreenOptions}
             />
           </ExploreStack.Group>

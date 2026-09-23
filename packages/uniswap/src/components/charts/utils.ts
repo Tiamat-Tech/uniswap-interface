@@ -65,3 +65,48 @@ export function getLowVarianceAxisDecimals(min: number, max: number): number | u
   // One digit finer than the range's magnitude resolves the gridline spacing without over-cluttering.
   return Math.min(MAX_AXIS_DECIMALS, Math.max(2, Math.ceil(-Math.log10(range)) + 1))
 }
+
+/**
+ * Appends the current spot price to the end of a historical price series, so the chart line stays
+ * fresh between backend refetches instead of ending at the last completed bucket. If the spot price
+ * falls within the same time window as the last entry, that entry is updated in place; otherwise a
+ * new trailing entry is added. No-ops when there's no price or fewer than two entries (not enough to
+ * infer the series' time granularity).
+ *
+ * Platform-agnostic: callers supply accessors/factories so this works with any chart point shape
+ * (e.g. web's OHLC `PriceChartData` keyed by `time`, or mobile's `{ timestamp, value }` line points).
+ * `TTime` lets branded timestamp types (web's lightweight-charts `UTCTimestamp`) flow from `now`
+ * into the factories uncast. Returns a new array/entry rather than mutating in place, since callers
+ * may hold entries shared elsewhere (e.g. react-query's cached `select` output).
+ */
+export function appendLiveSpotPriceEntry<T, TTime extends number = number>({
+  entries,
+  currentPrice,
+  now,
+  getTime,
+  createEntry,
+  updateEntry,
+}: {
+  entries: T[]
+  currentPrice: number | undefined
+  now: TTime
+  getTime: (entry: T) => number
+  createEntry: (params: { time: TTime; price: number }) => T
+  updateEntry: (entry: T, params: { time: TTime; price: number }) => T
+}): T[] {
+  if (!currentPrice || entries.length < 2) {
+    return entries
+  }
+
+  const lastEntry = entries[entries.length - 1]
+  const secondToLastEntry = entries[entries.length - 2]
+  if (lastEntry === undefined || secondToLastEntry === undefined) {
+    return entries
+  }
+
+  const granularity = getTime(lastEntry) - getTime(secondToLastEntry)
+  if (now - getTime(lastEntry) < granularity) {
+    return [...entries.slice(0, -1), updateEntry(lastEntry, { time: now, price: currentPrice })]
+  }
+  return [...entries, createEntry({ time: now, price: currentPrice })]
+}

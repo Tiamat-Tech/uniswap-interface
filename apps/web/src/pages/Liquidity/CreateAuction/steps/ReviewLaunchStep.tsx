@@ -1,13 +1,11 @@
+import { Platform, areAddressesEqual } from '@universe/chains'
+import { Button, Flex, Text } from '@universe/mycelium'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import type { AuctionCreateFailedStep } from 'uniswap/src/features/telemetry/types'
 import { useCurrencyInfo, useNativeCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { useWallet } from 'uniswap/src/features/wallet/hooks/useWallet'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { ExplorerDataType, getExplorerLink, openUri } from 'uniswap/src/utils/linking'
 import { shortenAddress } from 'utilities/src/addresses'
@@ -39,9 +37,11 @@ import {
 } from '~/pages/Liquidity/CreateAuction/CreateAuctionContext'
 import { useCreateAuctionSubmit } from '~/pages/Liquidity/CreateAuction/hooks/useCreateAuctionSubmit'
 import { useCreateAuctionTokenColor } from '~/pages/Liquidity/CreateAuction/hooks/useCreateAuctionTokenColor'
+import { useEffectiveRaiseCurrency } from '~/pages/Liquidity/CreateAuction/hooks/useEffectiveRaiseCurrency'
 import { useExistingTokenWalletBalance } from '~/pages/Liquidity/CreateAuction/hooks/useExistingTokenWalletBalance'
 import { useIsQuickLaunchMode } from '~/pages/Liquidity/CreateAuction/hooks/useIsQuickLaunchMode'
 import { useLaunchAuctionFlow } from '~/pages/Liquidity/CreateAuction/hooks/useLaunchAuctionFlow'
+import { useLaunchChainId } from '~/pages/Liquidity/CreateAuction/hooks/useLaunchChainId'
 import { useStableRaiseUsdPrice } from '~/pages/Liquidity/CreateAuction/hooks/useStableRaiseUsdPrice'
 import { getLaunchThreshold } from '~/pages/Liquidity/CreateAuction/launchThreshold'
 import { applyQuickLaunchAuctionWindow } from '~/pages/Liquidity/CreateAuction/quickLaunch/quickLaunchPreset'
@@ -66,7 +66,7 @@ export function ReviewLaunchStep(): JSX.Element | null {
   // Effective mode (flag + new-token + switch), NOT the raw store flag, which defaults to on.
   const quickLaunch = useIsQuickLaunchMode()
   const [pendingQuickLaunchRetry, setPendingQuickLaunchRetry] = useState(false)
-  const configureAuction = useCreateAuctionStore((state) => state.configureAuction)
+  const storedConfigureAuction = useCreateAuctionStore((state) => state.configureAuction)
   const customizePool = useCreateAuctionStore((state) => state.customizePool)
   const xVerification = useCreateAuctionStore((state) => state.xVerification)
   const { setStep, setStartTime, setEndTime } = useCreateAuctionStoreActions()
@@ -88,10 +88,15 @@ export function ReviewLaunchStep(): JSX.Element | null {
       ? tokenForm.symbol
       : (tokenForm.existingTokenCurrencyInfo?.currency.symbol ?? '')
 
-  const chainId =
-    tokenForm.mode === TokenMode.CREATE_NEW
-      ? tokenForm.network
-      : (tokenForm.existingTokenCurrencyInfo?.currency.chainId ?? UniverseChainId.Mainnet)
+  const chainId = useLaunchChainId()
+
+  // Resolved, never the stored selection: a selection carried in from another chain must not make
+  // the figures shown here disagree with the currency actually submitted.
+  const raiseCurrency = useEffectiveRaiseCurrency()
+  const configureAuction = useMemo(
+    () => ({ ...storedConfigureAuction, raiseCurrency }),
+    [storedConfigureAuction, raiseCurrency],
+  )
 
   const handleOpenKycHookExplorer = useCallback(() => {
     if (!configureAuction.kycValidationHookAddress) {
@@ -118,13 +123,13 @@ export function ReviewLaunchStep(): JSX.Element | null {
     return parseFloat(configureAuction.floorPrice) * parseFloat(committed.totalSupply.toExact())
   }, [configureAuction.floorPrice, committed])
 
-  const stableRaiseUsdPrice = useStableRaiseUsdPrice({ raiseCurrency: configureAuction.raiseCurrency, chainId })
+  const stableRaiseUsdPrice = useStableRaiseUsdPrice({ raiseCurrency, chainId })
   const floorPriceNum = configureAuction.floorPrice ? parseFloat(configureAuction.floorPrice) : undefined
 
   const launchThreshold = committed
     ? getLaunchThreshold({
         floorPrice: configureAuction.floorPrice,
-        raiseCurrency: configureAuction.raiseCurrency,
+        raiseCurrency,
         chainId,
         auctionSupplyAmount: committed.auctionSupplyAmount,
         postAuctionLiquidityAmount: committed.postAuctionLiquidityAmount,
@@ -137,8 +142,7 @@ export function ReviewLaunchStep(): JSX.Element | null {
   const nativeCurrencyInfo = useNativeCurrencyInfo(chainId)
   const stablecoinCurrencyId = useMemo(() => buildCurrencyId(chainId, getPrimaryStablecoin(chainId).address), [chainId])
   const stablecoinCurrencyInfo = useCurrencyInfo(stablecoinCurrencyId)
-  const raiseCurrencyInfo =
-    configureAuction.raiseCurrency === RaiseCurrency.NATIVE ? nativeCurrencyInfo : stablecoinCurrencyInfo
+  const raiseCurrencyInfo = raiseCurrency === RaiseCurrency.NATIVE ? nativeCurrencyInfo : stablecoinCurrencyInfo
 
   const feeTierDisplay = formatPercent(customizePool.fee.feeAmount / BIPS_BASE, 4)
 
@@ -173,7 +177,7 @@ export function ReviewLaunchStep(): JSX.Element | null {
     return t('toucan.createAuction.step.customizePool.priceRange.fullRange')
   })()
 
-  const currencyAddress = getRaiseCurrencyAddress(configureAuction.raiseCurrency, chainId)
+  const currencyAddress = getRaiseCurrencyAddress(raiseCurrency, chainId)
 
   const getCreateFailedProperties = useEvent(
     (args: { failedStep: AuctionCreateFailedStep; errorCode?: string | number }) =>
@@ -200,6 +204,7 @@ export function ReviewLaunchStep(): JSX.Element | null {
     currencyAddress,
     xVerification,
     existingTokenWalletBalanceRaw,
+    isQuickLaunch: quickLaunch,
     getCreateFailedProperties,
   })
 
@@ -352,6 +357,7 @@ export function ReviewLaunchStep(): JSX.Element | null {
           chainId={chainId}
           tokenSymbol={tokenSymbol}
           isNewToken={tokenForm.mode === TokenMode.CREATE_NEW}
+          isQuickLaunch={quickLaunch}
           tokenColor={tokenColor}
           stableRaiseUsdPrice={stableRaiseUsdPrice}
           floorPriceNum={floorPriceNum}

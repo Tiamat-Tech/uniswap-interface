@@ -1,4 +1,4 @@
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { UniswapEventName } from 'uniswap/src/features/telemetry/constants'
 import { ALL_NETWORKS_LABEL, type UniverseEventProperties } from 'uniswap/src/features/telemetry/types'

@@ -742,6 +742,9 @@ export const v98Schema = {
 
 export const v99Schema = v98Schema
 
+// `uniswapBehaviorHistory` is not modeled in these schemas; migration 100 only touches that slice.
+export const v100Schema = v99Schema
+
 // TODO: [MOB-201] use function with typed output when API reducers are removed from rootReducer
 // export const getSchema = (): RootState => v0Schema
-export const getSchema = (): typeof v99Schema => v99Schema
+export const getSchema = (): typeof v100Schema => v100Schema

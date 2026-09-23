@@ -92,3 +92,18 @@ export function testRemoveUniswapWrapped2025BehaviorHistory(migration: (state: a
   })
   expect(result.uniswapBehaviorHistory).not.toHaveProperty('hasDismissedUniswapWrapped2025Banner')
 }
+
+// Mobile: 100
+// Extension: 34
+// Web: 64
+export function testMarkPoolsBalanceCoachmarkEligible(migration: (state: any) => any, prevSchema: any): void {
+  // Overwrites the old always-`true` default so existing installs become eligible.
+  const result = migration({
+    ...prevSchema,
+    uniswapBehaviorHistory: {
+      ...prevSchema?.uniswapBehaviorHistory,
+      hasDismissedPoolsBalanceCoachmark: true,
+    },
+  })
+  expect(result.uniswapBehaviorHistory.hasDismissedPoolsBalanceCoachmark).toBe(false)
+}

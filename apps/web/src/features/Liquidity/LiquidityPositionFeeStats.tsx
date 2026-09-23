@@ -1,19 +1,20 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { Dispatch, SetStateAction } from 'react'
+import { Flex, Text, type TextCompatProps } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { Dispatch, forwardRef, SetStateAction } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, useMedia } from 'ui/src'
 import { ArrowDownArrowUp } from 'ui/src/components/icons/ArrowDownArrowUp'
 import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { useGetRangeDisplay } from 'uniswap/src/features/positions/hooks/useGetRangeDisplay'
-import { PriceOrdering } from 'uniswap/src/features/positions/types'
+import { PositionRewardApr, PriceOrdering } from 'uniswap/src/features/positions/types'
 import { MouseoverTooltip, TooltipSize } from '~/components/Tooltip'
 import { CHART_WIDTH } from '~/features/Liquidity/charts/LiquidityPositionRangeChart/LiquidityPositionRangeChart'
 import { TextLoader } from '~/features/Liquidity/Loader'
-import { LPIncentiveFeeStatTooltip } from '~/features/Liquidity/LPIncentives/LPIncentiveFeeStatTooltip'
-import { LPIncentiveRewardsBadge } from '~/features/Liquidity/LPIncentives/LPIncentiveRewardsBadge'
+import { PoolAprTooltip } from '~/features/Liquidity/LPIncentives/PoolAprTooltip'
+import { RewardAprBadge } from '~/features/Liquidity/LPIncentives/RewardAprBadge'
 import { ClickableTamaguiStyle } from '~/theme/components/styles'
 
 interface LiquidityPositionFeeStatsProps extends LiquidityPositionMinMaxRangeProps {
@@ -30,21 +31,27 @@ interface LiquidityPositionFeeStatsProps extends LiquidityPositionMinMaxRangePro
   apr1d?: number
   apr7d?: number
   apr30d?: number
-  lpIncentiveRewardApr?: number
+  /** The pool's live per-token LP-incentive boosts, as served. Empty/unset = no boosted APR stat. */
+  rewards?: PositionRewardApr[]
   hasRewards?: boolean
 }
 
-const PrimaryText = styled(Text, {
-  color: '$neutral1',
-  variant: 'body2',
+const PrimaryText = forwardRef<HTMLElement, TextCompatProps>(function PrimaryText(props, ref) {
+  return <Text ref={ref} color="$neutral1" variant="body2" {...props} />
 })
 
-const SecondaryText = styled(Text, {
-  color: '$neutral2',
-  variant: 'body3',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+const SecondaryText = forwardRef<HTMLElement, TextCompatProps>(function SecondaryText(props, ref) {
+  return (
+    <Text
+      ref={ref}
+      color="$neutral2"
+      variant="body3"
+      overflow="hidden"
+      textOverflow="ellipsis"
+      whiteSpace="nowrap"
+      {...props}
+    />
+  )
 })
 
 function WrapChildrenForMediaSize({ children }: { children: React.ReactNode }) {
@@ -107,7 +114,7 @@ export function LiquidityPositionFeeStats({
   cardHovered,
   pricesInverted,
   setPricesInverted,
-  lpIncentiveRewardApr,
+  rewards,
   totalApr,
   hasRewards,
 }: LiquidityPositionFeeStatsProps) {
@@ -157,7 +164,7 @@ export function LiquidityPositionFeeStats({
             </SecondaryText>
           </FeeStat>
         </WrapChildrenForMediaSize>
-        {lpIncentiveRewardApr ? (
+        {rewards?.length ? (
           <LPIncentiveFeeStat
             currency0Info={currency0Info}
             currency1Info={currency1Info}
@@ -165,7 +172,7 @@ export function LiquidityPositionFeeStats({
             apr1d={apr1d}
             apr7d={apr7d}
             apr30d={apr30d}
-            lpIncentiveRewardApr={lpIncentiveRewardApr}
+            rewards={rewards}
             totalApr={totalApr}
           />
         ) : (
@@ -317,7 +324,7 @@ function APRFeeStat({
       <MouseoverTooltip
         padding={0}
         text={
-          <LPIncentiveFeeStatTooltip
+          <PoolAprTooltip
             currency0Info={currency0Info}
             currency1Info={currency1Info}
             poolApr={apr}
@@ -338,7 +345,7 @@ function APRFeeStat({
 function LPIncentiveFeeStat({
   currency0Info,
   currency1Info,
-  lpIncentiveRewardApr,
+  rewards,
   poolApr,
   apr1d,
   apr7d,
@@ -347,7 +354,7 @@ function LPIncentiveFeeStat({
 }: {
   currency0Info: Maybe<CurrencyInfo>
   currency1Info: Maybe<CurrencyInfo>
-  lpIncentiveRewardApr: number
+  rewards: PositionRewardApr[]
   poolApr?: number
   apr1d?: number
   apr7d?: number
@@ -362,14 +369,14 @@ function LPIncentiveFeeStat({
       <MouseoverTooltip
         padding={0}
         text={
-          <LPIncentiveFeeStatTooltip
+          <PoolAprTooltip
             currency0Info={currency0Info}
             currency1Info={currency1Info}
             poolApr={poolApr}
             apr1d={apr1d}
             apr7d={apr7d}
             apr30d={apr30d}
-            lpIncentiveRewardApr={lpIncentiveRewardApr}
+            rewards={rewards}
             totalApr={totalApr}
           />
         }
@@ -383,7 +390,7 @@ function LPIncentiveFeeStat({
               numericValue={poolApr}
               textVariant="$body2"
             />
-            <LPIncentiveRewardsBadge formattedRewardApr={formatPercent(lpIncentiveRewardApr)} />
+            <RewardAprBadge rewards={rewards} isTokenColor size="sm" />
           </Flex>
           <SecondaryText variant="body3" color="$neutral2">
             {t('pool.totalAPR')}

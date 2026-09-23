@@ -1,8 +1,8 @@
+import { Flex, fonts, Text, TouchableArea } from '@universe/mycelium'
+import { Calendar } from '@universe/mycelium/icons/Calendar'
 import type { ComponentProps } from 'react'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { Flex, Input, Text, TouchableArea } from 'ui/src'
-import { Calendar } from 'ui/src/components/icons/Calendar'
-import { fonts } from 'ui/src/theme/fonts'
+import { Input } from 'ui/src'
 import { useCurrentLanguageInfo } from 'uniswap/src/features/language/hooks'
 import {
   FORMAT_DATE_LONG,

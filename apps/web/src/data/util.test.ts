@@ -1,8 +1,8 @@
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import { DAI, WRAPPED_NATIVE_CURRENCY } from 'uniswap/src/constants/tokens'
 import { MELD_NATIVE_SOL_ADDRESS_SOLANA } from 'uniswap/src/features/chains/svm/defaults'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { gqlToCurrency, getTokenDetailsURL, unwrapToken } from '~/data/util'
 import { CHAIN_SEARCH_PARAM } from '~/utils/params/chainQueryParam'
@@ -137,6 +137,22 @@ describe('getTokenDetailsURL', () => {
     ).toBe(`/explore/tokens/solana/${NATIVE_CHAIN_ID}`)
   })
 
+  it('maps native sentinel addresses to NATIVE on chains whose native currency has a real token address', () => {
+    // Celo's native currency lives at 0x471E..., so the zero/0xeee sentinels aren't its native address
+    expect(
+      getTokenDetailsURL({
+        chain: GraphQLApi.Chain.Celo,
+        address: '0x0000000000000000000000000000000000000000',
+      }),
+    ).toBe(`/explore/tokens/celo/${NATIVE_CHAIN_ID}`)
+    expect(
+      getTokenDetailsURL({
+        chain: GraphQLApi.Chain.Celo,
+        address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+      }),
+    ).toBe(`/explore/tokens/celo/${NATIVE_CHAIN_ID}`)
+  })
+
   it('treats null and undefined address as NATIVE', () => {
     expect(getTokenDetailsURL({ chain: GraphQLApi.Chain.Ethereum, address: null })).toBe(
       `/explore/tokens/ethereum/${NATIVE_CHAIN_ID}`,
@@ -175,6 +191,75 @@ describe('unwrapToken', () => {
     const wethToken = { address: wethAddress, symbol: 'WETH', name: 'Wrapped Ether' }
     const result = unwrapToken(UniverseChainId.Mainnet, wethToken)
     expect(result.address).toBe(NATIVE_CHAIN_ID)
+  })
+
+  // Expectations in the cases below are deliberately independent literals ('NATIVE', raw addresses,
+  // per-chain names) rather than the production constants they assert about — re-deriving them from
+  // those constants would make the tests unfalsifiable.
+  it('unwraps the zero-address native token on Mainnet', () => {
+    const token = { address: '0x0000000000000000000000000000000000000000', symbol: 'ETH', name: 'Ethereum' }
+    const result = unwrapToken(UniverseChainId.Mainnet, token)
+    expect(result.address).toBe('NATIVE')
+  })
+
+  it('unwraps the legacy 0xeee... native address on Mainnet', () => {
+    const token = { address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', symbol: 'ETH', name: 'Ethereum' }
+    const result = unwrapToken(UniverseChainId.Mainnet, token)
+    expect(result.address).toBe('NATIVE')
+  })
+
+  // The next two cases mirror the Explore table's object-form call (see TokensTable.tsx):
+  // nativeCurrencyChainId is the row's own chain on chain-filtered pages, and Mainnet on the
+  // unfiltered page when the grouping has a mainnet native leg.
+  it('rebrands a zero-address native leg with the chain-specific native branding (chain-filtered explore page)', () => {
+    const token = {
+      address: '0x0000000000000000000000000000000000000000',
+      symbol: 'ETH',
+      name: 'Ethereum',
+      project: { name: 'Ethereum' },
+    }
+    const result = unwrapToken(
+      { chainId: UniverseChainId.Optimism, nativeCurrencyChainId: UniverseChainId.Optimism },
+      token,
+    )
+    expect(result.address).toBe('NATIVE')
+    expect(result.name).toBe('Optimistic ETH')
+    expect(result.project.name).toBe('Optimistic ETH')
+  })
+
+  it('rebrands a zero-address L2 native leg with mainnet branding when nativeCurrencyChainId is Mainnet (unfiltered explore page)', () => {
+    const token = { address: '0x0000000000000000000000000000000000000000', symbol: 'ETH', name: 'upstream name' }
+    const result = unwrapToken({ chainId: UniverseChainId.Base, nativeCurrencyChainId: UniverseChainId.Mainnet }, token)
+    expect(result.address).toBe('NATIVE')
+    expect(result.name).toBe('Ethereum')
+  })
+
+  // Polygon's native POL lives at a real contract address (0x...1010) — the zero address is just an
+  // unknown token there and must not be rebranded as native.
+  it('does not rebrand the zero address on Polygon', () => {
+    const token = { address: '0x0000000000000000000000000000000000000000', symbol: '???', name: 'Unknown' }
+    const result = unwrapToken(
+      { chainId: UniverseChainId.Polygon, nativeCurrencyChainId: UniverseChainId.Polygon },
+      token,
+    )
+    expect(result.address).toBe('0x0000000000000000000000000000000000000000')
+    expect(result.name).toBe('Unknown')
+  })
+
+  it('does not rebrand the zero address on Celo', () => {
+    const token = { address: '0x0000000000000000000000000000000000000000', symbol: '???', name: 'Unknown' }
+    const result = unwrapToken(UniverseChainId.Celo, token)
+    expect(result.address).toBe('0x0000000000000000000000000000000000000000')
+  })
+
+  it('rebrands Polygon native POL by its real contract address', () => {
+    const token = { address: '0x0000000000000000000000000000000000001010', symbol: 'POL', name: 'Polygon' }
+    const result = unwrapToken(
+      { chainId: UniverseChainId.Polygon, nativeCurrencyChainId: UniverseChainId.Polygon },
+      token,
+    )
+    expect(result.address).toBe('NATIVE')
+    expect(result.name).toBe('Polygon POL')
   })
 
   it('does not unwrap non-wrapped tokens', () => {

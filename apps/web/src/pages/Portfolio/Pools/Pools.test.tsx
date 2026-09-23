@@ -1,27 +1,28 @@
 import userEvent from '@testing-library/user-event'
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
+import { FeatureFlags, useFeatureFlag, useFeatureFlagWithExposureLoggingDisabled } from '@universe/gating'
 import type { ReactNode } from 'react'
 import { PortfolioBalancePart } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { usePortfolioBalancePart } from 'uniswap/src/features/dataApi/balances/usePortfolioBalancePart'
 import { PortfolioBalance } from 'uniswap/src/features/portfolio/PortfolioBalance/PortfolioBalance'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { SAMPLE_SEED_ADDRESS_1 } from 'uniswap/src/test/fixtures/gql/assets/constants'
-import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import {
-  DEFAULT_LP_POSITION_PROTOCOL_FILTER,
   DEFAULT_LP_POSITION_STATUS_FILTER,
+  DEFAULT_V2_POSITION_STATUS_FILTER,
   LP_POSITION_PROTOCOL_VERSIONS,
-  LP_POSITION_STATUS_FILTER_OPTIONS,
+  V2_POSITION_STATUS_OPTIONS,
+  type V2PositionStatusFilter,
 } from '~/features/Liquidity/constants'
+import { useV2StatusFilter } from '~/features/Liquidity/hooks/useV2StatusFilter'
 import {
   useWalletPositionsWeb,
   type UseWalletPositionsWebResult,
 } from '~/features/Liquidity/hooks/useWalletPositionsWeb'
-import { PositionsHeader } from '~/features/Liquidity/PositionsHeader'
-import { PositionsListSection } from '~/features/Liquidity/PositionsListSection'
+import { PositionsSummaryChips } from '~/features/Liquidity/PositionsSummaryChips'
+import { PositionsTable } from '~/features/Liquidity/PositionsTable'
 import { usePortfolioRoutes } from '~/pages/Portfolio/Header/hooks/usePortfolioRoutes'
 import { usePortfolioAddresses } from '~/pages/Portfolio/hooks/usePortfolioAddresses'
 import { useResolvedAddresses } from '~/pages/Portfolio/hooks/useResolvedAddresses'
@@ -40,9 +41,12 @@ vi.mock('uniswap/src/features/dataApi/balances/usePortfolioBalancePart', async (
   usePortfolioBalancePart: vi.fn(),
 }))
 
-vi.mock('@universe/gating', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@universe/gating')>()),
-  useFeatureFlag: vi.fn(),
+vi.mock('~/features/Liquidity/hooks/useV2StatusFilter', () => ({
+  useV2StatusFilter: vi.fn(),
+}))
+
+vi.mock('~/features/Liquidity/PositionsSummaryChips', () => ({
+  PositionsSummaryChips: vi.fn(() => <div data-testid="positions-summary-chips" />),
 }))
 
 vi.mock('uniswap/src/features/telemetry/Trace', () => {
@@ -98,28 +102,18 @@ vi.mock('uniswap/src/features/portfolio/PortfolioBalance/PortfolioBalance', () =
   ),
 }))
 
-vi.mock('~/features/Liquidity/PositionsHeader', () => ({
-  PositionsHeader: vi.fn(({ onVersionChange }: { onVersionChange: (version: ProtocolVersion) => void }) => (
-    <button onClick={() => onVersionChange(ProtocolVersion.V4)}>Positions action bar</button>
-  )),
-}))
-
-vi.mock('~/features/Liquidity/LiquidityPositionCard', () => ({
-  LiquidityPositionCardLoader: () => <div data-testid="liquidity-card-loader" />,
-}))
-
-vi.mock('~/features/Liquidity/PositionsListSection', () => ({
-  PositionsListSection: vi.fn(({ visiblePositions }: { visiblePositions: PositionInfo[] }) => (
-    <div data-testid="positions-list">
-      {visiblePositions.map((position) => (
-        <div key={`${position.poolId}-${position.tokenId}`}>{position.poolId}</div>
-      ))}
-    </div>
-  )),
-}))
-
-vi.mock('~/pages/Portfolio/Pools/components/PortfolioPoolsRewardsCard', () => ({
-  PortfolioPoolsRewardsCard: () => null,
+vi.mock('~/features/Liquidity/PositionsTable', () => ({
+  PositionsTable: vi.fn(
+    ({ visiblePositions, hiddenPositions }: { visiblePositions: PositionInfo[]; hiddenPositions: PositionInfo[] }) => (
+      <div data-testid="positions-table">
+        {[...visiblePositions, ...hiddenPositions].map((position) => (
+          <div key={`${position.poolId}-${position.tokenId}`}>{position.poolId}</div>
+        ))}
+      </div>
+    ),
+  ),
+  PositionsTableLoader: vi.fn(() => <div data-testid="positions-table-loader" />),
+  PositionsTableError: vi.fn(() => <div data-testid="positions-table-error" />),
 }))
 
 const MOCK_POSITION = {
@@ -156,11 +150,25 @@ function mockTotalPoolsCount(count: number | undefined): void {
   } as ReturnType<typeof usePortfolioBalancePart>)
 }
 
+function mockV2StatusFilter(statuses: V2PositionStatusFilter[]): void {
+  mocked(useV2StatusFilter).mockReturnValue({
+    v2StatusFilter: statuses,
+    toggleV2Status: vi.fn(),
+    resetV2Status: vi.fn(),
+  })
+}
+
 // Loaded balance with the `count` field omitted: verifies the "-" placeholder renders.
 function mockBalanceLoadedWithoutCount(): void {
   mocked(usePortfolioBalancePart).mockReturnValue({
     data: { balanceUSD: undefined, percentChange: undefined, absoluteChangeUSD: undefined, count: undefined },
   } as ReturnType<typeof usePortfolioBalancePart>)
+}
+
+function enablePoolsBalances(): void {
+  mocked(useFeatureFlagWithExposureLoggingDisabled).mockImplementation(
+    (flag) => flag === FeatureFlags.PortfolioPoolsBalances,
+  )
 }
 
 function createWalletPositionsResult(
@@ -202,6 +210,8 @@ describe('PortfolioPools', () => {
       isExternalWallet: false,
     })
     mocked(useFeatureFlag).mockReturnValue(false)
+    mocked(useFeatureFlagWithExposureLoggingDisabled).mockReturnValue(false)
+    mockV2StatusFilter([...DEFAULT_V2_POSITION_STATUS_FILTER])
     mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult())
     mockTotalPoolsCount(0)
   })
@@ -215,7 +225,7 @@ describe('PortfolioPools', () => {
     const newPositionLink = screen.getByRole('link', { name: 'New position' })
 
     expect(explorePoolsLink).toHaveAttribute('href', '/explore/pools')
-    expect(newPositionLink).toHaveAttribute('href', '/positions/create/v4?entryPoint=%2Fportfolio%2Fpools')
+    expect(newPositionLink).toHaveAttribute('href', '/positions/add?entryPoint=%2Fportfolio%2Fpools')
     expect(explorePoolsLink.parentElement).toHaveAttribute(
       'data-element-name',
       ElementName.PositionsEmptyStateExplorePools,
@@ -225,72 +235,6 @@ describe('PortfolioPools', () => {
       ElementName.PositionsEmptyStateNewPosition,
     )
     expect(PortfolioBalance).not.toHaveBeenCalled()
-    expect(PositionsHeader).not.toHaveBeenCalled()
-  })
-
-  it('should render the list section when only hidden positions exist, so the hidden expando remains reachable', () => {
-    mocked(useWalletPositionsWeb).mockReturnValue(
-      createWalletPositionsResult({ visiblePositions: [], hiddenPositions: [MOCK_POSITION] }),
-    )
-
-    render(<PortfolioPools />)
-
-    expect(screen.queryByText('No positions')).not.toBeInTheDocument()
-    expect(screen.queryByTestId(TestID.PortfolioPoolsNoResults)).not.toBeInTheDocument()
-    expect(PortfolioBalance).toHaveBeenCalled()
-    expect(PositionsListSection).toHaveBeenCalled()
-  })
-
-  it('should not strand the user in the empty state when only hidden positions exist', () => {
-    mocked(useWalletPositionsWeb).mockReturnValue(
-      createWalletPositionsResult({ visiblePositions: [], hiddenPositions: [MOCK_POSITION] }),
-    )
-
-    render(<PortfolioPools />)
-
-    expect(screen.queryByText('No positions')).not.toBeInTheDocument()
-    expect(screen.getByText('0 positions')).toBeInTheDocument()
-    expect(PositionsListSection).toHaveBeenCalled()
-  })
-
-  it('should route to the add liquidity flow when the revamp flag is enabled', () => {
-    mocked(useFeatureFlag).mockImplementation((flag) => flag === FeatureFlags.AddLiquidityRevamp)
-
-    render(<PortfolioPools />)
-
-    expect(screen.getByRole('link', { name: 'New position' })).toHaveAttribute(
-      'href',
-      '/positions/add?entryPoint=%2Fportfolio%2Fpools',
-    )
-  })
-
-  it('should render the balance header without a position count while positions are loading', () => {
-    mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ isLoadingPositions: true }))
-    mockTotalPoolsCount(undefined)
-
-    render(<PortfolioPools />)
-
-    expect(screen.queryByText('No positions')).not.toBeInTheDocument()
-    expect(mocked(PortfolioBalance).mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        evmOwner: SAMPLE_SEED_ADDRESS_1,
-        chainIds: undefined,
-        endText: undefined,
-        part: PortfolioBalancePart.Pools,
-      }),
-    )
-    expect(mocked(PositionsHeader).mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        showTitle: false,
-        showNetworkFilter: false,
-        selectedChain: null,
-        selectedVersions: DEFAULT_LP_POSITION_PROTOCOL_FILTER,
-        selectedStatus: DEFAULT_LP_POSITION_STATUS_FILTER,
-        createPositionEntryPoint: '/portfolio/pools',
-      }),
-    )
-    expect(screen.getByTestId(TestID.PortfolioPoolsSearchInput)).toHaveAttribute('placeholder', 'Search pools')
-    expect(screen.getAllByTestId('liquidity-card-loader')).toHaveLength(5)
   })
 
   it('should render the pools unavailable state for SVM-only wallets', () => {
@@ -307,62 +251,27 @@ describe('PortfolioPools', () => {
 
     render(<PortfolioPools />)
 
-    // The page fetches all statuses + versions once and filters client-side, so toggling never refetches.
+    // Version stays client-side; status and search filter server-side via GetWalletPositions.
     expect(useWalletPositionsWeb).toHaveBeenCalledWith({
       address: undefined,
       chainFilter: null,
       versionFilter: LP_POSITION_PROTOCOL_VERSIONS,
-      statusFilter: LP_POSITION_STATUS_FILTER_OPTIONS,
+      statusFilter: DEFAULT_LP_POSITION_STATUS_FILTER,
+      v2StatusFilter: DEFAULT_V2_POSITION_STATUS_FILTER,
+      searchText: '',
+      sort: { field: 'liquidity', direction: 'desc' },
     })
     expect(screen.getByText('Pools aren’t available on Solana')).toBeInTheDocument()
     expect(screen.getByText('Connect an Ethereum wallet to view your pools')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Connect Ethereum wallet' })).toBeInTheDocument()
-    expect(screen.queryByText('Providing liquidity on different protocols')).not.toBeInTheDocument()
-    expect(screen.queryByText('Hooks on v4')).not.toBeInTheDocument()
     expect(PortfolioBalance).not.toHaveBeenCalled()
-    expect(PositionsHeader).not.toHaveBeenCalled()
-    expect(screen.queryByTestId(TestID.PortfolioPoolsSearchInput)).not.toBeInTheDocument()
     expect(screen.queryByText('No positions')).not.toBeInTheDocument()
   })
 
-  it('should use demo wallet data instead of the missing EVM wallet view when fully disconnected', () => {
-    mocked(useResolvedAddresses).mockReturnValue({
-      evmAddress: undefined,
-      svmAddress: undefined,
-      isExternalWallet: false,
-    })
-    mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [MOCK_POSITION] }))
-    mockTotalPoolsCount(1)
-
-    render(<PortfolioPools />)
-
-    expect(useWalletPositionsWeb).toHaveBeenCalledWith({
-      address: SAMPLE_SEED_ADDRESS_1,
-      chainFilter: null,
-      versionFilter: LP_POSITION_PROTOCOL_VERSIONS,
-      statusFilter: LP_POSITION_STATUS_FILTER_OPTIONS,
-    })
-    expect(screen.queryByText('Pools aren’t available on Solana')).not.toBeInTheDocument()
-    expect(mocked(PortfolioBalance).mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        evmOwner: SAMPLE_SEED_ADDRESS_1,
-        part: PortfolioBalancePart.Pools,
-      }),
-    )
-    expect(screen.getByText('1 position')).toBeInTheDocument()
-    expect(mocked(PositionsHeader).mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        showTitle: false,
-        showNetworkFilter: false,
-        createPositionEntryPoint: '/portfolio/pools',
-      }),
-    )
-    expect(screen.getByTestId(TestID.PortfolioPoolsSearchInput)).toHaveAttribute('placeholder', 'Search pools')
-  })
-
-  it('should not render the empty state when positions are present', () => {
-    mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [MOCK_POSITION] }))
-    mockTotalPoolsCount(1)
+  it('should render the table loader with the balance header while positions load', () => {
+    enablePoolsBalances()
+    mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ isLoadingPositions: true }))
+    mockTotalPoolsCount(undefined)
 
     render(<PortfolioPools />)
 
@@ -371,25 +280,30 @@ describe('PortfolioPools', () => {
       expect.objectContaining({
         evmOwner: SAMPLE_SEED_ADDRESS_1,
         chainIds: undefined,
+        endText: undefined,
         part: PortfolioBalancePart.Pools,
       }),
     )
-    expect(screen.getByText('1 position')).toBeInTheDocument()
-    expect(mocked(PositionsHeader).mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        showTitle: false,
-        showNetworkFilter: false,
-        createPositionEntryPoint: '/portfolio/pools',
-      }),
-    )
-    expect(screen.getByTestId(TestID.PortfolioPoolsSearchInput)).toHaveAttribute('placeholder', 'Search pools')
-    expect(mocked(PositionsListSection).mock.calls[0]?.[0]).toEqual(
+    expect(screen.getByTestId('positions-summary-chips')).toBeInTheDocument()
+    expect(screen.getByTestId('positions-table-loader')).toBeInTheDocument()
+  })
+
+  it('should render the positions table when positions are present', () => {
+    mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [MOCK_POSITION] }))
+    mockTotalPoolsCount(1)
+
+    render(<PortfolioPools />)
+
+    expect(screen.queryByText('No positions')).not.toBeInTheDocument()
+    expect(screen.getByTestId('positions-table')).toBeInTheDocument()
+    expect(mocked(PositionsTable).mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         visiblePositions: [MOCK_POSITION],
         hiddenPositions: [],
         hasNextPage: false,
         isFetching: false,
         isPlaceholderData: false,
+        entryPoint: '/portfolio/pools',
       }),
     )
   })
@@ -408,17 +322,15 @@ describe('PortfolioPools', () => {
       address: SAMPLE_SEED_ADDRESS_1,
       chainFilter: UniverseChainId.Base,
       versionFilter: LP_POSITION_PROTOCOL_VERSIONS,
-      statusFilter: LP_POSITION_STATUS_FILTER_OPTIONS,
+      statusFilter: DEFAULT_LP_POSITION_STATUS_FILTER,
+      v2StatusFilter: DEFAULT_V2_POSITION_STATUS_FILTER,
+      searchText: '',
+      sort: { field: 'liquidity', direction: 'desc' },
     })
-    expect(PortfolioBalance).not.toHaveBeenCalled()
-    expect(PositionsHeader).not.toHaveBeenCalled()
-    expect(screen.getByRole('link', { name: 'New position' })).toHaveAttribute(
-      'href',
-      '/positions/create/v4?entryPoint=%2Fportfolio%2Fpools%3Fchain%3Dbase',
-    )
   })
 
   it('should pass the selected chain to the balance header when positions are present', () => {
+    enablePoolsBalances()
     mocked(usePortfolioRoutes).mockReturnValue({
       tab: PortfolioTab.Pools,
       chainId: UniverseChainId.Base,
@@ -438,102 +350,6 @@ describe('PortfolioPools', () => {
       }),
     )
     expect(screen.getByText('1 position')).toBeInTheDocument()
-    expect(mocked(PositionsHeader).mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        showTitle: false,
-        selectedChain: null,
-        createPositionEntryPoint: '/portfolio/pools?chain=base',
-      }),
-    )
-  })
-
-  it('should hide positions client-side when a protocol filter is toggled, without changing the count', async () => {
-    const v4Position = makePosition({ poolId: 'pool-v4', tokenId: 'v4', version: ProtocolVersion.V4 })
-    mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [v4Position] }))
-    mockTotalPoolsCount(1)
-
-    render(<PortfolioPools />)
-
-    expect(screen.getByText('1 position')).toBeInTheDocument()
-    expect(screen.queryByTestId(TestID.PortfolioPoolsNoResults)).not.toBeInTheDocument()
-
-    await act(async () => {
-      mocked(PositionsHeader).mock.calls[0]?.[0].onVersionChange(ProtocolVersion.V4)
-    })
-
-    expect(screen.getByTestId(TestID.PortfolioPoolsNoResults)).toBeInTheDocument()
-    expect(screen.queryByText('No positions')).not.toBeInTheDocument()
-    // Protocol selection never moves the top-level count.
-    expect(screen.getByText('1 position')).toBeInTheDocument()
-  })
-
-  it('should keep the positions list mounted while more pages can load instead of showing no results', () => {
-    // The loaded page holds only a closed position (filtered out by the default status filter), but more
-    // pages remain. Showing the no-results card here would unmount the list that drives loadMorePositions.
-    mocked(useWalletPositionsWeb).mockReturnValue(
-      createWalletPositionsResult({
-        visiblePositions: [makePosition({ poolId: 'closed-a', tokenId: 'c', status: PositionStatus.CLOSED })],
-        hasNextPage: true,
-      }),
-    )
-    mockTotalPoolsCount(5)
-
-    render(<PortfolioPools />)
-
-    expect(screen.queryByTestId(TestID.PortfolioPoolsNoResults)).not.toBeInTheDocument()
-    expect(PositionsListSection).toHaveBeenCalled()
-  })
-
-  it('should subtract closed positions from the backend total while the Closed filter is off', () => {
-    mocked(useWalletPositionsWeb).mockReturnValue(
-      createWalletPositionsResult({
-        visiblePositions: [
-          makePosition({ poolId: 'open-a', tokenId: 'a', status: PositionStatus.IN_RANGE }),
-          makePosition({ poolId: 'open-b', tokenId: 'b', status: PositionStatus.OUT_OF_RANGE }),
-          makePosition({ poolId: 'closed-a', tokenId: 'c', status: PositionStatus.CLOSED }),
-        ],
-      }),
-    )
-    // Backend total counts open + closed; with one closed position in memory the header drops it.
-    mockTotalPoolsCount(3)
-
-    render(<PortfolioPools />)
-
-    expect(screen.getByText('2 positions')).toBeInTheDocument()
-    expect(screen.queryByText('3 positions')).not.toBeInTheDocument()
-  })
-
-  it('should restore the full backend total once the Closed filter is selected', async () => {
-    mocked(useWalletPositionsWeb).mockReturnValue(
-      createWalletPositionsResult({
-        visiblePositions: [
-          makePosition({ poolId: 'open-a', tokenId: 'a', status: PositionStatus.IN_RANGE }),
-          makePosition({ poolId: 'closed-a', tokenId: 'c', status: PositionStatus.CLOSED }),
-        ],
-      }),
-    )
-    mockTotalPoolsCount(2)
-
-    render(<PortfolioPools />)
-
-    expect(screen.getByText('1 position')).toBeInTheDocument()
-
-    await act(async () => {
-      mocked(PositionsHeader).mock.calls[0]?.[0].onStatusChange(PositionStatus.CLOSED)
-    })
-
-    expect(screen.getByText('2 positions')).toBeInTheDocument()
-  })
-
-  it('should render a "-" placeholder when the balance loads but the count is missing', () => {
-    mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [MOCK_POSITION] }))
-    mockBalanceLoadedWithoutCount()
-
-    render(<PortfolioPools />)
-
-    expect(screen.getByText('-')).toBeInTheDocument()
-    expect(screen.queryByText('1 position')).not.toBeInTheDocument()
-    expect(PortfolioBalance).toHaveBeenCalled()
   })
 
   it('should render an error view with retry when positions fail before data loads', async () => {
@@ -547,6 +363,210 @@ describe('PortfolioPools', () => {
 
     expect(refetch).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('No positions')).not.toBeInTheDocument()
+  })
+
+  describe('positions table state', () => {
+    it('keeps the positions table mounted (no discovery empty state) when only hidden positions exist', () => {
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({ visiblePositions: [], hiddenPositions: [MOCK_POSITION] }),
+      )
+      mockTotalPoolsCount(1)
+
+      render(<PortfolioPools />)
+
+      expect(screen.queryByText('No positions')).not.toBeInTheDocument()
+      expect(screen.getByTestId('positions-table')).toBeInTheDocument()
+      expect(mocked(PositionsTable).mock.calls[0]?.[0]).toEqual(
+        expect.objectContaining({ visiblePositions: [], hiddenPositions: [MOCK_POSITION] }),
+      )
+    })
+
+    it('shows the discovery empty state only when the wallet has no positions at all', () => {
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({ visiblePositions: [], hiddenPositions: [] }),
+      )
+      mockTotalPoolsCount(0)
+
+      render(<PortfolioPools />)
+
+      expect(screen.getByText('No positions')).toBeInTheDocument()
+      expect(screen.queryByTestId('positions-table')).not.toBeInTheDocument()
+    })
+
+    it('keeps the table mounted and marks the route chain as an active filter when it empties the list', () => {
+      mocked(usePortfolioRoutes).mockReturnValue({
+        tab: PortfolioTab.Pools,
+        chainId: UniverseChainId.Base,
+        externalAddress: undefined,
+        isExternalWallet: false,
+      })
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({ visiblePositions: [], hiddenPositions: [] }),
+      )
+      mockTotalPoolsCount(0)
+
+      render(<PortfolioPools />)
+
+      expect(screen.queryByText('No positions')).not.toBeInTheDocument()
+      expect(screen.getByTestId('positions-table')).toBeInTheDocument()
+      expect(mocked(PositionsTable).mock.calls[0]?.[0]).toEqual(
+        expect.objectContaining({ chainFilter: UniverseChainId.Base }),
+      )
+    })
+
+    it('wires onClearFilters into the table so the empty-state clear action can recover the list', () => {
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({ visiblePositions: [MOCK_POSITION], hiddenPositions: [] }),
+      )
+      mockTotalPoolsCount(1)
+
+      render(<PortfolioPools />)
+
+      expect(mocked(PositionsTable).mock.calls[0]?.[0].onClearFilters).toBeInstanceOf(Function)
+    })
+  })
+
+  describe('position count', () => {
+    it('renders the balance header above the summary chips with the backend open count', () => {
+      enablePoolsBalances()
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({
+          visiblePositions: [
+            makePosition({ poolId: 'open-a', tokenId: 'a', status: PositionStatus.IN_RANGE }),
+            makePosition({ poolId: 'open-b', tokenId: 'b', status: PositionStatus.OUT_OF_RANGE }),
+          ],
+        }),
+      )
+      mockTotalPoolsCount(5)
+
+      render(<PortfolioPools />)
+
+      expect(mocked(PortfolioBalance).mock.calls[0]?.[0]).toEqual(
+        expect.objectContaining({
+          evmOwner: SAMPLE_SEED_ADDRESS_1,
+          part: PortfolioBalancePart.Pools,
+        }),
+      )
+      expect(screen.getByTestId('positions-summary-chips')).toBeInTheDocument()
+      // The count mirrors the balance's backend open count, not the loaded rows.
+      expect(screen.getByText('5 positions')).toBeInTheDocument()
+      expect(screen.queryByText('2 positions')).not.toBeInTheDocument()
+    })
+
+    it('keeps the chips-only layout when portfolio pools balances is off', () => {
+      mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [MOCK_POSITION] }))
+      mockTotalPoolsCount(1)
+
+      render(<PortfolioPools />)
+
+      expect(PortfolioBalance).not.toHaveBeenCalled()
+      expect(screen.getByTestId('positions-summary-chips')).toBeInTheDocument()
+    })
+
+    it('adds the loaded closed rows to the backend open count once the Closed lifecycle is selected', () => {
+      enablePoolsBalances()
+      mockV2StatusFilter([...V2_POSITION_STATUS_OPTIONS])
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({
+          visiblePositions: [
+            makePosition({ poolId: 'open-a', tokenId: 'a', status: PositionStatus.IN_RANGE }),
+            makePosition({ poolId: 'closed-a', tokenId: 'c', status: PositionStatus.CLOSED }),
+          ],
+        }),
+      )
+      mockTotalPoolsCount(4)
+
+      render(<PortfolioPools />)
+
+      expect(screen.getByText('5 positions')).toBeInTheDocument()
+      expect(screen.queryByText('4 positions')).not.toBeInTheDocument()
+    })
+
+    it('keeps the backend open base and adds loaded closed rows under a closed-only filter', () => {
+      enablePoolsBalances()
+      mockV2StatusFilter(['closed'])
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({
+          visiblePositions: [makePosition({ poolId: 'closed-a', tokenId: 'c', status: PositionStatus.CLOSED })],
+        }),
+      )
+      mockTotalPoolsCount(4)
+
+      render(<PortfolioPools />)
+
+      expect(screen.getByText('5 positions')).toBeInTheDocument()
+      expect(screen.queryByText('1 position')).not.toBeInTheDocument()
+    })
+
+    it('keeps the count unchanged when the Hidden toggle switches the table to hidden rows', async () => {
+      enablePoolsBalances()
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({
+          visiblePositions: [
+            makePosition({ poolId: 'open-a', tokenId: 'a', status: PositionStatus.IN_RANGE }),
+            makePosition({ poolId: 'open-b', tokenId: 'b', status: PositionStatus.OUT_OF_RANGE }),
+          ],
+          hiddenPositions: [makePosition({ poolId: 'hidden-a', tokenId: 'h', status: PositionStatus.IN_RANGE })],
+        }),
+      )
+      mockTotalPoolsCount(5)
+
+      render(<PortfolioPools />)
+
+      expect(screen.getByText('5 positions')).toBeInTheDocument()
+
+      await act(async () => {
+        mocked(PositionsTable).mock.calls.at(-1)?.[0].setShowHiddenPositions(true)
+      })
+
+      expect(screen.getByText('5 positions')).toBeInTheDocument()
+      expect(screen.queryByText('6 positions')).not.toBeInTheDocument()
+
+      // useShowHiddenPositions is backed by a module-level store keyed by wallet address; reset it so
+      // the toggled-on state doesn't leak into later tests that render the same wallet's empty state.
+      await act(async () => {
+        mocked(PositionsTable).mock.calls.at(-1)?.[0].setShowHiddenPositions(false)
+      })
+    })
+
+    it('shows the backend open count immediately while more pages remain under the open-only filter', () => {
+      enablePoolsBalances()
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({ visiblePositions: [MOCK_POSITION], hasNextPage: true }),
+      )
+      mockTotalPoolsCount(3)
+
+      render(<PortfolioPools />)
+
+      expect(screen.getByText('3 positions')).toBeInTheDocument()
+      expect(screen.queryByText('-')).not.toBeInTheDocument()
+    })
+
+    it('renders a "-" placeholder while closed pages remain after selecting the Closed lifecycle', () => {
+      enablePoolsBalances()
+      mockV2StatusFilter([...V2_POSITION_STATUS_OPTIONS])
+      mocked(useWalletPositionsWeb).mockReturnValue(
+        createWalletPositionsResult({ visiblePositions: [MOCK_POSITION], hasNextPage: true }),
+      )
+      mockTotalPoolsCount(3)
+
+      render(<PortfolioPools />)
+
+      expect(screen.getByText('-')).toBeInTheDocument()
+      expect(screen.queryByText('3 positions')).not.toBeInTheDocument()
+    })
+
+    it('renders a "-" placeholder when the balance loads but the count is missing', () => {
+      enablePoolsBalances()
+      mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [MOCK_POSITION] }))
+      mockBalanceLoadedWithoutCount()
+
+      render(<PortfolioPools />)
+
+      expect(screen.getByText('-')).toBeInTheDocument()
+      expect(screen.queryByText('1 position')).not.toBeInTheDocument()
+      expect(PortfolioBalance).toHaveBeenCalled()
+    })
   })
 
   describe('external wallet mode', () => {
@@ -569,17 +589,16 @@ describe('PortfolioPools', () => {
       } as unknown as ReturnType<typeof usePortfolioRoutes>)
     }
 
-    it('forwards isExternalWallet to the action row and positions list', () => {
+    it('renders the positions table read-only', () => {
       mockExternalWallet()
       mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [MOCK_POSITION] }))
 
       render(<PortfolioPools />)
 
-      expect(mocked(PositionsHeader).mock.calls[0]?.[0]).toEqual(expect.objectContaining({ showCreateButton: false }))
-      expect(mocked(PositionsListSection).mock.calls[0]?.[0]).toEqual(expect.objectContaining({ readOnly: true }))
+      expect(mocked(PositionsTable).mock.calls[0]?.[0]).toEqual(expect.objectContaining({ readOnly: true }))
     })
 
-    it('hides the import-v2 link and renders the empty state without the New Position CTA', () => {
+    it('renders the empty state without the New Position CTA', () => {
       mockExternalWallet()
 
       render(<PortfolioPools />)
@@ -589,13 +608,38 @@ describe('PortfolioPools', () => {
       expect(screen.queryByRole('link', { name: 'New position' })).not.toBeInTheDocument()
     })
 
-    it('hides the import-v2 link beneath the positions list', () => {
-      mockExternalWallet()
-      mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ visiblePositions: [MOCK_POSITION] }))
+    // Sourcing the total from the connected account would put the viewer's own total above someone
+    // else's position rows.
+    it('totals the viewed wallet, not the connected one', () => {
+      const viewedWallet = '0x000000000000000000000000000000000000dEaD'
+      mocked(usePortfolioAddresses).mockReturnValue({
+        evmAddress: viewedWallet,
+        svmAddress: undefined,
+        isExternalWallet: true,
+      })
+      mocked(useResolvedAddresses).mockReturnValue({
+        evmAddress: viewedWallet,
+        svmAddress: undefined,
+        isExternalWallet: true,
+      })
+      mocked(usePortfolioRoutes).mockReturnValue({
+        tab: PortfolioTab.Pools,
+        chainId: undefined,
+        externalAddress: { address: viewedWallet, platform: 'evm' },
+        isExternalWallet: true,
+      } as unknown as ReturnType<typeof usePortfolioRoutes>)
+      // Still loading, so the chips mount above the table's loader rather than its rows — this test
+      // is about which address the header requests, not about rendering position rows.
+      mocked(useWalletPositionsWeb).mockReturnValue(createWalletPositionsResult({ isLoadingPositions: true }))
 
       render(<PortfolioPools />)
 
-      expect(screen.queryByText('Import v2 positions')).not.toBeInTheDocument()
+      // The chips fetch their own total from this address; the stub records what the page hands it.
+      const balanceAddress = mocked(PositionsSummaryChips).mock.calls.at(-1)?.[0]?.walletAddress
+      expect(balanceAddress).toBe(viewedWallet)
+      // Same address the sibling positions list is fetched for, from the same source.
+      expect(balanceAddress).toBe(mocked(useWalletPositionsWeb).mock.calls.at(-1)?.[0]?.address)
+      expect(balanceAddress).not.toBe(SAMPLE_SEED_ADDRESS_1)
     })
   })
 })

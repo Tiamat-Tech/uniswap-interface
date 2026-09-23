@@ -1,17 +1,17 @@
 import { SharedEventName } from '@uniswap/analytics-events'
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { type Currency, Token } from '@uniswap/sdk-core'
+import { Platform } from '@universe/chains'
+import { Button, Flex, Text } from '@universe/mycelium'
+import { Search } from '@universe/mycelium/icons/Search'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Separator, SpinningLoader, Text } from 'ui/src'
-import { Search } from 'ui/src/components/icons/Search'
-import { useSporeColors } from 'ui/src/hooks/useSporeColors'
+import { Separator, SpinningLoader } from 'ui/src'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import type { FeeData } from 'uniswap/src/features/positions/types'
 import { AuctionEventName, ElementName, LiquidityEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -26,7 +26,11 @@ import { getSortedCurrenciesForProtocol } from '~/features/Liquidity/Create/hook
 import { FeeTierSearchModal } from '~/features/Liquidity/FeeTierSearchModal'
 import { FeeTierSelector } from '~/features/Liquidity/FeeTierSelector'
 import { useAllFeeTierPoolData } from '~/features/Liquidity/hooks/useAllFeeTierPoolData'
-import { getCommonFeeTiersWithData, getFeeTierKey } from '~/features/Liquidity/utils/feeTiers'
+import {
+  createdPoolsAtFeeAmount,
+  getCommonFeeTiersWithData,
+  toNewPoolFeeData,
+} from '~/features/Liquidity/utils/feeTiers'
 import {
   getAuctionCustomPriceRangeAddedProperties,
   getAuctionFeeTierCreatedProperties,
@@ -44,7 +48,9 @@ import {
   useCreateAuctionStoreActions,
 } from '~/pages/Liquidity/CreateAuction/CreateAuctionContext'
 import { useCreateAuctionTokenColor } from '~/pages/Liquidity/CreateAuction/hooks/useCreateAuctionTokenColor'
+import { useEffectiveRaiseCurrency } from '~/pages/Liquidity/CreateAuction/hooks/useEffectiveRaiseCurrency'
 import { useIsStepValid } from '~/pages/Liquidity/CreateAuction/hooks/useIsStepValid'
+import { useLaunchChainId } from '~/pages/Liquidity/CreateAuction/hooks/useLaunchChainId'
 import {
   CreateAuctionStep,
   type CustomPriceRangePreset,
@@ -100,10 +106,7 @@ export function CustomizePoolStep() {
   const handleEditToken = useCallback(() => setStep(CreateAuctionStep.ADD_TOKEN_INFO), [setStep])
   const handleEditAuction = useCallback(() => setStep(CreateAuctionStep.CONFIGURE_AUCTION), [setStep])
 
-  const chainId: UniverseChainId =
-    tokenForm.mode === TokenMode.CREATE_NEW
-      ? tokenForm.network
-      : (tokenForm.existingTokenCurrencyInfo?.currency.chainId ?? UniverseChainId.Unichain)
+  const chainId = useLaunchChainId()
 
   const token0: Currency | undefined = useMemo(() => {
     if (tokenForm.mode === TokenMode.CREATE_NEW) {
@@ -118,10 +121,11 @@ export function CustomizePoolStep() {
     return tokenForm.existingTokenCurrencyInfo?.currency
   }, [tokenForm])
 
-  const token1 = useMemo(
-    () => getRaiseCurrencyAsCurrency(configureAuction.raiseCurrency, chainId),
-    [configureAuction.raiseCurrency, chainId],
-  )
+  // Resolved, never the stored selection: the fee-tier gate checks whether this pool already
+  // exists, and the two raise options are different v4 pool currencies — so a stale selection
+  // would gate the tiers on a pool key the launch never creates.
+  const raiseCurrency = useEffectiveRaiseCurrency()
+  const token1 = useMemo(() => getRaiseCurrencyAsCurrency(raiseCurrency, chainId), [raiseCurrency, chainId])
 
   const sortedCurrencies = useMemo(
     () => getSortedCurrenciesForProtocol({ a: token0, b: token1, protocolVersion: ProtocolVersion.V4 }),
@@ -166,15 +170,14 @@ export function CustomizePoolStep() {
 
   const allCommonTiersExist = commonFeeTiers.length > 0 && commonFeeTiers.every((tier) => tier.created)
 
-  // A pool already exists for the selected tier — treat as no selection so the user must pick a free tier
-  const selectedFeeHasExistingPool = useMemo(() => {
-    const key = getFeeTierKey({
-      feeTier: customizePool.fee.feeAmount,
-      tickSpacing: customizePool.fee.tickSpacing,
-      isDynamicFee: customizePool.fee.isDynamic,
-    })
-    return key ? Boolean(feeTierData[key]?.created) : false
-  }, [customizePool.fee, feeTierData])
+  // A pool already exists for the selected tier — treat as no selection so the user must pick a free
+  // tier. Matched by fee amount, not the selection's key: the selected tier carries the launcher's
+  // new-pool spacing while a deployed pool carries whatever spacing it was created with, so an
+  // exact-key lookup would miss a deep pool at the same fee and leave Continue enabled.
+  const selectedFeeHasExistingPool = useMemo(
+    () => createdPoolsAtFeeAmount({ feeTierData, fee: customizePool.fee }).length > 0,
+    [customizePool.fee, feeTierData],
+  )
 
   const selectedFee = selectedFeeHasExistingPool ? undefined : customizePool.fee
 
@@ -237,6 +240,12 @@ export function CustomizePoolStep() {
       origin: 'cca-supply',
     })
     setFee(fee)
+  })
+
+  // Modal selections are new-pool candidates too (existing pools can't be selected in this flow), so
+  // re-key them to the launcher's spacing: the search list's default tiers still carry v3 spacings.
+  const handleModalFeeSelect = useEvent((fee: FeeData) => {
+    setFee(toNewPoolFeeData(fee))
   })
 
   const handleFeeTierMorePress = useEvent(() => {
@@ -375,7 +384,7 @@ export function CustomizePoolStep() {
             hook={ZERO_ADDRESS}
             sdkCurrencies={sortedCurrencies}
             selectedFee={selectedFee}
-            onSelectFee={setFee}
+            onSelectFee={handleModalFeeSelect}
             createDescription={t('toucan.createAuction.step.customizePool.feeTier.createDescription')}
             onCreateFeeTierClick={handleCreateFeeTierClick}
             onFeeTierCreated={handleFeeTierCreated}

@@ -1,7 +1,8 @@
+import { Unichain } from '@universe/mycelium/icons/Unichain'
+import { opacify } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
+// TODO(INFRA-3318): mycelium has no Image counterpart yet — swap this import when its Image compat ships
 import { Image } from 'ui/src'
-import { Unichain } from 'ui/src/components/icons/Unichain'
-import { opacify } from 'ui/src/theme'
 import { UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { CardContents } from '~/pages/Landing/components/cards/CardContents'
 import { PillButton } from '~/pages/Landing/components/cards/PillButton'

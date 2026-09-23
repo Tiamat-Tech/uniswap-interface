@@ -1,4 +1,4 @@
-import type { FlexProps } from 'ui/src'
+import type { FlexCompatProps as FlexProps } from '@universe/mycelium'
 
 export const TOKEN_CARD_SPARKLINE_WIDTH = 64
 export const TOKEN_CARD_SPARKLINE_HEIGHT_VERTICAL = 32

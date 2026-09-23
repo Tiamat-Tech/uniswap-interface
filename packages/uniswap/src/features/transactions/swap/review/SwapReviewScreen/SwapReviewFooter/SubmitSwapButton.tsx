@@ -1,10 +1,9 @@
-import { isWebApp } from '@universe/environment'
+import { isWebApp, isWebPlatform } from '@universe/environment'
+import { Button, type ButtonVariant, Flex } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ButtonVariant } from 'ui/src'
-import { AnimatePresence, Button, Flex, useIsShortMobileDevice } from 'ui/src'
+import { useIsShortMobileDevice } from 'ui/src'
 import { Passkey } from 'ui/src/components/icons/Passkey'
-import type { AppTFunction } from 'ui/src/i18n/types'
 import type { Warning } from 'uniswap/src/components/modals/WarningModal/types'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import type { PasskeyAuthStatus } from 'uniswap/src/features/transactions/components/TransactionModal/TransactionModalContext'
@@ -22,6 +21,7 @@ import type { SwapTxAndGasInfo } from 'uniswap/src/features/transactions/swap/ty
 import { isChained, isClassic } from 'uniswap/src/features/transactions/swap/utils/routing'
 import { WrapType } from 'uniswap/src/features/transactions/types/wrap'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 
 interface SubmitSwapButtonProps {
   disabled: boolean
@@ -106,7 +106,7 @@ export function SubmitSwapButton({
       }
       return (
         <Button loading variant="branded" emphasis="primary" size={size}>
-          <DelayedSubmissionText />
+          <DelayedSubmissionText TextComponent={Button.Text} />
         </Button>
       )
     }
@@ -234,12 +234,21 @@ function ConfirmInWalletText({ passkeyAuthStatus }: { passkeyAuthStatus?: Passke
     text = t('swap.button.submitting.passkey')
   }
 
+  // `AnimatePresence` dropped: it wrapped this node directly (not a conditional ancestor), so it
+  // never got a chance to delay removal on unmount -- the exit half of `fadeInDownOutDown` never
+  // fired even under Tamagui. `animateEnterExit`'s enter half fires on mount with no wrapper needed.
+  // Web-gated spread (same idiom as DelayedSubmissionText): this component only renders under
+  // `isWebApp`, and gating keeps mycelium's native compat layer from dev-warning on the props.
   return (
-    <AnimatePresence>
-      <Flex animateEnterExit="fadeInDownOutDown" animation="quicker">
-        <Button.Text>{text}</Button.Text>
-      </Flex>
-    </AnimatePresence>
+    <Flex
+      {...(isWebPlatform && {
+        animateEnterExit: 'fadeInDownOutDown' as const,
+        animation: 'quicker' as const,
+        animateOnly: ['opacity', 'transform'],
+      })}
+    >
+      <Button.Text>{text}</Button.Text>
+    </Flex>
   )
 }
 

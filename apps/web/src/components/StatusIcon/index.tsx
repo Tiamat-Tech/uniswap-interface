@@ -1,34 +1,45 @@
-import { Flex, FlexProps } from 'ui/src/components/layout'
+import { Platform } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
+import type { ComponentPropsWithoutRef } from 'react'
 import { CONNECTION_PROVIDER_NAMES } from 'uniswap/src/constants/web3'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { isEVMAddress } from 'utilities/src/addresses/evm/evm'
 import sockImg from '~/assets/svg/socks.svg'
 import { CONNECTOR_ICON_OVERRIDE_MAP } from '~/connection/constants'
 import { useActiveAddresses, useActiveWallet } from '~/features/accounts/store/hooks'
 import { useHasSocks } from '~/hooks/useSocksBalance'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 
 const MINI_ICON_SIZE = 16
 
-const MiniIconContainer = deprecatedStyled.div<{ $side: 'left' | 'right'; size?: number; isIndicator?: boolean }>`
-  position: absolute;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: ${({ size }) => size ?? MINI_ICON_SIZE + 'px'};
-  height: ${({ size }) => size ?? MINI_ICON_SIZE + 'px'};
-  bottom: ${({ size, isIndicator }) => `-${isIndicator ? 0 : (size ?? MINI_ICON_SIZE) / 4}px`};
-  ${({ $side, size, isIndicator }) => `${$side === 'left' ? 'left' : 'right'}: -${isIndicator ? 0 : (size ?? MINI_ICON_SIZE) / 4}px`};
-  border-radius: 50%;
-  outline: 2px solid ${({ theme }) => theme.surface1};
-  outline-offset: -0.1px;
-  background-color: ${({ theme }) => theme.surface1};
-  overflow: hidden;
-  @supports (overflow: clip) {
-    overflow: clip;
-  }
-`
+const MiniIconFrame = styled('div', {
+  platform: 'web',
+  base: 'absolute flex justify-center items-center rounded-[50%] outline-2 outline-surface1 [outline-offset:-0.1px] bg-surface1 overflow-hidden supports-[overflow:clip]:overflow-clip',
+})
+
+function MiniIconContainer({
+  $side,
+  size,
+  isIndicator,
+  style,
+  ...rest
+}: { $side: 'left' | 'right'; size?: number; isIndicator?: boolean } & ComponentPropsWithoutRef<
+  typeof MiniIconFrame
+>): JSX.Element {
+  const offset = isIndicator ? 0 : (size ?? MINI_ICON_SIZE) / 4
+  return (
+    <MiniIconFrame
+      style={{
+        width: size ?? MINI_ICON_SIZE,
+        height: size ?? MINI_ICON_SIZE,
+        bottom: -offset,
+        [$side === 'left' ? 'left' : 'right']: -offset,
+        ...style,
+      }}
+      {...rest}
+    />
+  )
+}
 
 function Socks() {
   return (
@@ -77,7 +88,8 @@ export function StatusIcon({
   showMiniIcons?: boolean
   showConnectedIndicator?: boolean
   address?: string
-  transition?: FlexProps['transition']
+  // Bare string until mycelium ships a typed transition prop.
+  transition?: string
 }) {
   const activeAddresses = useActiveAddresses()
   const hasSocks = useHasSocks()
@@ -95,7 +107,19 @@ export function StatusIcon({
       $xl={{ mr: '$none' }}
       data-testid="StatusIconRoot"
     >
-      <AccountIcon address={addressToDisplay} size={size} transition={transition} centered />
+      <AccountIcon
+        address={addressToDisplay}
+        size={size}
+        transition={transition}
+        centered
+        // Hairline ring so the avatar's edge stays legible when its unicon color is low-contrast against
+        // surface1. Outline rather than border: a border shrinks the content box that the fixed-`size`
+        // avatar then overflows, so the avatar would paint over the ring.
+        outlineWidth="$spacing1"
+        outlineStyle="solid"
+        outlineColor="$surface3"
+        outlineOffset={-1}
+      />
       {showConnectedIndicator ? <MiniConnectedIndicator /> : showMiniIcons && <MiniWalletIcon platform={platform} />}
       {hasSocks && showMiniIcons && <Socks />}
     </Flex>

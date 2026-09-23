@@ -31,7 +31,6 @@ interface UsePortfolioChartSeriesInput {
   selectedPeriod: ChartPeriod
   selectedCategory: PortfolioChartCategory
   poolsEnabled?: boolean
-  earnEnabled?: boolean
 }
 
 interface UsePortfolioChartSeriesResult {
@@ -86,7 +85,6 @@ export function usePortfolioChartSeries({
   selectedPeriod,
   selectedCategory,
   poolsEnabled = true,
-  earnEnabled = true,
 }: UsePortfolioChartSeriesInput): UsePortfolioChartSeriesResult {
   const totalSeries = useMemo<PriceChartData[]>(
     () => (chartData?.points ? convertPortfolioChartDataToPriceChartData(chartData.points) : []),
@@ -104,8 +102,8 @@ export function usePortfolioChartSeries({
   )
 
   const earnSeries = useMemo<PriceChartData[]>(
-    () => (earnEnabled && chartData?.earn ? convertPortfolioChartDataToPriceChartData(chartData.earn) : []),
-    [chartData, earnEnabled],
+    () => (chartData?.earn ? convertPortfolioChartDataToPriceChartData(chartData.earn) : []),
+    [chartData],
   )
 
   const hasTokensData = useMemo(() => seriesHasValue(tokensSeries), [tokensSeries])

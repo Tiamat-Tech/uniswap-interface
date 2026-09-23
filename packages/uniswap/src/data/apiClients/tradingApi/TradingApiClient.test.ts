@@ -16,6 +16,7 @@ const mockFetch = vi.fn()
 global.fetch = mockFetch
 
 import { TRADING_API_PATHS, TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { EXPERIMENTS_HEADER_NAME, getExperimentsClient } from '@universe/experiments'
 import {
   EthAsErc20UniswapXProperties,
@@ -31,7 +32,6 @@ import {
   TradingApiClient,
   TradingApiHeaders,
 } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toTradingApiSupportedChainId } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
 import type { MockedFunction } from 'vitest'
 

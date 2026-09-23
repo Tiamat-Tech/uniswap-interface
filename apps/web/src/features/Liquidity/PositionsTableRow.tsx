@@ -1,27 +1,34 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency, CurrencyAmount, Percent, Price } from '@uniswap/sdk-core'
-import { useMemo } from 'react'
+import { Flex, Text, useIsTouchDevice } from '@universe/mycelium'
+import { LinkHorizontalAlt } from '@universe/mycelium/icons/LinkHorizontalAlt'
+import { StatusIndicatorCircle } from '@universe/mycelium/icons/StatusIndicatorCircle'
+import { useContext, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useIsTouchDevice } from 'ui/src'
-import { LinkHorizontalAlt } from 'ui/src/components/icons/LinkHorizontalAlt'
-import { StatusIndicatorCircle } from 'ui/src/components/icons/StatusIndicatorCircle'
 import { SplitLogo } from 'uniswap/src/components/CurrencyLogo/SplitLogo'
 import { GroupHoverTransition } from 'uniswap/src/components/GroupHoverTransition'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
+import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { LiquidityPositionStatusIndicator } from 'uniswap/src/features/positions/components/LiquidityPositionStatusIndicator'
 import { useGetRangeDisplay } from 'uniswap/src/features/positions/hooks/useGetRangeDisplay'
 import { lpStatusConfig } from 'uniswap/src/features/positions/lpStatusConfig'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
-import { getFeeLabel, getProtocolVersionLabel } from 'uniswap/src/features/positions/utils'
+import { getExactSharePercent, getFeeLabel, getProtocolVersionLabel } from 'uniswap/src/features/positions/utils'
 import { useCurrencyInfos } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { shouldReverseForWaterfall } from 'uniswap/src/features/tokens/waterfallPriority'
 import { currencyId } from 'uniswap/src/utils/currencyId'
 import { shortenAddress } from 'utilities/src/addresses'
 import { NumberType } from 'utilities/src/format/types'
+import { ONE_DAY_MS, ONE_SECOND_MS } from 'utilities/src/time/time'
 import { TableText } from '~/components/Table/shared/TableText'
+import { TableRowHoverContext } from '~/components/Table/TableRowHoverContext'
+import { useAbbreviatedTimeString } from '~/components/Table/utils/useAbbreviatedTimeString'
+import { MouseoverTooltip, TooltipSize } from '~/components/Tooltip'
 import { DISTRIBUTION_CHART_WIDTH, DistributionChips } from '~/features/Liquidity/DistributionChips'
 import { LiquidityPositionDropdownMenu } from '~/features/Liquidity/LiquidityPositionDropdownMenu'
+import { PoolAprTooltip } from '~/features/Liquidity/LPIncentives/PoolAprTooltip'
+import { RewardAprBadge } from '~/features/Liquidity/LPIncentives/RewardAprBadge'
 import { useColor } from '~/hooks/useColor'
 
 export function PoolCellContent({ position }: { position: PositionInfo }): JSX.Element {
@@ -50,14 +57,16 @@ export function PoolCellContent({ position }: { position: PositionInfo }): JSX.E
         </Text>
         <Flex row alignItems="center" gap="$spacing6">
           {protocolLabel && (
-            <Text variant="body4" color="$neutral2" numberOfLines={1}>
+            // flexShrink={0} keeps the short version label from being clamped (e.g. "v4" → "v") when a
+            // hook badge widens the row past the fixed-width Pool cell; the hook address shrinks instead.
+            <Text variant="body4" color="$neutral2" numberOfLines={1} flexShrink={0}>
               {protocolLabel}
             </Text>
           )}
           {hasHook && (
             <>
               <Dot />
-              <Flex row alignItems="center" gap="$spacing2">
+              <Flex row alignItems="center" gap="$spacing2" shrink minWidth={0}>
                 <LinkHorizontalAlt color="$neutral2" size={12} />
                 <Text variant="body4" color="$neutral2" numberOfLines={1}>
                   {shortenAddress({ address: v4hook })}
@@ -68,7 +77,7 @@ export function PoolCellContent({ position }: { position: PositionInfo }): JSX.E
           {feeLabel && (
             <>
               <Dot />
-              <Text variant="body4" color="$neutral2" numberOfLines={1}>
+              <Text variant="body4" color="$neutral2" numberOfLines={1} flexShrink={0}>
                 {feeLabel}
               </Text>
             </>
@@ -101,13 +110,22 @@ function CurrentPriceContent({ position }: { position: PositionInfo }): JSX.Elem
 
 export function RangeCellContent({ position }: { position: PositionInfo }): JSX.Element {
   const { t } = useTranslation()
+  const rowHovered = useContext(TableRowHoverContext)
   const hasCurrentPrice = position.poolOrPair?.token0Price !== undefined
   const statusConfig = lpStatusConfig[position.status]
 
   const pricesInverted = shouldReverseForWaterfall(position.currency0Amount.currency, position.currency1Amount.currency)
 
+  const isV2 = position.version === ProtocolVersion.V2
+
   const priceOrdering = useMemo(() => {
-    if (position.version === ProtocolVersion.V2 || !position.position) {
+    if (isV2) {
+      return {
+        quote: position.currency1Amount.currency,
+        base: position.currency0Amount.currency,
+      }
+    }
+    if (!position.position) {
       return {}
     }
     return {
@@ -116,7 +134,7 @@ export function RangeCellContent({ position }: { position: PositionInfo }): JSX.
       quote: position.position.amount1.currency,
       base: position.position.amount0.currency,
     }
-  }, [position])
+  }, [isV2, position])
 
   const { minPrice, maxPrice, tokenASymbol } = useGetRangeDisplay({
     priceOrdering,
@@ -126,14 +144,14 @@ export function RangeCellContent({ position }: { position: PositionInfo }): JSX.
     pricesInverted,
   })
 
-  const hasRange = position.tickLower !== undefined && position.tickUpper !== undefined
+  const hasRange = isV2 || (position.tickLower !== undefined && position.tickUpper !== undefined)
 
   return (
     <Flex gap="$spacing4" width="100%">
       {hasRange ? (
         <Flex row alignItems="baseline" gap="$spacing4">
           <Text variant="body3" color="$neutral1" numberOfLines={1} flexShrink={0}>
-            {minPrice} → {maxPrice}
+            {isV2 ? '0' : minPrice} → {isV2 ? '∞' : maxPrice}
           </Text>
           <Text variant="body3" color="$neutral2" numberOfLines={1} flexShrink={1} minWidth={0}>
             {tokenASymbol}
@@ -146,9 +164,10 @@ export function RangeCellContent({ position }: { position: PositionInfo }): JSX.
       )}
       {hasCurrentPrice && statusConfig ? (
         <Flex row alignItems="center" gap="$spacing6">
-          <StatusIndicatorCircle color={statusConfig.color} />
+          <StatusIndicatorCircle color={statusConfig.color} flexShrink={0} />
           <GroupHoverTransition
             height={RANGE_STATUS_SLOT_HEIGHT}
+            isHovered={rowHovered}
             defaultContent={
               <Flex height={RANGE_STATUS_SLOT_HEIGHT} justifyContent="center">
                 <Text variant="body4" color={statusConfig.color}>
@@ -186,39 +205,137 @@ export function LiquidityCellContent({ position }: { position: PositionInfo }): 
 }
 
 export function FeesCellContent({ position }: { position: PositionInfo }): JSX.Element {
+  const { t } = useTranslation()
   const { convertFiatAmountFormatted } = useLocalizationContext()
-  return (
+  const feesText = (
     <TableText variant="body3">
       {convertFiatAmountFormatted(position.uncollectedFeesUsd, NumberType.FiatTokenPrice, '–')}
     </TableText>
+  )
+
+  // v2 fees compound into the pair reserves, so the dash is permanent rather than missing data.
+  // The tooltip explains the dash, so it is gated on the dash actually rendering: a v3/v4 position
+  // with an unserved valuation renders the same dash and this explanation would be wrong there, and
+  // a v2 row that ever arrived with a served value must not have it labelled as not visible.
+  if (position.version !== ProtocolVersion.V2 || position.uncollectedFeesUsd !== undefined) {
+    return feesText
+  }
+
+  return (
+    <MouseoverTooltip text={t('fee.unavailable')} placement="top" size={TooltipSize.Max}>
+      {feesText}
+    </MouseoverTooltip>
   )
 }
 
 export function AprCellContent({ position }: { position: PositionInfo }): JSX.Element {
   const { formatPercent } = useLocalizationContext()
-  return <TableText variant="body3">{position.apr !== undefined ? formatPercent(position.apr) : '–'}</TableText>
+  const { rewards } = position
+  const aprText = (
+    <TableText variant="body3">{position.apr !== undefined ? formatPercent(position.apr) : '–'}</TableText>
+  )
+
+  const hasRewards = !!rewards?.length
+  const hasTimeframeAprs = position.apr1d !== undefined || position.apr7d !== undefined || position.apr30d !== undefined
+
+  // Nothing to break down: no windowed APRs and no reward campaign, so the bare cell stands alone.
+  if (!hasTimeframeAprs && !hasRewards) {
+    return aprText
+  }
+
+  // One tooltip serves both cases: the windowed 24H/7D/30D breakdown, plus per-token reward rows and
+  // a reconciling total when the pool is boosted. Currency infos are only used by the Pool APR
+  // fallback row, which never shows here (day-data is always present on this surface), so they're
+  // omitted.
+  return (
+    <MouseoverTooltip
+      padding={0}
+      size={TooltipSize.Small}
+      placement="top"
+      text={
+        <PoolAprTooltip
+          currency0Info={undefined}
+          currency1Info={undefined}
+          poolApr={position.apr}
+          apr1d={position.apr1d}
+          apr7d={position.apr7d}
+          apr30d={position.apr30d}
+          rewards={rewards}
+          totalApr={position.totalApr}
+        />
+      }
+    >
+      {hasRewards ? (
+        <Flex alignItems="flex-end" gap="$spacing6">
+          {aprText}
+          <RewardAprBadge rewards={rewards} isTokenColor size="sm" />
+        </Flex>
+      ) : (
+        aprText
+      )}
+    </MouseoverTooltip>
+  )
 }
 
-export function CreatedCellContent(): JSX.Element {
+const ONE_WEEK_MS = 7 * ONE_DAY_MS
+
+export function CreatedCellContent({ position }: { position: PositionInfo }): JSX.Element {
+  const { t } = useTranslation()
+  const locale = useCurrentLocale()
+  const { createdAt } = position
+  const createdAtMs = createdAt ? createdAt * ONE_SECOND_MS : 0
+  const abbreviated = useAbbreviatedTimeString(createdAtMs)
+
+  if (!createdAt) {
+    return (
+      <TableText variant="body3" color="$neutral2">
+        –
+      </TableText>
+    )
+  }
+
+  const isOlderThanWeek = Date.now() - createdAtMs >= ONE_WEEK_MS
+  const label = isOlderThanWeek
+    ? new Date(createdAtMs).toLocaleDateString(locale, { year: 'numeric', month: '2-digit', day: '2-digit' })
+    : `${abbreviated} ${t('common.ago')}`
+  const fullDateTime = new Date(createdAtMs).toLocaleString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
   return (
-    <TableText variant="body3" color="$neutral2">
-      –
-    </TableText>
+    <MouseoverTooltip text={fullDateTime} placement="top" size={TooltipSize.Max}>
+      <TableText variant="body3" color="$neutral2">
+        {label}
+      </TableText>
+    </MouseoverTooltip>
   )
 }
 
 export function MenuCellContent({
   position,
   isVisible,
+  readOnly = false,
 }: {
   position: PositionInfo
   isVisible: boolean
+  readOnly?: boolean
 }): JSX.Element | null {
   const isTouchDevice = useIsTouchDevice()
   if (isTouchDevice) {
     return null
   }
-  return <LiquidityPositionDropdownMenu liquidityPosition={position} showVisibilityOption isVisible={isVisible} />
+  return (
+    <LiquidityPositionDropdownMenu
+      liquidityPosition={position}
+      showVisibilityOption
+      isVisible={isVisible}
+      readOnly={readOnly}
+    />
+  )
 }
 
 function Dot(): JSX.Element {
@@ -247,8 +364,12 @@ export function getPositionValueDistribution({
     return undefined
   }
 
-  const percent0 = new Percent(value0.quotient, totalValue.quotient)
-  const percent1 = new Percent(value1.quotient, totalValue.quotient)
+  const percent0 = getExactSharePercent(value0, totalValue)
+  const percent1 = getExactSharePercent(value1, totalValue)
+  if (!percent0 || !percent1) {
+    return undefined
+  }
+
   return { percent0, percent1, markerPosition: Number(percent0.toFixed(6)) / 100 }
 }
 

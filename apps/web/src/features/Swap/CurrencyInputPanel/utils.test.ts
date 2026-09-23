@@ -1,6 +1,6 @@
 import { Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { DAI } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { formatCurrencySymbol } from '~/features/Swap/CurrencyInputPanel/utils'
 
 describe('formatCurrencySymbol', () => {

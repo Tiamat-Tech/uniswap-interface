@@ -1,8 +1,8 @@
+import { Platform } from '@universe/chains'
 import {
   type TokenDetailsVaultShareData,
   useTokenDetailsVaultShareData as useSharedTokenDetailsVaultShareData,
 } from 'uniswap/src/features/earn/hooks/useTokenDetailsVaultShareData'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { currencyId } from 'uniswap/src/utils/currencyId'
 import { useActiveAddress } from '~/features/accounts/store/hooks'
 import { useTDPMultichainTokensForEarn } from '~/pages/TokenDetails/components/earn/useTDPMultichainTokensForEarn'

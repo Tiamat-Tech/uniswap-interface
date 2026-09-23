@@ -1,18 +1,20 @@
+import { Platform } from '@universe/chains'
 import { toScreenInput, useIsBlockedAddress } from '@universe/compliance'
+import { Flex, Text, TouchableArea, useMedia } from '@universe/mycelium'
 import { memo, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FadeIn, FadeOut } from 'react-native-reanimated'
-import { Flex, Text, TouchableArea, useIsShortMobileDevice, useMedia } from 'ui/src'
+import { useIsShortMobileDevice } from 'ui/src'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { iconSizes } from 'ui/src/theme'
 import { WarningLabel, type WarningWithStyle } from 'uniswap/src/components/modals/WarningModal/types'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { InsufficientNativeTokenWarning } from 'uniswap/src/features/transactions/components/InsufficientNativeTokenWarning/InsufficientNativeTokenWarning'
 import { useInsufficientNativeTokenWarning } from 'uniswap/src/features/transactions/components/InsufficientNativeTokenWarning/useInsufficientNativeTokenWarning'
 import { BlockedAddressWarning } from 'uniswap/src/features/transactions/modals/BlockedAddressWarning'
 import { SwapWarningModal } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/SwapWarningModal'
 import { TradeInfoRow } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/TradeInfoRow/TradeInfoRow'
+import { useCanonicalBridgeChainId } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/useCanonicalBridgeChainId'
 import { useDebouncedGasInfo } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/useDebouncedGasInfo'
 import { useResetGasCta } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/useResetGasCta'
 import { useParsedSwapWarnings } from 'uniswap/src/features/transactions/swap/hooks/useSwapWarnings/useSwapWarnings'
@@ -50,6 +52,8 @@ export const GasAndWarningRows = memo(function GasAndWarningRows(): JSX.Element 
 
   const inlineWarning = showFormWarning ? formScreenWarning.warning : undefined
   const { showResetGas, onResetGas } = useResetGasCta(inlineWarning)
+  // When defined, TradeInfoRow renders the canonical bridge banner in the gas row's slot
+  const bridgeChainId = useCanonicalBridgeChainId(inlineWarning)
 
   const debouncedGasInfo = useDebouncedGasInfo()
 
@@ -129,7 +133,7 @@ export const GasAndWarningRows = memo(function GasAndWarningRows(): JSX.Element 
           />
         )}
 
-        <TradeInfoRow gasInfo={debouncedGasInfo} />
+        <TradeInfoRow bridgeChainId={bridgeChainId} gasInfo={debouncedGasInfo} />
 
         {showFormWarning && (
           <FormWarning
@@ -147,9 +151,10 @@ export const GasAndWarningRows = memo(function GasAndWarningRows(): JSX.Element 
         {/*
         When there is no gas or no warning, we render an empty row to keep the layout consistent when calculating the container height.
         This is used when calculating the size of the `DecimalPad`.
+        The bridge banner occupies the gas row's slot inside TradeInfoRow, so it needs no compensating empty row.
         */}
 
-        {!debouncedGasInfo.fiatPriceFormatted ? <EmptyRow /> : undefined}
+        {!debouncedGasInfo.fiatPriceFormatted && bridgeChainId === undefined ? <EmptyRow /> : undefined}
         {!(showFormWarning || insufficientGasFundsWarning || insufficientNativeTokenWarning) && <EmptyRow />}
       </Flex>
     </>
@@ -198,7 +203,7 @@ const FormWarning = memo(function FormWarning({
 
 function EmptyRow(): JSX.Element {
   return (
-    <Flex row centered p="$spacing2">
+    <Flex row centered p="$spacing2" testID="gas-and-warning-rows-empty-row">
       <Flex row minHeight={iconSizes.icon16}>
         <Text variant="body3"> </Text>
       </Flex>

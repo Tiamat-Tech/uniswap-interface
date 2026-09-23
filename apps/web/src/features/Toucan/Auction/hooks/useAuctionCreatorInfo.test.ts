@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react'
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuctionCreatorInfo } from '~/features/Toucan/Auction/hooks/useAuctionCreatorInfo'
@@ -27,7 +28,7 @@ describe('useAuctionCreatorInfo', () => {
   })
 
   it('flags the connected wallet as tokensRecipient (case-insensitive)', () => {
-    mocked(useActiveAddress).mockReturnValue(RECIPIENT.toLowerCase())
+    mocked(useActiveAddress).mockReturnValue(normalizeAddress(RECIPIENT, AddressStringFormat.Lowercase))
 
     const { result } = renderHook(() => useAuctionCreatorInfo())
 

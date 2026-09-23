@@ -1,12 +1,11 @@
+import { Flex, iconSizes, Text, TouchableArea, type SpaceTokens, type TextCompatProps } from '@universe/mycelium'
 import type { ReactNode } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, type GetProps, type SpaceTokens } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 
-type TextVariant = GetProps<typeof Text>['variant']
+type TextVariant = TextCompatProps['variant']
 
 type TokenDetailsVaultShareBannerProps = {
   apyPercent: number

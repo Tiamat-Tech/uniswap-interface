@@ -8,8 +8,6 @@ export type TDPState = PendingTDPContext | LoadedTDPContext
 
 /** Actions for partial store updates; only volatile slices that can change without URL change */
 export type TDPActions = {
-  setTokenQuery: (v: TDPState['tokenQuery']) => void
-  setTokenProjectQuery: (v: TDPState['tokenProjectQuery']) => void
   setMultiChainMap: (v: TDPState['multiChainMap']) => void
   setTokenColor: (v: TDPState['tokenColor']) => void
   setCurrency: (v: TDPState['currency']) => void
@@ -20,8 +18,8 @@ export type TDPActions = {
   setMultichainToken: (v: TDPState['multichainToken']) => void
   setMultichainTokenLoaded: (v: TDPState['multichainTokenLoaded']) => void
   setPageQueryLoading: (v: TDPState['pageQueryLoading']) => void
+  setAuctionSource: (v: TDPState['auctionSource']) => void
   setChainDataLoading: (v: TDPState['chainDataLoading']) => void
-  setMarketDataLoading: (v: TDPState['marketDataLoading']) => void
   incrementRefreshEpoch: () => void
 }
 
@@ -36,8 +34,6 @@ export const createTDPStore = (initial: TDPState): TDPStore =>
         ...initial,
         refreshEpoch: 0,
         actions: {
-          setTokenQuery: (tokenQuery) => set({ tokenQuery }),
-          setTokenProjectQuery: (tokenProjectQuery) => set({ tokenProjectQuery }),
           setMultiChainMap: (multiChainMap) => set({ multiChainMap }),
           setTokenColor: (tokenColor) => set({ tokenColor }),
           setCurrency: (currency) => set({ currency }),
@@ -48,8 +44,8 @@ export const createTDPStore = (initial: TDPState): TDPStore =>
           setMultichainToken: (multichainToken) => set({ multichainToken }),
           setMultichainTokenLoaded: (multichainTokenLoaded) => set({ multichainTokenLoaded }),
           setPageQueryLoading: (pageQueryLoading) => set({ pageQueryLoading }),
+          setAuctionSource: (auctionSource) => set({ auctionSource }),
           setChainDataLoading: (chainDataLoading) => set({ chainDataLoading }),
-          setMarketDataLoading: (marketDataLoading) => set({ marketDataLoading }),
           incrementRefreshEpoch: () => set((s) => ({ refreshEpoch: s.refreshEpoch + 1 })),
         },
       }),

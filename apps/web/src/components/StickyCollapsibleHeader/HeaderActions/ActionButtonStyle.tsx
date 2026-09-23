@@ -1,4 +1,4 @@
-import { TextProps } from 'ui/src/components/text/Text'
+import type { TextCompatProps as TextProps } from '@universe/mycelium'
 
 export const ActionButtonStyle = {
   display: 'flex',

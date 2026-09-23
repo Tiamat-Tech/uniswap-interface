@@ -1,9 +1,11 @@
 import { SynchronizedHeartbeatsConfigKey } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
+import { Coin } from '@universe/mycelium/icons/Coin'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, RemoveScroll, useMedia } from 'ui/src'
-import { Coin } from 'ui/src/components/icons/Coin'
+import { RemoveScroll } from 'ui/src'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { TokensListEmptyState } from 'uniswap/src/components/tokens/TokensListEmptyState'
 import { PortfolioBalancePart } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
@@ -23,6 +25,7 @@ import { SearchInput } from '~/pages/Portfolio/components/SearchInput'
 import { usePortfolioRoutes } from '~/pages/Portfolio/Header/hooks/usePortfolioRoutes'
 import { usePortfolioAddresses } from '~/pages/Portfolio/hooks/usePortfolioAddresses'
 import { usePortfolioHeartbeatEnabled } from '~/pages/Portfolio/hooks/usePortfolioHeartbeatCoordinator'
+import { useShowDemoView } from '~/pages/Portfolio/hooks/useShowDemoView'
 import { useTransformTokenTableData } from '~/pages/Portfolio/Tokens/hooks/useTransformTokenTableData'
 import { TokensAllocationChart } from '~/pages/Portfolio/Tokens/Table/TokensAllocationChart'
 import { TokensTable } from '~/pages/Portfolio/Tokens/Table/TokensTable'
@@ -54,6 +57,7 @@ export const PortfolioTokens = memo(function PortfolioTokens() {
   const [search, setSearch] = useState('')
   const { chains: enabledChains } = useEnabledChains()
   const { chainId: urlChainId, isExternalWallet } = usePortfolioRoutes()
+  const showDemoView = useShowDemoView()
 
   const modifier = useRestPortfolioValueModifier(portfolioAddresses.evmAddress ?? portfolioAddresses.svmAddress)
 
@@ -172,6 +176,7 @@ export const PortfolioTokens = memo(function PortfolioTokens() {
                 part={PortfolioBalancePart.Tokens}
                 // The heartbeat refetches balances on its tick — avoid a second overlapping schedule
                 disablePolling={isSynchronizedHeartbeatsEnabled}
+                disableRefresh={showDemoView}
               />
             </Trace>
             <Trace logFocus section={SectionName.PortfolioTokensTab} element={ElementName.PortfolioTokensSearch}>

@@ -1,7 +1,8 @@
 import { isMobileApp } from '@universe/environment'
+import { Input, Text } from '@universe/mycelium'
 import { forwardRef, useCallback, useEffect, useMemo } from 'react'
 import { getNumberFormatSettings } from 'react-native-localize'
-import { Input, Text } from 'ui/src'
+// mycelium's `fonts` is the flat web table; ui's applies the native +1 ramp this default depends on
 import { fonts } from 'ui/src/theme'
 import { useTextWidth } from 'uniswap/src/components/AmountInput/useTextWidth'
 import { numericInputEnforcer } from 'uniswap/src/components/AmountInput/utils/numericInputEnforcer'
@@ -135,6 +136,10 @@ export const AmountInput = forwardRef<Input, Props>(function AmountInputInner(
         fontFamily="$heading"
         fontSize={fontSize}
         fontWeight="500"
+        // mycelium's Text doesn't bake a default cap into its `body2` variant the way ui/src's
+        // did; pass it explicitly so the measured width still matches the rendered TextInput
+        // (still on ui/src Input) above 1.4x system font scaling.
+        maxFontSizeMultiplier={fonts.body2.maxFontSizeMultiplier}
         height={0}
         numberOfLines={1}
         overflow="hidden"

@@ -8,6 +8,11 @@ import { useLPGeoRestriction } from '~/features/Liquidity/useLPGeoRestriction'
 import { useCreateLiquidityContext } from '~/pages/CreatePosition/CreateLiquidityContextProvider'
 import { render, screen } from '~/test-utils/render'
 
+const mockNavigate = vi.fn()
+vi.mock('react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router')>()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
 vi.mock('~/features/Liquidity/useLPGeoRestriction', () => ({ useLPGeoRestriction: vi.fn() }))
 vi.mock('~/features/Liquidity/Create/hooks/useBlockedTokens', () => ({ useBlockedTokens: vi.fn() }))
 vi.mock('~/pages/CreatePosition/CreateLiquidityContextProvider', () => ({ useCreateLiquidityContext: vi.fn() }))
@@ -30,7 +35,7 @@ vi.mock('~/components/SearchModal/CurrencySearchModal', () => ({ CurrencySearchM
 vi.mock('~/features/Liquidity/HookModal', () => ({ HookModal: () => null }))
 vi.mock('~/features/Liquidity/Create/AddHook', () => ({ AddHook: () => <div data-testid="add-hook" /> }))
 vi.mock('~/features/Liquidity/Create/PoolParsingError', () => ({ PoolParsingError: () => null }))
-vi.mock('~/features/Liquidity/LPIncentives/LpIncentivesAprDisplay', () => ({ LpIncentivesAprDisplay: () => null }))
+vi.mock('~/features/Liquidity/LPIncentives/RewardAprBadge', () => ({ RewardAprBadge: () => null }))
 vi.mock('~/features/Liquidity/CurrencySelector', () => ({ CurrencySelector: () => null }))
 
 // Stubbed so the `disabled` prop the step computes from `hasError` is observable; the value asserted
@@ -59,11 +64,18 @@ function mockGeoRestriction(overrides: Partial<ReturnType<typeof useLPGeoRestric
   })
 }
 
+interface PoolCase {
+  creatingPoolOrPair: boolean
+  poolOrPair?: { id: string }
+  poolId?: string
+}
+
 /**
- * An existing pool with a fee tier already selected, so the only thing left that can disable
- * Continue is the geo gate.
+ * A pair with a fee tier already selected. Whether a pool exists at that tier decides what the CTA
+ * does — an existing pool navigates into it, a pool being created advances the form — so each suite
+ * pins its own case.
  */
-function mockCreateLiquidityContext(): void {
+function mockCreateLiquidityContext(pool: PoolCase): void {
   mockedUseCreateLiquidityContext.mockReturnValue({
     positionState: {
       hook: undefined,
@@ -73,15 +85,17 @@ function mockCreateLiquidityContext(): void {
     },
     setPositionState: vi.fn(),
     protocolVersion: ProtocolVersion.V3,
-    creatingPoolOrPair: false,
     currencies: { display: { TOKEN0: AAPLX, TOKEN1: USDC }, sdk: { TOKEN0: AAPLX, TOKEN1: USDC } },
     poolOrPairLoading: false,
-    poolOrPair: { id: 'pool-id' },
-    poolId: 'pool-id',
     protocolFee: undefined,
     setFeeTierSearchModalOpen: vi.fn(),
+    ...pool,
   } as unknown as ReturnType<typeof useCreateLiquidityContext>)
 }
+
+const EXISTING_POOL: PoolCase = { creatingPoolOrPair: false, poolOrPair: { id: 'pool-id' }, poolId: 'pool-id' }
+/** No pool at the selected tier yet, so the CTA advances the form rather than navigating into one. */
+const NEW_POOL: PoolCase = { creatingPoolOrPair: true }
 
 function renderStep(onContinue = vi.fn()): { onContinue: ReturnType<typeof vi.fn> } {
   render(<SelectTokensStep currencyInputs={CURRENCY_INPUTS} setCurrencyInputs={vi.fn()} onContinue={onContinue} />)
@@ -91,7 +105,7 @@ function renderStep(onContinue = vi.fn()): { onContinue: ReturnType<typeof vi.fn
 describe('SelectTokensStep geo gate (select-tokens seam)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockCreateLiquidityContext()
+    mockCreateLiquidityContext(NEW_POOL)
     mockedUseBlockedTokens.mockReturnValue({ hasBlockedToken: false, blockedTokenSymbols: [] })
   })
 
@@ -171,5 +185,40 @@ describe('SelectTokensStep geo gate (select-tokens seam)', () => {
 
     expect(screen.getByText('Not available in your region')).toBeInTheDocument()
     expect(screen.getByText('This token isn’t available for liquidity provision in your region')).toBeInTheDocument()
+  })
+})
+
+describe('SelectTokensStep existing-pool CTA', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockCreateLiquidityContext(EXISTING_POOL)
+    mockGeoRestriction({})
+    mockedUseBlockedTokens.mockReturnValue({ hasBlockedToken: false, blockedTokenSymbols: [] })
+  })
+
+  // Regression: the CTA once navigated to the pool browser instead of the pool. It carries the pool
+  // params but no `step` — AddLiquidity derives the first form step from the pool it loads, and a
+  // `step` written here would land in the URL while this page is still mounted, animating it into the
+  // range step before the route swaps.
+  it('navigates into the pool route with the pool params and no step', () => {
+    renderStep()
+
+    fireEvent.click(screen.getByText('Continue'))
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1)
+    const target = mockNavigate.mock.calls[0][0] as string
+    expect(target).toContain('/positions/add/ethereum/pool-id')
+    expect(target).toContain('protocolVersion=v3')
+    expect(target).not.toContain('step=')
+  })
+
+  // Without `from` the destination's back arrow falls through to the pool browser, stranding users
+  // who arrived from the create flow.
+  it('marks the create page as the entry so the destination can pop back to it', () => {
+    renderStep()
+
+    fireEvent.click(screen.getByText('Continue'))
+
+    expect(mockNavigate.mock.calls[0][1]).toEqual({ state: { from: expect.any(String) } })
   })
 })

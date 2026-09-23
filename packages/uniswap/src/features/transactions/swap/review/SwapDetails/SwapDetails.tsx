@@ -1,9 +1,10 @@
 import type { GasFeeResult } from '@universe/api'
 import { type TradingApi } from '@universe/api'
 import { isMobileApp, isMobileWeb } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, HeightAnimator, Text } from 'ui/src'
 import { type Warning, WarningLabel } from 'uniswap/src/components/modals/WarningModal/types'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { EstimatedSwapTime } from 'uniswap/src/features/transactions/swap/components/EstimatedBridgeTime'
@@ -15,7 +16,12 @@ import { AcceptNewQuoteRow } from 'uniswap/src/features/transactions/swap/review
 import type { DerivedSwapInfo } from 'uniswap/src/features/transactions/swap/types/derivedSwapInfo'
 import type { UniswapXGasBreakdown } from 'uniswap/src/features/transactions/swap/types/swapTxAndGasInfo'
 import { getSwapFeeUsdFromDerivedSwapInfo } from 'uniswap/src/features/transactions/swap/utils/getSwapFeeUsd'
-import { isBridge, isChained, isMultiChainGasQuote } from 'uniswap/src/features/transactions/swap/utils/routing'
+import {
+  isBridge,
+  isChained,
+  isMultiChainGasQuote,
+  isSwapRouting,
+} from 'uniswap/src/features/transactions/swap/utils/routing'
 import { TransactionDetails } from 'uniswap/src/features/transactions/TransactionDetails/TransactionDetails'
 import type {
   FeeOnTransferFeeGroupProps,
@@ -75,6 +81,9 @@ export function SwapDetails({
 
   const isBridgeTrade = routedTrade && isBridge(routedTrade)
   const routing = routedTrade?.routing
+  // Indicative quotes have no routing yet, and wraps render `SwapReviewWrapTransactionDetails`
+  // instead, so anything without a routed trade here is a swap.
+  const isSwap = routedTrade ? isSwapRouting(routedTrade) : true
 
   const swapFeeUsd = getSwapFeeUsdFromDerivedSwapInfo(derivedSwapInfo)
 
@@ -138,6 +147,7 @@ export function SwapDetails({
         uniswapXGasBreakdown={uniswapXGasBreakdown}
         warning={warning}
         estimatedSwapTime={estimatedSwapTime}
+        isSwap={isSwap}
         routingType={routing}
         txSimulationErrors={txSimulationErrors}
         includesDelegation={includesDelegation}

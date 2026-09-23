@@ -58,6 +58,9 @@ export const createLiquidityChartStore = ({
   inputMode,
   minTick,
   maxTick,
+  currentTick,
+  currentPrice,
+  creatingPoolOrPair,
   tickSpacing,
   baseCurrency,
   quoteCurrency,
@@ -69,12 +72,16 @@ export const createLiquidityChartStore = ({
   onInputModeChange,
   onMinTickChange,
   onMaxTickChange,
+  onMinMaxTickChange,
   onTimePeriodChange,
   setIsFullRange,
 }: {
   inputMode?: RangeAmountInputPriceMode
   minTick?: number
   maxTick?: number
+  currentTick: number
+  currentPrice?: number
+  creatingPoolOrPair?: boolean
   tickSpacing: number
   baseCurrency: Maybe<Currency>
   quoteCurrency: Maybe<Currency>
@@ -86,6 +93,7 @@ export const createLiquidityChartStore = ({
   onInputModeChange: (inputMode: RangeAmountInputPriceMode) => void
   onMinTickChange: (tick?: number) => void
   onMaxTickChange: (tick?: number) => void
+  onMinMaxTickChange: (ticks: { minTick?: number; maxTick?: number }) => void
   onTimePeriodChange?: (timePeriod: GraphQLApi.HistoryDuration) => void
   setIsFullRange: (isFullRange: boolean) => void
 }) => {
@@ -95,6 +103,7 @@ export const createLiquidityChartStore = ({
     onInputModeChange,
     onMinTickChange,
     onMaxTickChange,
+    onMinMaxTickChange,
     onTimePeriodChange,
   }
 
@@ -110,6 +119,9 @@ export const createLiquidityChartStore = ({
         return {
           minTick,
           maxTick,
+          currentTick,
+          currentPrice,
+          creatingPoolOrPair: creatingPoolOrPair ?? false,
           minPrice: getDisplayPriceFromTick({
             tick: minTick,
             baseCurrency,
@@ -197,13 +209,12 @@ export const createLiquidityChartStore = ({
     (renderingContext, previousRenderingContext) => {
       // Only initialize if:
       // 1. We have a renderingContext
-      // 2. The context has valid data
+      // 2. The context has price data (a pool being created has a borrowed price line but no liquidity)
       // 3. Initial view hasn't been set yet
       if (
         renderingContext &&
         !previousRenderingContext &&
         renderingContext.priceData.length > 0 &&
-        renderingContext.liquidityData.length > 0 &&
         !store.getState().initialViewSet
       ) {
         store.getState().actions.initializeView()

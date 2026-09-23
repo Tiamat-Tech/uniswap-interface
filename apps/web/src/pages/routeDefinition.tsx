@@ -4,7 +4,6 @@ import i18n from 'uniswap/src/i18n'
 export interface RouterConfig {
   browserRouterEnabled?: boolean
   hash?: string
-  isAddLiquidityRevampEnabled?: boolean
   isEmbeddedWalletEnabled?: boolean
 }
 

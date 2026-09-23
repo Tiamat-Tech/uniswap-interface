@@ -41,6 +41,7 @@ vi.mock('src/utils/useAppStateTrigger', () => ({
 
 vi.mock('wallet/src/features/wallet/hooks', () => ({
   useSelectAccountNotificationSetting: vi.fn(),
+  useIsViewOnlyWallet: (): boolean => false,
 }))
 
 describe('useAddressNotificationToggle', () => {

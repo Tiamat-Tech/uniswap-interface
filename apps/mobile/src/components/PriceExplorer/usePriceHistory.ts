@@ -1,25 +1,29 @@
-import { type GqlResult, GraphQLApi, isError, isNonPollingRequestInFlight } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { type GqlResult, GraphQLApi } from '@universe/api'
 import maxBy from 'lodash/maxBy'
-import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
+import { type Dispatch, type SetStateAction, useMemo, useRef, useState } from 'react'
 import { type SharedValue, useDerivedValue } from 'react-native-reanimated'
 import { type ChartPoint } from 'uniswap/src/components/charts/computeChartPaths'
-import { PollingInterval } from 'uniswap/src/constants/misc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
+import { appendLiveSpotPriceEntry } from 'uniswap/src/components/charts/utils'
 import { useTokenPriceChange, useTokenSpotPrice } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
 import {
   toRestHistoryDuration,
   useTokenPriceHistoryRest,
 } from 'uniswap/src/features/dataApi/tokenDetails/useTokenPriceHistoryRest'
-import { currencyIdToContractInput } from 'uniswap/src/features/dataApi/utils/currencyIdToContractInput'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { currencyIdToChain } from 'uniswap/src/utils/currencyId'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
 
 export type TokenSpotData = {
   value: SharedValue<number>
   relativeChange: SharedValue<number | undefined>
+  /**
+   * Plain JS mirror of `relativeChange`, computed in the same render as the fiat delta.
+   * Consumers that need the idle (non-scrubbing) percent change synchronously alongside other
+   * JS-thread-derived values (e.g. the fiat delta amount) should use this instead of bridging
+   * `relativeChange` back from the UI thread via `useAnimatedReaction` — that bridge is an extra
+   * async hop that can lag a frame or more behind values computed directly from `priceChange`,
+   * producing a visibly "torn" render where the fiat amount updates before the percent does.
+   */
+  relativeChangeIdle: number | undefined
 }
 
 export type PriceNumberOfDigits = {
@@ -27,42 +31,7 @@ export type PriceNumberOfDigits = {
   right: number
 }
 
-type TokenPriceHistoryProject = NonNullable<NonNullable<GraphQLApi.TokenPriceHistoryQuery['tokenProjects']>[number]>
-type TokenPriceHistoryMarket =
-  | NonNullable<NonNullable<TokenPriceHistoryProject['markets']>[number]>
-  | NonNullable<TokenPriceHistoryProject['tokens'][number]['market']>
-type TokenPriceHistoryEntries = TokenPriceHistoryMarket['priceHistory']
 type ConvertFiatAmount = ReturnType<typeof useLocalizationContext>['convertFiatAmount']
-
-function resolvePriceHistorySources({
-  currencyId,
-  lastPrice,
-  preferProjectMarketData,
-  priceData,
-}: {
-  currencyId: string
-  lastPrice: number | undefined
-  preferProjectMarketData: boolean
-  priceData: GraphQLApi.TokenPriceHistoryQuery | undefined
-}): {
-  price: number | undefined
-  priceHistory: TokenPriceHistoryEntries
-  pricePercentChange24h: number
-} {
-  const project = priceData?.tokenProjects?.[0]
-  const projectMarket = project?.markets?.[0]
-  const currentChain = toGraphQLChain(currencyIdToChain(currencyId) ?? UniverseChainId.Mainnet)
-  const tokenMarket = project?.tokens.find((token) => token.chain === currentChain)?.market
-  const primaryMarket = preferProjectMarketData ? projectMarket : tokenMarket
-  const fallbackMarket = preferProjectMarketData ? tokenMarket : projectMarket
-
-  return {
-    price: primaryMarket?.price?.value ?? fallbackMarket?.price?.value ?? lastPrice,
-    priceHistory: primaryMarket?.priceHistory ?? fallbackMarket?.priceHistory,
-    pricePercentChange24h:
-      projectMarket?.pricePercentChange24h?.value ?? tokenMarket?.pricePercentChange24h?.value ?? 0,
-  }
-}
 
 /** Accepts either the GraphQL-shaped entries or the shared REST hook's RestPriceHistoryPoint[]. */
 type PriceValueEntries = readonly ({ value: number } | null | undefined)[] | undefined
@@ -77,28 +46,6 @@ function calculatePriceChange(priceHistory: PriceValueEntries): number | undefin
     return undefined
   }
   return ((closePrice - openPrice) / openPrice) * 100
-}
-
-function resolvePriceHistoryLoading({
-  skip,
-  shouldUseV2Tokens,
-  isRestPriceHistoryLoading,
-  isNonPollingInFlight,
-  hasEverLoaded,
-}: {
-  skip: boolean
-  shouldUseV2Tokens: boolean
-  isRestPriceHistoryLoading: boolean
-  isNonPollingInFlight: boolean
-  hasEverLoaded: boolean
-}): boolean {
-  if (skip) {
-    return true
-  }
-  if (hasEverLoaded) {
-    return false
-  }
-  return shouldUseV2Tokens ? isRestPriceHistoryLoading : isNonPollingInFlight
 }
 
 function getNumberOfDigits({
@@ -132,13 +79,11 @@ function getNumberOfDigits({
 export function useTokenPriceHistory({
   currencyId,
   initialDuration = GraphQLApi.HistoryDuration.Day,
-  preferProjectMarketData = false,
   isMultichainAggregateView = false,
   skip = false,
 }: {
   currencyId: string
   initialDuration?: GraphQLApi.HistoryDuration
-  preferProjectMarketData?: boolean
   isMultichainAggregateView?: boolean
   skip?: boolean
 }): Omit<
@@ -150,7 +95,6 @@ export function useTokenPriceHistory({
 > & {
   setDuration: Dispatch<SetStateAction<GraphQLApi.HistoryDuration>>
   selectedDuration: GraphQLApi.HistoryDuration
-  error: boolean
   numberOfDigits: PriceNumberOfDigits
 } {
   const lastPrice = useRef<undefined | number>(undefined)
@@ -161,65 +105,29 @@ export function useTokenPriceHistory({
   })
   const [duration, setDuration] = useState(initialDuration)
   const { convertFiatAmount } = useLocalizationContext()
-  // The TDP heartbeat coordinator only takes over refreshing when this flag is on —
-  // otherwise this query must keep its own poll running, or it would never refresh.
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-  // Once on, spot price/24h change come from the same REST-backed hooks as web and the TDP stats
-  // section, instead of this hook's own GraphQL query — see useTokenDetailsData.ts.
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
-  // RWA/project-market data (e.g. stocks) has no REST price-history equivalent yet — useTokenPriceHistoryRest
-  // disables its query entirely in that case, so this hook must fall back to its own GraphQL query instead.
-  const shouldUseV2Tokens = isV2TokensEnabled && !preferProjectMarketData
-  const restSpotPrice = useTokenSpotPrice(currencyId, { preferProjectMarketData, isMultichainAggregateView })
-  const restPriceChange24h = useTokenPriceChange(currencyId, { preferProjectMarketData, isMultichainAggregateView })
+  const restSpotPrice = useTokenSpotPrice(currencyId, { isMultichainAggregateView })
+  const restPriceChange24h = useTokenPriceChange(currencyId, { isMultichainAggregateView })
   // Once on, the chart line also comes from REST instead of this hook's own GraphQL query.
   const restPriceHistory = useTokenPriceHistoryRest(currencyId, {
     duration: toRestHistoryDuration(duration),
-    preferProjectMarketData,
     isMultichainAggregateView,
   })
 
-  const {
-    data: priceData,
-    refetch,
-    networkStatus,
-  } = GraphQLApi.useTokenPriceHistoryQuery({
-    variables: {
-      contract: currencyIdToContractInput(currencyId),
-      duration,
-    },
-    notifyOnNetworkStatusChange: true,
-    fetchPolicy: 'network-only',
-    pollInterval: isDataLivelinessEnabled ? undefined : PollingInterval.Normal,
-    skip: skip || shouldUseV2Tokens,
-  })
-
-  const {
-    price: legacyPrice,
-    priceHistory,
-    pricePercentChange24h: legacyPricePercentChange24h,
-  } = resolvePriceHistorySources({
-    currencyId,
-    lastPrice: lastPrice.current,
-    preferProjectMarketData,
-    priceData,
-  })
-
-  const price = shouldUseV2Tokens ? (restSpotPrice ?? lastPrice.current) : legacyPrice
+  const price = restSpotPrice ?? lastPrice.current
   lastPrice.current = price
   if (price !== undefined) {
     hasEverLoadedRef.current = true
   }
 
-  const activeEntries = shouldUseV2Tokens ? restPriceHistory.entries : priceHistory
+  const activeEntries = restPriceHistory.entries
   const calculatedPriceChange = useMemo(() => calculatePriceChange(activeEntries), [activeEntries])
 
   // Use API's 24hr change for 1d, calculated change for other durations
-  const apiPriceChange24h = shouldUseV2Tokens ? (restPriceChange24h ?? 0) : legacyPricePercentChange24h
+  const apiPriceChange24h = restPriceChange24h ?? 0
   const priceChange = duration === GraphQLApi.HistoryDuration.Day ? apiPriceChange24h : calculatedPriceChange
 
   const spotValue = useDerivedValue(() => price ?? 0)
-  const spotRelativeChange = useDerivedValue(() => priceChange)
+  const spotRelativeChange = useDerivedValue(() => priceChange, [priceChange])
 
   const spot = useMemo(
     () =>
@@ -227,24 +135,29 @@ export function useTokenPriceHistory({
         ? {
             value: spotValue,
             relativeChange: spotRelativeChange,
+            relativeChangeIdle: priceChange,
           }
         : undefined,
-    // oxlint-disable-next-line react/exhaustive-deps -- biome-parity: oxlint is stricter here
     [price, priceChange, spotValue, spotRelativeChange],
   )
 
   const formattedPriceHistory = useMemo(() => {
-    if (shouldUseV2Tokens) {
-      // REST timestamps are unix seconds; the chart expects milliseconds.
-      return restPriceHistory.entries.map((point) => ({
-        timestamp: point.timestamp * ONE_SECOND_MS,
-        value: point.value,
-      }))
-    }
-    return priceHistory
-      ?.filter((x): x is GraphQLApi.TimestampedAmount => Boolean(x))
-      .map((x) => ({ timestamp: x.timestamp * ONE_SECOND_MS, value: x.value }))
-  }, [shouldUseV2Tokens, restPriceHistory.entries, priceHistory])
+    // the chart expects milliseconds.
+    const formatted = restPriceHistory.entries.map((point) => ({
+      timestamp: point.timestamp * ONE_SECOND_MS,
+      value: point.value,
+    }))
+
+    // Extends the chart line to the current spot price between backend refetches, matching web's behavior.
+    return appendLiveSpotPriceEntry<ChartPoint>({
+      entries: formatted,
+      currentPrice: price,
+      now: Date.now(),
+      getTime: (entry) => entry.timestamp,
+      createEntry: ({ time, price: entryPrice }) => ({ timestamp: time, value: entryPrice }),
+      updateEntry: (entry, { time, price: entryPrice }) => ({ ...entry, timestamp: time, value: entryPrice }),
+    })
+  }, [restPriceHistory.entries, price])
 
   const data = useMemo(
     () => ({
@@ -266,21 +179,9 @@ export function useTokenPriceHistory({
     return newNumberOfDigits
   }, [convertFiatAmount, activeEntries, price])
 
-  const retry = useCallback(async () => {
-    await refetch({ contract: currencyIdToContractInput(currencyId) })
-  }, [refetch, currencyId])
-
   return {
     data,
-    loading: resolvePriceHistoryLoading({
-      skip,
-      shouldUseV2Tokens,
-      isRestPriceHistoryLoading: restPriceHistory.isLoading,
-      isNonPollingInFlight: isNonPollingRequestInFlight(networkStatus),
-      hasEverLoaded: hasEverLoadedRef.current,
-    }),
-    error: !skip && !shouldUseV2Tokens && isError(networkStatus, !!priceData),
-    refetch: retry,
+    loading: skip || (restPriceHistory.isLoading && !hasEverLoadedRef.current),
     setDuration,
     selectedDuration: duration,
     numberOfDigits,

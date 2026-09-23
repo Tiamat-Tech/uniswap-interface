@@ -1,71 +1,47 @@
+import { Flex, Text } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { ChangeEvent, ReactNode, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
 import { useENS } from 'uniswap/src/features/ens/useENS'
 import { ExplorerDataType, getExplorerLink } from 'uniswap/src/utils/linking'
 import { useAccount } from '~/hooks/useAccount'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 import { ExternalLink } from '~/theme/components/Links'
 
-const InputPanel = deprecatedStyled.div`
-  display: flex;
-  flex-flow: column nowrap;
-  position: relative;
-  border-radius: 1.25rem;
-  background-color: ${({ theme }) => theme.surface1};
-  z-index: 1;
-  width: 100%;
-`
+const InputPanel = styled('div', {
+  platform: 'web',
+  base: 'flex [flex-flow:column_nowrap] relative rounded-[1.25rem] bg-surface1 z-[1] w-full',
+})
 
-const ContainerRow = deprecatedStyled.div<{ error: boolean }>`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-radius: 1.25rem;
-  border: 1px solid ${({ error, theme }) => (error ? theme.critical : theme.surface3)};
-  transition:
-    border-color 300ms ${({ error }) => (error ? 'step-end' : 'step-start')},
-    color 500ms ${({ error }) => (error ? 'step-end' : 'step-start')};
-  background-color: ${({ theme }) => theme.surface1};
-`
+const ContainerRow = styled('div', {
+  platform: 'web',
+  base: 'flex justify-center items-center rounded-[1.25rem] border bg-surface1',
+  variants: {
+    error: {
+      true: 'border-critical [transition:border-color_300ms_step-end,color_500ms_step-end]',
+      false: 'border-surface3 [transition:border-color_300ms_step-start,color_500ms_step-start]',
+    },
+  },
+})
 
-const InputContainer = deprecatedStyled.div`
-  flex: 1;
-  padding: 1rem;
-`
+const InputContainer = styled('div', {
+  platform: 'web',
+  base: 'flex-1 p-[1rem]',
+})
 
-const Input = deprecatedStyled.input<{ error?: boolean }>`
-  font-size: 1.25rem;
-  outline: none;
-  border: none;
-  flex: 1 1 auto;
-  width: 0;
-  background-color: ${({ theme }) => theme.surface1};
-  transition: color 300ms ${({ error }) => (error ? 'step-end' : 'step-start')};
-  color: ${({ error, theme }) => (error ? theme.critical : theme.neutral1)};
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 535;
-  width: 100%;
-  ::placeholder {
-    color: ${({ theme }) => theme.neutral3};
-  }
-  padding: 0px;
-  -webkit-appearance: textfield;
-
-  ::-webkit-search-decoration {
-    -webkit-appearance: none;
-  }
-
-  ::-webkit-outer-spin-button,
-  ::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-  }
-
-  ::placeholder {
-    color: ${({ theme }) => theme.neutral3};
-  }
-`
+// No placeholder rule on purpose: the legacy `::placeholder` was written bare, so it compiled to
+// the unmatchable descendant `.x ::placeholder` and never applied.
+const Input = styled('input', {
+  platform: 'web',
+  base: 'text-[1.25rem] outline-none border-none flex-[1_1_auto] bg-surface1 overflow-hidden text-ellipsis font-[535] w-full p-0 [-webkit-appearance:textfield] [&::-webkit-search-decoration]:[-webkit-appearance:none] [&::-webkit-outer-spin-button]:[-webkit-appearance:none] [&::-webkit-inner-spin-button]:[-webkit-appearance:none]',
+  variants: {
+    error: {
+      true: 'text-critical [transition:color_300ms_step-end]',
+      false: 'text-neutral1 [transition:color_300ms_step-start]',
+    },
+  },
+  defaultVariants: { error: false },
+})
 
 export function AddressInputPanel({
   id,

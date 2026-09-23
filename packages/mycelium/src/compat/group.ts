@@ -14,6 +14,9 @@ import type { GroupState } from './props'
 /** Longest-first so `focusVisible`/`focusWithin` never suffix-match as `focus`. */
 export const GROUP_STATES: readonly GroupState[] = ['focusVisible', 'focusWithin', 'hover', 'press', 'focus']
 
+/** The style-prop prefix every group-state key carries — parsed below, composed by `groupStatePropKey`. */
+export const GROUP_STATE_PROP_PREFIX = '$group-'
+
 /** Tailwind variant per group state — also the harness's canonical scope spelling. */
 export const GROUP_STATE_VARIANT: Record<GroupState, string> = {
   hover: 'group-hover',
@@ -27,6 +30,23 @@ export interface GroupStateParts {
   /** The group name; undefined targets any ancestor group. */
   name?: string
   state: GroupState
+}
+
+/**
+ * The registered group names of the compat surface (INFRA-3481). A named
+ * group pool (`$group-item-hover`) compiles to a name-parameterized Tailwind
+ * variant (`group-hover/item:`), so the var-indirection twin matrix
+ * (`inline-style.ts`) can only carry names enumerated ahead of time —
+ * arbitrary names stay the documented open set (dev-throw / prod
+ * keep-and-warn in `compose.ts`). Values map each name to its single-letter
+ * var-namespace code, appended to the group-state code
+ * (`group-hover/item` → `ghi`); `closed-set.test.ts` gates code uniqueness
+ * and var-name length. A new name is one entry here plus
+ * `bun nx run @universe/mycelium:generate:compat-classes` (and `:native`).
+ */
+export const REGISTERED_GROUP_NAMES: Readonly<Record<string, string>> = {
+  card: 'c',
+  item: 'i',
 }
 
 /**
@@ -49,14 +69,36 @@ export function parseGroupStateSuffix(identifier: string, separator: '-' | '_'):
 
 /** Parse a `$group-*` prop key; undefined for non-group keys and container-size group queries. */
 export function parseGroupStateProp(key: string): GroupStateParts | undefined {
-  if (!key.startsWith('$group-')) {
+  if (!key.startsWith(GROUP_STATE_PROP_PREFIX)) {
     return undefined
   }
-  return parseGroupStateSuffix(key.slice('$group-'.length), '-')
+  return parseGroupStateSuffix(key.slice(GROUP_STATE_PROP_PREFIX.length), '-')
+}
+
+/**
+ * Compose a group-state style-prop key — the inverse of `parseGroupStateProp`.
+ * Callers name the state they mean (`hover`) and this module owns the spelling,
+ * so no second site transcribes the prefix literal.
+ */
+export function groupStatePropKey<S extends GroupState>(state: S): `${typeof GROUP_STATE_PROP_PREFIX}${S}` {
+  return `${GROUP_STATE_PROP_PREFIX}${state}`
 }
 
 /** The Tailwind variant (= canonical scope) for parsed group-state parts: `group-hover`, `group-active/item`, … */
 export function groupStateVariant(parts: GroupStateParts): string {
   const variant = GROUP_STATE_VARIANT[parts.state]
   return parts.name === undefined ? variant : `${variant}/${parts.name}`
+}
+
+/**
+ * The marker class a `group` prop renders — `group` for `true`, `group/<name>`
+ * for a named group: the anchor the compiled `group-*` variants above match.
+ * Shared by the compose engine and the bounded components that emit their
+ * frame classes outside it (ButtonCompat's caller-visible anchor).
+ */
+export function groupMarkerClasses(group: string | boolean | undefined): string[] {
+  if (group === undefined || group === false) {
+    return []
+  }
+  return [group === true ? 'group' : `group/${group}`]
 }

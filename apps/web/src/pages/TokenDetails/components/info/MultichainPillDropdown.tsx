@@ -1,8 +1,9 @@
+import { Text, TouchableArea, heights } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import type React from 'react'
 import type { ComponentProps } from 'react'
-import { Popover, Text, TouchableArea, useMedia } from 'ui/src'
+import { Popover } from 'ui/src'
 import { AdaptiveWebPopoverContent } from 'ui/src/components/popover/AdaptiveWebPopoverContent'
-import { INTERFACE_NAV_HEIGHT } from 'ui/src/theme'
 import { useShadowPropsMedium } from 'ui/src/theme/shadows'
 import type { ModalNameType } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -107,7 +108,7 @@ export function MultichainPillDropdown({
           {...restPopoverContentProps}
           adaptWhen={media.md}
           webBottomSheetProps={{
-            maxHeight: `calc(100dvh - ${INTERFACE_NAV_HEIGHT}px)`,
+            maxHeight: `calc(100dvh - ${heights['interface-nav']}px)`,
             ...sheetPropsFromParent,
             onClose: () => onOpenChange(false),
           }}

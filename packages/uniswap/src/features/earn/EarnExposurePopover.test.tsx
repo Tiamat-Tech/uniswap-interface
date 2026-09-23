@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { getExposureRows, shouldShowExposurePopover } from 'uniswap/src/features/earn/EarnExposurePopover'
 import type { EarnVaultExposure, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { buildCurrencyId, buildNativeCurrencyId } from 'uniswap/src/utils/currencyId'

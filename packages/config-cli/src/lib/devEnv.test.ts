@@ -58,6 +58,6 @@ describe('reconcileDevEnv', () => {
 
     const { content } = reconcileDevEnv(existing, { TOKEN: 'line1\nline2' })
 
-    expect(dotenv.parse(content).TOKEN).toBe('line1\nline2')
+    expect(dotenv.parse(content)['TOKEN']).toBe('line1\nline2')
   })
 })

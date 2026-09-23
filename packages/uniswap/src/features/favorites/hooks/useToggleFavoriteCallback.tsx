@@ -1,3 +1,4 @@
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { useMultichainFavoritesRankings } from 'uniswap/src/features/favorites/hooks/useMultichainFavoritesRankings'
@@ -6,7 +7,7 @@ import { addFavoriteToken, removeFavoriteToken } from 'uniswap/src/features/favo
 import { MobileEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { CurrencyId } from 'uniswap/src/types/currency'
-import { normalizeCurrencyIdForMapLookup, normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
+import { normalizeCurrencyIdForMapLookup } from 'uniswap/src/utils/currencyId'
 import { currencyIdToAddress, currencyIdToChain } from 'uniswap/src/utils/currencyId'
 
 /**

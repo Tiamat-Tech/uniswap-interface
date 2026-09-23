@@ -1,5 +1,7 @@
+import { Flex } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback } from 'react'
-import { Flex, useExtractedTokenColor, useSporeColors } from 'ui/src'
+import { useExtractedTokenColor } from 'ui/src'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import type { BaseModalProps } from 'uniswap/src/components/modals/ModalProps'
 import { useEarnMainnetActionCurrencyForToken } from 'uniswap/src/features/earn/hooks/useEarnMainnetActionCurrency'

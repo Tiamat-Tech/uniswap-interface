@@ -1,7 +1,7 @@
 import { Direction, OnChainTransaction } from '@uniswap/client-data-api/dist/data/v1/types_pb'
+import { areEvmAddressesEqual } from '@universe/chains'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { AssetCase } from 'uniswap/src/features/activity/utils/remote'
-import { areEvmAddressesEqual } from 'uniswap/src/utils/addresses'
 
 export function isZeroAddress(address: string | undefined): boolean {
   return Boolean(address && areEvmAddressesEqual(address, ZERO_ADDRESS))

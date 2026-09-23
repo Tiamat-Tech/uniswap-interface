@@ -1,7 +1,7 @@
 import { waitFor } from '@testing-library/react-native'
 import { HistoryDuration } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import { GraphQLApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import {
   toHistoryTarget,
   toRestHistoryDuration,
@@ -11,14 +11,8 @@ import { renderHookWithProviders } from 'uniswap/src/test/render'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
-const { mockUseFeatureFlag, mockGetGetTokenHistoryPriceQueryOptions } = vi.hoisted(() => ({
-  mockUseFeatureFlag: vi.fn(),
+const { mockGetGetTokenHistoryPriceQueryOptions } = vi.hoisted(() => ({
   mockGetGetTokenHistoryPriceQueryOptions: vi.fn(),
-}))
-
-vi.mock('@universe/gating', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@universe/gating')>()),
-  useFeatureFlag: mockUseFeatureFlag,
 }))
 
 vi.mock('uniswap/src/data/apiClients/dataApiService/tokens/queries', async (importOriginal) => ({
@@ -50,87 +44,53 @@ describe(useTokenPriceHistoryRest, () => {
     }))
   })
 
-  describe('V2 off', () => {
-    beforeEach(() => {
-      mockUseFeatureFlag.mockReturnValue(false)
-    })
+  it('returns the REST price history entries from GetTokenHistoryPrice', async () => {
+    const { result } = renderHookWithProviders(() =>
+      useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY }),
+    )
 
-    it('does not fetch REST at all', () => {
-      renderHookWithProviders(() => useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY }))
-
-      expect(mockGetGetTokenHistoryPriceQueryOptions).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
-    })
-
-    it('returns an empty array', () => {
-      const { result } = renderHookWithProviders(() =>
-        useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY }),
-      )
-
-      expect(result.current).toEqual({ entries: [], isLoading: false })
+    await waitFor(() => {
+      expect(result.current.entries).toEqual([
+        { timestamp: 100, value: 1.1 },
+        { timestamp: 200, value: 2.2 },
+      ])
     })
   })
 
-  describe('V2 on', () => {
-    beforeEach(() => {
-      mockUseFeatureFlag.mockReturnValue(true)
-    })
+  it('builds a singleChain target by default', () => {
+    renderHookWithProviders(() => useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY }))
 
-    it('returns the REST price history entries from GetTokenHistoryPrice', async () => {
-      const { result } = renderHookWithProviders(() =>
-        useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY }),
-      )
+    expect(mockGetGetTokenHistoryPriceQueryOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        params: {
+          target: { case: 'singleChain', value: { chainId: UniverseChainId.Mainnet, address: expect.any(String) } },
+          duration: HistoryDuration.DAY,
+        },
+      }),
+    )
+  })
 
-      await waitFor(() => {
-        expect(result.current.entries).toEqual([
-          { timestamp: 100, value: 1.1 },
-          { timestamp: 200, value: 2.2 },
-        ])
-      })
-    })
+  it('builds a multichain target when isMultichainAggregateView is set', () => {
+    renderHookWithProviders(() =>
+      useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY, isMultichainAggregateView: true }),
+    )
 
-    it('builds a singleChain target by default', () => {
-      renderHookWithProviders(() => useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY }))
-
-      expect(mockGetGetTokenHistoryPriceQueryOptions).toHaveBeenCalledWith(
-        expect.objectContaining({
-          enabled: true,
-          params: {
-            target: { case: 'singleChain', value: { chainId: UniverseChainId.Mainnet, address: expect.any(String) } },
-            duration: HistoryDuration.DAY,
-          },
+    expect(mockGetGetTokenHistoryPriceQueryOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          target: expect.objectContaining({ case: 'multichain' }),
         }),
-      )
-    })
+      }),
+    )
+  })
 
-    it('builds a multichain target when isMultichainAggregateView is set', () => {
-      renderHookWithProviders(() =>
-        useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY, isMultichainAggregateView: true }),
-      )
+  it('disables the query when currencyId is undefined', () => {
+    renderHookWithProviders(() => useTokenPriceHistoryRest(undefined, { duration: HistoryDuration.DAY }))
 
-      expect(mockGetGetTokenHistoryPriceQueryOptions).toHaveBeenCalledWith(
-        expect.objectContaining({
-          params: expect.objectContaining({
-            target: expect.objectContaining({ case: 'multichain' }),
-          }),
-        }),
-      )
-    })
-
-    it('disables the query when preferProjectMarketData is true (no REST equivalent for RWA)', () => {
-      renderHookWithProviders(() =>
-        useTokenPriceHistoryRest(CURRENCY_ID, { duration: HistoryDuration.DAY, preferProjectMarketData: true }),
-      )
-
-      expect(mockGetGetTokenHistoryPriceQueryOptions).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
-    })
-
-    it('disables the query when currencyId is undefined', () => {
-      renderHookWithProviders(() => useTokenPriceHistoryRest(undefined, { duration: HistoryDuration.DAY }))
-
-      expect(mockGetGetTokenHistoryPriceQueryOptions).toHaveBeenCalledWith(
-        expect.objectContaining({ enabled: false, params: undefined }),
-      )
-    })
+    expect(mockGetGetTokenHistoryPriceQueryOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false, params: undefined }),
+    )
   })
 })
 

@@ -1,3 +1,4 @@
+import { Platform } from '@universe/chains'
 import { useCallback, useEffect } from 'react'
 import { useDispatch } from 'react-redux'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
@@ -5,7 +6,6 @@ import { DEFAULT_TOAST_HIDE_DELAY, SPRING_ANIMATION_DELAY } from 'uniswap/src/fe
 import { useSelectAddressNotifications } from 'uniswap/src/features/notifications/slice/hooks'
 import { popNotification, setNotificationViewed } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useTimeout } from 'utilities/src/time/timing'
 
 interface NotificationLifecycleProps {

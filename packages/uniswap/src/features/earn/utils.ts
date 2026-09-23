@@ -6,7 +6,7 @@ import type {
   EarnVaultExposure as DataApiEarnVaultExposure,
 } from '@uniswap/client-data-api/dist/data/v2/earn_pb'
 import { GraphQLApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId, normalizeTokenAddressForCache } from '@universe/chains'
 import { fromGraphQLChain, toSupportedChainId } from 'uniswap/src/features/chains/utils'
 import type { PortfolioBalance } from 'uniswap/src/features/dataApi/types'
 import { EARN_EXPLORE_VAULT_CURRENCY_IDS } from 'uniswap/src/features/earn/launchAssets'
@@ -16,7 +16,6 @@ import type {
   EarnVaultExposure,
   EarnVaultInfo,
 } from 'uniswap/src/features/earn/types'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
 import {
   areCurrencyIdsEqual,
   buildCurrencyId,
@@ -388,6 +387,13 @@ function getEarnExploreVaultRank(vault: Pick<EarnVaultInfo, 'currencyId' | 'disp
 
 export function getEarnVaultsSortedForExplore(vaults: readonly EarnVaultInfo[]): EarnVaultInfo[] {
   return [...vaults].sort((vaultA, vaultB) => getEarnExploreVaultRank(vaultA) - getEarnExploreVaultRank(vaultB))
+}
+
+// Lifetime earnings are always framed as positive gains, so never render a minus sign.
+export function getDisplayLifetimeEarningsUsd(lifetimeEarningsUsd: number): number
+export function getDisplayLifetimeEarningsUsd(lifetimeEarningsUsd: number | undefined): number | undefined
+export function getDisplayLifetimeEarningsUsd(lifetimeEarningsUsd: number | undefined): number | undefined {
+  return lifetimeEarningsUsd === undefined ? undefined : Math.abs(lifetimeEarningsUsd)
 }
 
 export function hasEarnPosition(position: EarnPositionInfo | undefined): boolean {

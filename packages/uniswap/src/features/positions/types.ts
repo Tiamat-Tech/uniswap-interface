@@ -4,8 +4,8 @@ import { Currency, CurrencyAmount, Price, Token } from '@uniswap/sdk-core'
 import { Pair } from '@uniswap/v2-sdk'
 import { Pool as V3Pool, Position as V3Position } from '@uniswap/v3-sdk'
 import { Pool as V4Pool, Position as V4Position } from '@uniswap/v4-sdk'
+import { EVMUniverseChainId } from '@universe/chains'
 import { DEFAULT_TICK_SPACING, DYNAMIC_FEE_AMOUNT } from 'uniswap/src/constants/pools'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 
 export type FeeData = {
   isDynamic: boolean
@@ -30,6 +30,29 @@ export interface PriceOrdering {
   base?: Currency
 }
 
+/**
+ * One LP-incentive reward token's APR boost on the pool a position sits in, from the liquidity
+ * service's `Position.rewards`. The leading `chainId`/`address` pair makes `token` assignable to
+ * the reward-token refs the LP-incentive logo clusters take.
+ *
+ * The reward token lives on its own distribution chain, which can differ from the position's.
+ */
+export interface PositionRewardApr {
+  token: {
+    chainId: number
+    address: string
+    symbol?: string
+    decimals?: number
+    isNative: boolean
+  }
+  /**
+   * The POOL's boost from campaigns paying this token — already the sum of that token's live
+   * campaign APRs, so it must never be added to a per-campaign `boostedApr`. Shared by every
+   * position in the pool rather than specific to this one.
+   */
+  boostedPoolApr: number
+}
+
 interface BasePositionInfo {
   status: PositionStatus
   version: ProtocolVersion
@@ -50,6 +73,10 @@ interface BasePositionInfo {
   fee0Amount?: CurrencyAmount<Currency>
   fee1Amount?: CurrencyAmount<Currency>
   uncollectedFeesUsd?: number
+  /** USD value of token0's uncollected fees, priced with the same backend token price as `uncollectedFeesUsd` (fee amount × `token0PriceUsd`). Set on the liquidity-service path; unset on data-api / when token identity is unavailable. Lets the PDP breakdown match the positions-list total instead of re-pricing with a live oracle (LP-1616). */
+  token0UncollectedFeesUsd?: number
+  /** USD value of token1's uncollected fees. See token0UncollectedFeesUsd. */
+  token1UncollectedFeesUsd?: number
   totalValueUsd?: number
   apr?: number
   isHidden?: boolean
@@ -61,6 +88,12 @@ interface BasePositionInfo {
   apr7d?: number
   /** Fee APR averaged over the trailing 30 days (`PoolPosition.apr30d`). See apr1d. */
   apr30d?: number
+  /** Backend-summed total APR (fee + reward boost), from `Position.total_apr` (liquidity service) or `PoolPosition.totalApr` (data-api). Unset when unavailable. */
+  totalApr?: number
+  /** Unix seconds of the position's first indexed creation event (`Position.created_at` from the liquidity service). Multiply by ONE_SECOND_MS for a JS ms timestamp. */
+  createdAt?: number
+  /** Live LP-incentive APR boosts on this position's pool, one entry per reward token. Unset when the pool runs no live campaign (always unset for v2 pairs, which have none). */
+  rewards?: PositionRewardApr[]
 }
 
 export type V2PairInfo = BasePositionInfo & {
@@ -90,11 +123,8 @@ export type V4PositionInfo = BasePositionInfo & {
   feeTier?: FeeData
   v4hook?: string
   owner: string
-  totalApr?: number
-  unclaimedRewardsAmountUni?: string
   boostedApr?: number
-  // Multi-token LP-incentive reward balances from the data-api PoolPosition — the multi-token
-  // view alongside the legacy UNI-only `unclaimedRewardsAmountUni` scalar.
+  // Multi-token LP-incentive reward balances from the data-api PoolPosition.
   rewardBalances?: PlainMessage<RewardBalance>[]
   /** Held via the PermissionedPositionManager; tokenIds are only unique per manager, so reads must carry this selector. */
   isPermissioned?: boolean

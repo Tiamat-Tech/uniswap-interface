@@ -1,7 +1,7 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Platform } from '@universe/chains'
 import { createContext, Dispatch, PropsWithChildren, SetStateAction, useContext, useMemo, useState } from 'react'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { TransactionStep } from 'uniswap/src/features/transactions/steps/types'
 import { useModalInitialState } from '~/hooks/useModalInitialState'

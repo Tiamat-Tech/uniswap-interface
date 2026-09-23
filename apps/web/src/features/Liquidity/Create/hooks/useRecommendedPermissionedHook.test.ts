@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react'
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { PoolsOrderBy, PoolTokenLogicalOperator } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import type { Currency } from '@uniswap/sdk-core'
 import {
   useRecommendedHookPrefill,
@@ -10,10 +11,10 @@ import type { PositionState } from '~/features/Liquidity/Create/types'
 // Real EIP-55 checksum (computed via viem getAddress); the mocked map stores it lowercase.
 const SDK_FALLBACK_HOOK = vi.hoisted(() => '0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD')
 
-const { mockUseActiveAddress, mockUsePermissionedSwapPair, mockUseGetPoolsByTokens } = vi.hoisted(() => ({
+const { mockUseActiveAddress, mockUsePermissionedSwapPair, mockUseInfiniteQuery } = vi.hoisted(() => ({
   mockUseActiveAddress: vi.fn(),
   mockUsePermissionedSwapPair: vi.fn(),
-  mockUseGetPoolsByTokens: vi.fn(),
+  mockUseInfiniteQuery: vi.fn(),
 }))
 
 // Pin the sdk map to known values so the tests don't depend on which chains the real package
@@ -46,8 +47,14 @@ vi.mock('uniswap/src/features/permissionedTokens/usePermissionedSwapPair', () =>
   usePermissionedSwapPair: mockUsePermissionedSwapPair,
 }))
 
-vi.mock('uniswap/src/data/apiClients/dataApiService/pools/getPools', () => ({
-  useGetPoolsByTokens: mockUseGetPoolsByTokens,
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useInfiniteQuery: mockUseInfiniteQuery,
+}))
+
+// Pass the input through so tests can assert on the params/enabled the hook builds.
+vi.mock('uniswap/src/data/apiClients/dataApiService/pools/queries', () => ({
+  getListPoolsQueryOptions: (input: unknown): unknown => input,
 }))
 
 const SEPOLIA = 11155111
@@ -65,21 +72,6 @@ const WALLET = '0xaaaaBBBBccccDDDDeeeeFFFF000011112222Aaaa'
 const erc20 = (address: string, chainId = SEPOLIA, symbol = 'PTOK1'): Currency =>
   ({ chainId, isNative: false, isToken: true, address, symbol }) as unknown as Currency
 
-const pool = ({
-  hook,
-  tvl,
-  liquidity,
-}: {
-  hook: string | undefined
-  tvl: string
-  liquidity: string
-}): Record<string, unknown> => ({
-  poolId: '0xpool',
-  hooks: hook ? { address: hook } : undefined,
-  totalLiquidityUsd: tvl,
-  liquidity,
-})
-
 const permissionedPair = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
   isPermissioned: true,
   isAllowlisted: true,
@@ -90,29 +82,72 @@ const permissionedPair = (overrides: Record<string, unknown> = {}): Record<strin
   ...overrides,
 })
 
+// data.v2 ListPools RankedPool fixture — the only pool source. `liquidity` (an integer string) is
+// optional so the TVL-tie tests can exercise both the raw-liquidity tiebreak and the list-order
+// fall-through (an unset liquidity normalizes to 0n).
+const rankedPool = ({
+  hook,
+  tvl,
+  liquidity,
+  chainId = SEPOLIA,
+  token0 = ADAPTER,
+  token1 = WETH,
+  poolId = '0xpool',
+}: {
+  hook: string | undefined
+  tvl: number
+  liquidity?: string
+  chainId?: number
+  token0?: string
+  token1?: string
+  poolId?: string
+}): Record<string, unknown> => ({
+  pool: {
+    poolId,
+    chainId,
+    protocolVersion: ProtocolVersion.V4,
+    token0: { address: token0, chainId },
+    token1: { address: token1, chainId },
+    feeTier: 3000,
+    isDynamicFee: false,
+    hookAddress: hook,
+    liquidity,
+  },
+  stats: { tvl },
+})
+
+const listPools = (pools: Record<string, unknown>[]) => ({ data: { pages: [{ pools }] }, isLoading: false })
+
 beforeEach(() => {
   vi.clearAllMocks()
   mockUseActiveAddress.mockReturnValue(WALLET)
-  mockUseGetPoolsByTokens.mockReturnValue({ data: undefined, isLoading: false })
+  mockUseInfiniteQuery.mockReturnValue({ data: undefined, isLoading: false })
 })
 
 describe('useRecommendedPermissionedHook', () => {
-  it('queries pools by the sorted adapter-mapped pair, not the displayed sec-token', () => {
+  it('queries data.v2 ListPools by the sorted adapter-mapped pair, not the displayed sec-token', () => {
     mockUsePermissionedSwapPair.mockReturnValue(permissionedPair())
 
     renderHook(() =>
       useRecommendedPermissionedHook({ tokenA: erc20(UNDERLYING), tokenB: erc20(WETH, SEPOLIA, 'WETH') }),
     )
 
-    expect(mockUseGetPoolsByTokens).toHaveBeenCalledWith(
-      {
-        chainId: SEPOLIA,
-        protocolVersions: [ProtocolVersion.V4],
-        token0: ADAPTER.toLowerCase(),
-        token1: WETH.toLowerCase(),
+    expect(mockUseInfiniteQuery).toHaveBeenCalledWith({
+      params: {
+        chainIds: [SEPOLIA],
+        sort: { orderBy: PoolsOrderBy.TVL },
+        filter: {
+          protocolVersions: [ProtocolVersion.V4],
+          // Server-side v4 filter; checksummed pair set (the hook sorts lowercased, the filter re-checksums).
+          tokenFilter: { tokens: [ADAPTER, WETH], logicalOperator: PoolTokenLogicalOperator.AND },
+          includeSpam: true,
+          applyTopLevelFilters: false,
+        },
       },
-      true,
-    )
+      pageSize: 100,
+      enabled: true,
+      persist: false,
+    })
   })
 
   it('sorts the pair when the adapter-mapped addresses arrive out of order', () => {
@@ -125,32 +160,21 @@ describe('useRecommendedPermissionedHook', () => {
       useRecommendedPermissionedHook({ tokenA: erc20(WETH, SEPOLIA, 'WETH'), tokenB: erc20(UNDERLYING) }),
     )
 
-    expect(mockUseGetPoolsByTokens).toHaveBeenCalledWith(
-      expect.objectContaining({ token0: ADAPTER.toLowerCase(), token1: WETH.toLowerCase() }),
-      true,
-    )
+    const input = mockUseInfiniteQuery.mock.calls.at(-1)?.[0] as {
+      params: { filter: { tokenFilter: { tokens: string[] } } }
+    }
+    expect(input.params.filter.tokenFilter.tokens).toEqual([ADAPTER, WETH])
   })
 
   it('returns the deepest hooked pool, skipping zero-address hooks, checksummed', () => {
     mockUsePermissionedSwapPair.mockReturnValue(permissionedPair())
-    mockUseGetPoolsByTokens.mockReturnValue({
-      data: {
-        pools: [
-          pool({ hook: ZERO, tvl: '999999', liquidity: '999999999' }),
-          pool({
-            hook: HOOK_A.toLowerCase(),
-            tvl: '0.00000000000000000000000000003109',
-            liquidity: '42426406871192851',
-          }),
-          pool({
-            hook: HOOK_B.toLowerCase(),
-            tvl: '0.0000000000000000000000000001219',
-            liquidity: '131182587173364053',
-          }),
-        ],
-      },
-      isLoading: false,
-    })
+    mockUseInfiniteQuery.mockReturnValue(
+      listPools([
+        rankedPool({ hook: ZERO, tvl: 999999 }),
+        rankedPool({ hook: HOOK_A.toLowerCase(), tvl: 10 }),
+        rankedPool({ hook: HOOK_B.toLowerCase(), tvl: 20 }),
+      ]),
+    )
 
     const { result } = renderHook(() =>
       useRecommendedPermissionedHook({ tokenA: erc20(UNDERLYING), tokenB: erc20(WETH, SEPOLIA, 'WETH') }),
@@ -161,21 +185,74 @@ describe('useRecommendedPermissionedHook', () => {
 
   it('breaks TVL ties on raw liquidity', () => {
     mockUsePermissionedSwapPair.mockReturnValue(permissionedPair())
-    mockUseGetPoolsByTokens.mockReturnValue({
-      data: {
-        pools: [
-          pool({ hook: HOOK_A.toLowerCase(), tvl: '0', liquidity: '200' }),
-          pool({ hook: HOOK_B.toLowerCase(), tvl: '0', liquidity: '100' }),
-        ],
-      },
-      isLoading: false,
-    })
+    mockUseInfiniteQuery.mockReturnValue(
+      listPools([
+        rankedPool({ hook: HOOK_A.toLowerCase(), tvl: 0, liquidity: '200' }),
+        rankedPool({ hook: HOOK_B.toLowerCase(), tvl: 0, liquidity: '100' }),
+      ]),
+    )
 
     const { result } = renderHook(() =>
       useRecommendedPermissionedHook({ tokenA: erc20(UNDERLYING), tokenB: erc20(WETH, SEPOLIA, 'WETH') }),
     )
 
     expect(result.current.recommendedHook).toBe(HOOK_A)
+  })
+
+  it('breaks TVL ties by server list order when liquidity is unset on the v2 response', () => {
+    mockUsePermissionedSwapPair.mockReturnValue(permissionedPair())
+    mockUseInfiniteQuery.mockReturnValue(
+      listPools([
+        rankedPool({ hook: HOOK_A.toLowerCase(), tvl: 0 }),
+        rankedPool({ hook: HOOK_B.toLowerCase(), tvl: 0 }),
+      ]),
+    )
+
+    const { result } = renderHook(() =>
+      useRecommendedPermissionedHook({ tokenA: erc20(UNDERLYING), tokenB: erc20(WETH, SEPOLIA, 'WETH') }),
+    )
+
+    // Neither pool carries `liquidity`, so both normalize to `liquidity: 0n`; the reduce's
+    // `a.liquidity >= b.liquidity` tiebreak falls through to whichever pool the server listed first.
+    expect(result.current.recommendedHook).toBe(HOOK_A)
+  })
+
+  it('excludes a pool for an unrelated pair even if the server tokenFilter should have removed it', () => {
+    mockUsePermissionedSwapPair.mockReturnValue(permissionedPair())
+    mockUseInfiniteQuery.mockReturnValue(
+      listPools([
+        // Unrelated pair — a server-side tokenFilter bug must not let this win the recommendation.
+        rankedPool({ hook: HOOK_A, tvl: 999999999, token0: HOOK_A, token1: HOOK_B, poolId: '0xwrongpair' }),
+        rankedPool({ hook: HOOK_B.toLowerCase(), tvl: 10 }),
+      ]),
+    )
+
+    const { result } = renderHook(() =>
+      useRecommendedPermissionedHook({ tokenA: erc20(UNDERLYING), tokenB: erc20(WETH, SEPOLIA, 'WETH') }),
+    )
+
+    // wrongPairPool's TVL dwarfs the correctly-paired pool's, so this only passes if the pair
+    // re-check excludes it rather than trusting the server's tokenFilter.
+    expect(result.current.recommendedHook).toBe(HOOK_B)
+  })
+
+  it('excludes a same-address pool on a different chain even if the server tokenFilter should have removed it', () => {
+    mockUsePermissionedSwapPair.mockReturnValue(permissionedPair())
+    mockUseInfiniteQuery.mockReturnValue(
+      listPools([
+        // Same pair addresses as the target pair, but on a different chain.
+        rankedPool({ hook: HOOK_A, tvl: 999999999, chainId: 1, poolId: '0xwrongchain' }),
+        rankedPool({ hook: HOOK_B.toLowerCase(), tvl: 10 }),
+      ]),
+    )
+
+    const { result } = renderHook(() =>
+      useRecommendedPermissionedHook({ tokenA: erc20(UNDERLYING, SEPOLIA), tokenB: erc20(WETH, SEPOLIA, 'WETH') }),
+    )
+
+    // wrongChainPool's TVL dwarfs the correctly-paired pool's, so this only passes if the chain
+    // re-check excludes it rather than trusting the server's tokenFilter/chainIds param.
+    expect(result.current.recommendedHook).toBe(HOOK_B)
   })
 
   it('disables the pool query and returns undefined when the pair is not permissioned', () => {
@@ -187,7 +264,7 @@ describe('useRecommendedPermissionedHook', () => {
       useRecommendedPermissionedHook({ tokenA: erc20(UNDERLYING), tokenB: erc20(WETH, SEPOLIA, 'WETH') }),
     )
 
-    expect(mockUseGetPoolsByTokens).toHaveBeenCalledWith(expect.anything(), false)
+    expect(mockUseInfiniteQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
     expect(result.current.recommendedHook).toBeUndefined()
   })
 
@@ -198,7 +275,7 @@ describe('useRecommendedPermissionedHook', () => {
       useRecommendedPermissionedHook({ tokenA: erc20(UNDERLYING, SEPOLIA), tokenB: erc20(WETH, 1, 'WETH') }),
     )
 
-    expect(mockUseGetPoolsByTokens).toHaveBeenCalledWith(expect.anything(), false)
+    expect(mockUseInfiniteQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
   })
 
   describe('sdk fallback', () => {
@@ -216,10 +293,7 @@ describe('useRecommendedPermissionedHook', () => {
 
     it('falls back to the canonical sdk hook, checksummed, when discovery settles with no hooked pools', () => {
       // Pool exists but is hookless, so discovery legitimately finds nothing.
-      mockUseGetPoolsByTokens.mockReturnValue({
-        data: { pools: [pool({ hook: ZERO, tvl: '100', liquidity: '100' })] },
-        isLoading: false,
-      })
+      mockUseInfiniteQuery.mockReturnValue(listPools([rankedPool({ hook: ZERO, tvl: 100, liquidity: '100' })]))
 
       const { result } = render()
 
@@ -227,7 +301,7 @@ describe('useRecommendedPermissionedHook', () => {
     })
 
     it('falls back when the query settles with zero pools (first-ever pair)', () => {
-      mockUseGetPoolsByTokens.mockReturnValue({ data: { pools: [] }, isLoading: false })
+      mockUseInfiniteQuery.mockReturnValue(listPools([]))
 
       const { result } = render()
 
@@ -235,7 +309,7 @@ describe('useRecommendedPermissionedHook', () => {
     })
 
     it('falls back on query error (settled-empty semantics)', () => {
-      mockUseGetPoolsByTokens.mockReturnValue({ data: undefined, isLoading: false, isError: true })
+      mockUseInfiniteQuery.mockReturnValue({ data: undefined, isLoading: false, isError: true })
 
       const { result } = render()
 
@@ -243,10 +317,9 @@ describe('useRecommendedPermissionedHook', () => {
     })
 
     it('prefers the discovered hook over the sdk fallback when a hooked pool exists', () => {
-      mockUseGetPoolsByTokens.mockReturnValue({
-        data: { pools: [pool({ hook: HOOK_A.toLowerCase(), tvl: '10', liquidity: '100' })] },
-        isLoading: false,
-      })
+      mockUseInfiniteQuery.mockReturnValue(
+        listPools([rankedPool({ hook: HOOK_A.toLowerCase(), tvl: 10, liquidity: '100' })]),
+      )
 
       const { result } = render()
 
@@ -257,7 +330,7 @@ describe('useRecommendedPermissionedHook', () => {
       mockUsePermissionedSwapPair.mockReturnValue(
         permissionedPair({ isPermissioned: false, inputAdapterAddress: undefined, permissionedSide: undefined }),
       )
-      mockUseGetPoolsByTokens.mockReturnValue({ data: { pools: [] }, isLoading: false })
+      mockUseInfiniteQuery.mockReturnValue(listPools([]))
 
       const { result } = render()
 
@@ -265,7 +338,7 @@ describe('useRecommendedPermissionedHook', () => {
     })
 
     it('never falls back when the chain has no sdk entry', () => {
-      mockUseGetPoolsByTokens.mockReturnValue({ data: { pools: [] }, isLoading: false })
+      mockUseInfiniteQuery.mockReturnValue(listPools([]))
 
       const { result } = render({ chainId: 999999999 })
 
@@ -273,7 +346,7 @@ describe('useRecommendedPermissionedHook', () => {
     })
 
     it("never falls back when the chain's sdk entry lacks the hooks address", () => {
-      mockUseGetPoolsByTokens.mockReturnValue({ data: { pools: [] }, isLoading: false })
+      mockUseInfiniteQuery.mockReturnValue(listPools([]))
 
       // Mainnet's entry has permissionedV4HooksAddress stripped in the module mock above.
       const { result } = render({ chainId: 1 })
@@ -282,7 +355,7 @@ describe('useRecommendedPermissionedHook', () => {
     })
 
     it('never falls back while the pools query is still loading', () => {
-      mockUseGetPoolsByTokens.mockReturnValue({ data: undefined, isLoading: true })
+      mockUseInfiniteQuery.mockReturnValue({ data: undefined, isLoading: true })
 
       const { result } = render()
 
@@ -295,10 +368,7 @@ describe('useRecommendedPermissionedHook', () => {
 describe('useRecommendedHookPrefill', () => {
   const setPositionState = vi.fn()
 
-  const hookedPools = {
-    data: { pools: [pool({ hook: HOOK_A.toLowerCase(), tvl: '10', liquidity: '100' })] },
-    isLoading: false,
-  }
+  const hookedPools = listPools([rankedPool({ hook: HOOK_A.toLowerCase(), tvl: 10, liquidity: '100' })])
 
   type PrefillProps = {
     tokenA: Currency
@@ -322,7 +392,7 @@ describe('useRecommendedHookPrefill', () => {
   beforeEach(() => {
     setPositionState.mockClear()
     mockUsePermissionedSwapPair.mockReturnValue(permissionedPair())
-    mockUseGetPoolsByTokens.mockReturnValue(hookedPools)
+    mockUseInfiniteQuery.mockReturnValue(hookedPools)
   })
 
   it('prefills the recommended hook and resets fee for a permissioned pair', () => {
@@ -359,7 +429,7 @@ describe('useRecommendedHookPrefill', () => {
   })
 
   it('prefills the sdk fallback and resets fee for a first-ever pair (no pools yet)', () => {
-    mockUseGetPoolsByTokens.mockReturnValue({ data: { pools: [] }, isLoading: false })
+    mockUseInfiniteQuery.mockReturnValue(listPools([]))
 
     renderPrefill()
 
@@ -378,7 +448,7 @@ describe('useRecommendedHookPrefill', () => {
   })
 
   it('never applies the sdk fallback when a hook came from the URL', () => {
-    mockUseGetPoolsByTokens.mockReturnValue({ data: { pools: [] }, isLoading: false })
+    mockUseInfiniteQuery.mockReturnValue(listPools([]))
 
     renderPrefill({ ...defaultProps, urlHook: HOOK_B })
 
@@ -401,7 +471,7 @@ describe('useRecommendedHookPrefill', () => {
     mockUsePermissionedSwapPair.mockReturnValue(
       permissionedPair({ isPermissioned: false, inputAdapterAddress: undefined, permissionedSide: undefined }),
     )
-    mockUseGetPoolsByTokens.mockReturnValue({ data: undefined, isLoading: false })
+    mockUseInfiniteQuery.mockReturnValue({ data: undefined, isLoading: false })
 
     renderPrefill()
 

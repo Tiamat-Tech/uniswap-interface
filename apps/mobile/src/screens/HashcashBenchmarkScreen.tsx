@@ -1,4 +1,5 @@
 import { HashcashNative } from '@universe/hashcash-native'
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
 import { findProof as jsFindProof } from '@universe/sessions'
 import React, { memo, useCallback, useEffect, useMemo } from 'react'
 import { ScrollView } from 'react-native'
@@ -12,7 +13,6 @@ import {
   type Implementation,
   useHashcashBenchmarkStore,
 } from 'src/screens/stores/hashcashBenchmarkStore'
-import { Button, Flex, Text, TouchableArea } from 'ui/src'
 import { logger } from 'utilities/src/logger/logger'
 
 function formatDuration(ms: number): string {

@@ -1,7 +1,8 @@
+import { Flex, Text } from '@universe/mycelium'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useMedia } from 'ui/src'
-import { Chevron } from 'ui/src/components/icons/Chevron'
 import { BreadcrumbNavContainer, BreadcrumbNavLink } from '~/components/BreadcrumbNav'
 import {
   PoolProgressIndicator,
@@ -81,7 +82,8 @@ export function CreateAuctionFormWrapper({ children }: { children: React.ReactNo
     >
       <BreadcrumbNavContainer aria-label="breadcrumb-nav">
         <BreadcrumbNavLink to="/positions">
-          {t('pool.positions.title')} <Chevron size="$icon.16" color="$neutral2" rotate="180deg" />
+          {/* direction="right" is unconditionally 180deg, matching the legacy direction-blind rotate="180deg" ("end" would flip in RTL) */}
+          {t('pool.positions.title')} <RotatableChevron size="$icon.16" color="$neutral2" direction="right" />
         </BreadcrumbNavLink>
       </BreadcrumbNavContainer>
       <Flex

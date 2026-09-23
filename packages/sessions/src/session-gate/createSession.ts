@@ -53,7 +53,9 @@ export function createSession(ctx: CreateSessionContext): Session {
       // and `error` is terminal for this attempt — re-establishing per request is the storm, so
       // surface instead and let `recover()` (cooldown-bounded) own healing.
       const status = adapter.getStatus()
-      if (status === 'success' || status === 'error') return Promise.resolve()
+      if (status === 'success' || status === 'error') {
+        return Promise.resolve()
+      }
       markAttempt() // arm the cooldown so an immediate 401 shares this establish, not a second one
       let timer: ReturnType<typeof setTimeout> | undefined
       const timeout = new Promise<void>((_, reject) => {
@@ -68,8 +70,14 @@ export function createSession(ctx: CreateSessionContext): Session {
 }
 
 function mapState(status: ReturnType<SessionAdapter['getStatus']>, hasData: boolean): SessionGateState {
-  if (status === 'success') return 'ready'
-  if (status === 'error') return 'failed'
-  if (status === 'idle') return 'idle'
+  if (status === 'success') {
+    return 'ready'
+  }
+  if (status === 'error') {
+    return 'failed'
+  }
+  if (status === 'idle') {
+    return 'idle'
+  }
   return hasData ? 'recovering' : 'initializing'
 }

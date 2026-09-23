@@ -4,7 +4,7 @@ import type { StoreApi, UseBoundStore } from 'zustand'
 import { create, useStore } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { useShallow } from 'zustand/react/shallow'
-import { PoolSortFields } from '~/data/pools/useTopPools'
+import { PoolSortFields } from '~/data/pools/poolStats'
 
 interface PoolTableActions {
   setSort: (category: PoolSortFields) => boolean
@@ -19,7 +19,7 @@ interface PoolTableState {
 
 type PoolTableStore = UseBoundStore<StoreApi<PoolTableState>>
 
-const INITIAL_SORT_METHOD = PoolSortFields.TVL
+const INITIAL_SORT_METHOD = PoolSortFields.Volume24h
 const INITIAL_SORT_ASCENDING = false
 
 export function createPoolTableStore(): PoolTableStore {

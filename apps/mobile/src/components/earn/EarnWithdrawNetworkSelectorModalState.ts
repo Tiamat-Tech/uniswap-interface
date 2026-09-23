@@ -1,4 +1,4 @@
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 
 // Route param fields must be optional — the generic ReactNavigationModal wrapper can't
 // narrow ModalName correctly when any entry has a required field.

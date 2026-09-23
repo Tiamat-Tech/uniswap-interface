@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { Swap } from 'ui/src/components/icons/Swap' // TODO: update to LP icon
 import { StepRowProps, StepRowSkeleton } from 'uniswap/src/components/ConfirmSwapModal/steps/StepRowSkeleton'
 import { StepStatus } from 'uniswap/src/components/ConfirmSwapModal/types'
@@ -16,7 +16,7 @@ import {
 } from 'uniswap/src/features/transactions/liquidity/steps/migrate'
 
 const LPIcon = (): JSX.Element => (
-  <Flex centered width="$spacing24" height="$spacing24" borderRadius="$roundedFull" backgroundColor="$DEP_blue400">
+  <Flex centered width="$spacing24" height="$spacing24" borderRadius="$roundedFull" backgroundColor="#4C82FB">
     <Swap color="$neutral1" size="$icon.12" />
   </Flex>
 )

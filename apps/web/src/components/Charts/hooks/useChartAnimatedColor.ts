@@ -28,7 +28,9 @@ export function useChartAnimatedColor(target: string, duration = 400): string {
         if (!anim) {
           return
         }
-        const t = Math.min((now - anim.startTime) / duration, 1)
+        // Clamp at 0: rAF timestamps can precede startTime, and negative t overshoots the easing
+        // into invalid colors that lightweight-charts rejects at paint time.
+        const t = Math.min(Math.max((now - anim.startTime) / duration, 0), 1)
         const eased = 1 - Math.pow(1 - t, 3)
         const fromRgb = parseHex(anim.from)
         const toRgb = parseHex(anim.to)

@@ -1,20 +1,20 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { ChartBar } from '@universe/mycelium/icons/ChartBar'
+import { CoinConvert } from '@universe/mycelium/icons/CoinConvert'
+import { Compass } from '@universe/mycelium/icons/Compass'
+import { CreditCard } from '@universe/mycelium/icons/CreditCard'
+import { Pools } from '@universe/mycelium/icons/Pools'
+import { ReceiveAlt } from '@universe/mycelium/icons/ReceiveAlt'
+import { Rocket } from '@universe/mycelium/icons/Rocket'
+import { Wallet } from '@universe/mycelium/icons/Wallet'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
-import { useSporeColors } from 'ui/src'
-import { ChartBar } from 'ui/src/components/icons/ChartBar'
-import { CoinConvert } from 'ui/src/components/icons/CoinConvert'
-import { Compass } from 'ui/src/components/icons/Compass'
-import { CreditCard } from 'ui/src/components/icons/CreditCard'
-import { Pools } from 'ui/src/components/icons/Pools'
-import { ReceiveAlt } from 'ui/src/components/icons/ReceiveAlt'
-import { Rocket } from 'ui/src/components/icons/Rocket'
-import { SwapDotted } from 'ui/src/components/icons/SwapDotted'
-import { Wallet } from 'ui/src/components/icons/Wallet'
 import Badge, { BadgeVariant } from 'uniswap/src/components/badge/Badge'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { MenuItem } from '~/components/NavBar/CompanyMenu/Content'
 import { PageType } from '~/hooks/useIsPage'
+import { ADD_LIQUIDITY_PATH } from '~/pages/AddLiquidity/poolLinkParams'
 import { usePortfolioRoutes } from '~/pages/Portfolio/Header/hooks/usePortfolioRoutes'
 import { PortfolioTab } from '~/pages/Portfolio/types'
 import { buildPortfolioUrl } from '~/pages/Portfolio/utils/portfolioUrls'
@@ -43,7 +43,6 @@ export const useTabsContent = (): TabsSection[] => {
   const colors = useSporeColors()
   const isPortfolioDefiTabEnabled = useFeatureFlag(FeatureFlags.PortfolioDefiTab)
   const portfolioPoolsBalancesEnabled = useFeatureFlag(FeatureFlags.PortfolioPoolsBalances)
-  const isAddLiquidityRevamp = useFeatureFlag(FeatureFlags.AddLiquidityRevamp)
   const entryPoint = resolveEntryPoint({ search, state })
   const isPortfolioPoolsEntryPointActive = entryPoint.kind === EntryPointKind.PortfolioPools
 
@@ -57,7 +56,7 @@ export const useTabsContent = (): TabsSection[] => {
       items: [
         {
           label: t('common.swap'),
-          icon: <SwapDotted size="$icon.24" color="$neutral2" />,
+          icon: <CoinConvert size="$icon.24" color="$neutral2" />,
           href: '/swap',
           internal: true,
           elementName: ElementName.NavbarTradeDropdownSwap,
@@ -146,7 +145,7 @@ export const useTabsContent = (): TabsSection[] => {
         },
         {
           label: t('nav.tabs.createPosition'),
-          href: isAddLiquidityRevamp ? '/positions/add' : '/positions/create',
+          href: ADD_LIQUIDITY_PATH,
           internal: true,
           elementName: ElementName.NavbarPoolDropdownCreatePosition,
         },

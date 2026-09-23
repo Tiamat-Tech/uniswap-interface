@@ -54,4 +54,15 @@ describe('buildNoQueryRwaCollectionOptions', () => {
     expect(single).toBeDefined()
     expect(getRwaTagCategory({ categories: single!.rwa.categories })).toBe(RwaCategory.STOCKS)
   })
+
+  it('derives parent-row stats from the lowest-priced issuer, summing volume', () => {
+    const multi = rwa('TSLA', 2)
+    multi.issuerTokens[0]!.priceUsd = 250
+    multi.issuerTokens[0]!.priceChange24hPct = 1.2
+    multi.issuerTokens[1]!.priceUsd = 248.42
+    multi.issuerTokens[1]!.priceChange24hPct = -0.5
+    const [option] = buildNoQueryRwaCollectionOptions({ rwas: [multi] })
+    // Each fixture issuer carries volume24hUsd: 1.
+    expect(option?.searchStats).toEqual({ priceUsd: 248.42, pricePercentChange1d: -0.5, volume1dUsd: 2 })
+  })
 })

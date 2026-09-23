@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 /* oxlint-disable jest/expect-expect */
 import { toIncludeSameMembers } from 'jest-extended'
 import { migrations } from 'src/app/migrations'
@@ -170,6 +171,7 @@ import {
   v96Schema,
   v97Schema,
   v98Schema,
+  v99Schema,
 } from 'src/app/schema'
 import { persistConfig } from 'src/app/store'
 import { initialBiometricsSettingsState } from 'src/features/biometricsSettings/slice'
@@ -183,7 +185,6 @@ import { USDC } from 'uniswap/src/constants/tokens'
 import { AccountType } from 'uniswap/src/features/accounts/types'
 import { initialAppearanceSettingsState } from 'uniswap/src/features/appearance/slice'
 import { initialUniswapBehaviorHistoryState } from 'uniswap/src/features/behaviorHistory/slice'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { initialFavoritesState } from 'uniswap/src/features/favorites/slice'
 import { FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
 import { initialNotificationsState } from 'uniswap/src/features/notifications/slice/slice'
@@ -198,6 +199,7 @@ import { getWalletDeviceLanguage } from 'uniswap/src/i18n/utils'
 import {
   testAddActivityVisibility,
   testAddEnableCustomGasFeeEntry,
+  testMarkPoolsBalanceCoachmarkEligible,
   testMigrateDismissedTokenWarnings,
   testMigrateSearchHistory,
   testRemoveTHBFromCurrency,
@@ -773,5 +775,9 @@ describe('Redux state migrations', () => {
 
   it('migrates from v98 to v99', () => {
     testRemoveUniswapWrapped2025BehaviorHistory(migrations[99], v98Schema)
+  })
+
+  it('migrates from v99 to v100', () => {
+    testMarkPoolsBalanceCoachmarkEligible(migrations[100], v99Schema)
   })
 })

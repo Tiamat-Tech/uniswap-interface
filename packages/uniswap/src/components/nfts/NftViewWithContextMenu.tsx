@@ -1,6 +1,6 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
 import { useCallback, useMemo } from 'react'
-import { Flex } from 'ui/src'
 import { ContextMenu } from 'uniswap/src/components/menus/ContextMenu'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
 import { NftView, NftViewProps } from 'uniswap/src/components/nfts/NftView'
@@ -55,6 +55,8 @@ export function NftViewWithContextMenu(props: NftViewWithContextMenuProps): JSX.
         triggerMode={isWebPlatform ? ContextMenuTriggerMode.Primary : ContextMenuTriggerMode.Secondary}
         isOpen={contextMenuIsOpen}
         closeMenu={closeContextMenu}
+        // Native stays undefined — long-press opens the menu there, and ContextMenu.native would wrap children in its own TouchableArea
+        openMenu={isWebPlatform ? openContextMenu : undefined}
       >
         {nftViewWithTriggers}
       </ContextMenu>

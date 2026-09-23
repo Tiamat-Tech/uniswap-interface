@@ -1,7 +1,10 @@
 import { type GasFeeResult, type TradingApi } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
+import { Button, Flex, type SpaceTokens, Text } from '@universe/mycelium'
+import { ENTER_PRESET_CLASSES } from '@universe/mycelium/compat'
+import { Presence } from '@universe/mycelium/presence'
 import { type PropsWithChildren } from 'react'
 import { useTranslation } from 'react-i18next'
-import { type Animated } from 'react-native'
 import { useDispatch } from 'react-redux'
 import { useDappLastChainId } from 'src/app/features/dapp/hooks'
 import { useDappRequestQueueContext } from 'src/app/features/dappRequests/DappRequestQueueContext'
@@ -10,9 +13,7 @@ import { useIsDappRequestConfirming } from 'src/app/features/dappRequests/hooks'
 import { useIsRequestStale } from 'src/app/features/dappRequests/hooks/useIsRequestStale'
 import { type DappRequestStoreItem } from 'src/app/features/dappRequests/shared'
 import { type DappRequest, isBatchedSwapRequest } from 'src/app/features/dappRequests/types/DappRequestTypes'
-import { AnimatePresence, Button, Flex, type GetThemeValueForKey, styled, Text } from 'ui/src'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { type UniverseChainId } from 'uniswap/src/features/chains/types'
 import { DappRequestType } from 'uniswap/src/features/dappRequests/types'
 import { useChainGasToken } from 'uniswap/src/features/gas/hooks/useChainGasToken'
 import { hasGasEstimationFailed, hasSufficientGasBalance } from 'uniswap/src/features/gas/utils'
@@ -44,7 +45,7 @@ interface DappRequestFooterProps {
   confirmText?: string
   maybeCloseOnConfirm?: boolean
   onCancel?: (requestToConfirm?: DappRequestStoreItem, transactionTypeInfo?: TransactionTypeInfo) => void
-  onConfirm?: (requestToCancel?: DappRequestStoreItem) => void
+  onConfirm?: (requestToCancel?: DappRequestStoreItem) => void | Promise<void>
   showNetworkCost?: boolean
   showSmartWalletActivation?: boolean
   showAddressFooter?: boolean
@@ -58,35 +59,10 @@ interface DappRequestFooterProps {
    * demoted to critical theming, placed first to add friction.
    */
   isCriticalRisk?: boolean
-  contentHorizontalPadding?: number | Animated.AnimatedNode | GetThemeValueForKey<'paddingHorizontal'> | null
+  contentHorizontalPadding?: SpaceTokens
 }
 
 type DappRequestContentProps = DappRequestHeaderProps & DappRequestFooterProps
-
-export const AnimatedPane = styled(Flex, {
-  variants: {
-    forwards: (dir: boolean) => ({
-      enterStyle: {
-        x: dir ? 10 : -10,
-        opacity: 0,
-      },
-    }),
-    increasing: (dir: boolean) => ({
-      enterStyle: dir
-        ? {
-            y: 10,
-            opacity: 0,
-          }
-        : undefined,
-      exitStyle: !dir
-        ? {
-            y: 10,
-            opacity: 0,
-          }
-        : undefined,
-    }),
-  } as const,
-})
 
 export function DappRequestContent({
   chainId,
@@ -133,11 +109,16 @@ export function DappRequestContent({
           headerIcon={headerIcon}
         />
       </Flex>
-      <AnimatePresence exitBeforeEnter custom={{ forwards }}>
-        <AnimatedPane key={currentIndex} animation="200ms" px={contentHorizontalPadding}>
+      <Presence exitBeforeEnter>
+        {/* No exit classes on purpose: the legacy pane declared no exitStyle, so the outgoing pane never animated out. */}
+        <Flex
+          key={currentIndex}
+          className={forwards ? ENTER_PRESET_CLASSES.fadeInRight : ENTER_PRESET_CLASSES.fadeInLeft}
+          px={contentHorizontalPadding}
+        >
           {children}
-        </AnimatedPane>
-      </AnimatePresence>
+        </Flex>
+      </Presence>
       <DappRequestFooter
         chainId={chainId}
         confirmText={confirmText}
@@ -229,7 +210,7 @@ function DappRequestFooter({
     }
 
     if (onConfirm) {
-      onConfirm()
+      await onConfirm()
     } else {
       await defaultOnConfirm({ request })
       if (isUniswapX) {

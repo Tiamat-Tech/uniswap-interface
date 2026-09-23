@@ -1,5 +1,5 @@
+import { Flex, useIsTouchDevice } from '@universe/mycelium'
 import { memo, useContext } from 'react'
-import { Flex, useIsTouchDevice } from 'ui/src'
 import { ContextMenuTriggerButton } from 'uniswap/src/components/menus/ContextMenuTriggerButton'
 import { ContextMenuTriggerMode } from 'uniswap/src/components/menus/types'
 import { IssuerTableRowHoverContext } from 'uniswap/src/features/expandableAsset/IssuerTableRowHoverContext'

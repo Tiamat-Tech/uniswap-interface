@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { CurrencyInputPanel } from 'uniswap/src/components/CurrencyInputPanel/CurrencyInputPanel'
 import { useFiatTokenConversion } from 'uniswap/src/features/transactions/hooks/useFiatTokenConversion'
 import { useUSDCValue } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
@@ -18,6 +18,9 @@ import { tryParseCurrencyAmount } from '~/lib/utils/tryParseCurrencyAmount'
 interface BidMaxValuationInputV2Props {
   label: string
   field: MaxValuationFieldState
+  /** The auction's bid price ceiling, derived once by the bid form controller. */
+  maxBidPriceQ96?: bigint
+  maxBidPriceFdvFormatted?: string
   auctionTokenDecimals?: number
   tokenColor?: string
   disabled?: boolean
@@ -37,6 +40,8 @@ const CUSTOM_PANEL_STYLE = {
 export function BidMaxValuationInputV2({
   label,
   field,
+  maxBidPriceQ96,
+  maxBidPriceFdvFormatted,
   auctionTokenDecimals = 18,
   tokenColor,
   disabled,
@@ -52,6 +57,7 @@ export function BidMaxValuationInputV2({
     isFiatMode,
     error,
     errorDetails,
+    wasCappedToMax,
     onTokenValueChange,
     onTokenValueQ96Change,
     onToggleFiatMode,
@@ -198,6 +204,9 @@ export function BidMaxValuationInputV2({
             disabled={disabled}
             onInteractionStart={handleSliderInteractionStart}
             inputType={ValuationInputType.Fdv}
+            showCeilingHint={wasCappedToMax}
+            maxBidPriceQ96={maxBidPriceQ96}
+            maxBidPriceFdvFormatted={maxBidPriceFdvFormatted}
           />
         }
         fontSizeOptions={{ maxFontSize: 18, minFontSize: 12 }}

@@ -1,7 +1,8 @@
+import { Flex, type FlexCompatProps as FlexProps, Text, TouchableArea } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { ChevronsIn } from '@universe/mycelium/icons/ChevronsIn'
+import { ChevronsOut } from '@universe/mycelium/icons/ChevronsOut'
 import { type ReactNode } from 'react'
-import { Flex, type FlexProps, HeightAnimator, Text, TouchableArea } from 'ui/src'
-import { ChevronsIn } from 'ui/src/components/icons/ChevronsIn'
-import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
 
 export interface InlineExpandoRowProps {
   isExpanded: boolean

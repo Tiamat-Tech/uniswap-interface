@@ -1,6 +1,6 @@
+import { Flex, Text, zIndexes } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
 import { BID_OUT_OF_RANGE_INDICATOR } from '~/features/Toucan/Auction/BidDistributionChart/constants'
 import { formatTickForDisplay } from '~/features/Toucan/Auction/BidDistributionChart/utils/utils'
 import type { BidTokenInfo } from '~/features/Toucan/Auction/store/types'
@@ -10,7 +10,7 @@ interface BidOutOfRangeIndicatorProps {
   direction: 'up' | 'down'
   tickValue: number
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals: number
   formatter: (amount: number) => string
   onClick: () => void
@@ -24,7 +24,7 @@ export function BidOutOfRangeIndicator({
   direction,
   tickValue,
   bidTokenInfo,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals,
   formatter,
   onClick,
@@ -37,7 +37,7 @@ export function BidOutOfRangeIndicator({
   const fdvDisplay = formatTickForDisplay({
     tickValue,
     bidTokenInfo,
-    totalSupply,
+    tokenTotalSupply,
     auctionTokenDecimals,
     formatter,
   })

@@ -1,6 +1,6 @@
 import type { DigitInputRowProps } from '@universe/embedded-wallet/src/components/passkey/recovery/DigitInputRow.types'
+import { Flex, Text } from '@universe/mycelium'
 import { type ChangeEvent, type CSSProperties, useRef, useState } from 'react'
-import { Flex, Text } from 'ui/src'
 import { useInjectSingleStylesheet } from 'utilities/src/react/useInjectSingleStylesheet'
 
 const CARET_KEYFRAMES_ID = 'uniswap-digit-input-caret-keyframes'

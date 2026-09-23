@@ -3,8 +3,8 @@ import {
   EarnPosition as DataApiEarnPosition,
   EarnVault as DataApiEarnVault,
 } from '@uniswap/client-data-api/dist/data/v2/earn_pb'
+import { UniverseChainId } from '@universe/chains'
 import { getDynamicConfigValue } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getEarnVaultId } from 'uniswap/src/features/earn/utils'
 import { EarnEventName } from 'uniswap/src/features/telemetry/constants/features'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -112,7 +112,7 @@ vi.mock('~/features/earn/EarnVaultModal', () => ({
     vault?: { id?: string } | null
   }) => (
     <div
-      data-testid="earn-vault-modal"
+      data-testid={TestID.EarnVaultModal}
       data-open={String(isOpen)}
       data-initial-view={initialView ?? ''}
       data-vault-id={vault?.id ?? ''}
@@ -340,9 +340,9 @@ describe('PortfolioEarnSection', () => {
 
     fireEvent.click(screen.getByText('USDC'))
 
-    expect(screen.getByTestId('earn-vault-modal')).toHaveAttribute('data-open', 'true')
-    expect(screen.getByTestId('earn-vault-modal')).toHaveAttribute('data-initial-view', 'vault')
-    expect(screen.getByTestId('earn-vault-modal')).toHaveAttribute(
+    expect(screen.getByTestId(TestID.EarnVaultModal)).toHaveAttribute('data-open', 'true')
+    expect(screen.getByTestId(TestID.EarnVaultModal)).toHaveAttribute('data-initial-view', 'vault')
+    expect(screen.getByTestId(TestID.EarnVaultModal)).toHaveAttribute(
       'data-vault-id',
       getEarnVaultId({
         chainId: UniverseChainId.Mainnet,
@@ -478,6 +478,7 @@ describe('PortfolioEarnSection', () => {
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
     expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(EarnEventName.EarnSurfaceViewed, {
       entry_point: 'portfolio_earn_section',
+      is_read_only: false,
       surface: 'web',
     })
   })
@@ -528,8 +529,8 @@ describe('PortfolioEarnSection', () => {
 
     fireEvent.click(depositButton)
 
-    expect(screen.getByTestId('earn-vault-modal')).toHaveAttribute('data-open', 'true')
-    expect(screen.getByTestId('earn-vault-modal')).toHaveAttribute('data-initial-view', 'vault')
+    expect(screen.getByTestId(TestID.EarnVaultModal)).toHaveAttribute('data-open', 'true')
+    expect(screen.getByTestId(TestID.EarnVaultModal)).toHaveAttribute('data-initial-view', 'vault')
   })
 
   it('shows a get-token row for vaults without a position or token balance', () => {
@@ -544,8 +545,8 @@ describe('PortfolioEarnSection', () => {
 
     fireEvent.click(getTokenRow)
 
-    expect(screen.getByTestId('earn-vault-modal')).toHaveAttribute('data-open', 'true')
-    expect(screen.getByTestId('earn-vault-modal')).toHaveAttribute('data-initial-view', 'deposit-amount')
+    expect(screen.getByTestId(TestID.EarnVaultModal)).toHaveAttribute('data-open', 'true')
+    expect(screen.getByTestId(TestID.EarnVaultModal)).toHaveAttribute('data-initial-view', 'deposit-amount')
   })
 
   it('does not show Deposit for a vault just because the wallet holds another vault token', () => {
@@ -568,14 +569,15 @@ describe('PortfolioEarnSection', () => {
     expect(screen.getAllByTestId(TestID.PortfolioOverviewEarnVaultRowSkeleton)).toHaveLength(3)
   })
 
-  it('does not show get-token rows when portfolio balances fail without cached data', () => {
+  it('settles eligibility when portfolio balances fail without cached data', () => {
     mockPortfolioBalancesError()
     mockEarnQueries({ vaults: [USDC_VAULT], positions: [] })
 
     render(<PortfolioEarnSection account={ACCOUNT} />)
 
-    expect(screen.queryByText('Get USDC')).toBeNull()
-    expect(screen.getAllByTestId(TestID.PortfolioOverviewEarnVaultRowSkeleton)).toHaveLength(3)
+    expect(screen.getByText('Get USDC')).toBeInTheDocument()
+    expect(screen.queryByText('Deposit')).toBeNull()
+    expect(screen.queryByTestId(TestID.PortfolioOverviewEarnVaultRowSkeleton)).toBeNull()
   })
 
   it('keeps using real cached portfolio balances during same-wallet refetches', () => {
@@ -599,6 +601,116 @@ describe('PortfolioEarnSection', () => {
 
     expect(screen.getByText('Deposit')).toBeInTheDocument()
     expect(screen.queryByTestId(TestID.PortfolioOverviewEarnVaultRowSkeleton)).toBeNull()
+  })
+
+  it('read-only: renders only funded vaults without deposit or get-token CTAs', () => {
+    mockPortfolioBalances([USDC_CURRENCY_ID, DAI_CURRENCY_ID])
+    mockEarnQueries({
+      vaults: [USDC_VAULT, DAI_VAULT, WETH_VAULT],
+      positions: [
+        new DataApiEarnPosition({
+          vault: USDC_VAULT,
+          sharesRaw: '1000000',
+          currentAssetsRaw: '1000000000',
+          currentAssetsUsd: 1000,
+        }),
+      ],
+    })
+
+    render(<PortfolioEarnSection account={ACCOUNT} isReadOnly />)
+
+    expect(screen.getByTestId(TestID.PortfolioOverviewEarnSection)).toBeInTheDocument()
+    expect(screen.getByTestId(TestID.PortfolioOverviewEarnTotalDeposited)).toHaveTextContent('$1,000.00')
+    expect(screen.getByText('1,000 USDC')).toBeInTheDocument()
+    expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(EarnEventName.EarnSurfaceViewed, {
+      entry_point: 'portfolio_earn_section',
+      is_read_only: true,
+      surface: 'web',
+    })
+
+    const earnRowTestIdPattern = new RegExp(
+      `^(${TestID.PortfolioOverviewEarnVaultRowPrefix}|${TestID.PortfolioOverviewEarnGetTokenRowPrefix})`,
+    )
+    expect(screen.getAllByTestId(earnRowTestIdPattern)).toHaveLength(1)
+    expect(screen.queryByText('Deposit')).toBeNull()
+    expect(screen.queryByText('Get DAI')).toBeNull()
+    // WETH vaults display as ETH, so a regressed get-token row would read "Get ETH".
+    expect(screen.queryByText('Get ETH')).toBeNull()
+
+    const row = screen.getByTestId(
+      `${TestID.PortfolioOverviewEarnVaultRowPrefix}${getEarnVaultId({
+        chainId: UniverseChainId.Mainnet,
+        vaultAddress: USDC_VAULT_ADDRESS,
+      })}`,
+    )
+    expect(row).not.toHaveAttribute('role', 'button')
+
+    fireEvent.click(screen.getByText('USDC'))
+
+    expect(screen.queryByTestId(TestID.EarnVaultModal)).toBeNull()
+  })
+
+  it('read-only: ignores CTA-only loading states and still renders funded rows', () => {
+    // These lookups only determine actionable deposit/get-token rows, which read-only mode omits.
+    mockUsePortfolioBalances.mockReturnValue({
+      data: undefined,
+      dataUpdatedAt: undefined,
+      error: undefined,
+      loading: true,
+    })
+    mockUseTokenProjectsByCurrencyId.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      loading: true,
+      refetch: vi.fn(),
+    })
+    mockEarnQueries({
+      vaults: [USDC_VAULT],
+      positions: [
+        new DataApiEarnPosition({
+          vault: USDC_VAULT,
+          sharesRaw: '1000000',
+          currentAssetsRaw: '1000000000',
+          currentAssetsUsd: 1000,
+        }),
+      ],
+    })
+
+    render(<PortfolioEarnSection account={ACCOUNT} isReadOnly />)
+
+    expect(screen.getByTestId(TestID.PortfolioOverviewEarnSection)).toBeInTheDocument()
+    expect(screen.getByText('1,000 USDC')).toBeInTheDocument()
+    expect(screen.queryByTestId(TestID.PortfolioOverviewEarnVaultRowSkeleton)).toBeNull()
+    expect(mockUsePortfolioBalances).toHaveBeenCalledWith(expect.objectContaining({ skip: true }))
+    expect(mockUseTokenProjectsByCurrencyId).toHaveBeenCalledWith([])
+  })
+
+  it('read-only: renders nothing and logs no impression when the wallet has no earn balance', () => {
+    mockPortfolioBalances([USDC_CURRENCY_ID])
+    mockEarnQueries({ vaults: [USDC_VAULT, DAI_VAULT], positions: [] })
+
+    render(<PortfolioEarnSection account={ACCOUNT} isReadOnly />)
+
+    expect(screen.queryByTestId(TestID.PortfolioOverviewEarnSection)).toBeNull()
+    expect(mockSendAnalyticsEvent).not.toHaveBeenCalled()
+  })
+
+  it('read-only: renders nothing while positions are still loading', () => {
+    mockEarnQueries({ vaults: [USDC_VAULT], positions: [], vaultsLoading: true, positionsLoading: true })
+
+    render(<PortfolioEarnSection account={ACCOUNT} isReadOnly />)
+
+    expect(screen.queryByTestId(TestID.PortfolioOverviewEarnSection)).toBeNull()
+    expect(screen.queryByTestId(TestID.PortfolioOverviewEarnVaultRowSkeleton)).toBeNull()
+  })
+
+  it('read-only: renders nothing when the load fails instead of the error state', () => {
+    mockEarnQueries({ vaults: [], positions: [], vaultsError: true })
+
+    render(<PortfolioEarnSection account={ACCOUNT} isReadOnly />)
+
+    expect(screen.queryByTestId(TestID.PortfolioOverviewEarnError)).toBeNull()
+    expect(screen.queryByTestId(TestID.PortfolioOverviewEarnSection)).toBeNull()
   })
 
   it('sums lifetime earnings from per-vault GetEarnPosition responses', () => {

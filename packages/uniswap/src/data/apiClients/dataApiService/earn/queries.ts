@@ -124,7 +124,7 @@ export function getEarnPositionQueryOptions<TSelectData = PlainMessage<GetEarnPo
       return toPlainMessage(await dataApiServiceClientV2.getEarnPosition(params))
     },
     enabled: enabled && !!params,
-    placeholderData: keepPreviousData,
+    // No-position selectors return undefined, which can loop with keepPreviousData when the query key changes.
     select,
     staleTime: ONE_MINUTE_MS,
   })

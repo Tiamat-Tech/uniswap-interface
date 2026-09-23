@@ -9,7 +9,9 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import noTamaguiStyling from './no-tamagui-styling.js'
+import noThrowingStubImports from './no-throwing-stub-imports.js'
+import preferUseIsMounted from './prefer-use-is-mounted.js'
+import styledFactoryLiteralClasses from './styled-factory-literal-classes.js'
 
 // ── Utilities ──────────────────────────────────────────────────────────
 
@@ -877,7 +879,7 @@ const noToLowerCaseAddressCurrencyId = {
     schema: [],
     messages: {
       noToLowerCaseAddress:
-        'Do not use .toLowerCase() on addresses. Use areAddressesEqual() or normalizeTokenAddressForCache() from packages/uniswap instead.',
+        'Do not use .toLowerCase() on addresses. Use areAddressesEqual(), normalizeAddress, or normalizeTokenAddressForCache() from @universe/chains instead.',
       noToLowerCaseCurrencyId:
         'Do not use .toLowerCase() on currencyIds. Use areCurrencyIdsEqual() or normalizeCurrencyIdForMapLookup() from packages/uniswap instead.',
     },
@@ -945,16 +947,14 @@ const noPlatformGateInChainFlags = {
   },
 }
 
-// ── no-tamagui-styling ─────────────────────────────────────────────────
-// Extracted to its own module (rule + baseline/exemption loaders); see
-// no-tamagui-styling.js and its colocated tests.
-
 // ── import-boundary (JSON) ─────────────────────────────────────────────
 // Modes:
 //   importerAllowlist — only paths matching allowedImporterPathMarkers may import
 //     modules matching importPrefixes; imports from within importerInternalPathMarkers are always allowed.
 //   importerDenylist — if a module matches importPrefixes and the importer path matches
 //     deniedImporterPathMarkers, the import is forbidden (no allowlist).
+// A path marker is a substring, or an array of substrings that must ALL be present
+// (e.g. ["/features/transactions/swap/", "/views/"] marks views/ dirs inside the swap tree only).
 
 const __importBoundaryDir = dirname(fileURLToPath(import.meta.url))
 
@@ -967,7 +967,21 @@ function getPhysicalFilenameForBoundary(context) {
 }
 
 function physicalPathHasMarker(physicalPath, markers) {
-  return markers.some((m) => physicalPath.includes(m))
+  return markers.some((m) =>
+    Array.isArray(m) ? m.every((part) => physicalPath.includes(part)) : physicalPath.includes(m),
+  )
+}
+
+function validatePathMarkers(id, key, markers) {
+  const isValidMarker = (m) =>
+    Array.isArray(m)
+      ? m.length > 0 && m.every((part) => typeof part === 'string' && part.length > 0)
+      : typeof m === 'string' && m.length > 0
+  if (!Array.isArray(markers) || !markers.every(isValidMarker)) {
+    throw new Error(
+      `import-boundaries.json: boundary "${id}": every "${key}" entry must be a non-empty string or a non-empty array of non-empty strings (array = all substrings must match)`,
+    )
+  }
 }
 
 function moduleImportSuffixForBoundary(source, boundary) {
@@ -1016,6 +1030,7 @@ function loadImportBoundaries() {
           `import-boundaries.json: boundary "${id}" (importerDenylist) needs non-empty "deniedImporterPathMarkers"`,
         )
       }
+      validatePathMarkers(id, 'deniedImporterPathMarkers', b.deniedImporterPathMarkers)
       return {
         id,
         mode,
@@ -1030,6 +1045,7 @@ function loadImportBoundaries() {
       if (b[key] == null || (Array.isArray(b[key]) && b[key].length === 0)) {
         throw new Error(`import-boundaries.json: boundary "${id}" needs a non-empty "${key}"`)
       }
+      validatePathMarkers(id, key, b[key])
     }
     return {
       id,
@@ -1238,7 +1254,9 @@ const plugin = {
     'enum-member-naming': enumMemberNaming,
     'no-tolowercase-address-currencyid': noToLowerCaseAddressCurrencyId,
     'no-platform-gate-in-chain-flags': noPlatformGateInChainFlags,
-    'no-tamagui-styling': noTamaguiStyling,
+    'no-throwing-stub-imports': noThrowingStubImports,
+    'styled-factory-literal-classes': styledFactoryLiteralClasses,
+    'prefer-use-is-mounted': preferUseIsMounted,
   },
 }
 

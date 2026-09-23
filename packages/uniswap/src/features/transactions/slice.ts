@@ -1,7 +1,7 @@
 /* oxlint-disable typescript/no-non-null-assertion -- helpful when dealing with deeply nested state objects */
 import { createAction, createSlice, Draft, PayloadAction } from '@reduxjs/toolkit'
+import { UniverseChainId } from '@universe/chains'
 import { providers } from 'ethers/lib/ethers'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { FORTransactionDetails } from 'uniswap/src/features/fiatOnRamp/types'
 import {
   CancelRevertStatus,
@@ -21,6 +21,7 @@ import {
   InterfaceTransactionDetails,
   TransactionDetails,
   TransactionId,
+  TransactionNetworkFee,
   TransactionStatus,
   TransactionType,
   TransactionTypeInfo,
@@ -319,7 +320,9 @@ const slice = createSlice({
     },
     interfaceConfirmBridgeDeposit: (
       state,
-      { payload: { chainId, id, address } }: PayloadAction<{ chainId: UniverseChainId; id: string; address: string }>,
+      {
+        payload: { chainId, id, address, networkFee },
+      }: PayloadAction<{ chainId: UniverseChainId; id: string; address: string; networkFee?: TransactionNetworkFee }>,
     ) => {
       const interfaceTransaction = getInterfaceTransactionFromState({
         state,
@@ -333,6 +336,11 @@ const slice = createSlice({
         `interfaceConfirmBridgeDeposit: Attempted to confirm a non-bridge transaction with id ${id}`,
       )
       ;(interfaceTransaction.typeInfo as BridgeTransactionInfo).depositConfirmed = true
+      // The deposit receipt is the only source of a bridge's source-chain gas cost — persist it here,
+      // since the cross-chain finalization path is status-only and never sees a receipt.
+      if (networkFee) {
+        interfaceTransaction.networkFee = networkFee
+      }
     },
     interfaceUpdateTransactionInfo: (
       state,

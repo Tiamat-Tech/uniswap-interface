@@ -1,4 +1,5 @@
-import { EM_DASH, Text, TextProps } from 'ui/src'
+import { Text } from '@universe/mycelium'
+import type { TextCompatProps as TextProps } from '@universe/mycelium'
 import { useParseCurrencyAmountParts } from '~/components/ValueWithFadedDecimals/parseCurrencyAmountParts'
 
 type ValueWithFadedDecimalsProps = {
@@ -13,7 +14,7 @@ export function ValueWithFadedDecimals({ value, textProps }: ValueWithFadedDecim
   const textVariant = textProps?.variant ?? 'body3'
 
   if (!value) {
-    return <Text {...textProps}>{EM_DASH}</Text>
+    return <Text {...textProps}>—</Text>
   }
 
   return (

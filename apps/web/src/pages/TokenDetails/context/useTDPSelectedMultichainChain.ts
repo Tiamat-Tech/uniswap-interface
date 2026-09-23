@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { useLocation, useSearchParams } from 'react-router'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useEvent } from 'utilities/src/react/hooks'
 import { getTokenDetailsURLForMultichainEntry } from '~/pages/TokenDetails/context/tdpUrlUtils'
 import { useTDPStore } from '~/pages/TokenDetails/context/useTDPStore'

@@ -1,10 +1,10 @@
 import { Currency, CurrencyAmount, Price } from '@uniswap/sdk-core'
-import { FlexProps } from 'ui/src/components/layout/Flex'
+import type { FlexCompatProps } from '@universe/mycelium'
 
 export function getCrosshairProps(
   color: any,
   { yCoordinate, xCoordinate }: { yCoordinate: number; xCoordinate: number },
-): FlexProps {
+): FlexCompatProps {
   return {
     position: 'absolute',
     left: xCoordinate - 3,

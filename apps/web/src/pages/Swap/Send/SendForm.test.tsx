@@ -1,7 +1,5 @@
 import { render, screen } from '@testing-library/react'
 import type { PropsWithChildren } from 'react'
-import { TamaguiProvider } from 'ui/src'
-import config from 'ui/src/tamagui.config'
 import { SendForm } from '~/pages/Swap/Send/SendForm'
 
 const {
@@ -164,15 +162,8 @@ vi.mock('uniswap/src/features/telemetry/Trace', () => ({
   default: ({ children }: PropsWithChildren) => <>{children}</>,
 }))
 
-function ThemeWrapper({ children }: PropsWithChildren): JSX.Element {
-  return (
-    <TamaguiProvider config={config} defaultTheme="light">
-      {children}
-    </TamaguiProvider>
-  )
-}
-
-const renderWithTheme = (ui: React.ReactElement): ReturnType<typeof render> => render(ui, { wrapper: ThemeWrapper })
+// SendForm renders mycelium primitives only (children/Trace stubbed above), so no theme provider is needed.
+const renderWithTheme = (ui: React.ReactElement): ReturnType<typeof render> => render(ui)
 
 const PERMISSIONED_ADDRESS = '0x0000000000000000000000000000000000534c4e'
 const ETHEREUM = 1

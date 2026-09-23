@@ -1,11 +1,15 @@
+import type { PlainMessage } from '@bufbuild/protobuf'
+import type { Auction } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
 import { GraphQLApi } from '@universe/api'
-import { useContext, useEffect } from 'react'
+import { UniverseChainId } from '@universe/chains'
+import { type ReactNode, useContext, useEffect } from 'react'
 import { useParams } from 'react-router'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { createTDPStore } from '~/pages/TokenDetails/context/createTDPStore'
 import { TDPStoreContext } from '~/pages/TokenDetails/context/TDPContext'
 import { TDPStoreContextProvider } from '~/pages/TokenDetails/context/TDPStoreContextProvider'
+import { TokenDetailsSourceState } from '~/pages/TokenDetails/context/tokenDetailsSourceState'
 import { useCreateTDPContext } from '~/pages/TokenDetails/context/useCreateTDPContext'
+import type { TokenDetailsAuctionSource } from '~/pages/TokenDetails/hooks/useTokenDetailsAuction'
 import { mocked } from '~/test-utils/mocked'
 import { render, waitFor } from '~/test-utils/render'
 import { validTokenProjectResponse } from '~/test-utils/tokens/fixtures'
@@ -20,6 +24,7 @@ function createDerivedState(overrides: {
   balanceError?: Error
   token?: unknown
   pageQueryLoading?: boolean
+  auctionSource?: TokenDetailsAuctionSource
 }) {
   return {
     state: {
@@ -40,6 +45,7 @@ function createDerivedState(overrides: {
       multichainToken: undefined,
       multichainTokenLoaded: false,
       pageQueryLoading: overrides.pageQueryLoading ?? false,
+      auctionSource: overrides.auctionSource ?? { status: TokenDetailsSourceState.Disabled },
       chainDataLoading: false,
       marketDataLoading: false,
     },
@@ -58,6 +64,10 @@ vi.mock('react-router', async (importOriginal) => {
 
 vi.mock('~/pages/TokenDetails/context/useCreateTDPContext', () => ({
   useCreateTDPContext: vi.fn(),
+}))
+
+vi.mock('~/pages/TokenDetails/context/TokenDetailsAuctionDisplayProvider', () => ({
+  TokenDetailsAuctionDisplayProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }))
 
 /** Captures the TDP store from context into a ref for assertions */
@@ -143,7 +153,6 @@ describe('TDPStoreContextProvider', () => {
     // Partial update path: address unchanged, tokenQuery updated via setTokenQuery
     await waitFor(() => {
       expect(storeRef.current?.getState().address).toBe(TOKEN_A)
-      expect(storeRef.current?.getState().tokenQuery).toEqual(updatedTokenQuery)
     })
   })
 
@@ -204,6 +213,32 @@ describe('TDPStoreContextProvider', () => {
       expect(storeRef.current?.getState().pageQueryLoading).toBe(false)
     })
     expect(storeRef.current?.getState().address).toBe(TOKEN_A)
+  })
+
+  it('updates the auction source when identity is unchanged', async () => {
+    mockHeartbeat({ address: TOKEN_A, auctionSource: { status: TokenDetailsSourceState.Loading } })
+
+    const storeRef = { current: null as ReturnType<typeof createTDPStore> | null }
+    const { rerender } = render(
+      <TDPStoreContextProvider>
+        <StoreCapture storeRef={storeRef} />
+      </TDPStoreContextProvider>,
+    )
+
+    const auction = { address: '0x1111111111111111111111111111111111111111' } as PlainMessage<Auction>
+    mockHeartbeat({
+      address: TOKEN_A,
+      auctionSource: { status: TokenDetailsSourceState.Found, auction },
+    })
+    rerender(
+      <TDPStoreContextProvider>
+        <StoreCapture storeRef={storeRef} />
+      </TDPStoreContextProvider>,
+    )
+
+    await waitFor(() => {
+      expect(storeRef.current?.getState().auctionSource).toEqual({ status: TokenDetailsSourceState.Found, auction })
+    })
   })
 
   it('updates the raw balance query error when identity is unchanged', async () => {

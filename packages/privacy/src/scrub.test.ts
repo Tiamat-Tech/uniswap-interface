@@ -360,7 +360,7 @@ describe('createScrubber — non-plain objects', () => {
 
   it('keeps an Error an Error, with message and stack scrubbed', () => {
     const error = new Error('failed for alice@example.com')
-    const result = scrub({ error }).error as Error
+    const result = scrub({ error })['error'] as Error
 
     expect(result).toBeInstanceOf(Error)
     expect(result.message).toBe('failed for [EMAIL_REDACTED]')
@@ -378,7 +378,7 @@ describe('createScrubber — non-plain objects', () => {
         this.name = 'HttpError'
       }
     }
-    const result = scrub({ error: new HttpError('boom', 503) }).error as HttpError
+    const result = scrub({ error: new HttpError('boom', 503) })['error'] as HttpError
 
     expect(result).toBeInstanceOf(HttpError)
     expect(result.name).toBe('HttpError')
@@ -387,7 +387,7 @@ describe('createScrubber — non-plain objects', () => {
   })
 
   it('keeps message and stack non-enumerable, so JSON output is unchanged', () => {
-    const result = scrub({ error: new Error('x') }).error as Error
+    const result = scrub({ error: new Error('x') })['error'] as Error
     expect(Object.keys(result)).not.toContain('message')
     expect(JSON.stringify(result)).toBe('{}')
   })
@@ -401,7 +401,7 @@ describe('createScrubber — non-plain objects', () => {
 
   it('passes a Date through intact', () => {
     const date = new Date('2020-01-02T03:04:05.000Z')
-    const result = scrub({ at: date }).at as Date
+    const result = scrub({ at: date })['at'] as Date
 
     expect(result).toBeInstanceOf(Date)
     expect(result.toISOString()).toBe('2020-01-02T03:04:05.000Z')
@@ -409,25 +409,25 @@ describe('createScrubber — non-plain objects', () => {
   })
 
   it('preserves Map contents and scrubs its values', () => {
-    const result = scrub({ m: new Map([['note', 'ip 1.2.3.4']]) }).m as Map<string, string>
+    const result = scrub({ m: new Map([['note', 'ip 1.2.3.4']]) })['m'] as Map<string, string>
 
     expect(result).toBeInstanceOf(Map)
     expect(result.get('note')).toBe('ip [IP_REDACTED]')
   })
 
   it('redacts sensitive Map keys', () => {
-    const result = scrub({ m: new Map([['password', 'hunter2']]) }).m as Map<string, string>
+    const result = scrub({ m: new Map([['password', 'hunter2']]) })['m'] as Map<string, string>
     expect(result.get('password')).toBe(REDACTED)
   })
 
   it('preserves non-string Map keys', () => {
     const key = { id: 1 }
-    const result = scrub({ m: new Map<unknown, unknown>([[key, 'a@b.com']]) }).m as Map<unknown, unknown>
+    const result = scrub({ m: new Map<unknown, unknown>([[key, 'a@b.com']]) })['m'] as Map<unknown, unknown>
     expect(result.get(key)).toBe('[EMAIL_REDACTED]')
   })
 
   it('preserves Set contents and scrubs its members', () => {
-    const result = scrub({ s: new Set(['a@b.com', 'plain']) }).s as Set<string>
+    const result = scrub({ s: new Set(['a@b.com', 'plain']) })['s'] as Set<string>
 
     expect(result).toBeInstanceOf(Set)
     expect(Array.from(result)).toEqual(['[EMAIL_REDACTED]', 'plain'])
@@ -443,7 +443,7 @@ describe('createScrubber — non-plain objects', () => {
         return this.email
       }
     }
-    const result = scrub({ user: new User('a@b.com', 'reach me at c@d.com') }).user as User
+    const result = scrub({ user: new User('a@b.com', 'reach me at c@d.com') })['user'] as User
 
     expect(result).toBeInstanceOf(User)
     expect(result.email).toBe(REDACTED) // matched by the `*.email` path
@@ -455,21 +455,21 @@ describe('createScrubber — non-plain objects', () => {
       cookie: 'session=1',
       host: 'a@b.com',
     })
-    const result = scrub({ headers }).headers as Record<string, string>
+    const result = scrub({ headers })['headers'] as Record<string, string>
 
     expect(Object.getPrototypeOf(result)).toBeNull()
-    expect(result.cookie).toBe(REDACTED)
-    expect(result.host).toBe('[EMAIL_REDACTED]')
+    expect(result['cookie']).toBe(REDACTED)
+    expect(result['host']).toBe('[EMAIL_REDACTED]')
   })
 
   it('passes a RegExp through intact', () => {
     const re = /a@b\.com/g
-    expect(scrub({ re }).re).toBe(re)
+    expect(scrub({ re })['re']).toBe(re)
   })
 
   it('passes typed arrays and buffers through intact', () => {
     const bytes = new Uint8Array([1, 2, 3])
-    const result = scrub({ bytes }).bytes as Uint8Array
+    const result = scrub({ bytes })['bytes'] as Uint8Array
 
     expect(result).toBe(bytes)
     expect(Array.from(result)).toEqual([1, 2, 3])

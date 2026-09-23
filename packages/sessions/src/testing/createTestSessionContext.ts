@@ -63,7 +63,6 @@ function createMockPerformanceTracker(): PerformanceTracker {
 export async function createTestSessionContext(options?: CreateTestSessionContextOptions): Promise<TestSessionContext> {
   const platform = options?.platform ?? 'extension'
   const backendUrl = options?.backendUrl ?? DEFAULT_BACKEND_URL
-  const autoUpgrade = options?.autoUpgrade ?? true
 
   const requestSource = PLATFORM_TO_REQUEST_SOURCE[platform]
 
@@ -111,7 +110,6 @@ export async function createTestSessionContext(options?: CreateTestSessionContex
     getSessionService: () => sessionService,
     challengeSolverService,
     performanceTracker,
-    getIsSessionUpgradeAutoEnabled: () => autoUpgrade,
   })
 
   await sessionInitService.initialize()

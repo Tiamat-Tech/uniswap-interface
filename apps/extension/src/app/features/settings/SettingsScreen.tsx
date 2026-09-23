@@ -1,6 +1,21 @@
 import { PasskeyManagementModal } from '@universe/embedded-wallet'
 import { isDevEnv } from '@universe/environment'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Button, Flex, Text } from '@universe/mycelium'
+import { ArrowUpRight } from '@universe/mycelium/icons/ArrowUpRight'
+import { Chart } from '@universe/mycelium/icons/Chart'
+import { Coins } from '@universe/mycelium/icons/Coins'
+import { FileListLock } from '@universe/mycelium/icons/FileListLock'
+import { HelpCenter } from '@universe/mycelium/icons/HelpCenter'
+import { InfoCircle } from '@universe/mycelium/icons/InfoCircle'
+import { Language as LanguageIcon } from '@universe/mycelium/icons/Language'
+import { LineChartDots } from '@universe/mycelium/icons/LineChartDots'
+import { Lock } from '@universe/mycelium/icons/Lock'
+import { LockViewfinder } from '@universe/mycelium/icons/LockViewfinder'
+import { Settings } from '@universe/mycelium/icons/Settings'
+import { ShieldCheck } from '@universe/mycelium/icons/ShieldCheck'
+import { Sliders } from '@universe/mycelium/icons/Sliders'
+import { Wrench } from '@universe/mycelium/icons/Wrench'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
@@ -14,23 +29,6 @@ import { ThemeToggleWithLabel } from 'src/app/features/settings/ThemeToggle'
 import { AppRoutes, SettingsRoutes } from 'src/app/navigation/constants'
 import { useExtensionNavigation } from 'src/app/navigation/utils'
 import { getIsDefaultProviderFromStorage, setIsDefaultProviderToStorage } from 'src/app/utils/provider'
-import { Button, Flex, ScrollView, Text } from 'ui/src'
-import {
-  ArrowUpRight,
-  Chart,
-  Coins,
-  FileListLock,
-  HelpCenter,
-  InfoCircle,
-  Language as LanguageIcon,
-  LineChartDots,
-  Lock,
-  LockViewfinder,
-  Settings,
-  ShieldCheck,
-  Sliders,
-  Wrench,
-} from 'ui/src/components/icons'
 import { UniswapHelpUrls, UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { resetUniswapBehaviorHistory } from 'uniswap/src/features/behaviorHistory/slice'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
@@ -221,7 +219,7 @@ export function SettingsScreen(): JSX.Element {
       )}
       <Flex fill backgroundColor="$surface1" gap="$spacing8">
         <ScreenHeader title={t('settings.title')} />
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <Flex grow shrink overflowX="hidden" overflowY="auto" scrollbarWidth="none">
           <SettingsSection title={t('settings.section.preferences')}>
             <>
               {isDevEnv() && (
@@ -345,9 +343,10 @@ export function SettingsScreen(): JSX.Element {
               >{`Version ${manifestVersion}`}</Text>
             </SettingsSection>
           </Flex>
-        </ScrollView>
+        </Flex>
         <Flex row>
-          <Button icon={<Lock />} emphasis="secondary" onPress={onPressLockWallet}>
+          {/* TODO(INFRA-3474): interim — ButtonCompat icon-slot size class loses to the mycelium inline default; 20.7 = legacy medium-button icon size */}
+          <Button icon={<Lock size={20.7} />} emphasis="secondary" onPress={onPressLockWallet}>
             {t('settings.action.lock')}
           </Button>
         </Flex>

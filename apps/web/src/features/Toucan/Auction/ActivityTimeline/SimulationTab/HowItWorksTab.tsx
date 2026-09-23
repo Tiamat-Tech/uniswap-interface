@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { formatUnits, parseUnits } from '~/chains'
 import { SimulationChart } from '~/features/Toucan/Auction/ActivityTimeline/SimulationTab/SimulationChart'

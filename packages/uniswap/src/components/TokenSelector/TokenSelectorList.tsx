@@ -1,13 +1,11 @@
-import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { GatedFeature, useIsFeatureGated } from '@universe/compliance'
+import { Flex, Text } from '@universe/mycelium'
 import { memo, useCallback, useMemo, useState } from 'react'
 import { useDispatch } from 'react-redux'
-import { Flex, Text } from 'ui/src'
 import { BridgedAssetModal } from 'uniswap/src/components/BridgedAsset/BridgedAssetModal'
-import {
-  TokenOptionItem as BaseTokenOptionItem,
-  TokenContextMenuVariant,
-} from 'uniswap/src/components/lists/items/tokens/TokenOptionItem'
+import { TokenOptionItem as SharedTokenOptionItem } from 'uniswap/src/components/lists/items/tokens/TokenOptionItem/TokenOptionItem'
+import { TokenContextMenuVariant } from 'uniswap/src/components/lists/items/tokens/TokenOptionItem/types'
 import {
   OnchainItemListOptionType,
   RwaTokenOption,
@@ -18,6 +16,7 @@ import { ItemRowInfo } from 'uniswap/src/components/lists/OnchainItemList/Onchai
 import type { OnchainItemSection } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { SelectorBaseList } from 'uniswap/src/components/lists/SelectorBaseList'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
+import { TOKEN_SELECTOR_LOADING_ROWS } from 'uniswap/src/components/TokenSelector/constants'
 import { HorizontalTokenList } from 'uniswap/src/components/TokenSelector/lists/HorizontalTokenList/HorizontalTokenList'
 import { StocksHorizontalRow } from 'uniswap/src/components/TokenSelector/lists/StocksHorizontalRow/StocksHorizontalRow'
 import { tagRwaTokenSelectorSections } from 'uniswap/src/components/TokenSelector/tagRwaTokenSelectorSections'
@@ -26,10 +25,9 @@ import { OnSelectCurrency, OnSelectRwaToken } from 'uniswap/src/components/Token
 import { formatIssuerLabel } from 'uniswap/src/data/apiClients/dataApiService/rwa/formatIssuerDisplaySymbol'
 import { setHasSeenBridgingTooltip } from 'uniswap/src/features/behaviorHistory/slice'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { CategoryTag } from 'uniswap/src/features/expandableAsset/CategoryTag'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { useRwaIndex } from 'uniswap/src/features/search/SearchModal/stocks/useRwaIndex'
+import { useRowCategoryTag } from 'uniswap/src/features/tokenCategories/useRowCategoryTag'
 import { getTokenProtectionWarning, getTokenWarningSeverity } from 'uniswap/src/features/tokens/warnings/safetyUtils'
 import {
   useDismissedBridgedAssetWarnings,
@@ -44,18 +42,6 @@ import { noop } from 'utilities/src/react/noop'
 
 export function isStocksRowItem(data: TokenSelectorListOption): data is RwaTokenOption[] {
   return Array.isArray(data) && data[0]?.type === OnchainItemListOptionType.Rwa
-}
-
-/** A row shows its category tag (e.g. "Stocks") when it is a classified RWA AND the user holds no balance — per
- *  design, the balance overrides the tag (both share the row's single right-hand slot). */
-export function shouldShowCategoryTag({
-  rwaCategory,
-  hasBalance,
-}: {
-  rwaCategory?: RwaCategory
-  hasBalance: boolean
-}): boolean {
-  return rwaCategory != null && rwaCategory !== RwaCategory.UNSPECIFIED && !hasBalance
 }
 
 function isHorizontalListTokenItem(data: TokenSelectorListOption): data is TokenOption[] {
@@ -161,11 +147,10 @@ const TokenOptionItem = memo(function TokenOptionItemInner({
     onPress()
   }, [onPress, showWarningModal, showBridgedAssetWarningModal, shouldShowBridgedAssetWarningModalOnPress])
 
-  // Balance and the category tag share the row's single right-hand slot; a balance overrides the tag.
-  const { rwaCategory } = tokenOption
   const hasBalance = Boolean(tokenOption.quantity && tokenOption.quantity !== 0)
+  const categoryTag = useRowCategoryTag({ rwaCategory: tokenOption.rwaCategory, categoryIds: currencyInfo.categoryIds })
 
-  // Stable identities so BaseTokenOptionItem's React.memo holds — otherwise every row re-renders on each list commit.
+  // Stable identities so SharedTokenOptionItem's React.memo holds — otherwise every row re-renders on each list commit.
   const rightElement = useMemo(
     () =>
       hasBalance ? (
@@ -212,17 +197,13 @@ const TokenOptionItem = memo(function TokenOptionItemInner({
   )
 
   return (
-    <BaseTokenOptionItem
+    <SharedTokenOptionItem
       option={tokenOption}
       displayName={tokenOption.rwaName}
       issuerLabel={tokenOption.rwaIssuerSlug ? formatIssuerLabel(tokenOption.rwaIssuerSlug) : undefined}
       showTokenAddress={showTokenAddress}
       contextMenuVariant={TokenContextMenuVariant.TokenSelector}
-      categoryTag={
-        rwaCategory != null && shouldShowCategoryTag({ rwaCategory, hasBalance }) ? (
-          <CategoryTag category={rwaCategory} />
-        ) : undefined
-      }
+      categoryTag={hasBalance ? undefined : categoryTag}
       rightElement={rightElement}
       showDisabled={Boolean((showWarnings && isBlocked) || tokenOption.isUnsupported)}
       modalInfo={modalInfo}
@@ -324,6 +305,7 @@ function TokenSelectorListInner({
       chainFilter={chainFilter}
       refetch={refetch}
       loading={loading}
+      loadingRows={TOKEN_SELECTOR_LOADING_ROWS}
       hasError={hasError}
       emptyElement={emptyElement}
       errorText={errorText}

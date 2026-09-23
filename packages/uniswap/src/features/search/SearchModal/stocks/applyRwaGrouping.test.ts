@@ -2,9 +2,11 @@ import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import {
   OnchainItemListOptionType,
   type MultichainTokenOption,
+  type RwaCollectionOption,
   type SearchModalOption,
   type TokenOption,
 } from 'uniswap/src/components/lists/items/types'
+import type { SearchTokenStats } from 'uniswap/src/features/dataApi/types'
 import { applyRwaGroupingToSearchOptions } from 'uniswap/src/features/search/SearchModal/stocks/applyRwaGrouping'
 import { buildRwaSearchIndex } from 'uniswap/src/features/search/SearchModal/stocks/rwaSearchGrouping'
 
@@ -28,12 +30,13 @@ const index = buildRwaSearchIndex([
   },
 ])
 
-function token(chainId: number, address: string, symbol = 'X'): TokenOption {
+function token(chainId: number, address: string, symbol = 'X', searchStats?: SearchTokenStats): TokenOption {
   return {
     type: OnchainItemListOptionType.Token,
     currencyInfo: {
       currencyId: `${chainId}-${address}`,
       currency: { chainId, address, isNative: false, symbol },
+      ...(searchStats && { searchStats }),
     } as never,
     quantity: null,
     balanceUSD: undefined,
@@ -41,17 +44,53 @@ function token(chainId: number, address: string, symbol = 'X'): TokenOption {
 }
 
 describe('applyRwaGroupingToSearchOptions', () => {
-  it('collapses a matched multi-issuer ticker into one collection hoisted above generic tokens', () => {
+  it('collapses a matched multi-issuer ticker into one collection in the slot of its first issuer token', () => {
     const generic = token(MAINNET, '0xother', 'PEPE')
     const out = applyRwaGroupingToSearchOptions({
       options: [generic, token(MAINNET, '0xa', 'TSLAON')],
       index,
       isAddressSearch: false,
       chainFilter: null,
+      hoistRwaToTop: false,
+    })
+    expect(out[0]).toBe(generic)
+    expect(out[1]?.type).toBe(OnchainItemListOptionType.RwaCollection)
+    expect(out).toHaveLength(2)
+  })
+
+  it('hoistRwaToTop (legacy UI) floats RWA rows above generic tokens, keeping relative order within each group', () => {
+    const first = token(MAINNET, '0xfirst', 'PEPE')
+    const middle = token(MAINNET, '0xmiddle', 'DOGE')
+    const out = applyRwaGroupingToSearchOptions({
+      options: [first, token(MAINNET, '0xa', 'TSLAON'), middle],
+      index,
+      isAddressSearch: false,
+      chainFilter: null,
+      hoistRwaToTop: true,
     })
     expect(out[0]?.type).toBe(OnchainItemListOptionType.RwaCollection)
-    expect(out[1]).toBe(generic)
-    expect(out).toHaveLength(2)
+    expect(out[1]).toBe(first)
+    expect(out[2]).toBe(middle)
+    expect(out).toHaveLength(3)
+  })
+
+  it('preserves backend ranking: a later duplicate issuer token is dropped, not moved', () => {
+    const first = token(MAINNET, '0xfirst', 'PEPE')
+    const middle = token(MAINNET, '0xmiddle', 'DOGE')
+    const out = applyRwaGroupingToSearchOptions({
+      options: [first, token(MAINNET, '0xa', 'TSLAON'), middle, token(MAINNET, '0xc', 'TSLAX')],
+      index,
+      isAddressSearch: false,
+      chainFilter: null,
+      hoistRwaToTop: false,
+    })
+    expect(out.map((o) => o.type)).toEqual([
+      OnchainItemListOptionType.Token,
+      OnchainItemListOptionType.RwaCollection,
+      OnchainItemListOptionType.Token,
+    ])
+    expect(out[0]).toBe(first)
+    expect(out[2]).toBe(middle)
   })
 
   it('dedupes multiple issuer tokens of the same ticker into one collection', () => {
@@ -60,6 +99,7 @@ describe('applyRwaGroupingToSearchOptions', () => {
       index,
       isAddressSearch: false,
       chainFilter: null,
+      hoistRwaToTop: false,
     })
     expect(out.filter((o) => o.type === OnchainItemListOptionType.RwaCollection)).toHaveLength(1)
     expect(out).toHaveLength(1)
@@ -71,6 +111,7 @@ describe('applyRwaGroupingToSearchOptions', () => {
       index,
       isAddressSearch: true,
       chainFilter: null,
+      hoistRwaToTop: false,
     })
     expect(out[0]?.type).toBe(OnchainItemListOptionType.Token)
     expect((out[0] as TokenOption).rwaCategory).toBe(RwaCategory.STOCKS)
@@ -84,6 +125,7 @@ describe('applyRwaGroupingToSearchOptions', () => {
       index,
       isAddressSearch: false,
       chainFilter: BNB as never,
+      hoistRwaToTop: false,
     })
     // only ondo is on BNB -> single issuer on-chain -> tagged token, not a collection
     expect(out[0]?.type).toBe(OnchainItemListOptionType.Token)
@@ -108,6 +150,7 @@ describe('applyRwaGroupingToSearchOptions', () => {
       index: etfsIndex,
       isAddressSearch: true,
       chainFilter: null,
+      hoistRwaToTop: false,
     })
     expect(out[0]?.type).toBe(OnchainItemListOptionType.Token)
     expect((out[0] as TokenOption).rwaCategory).toBe(RwaCategory.ETFS)
@@ -128,7 +171,65 @@ describe('applyRwaGroupingToSearchOptions', () => {
         currency: { chainId: MAINNET, address: '0xa', isNative: false },
       } as never,
     }
-    const out = applyRwaGroupingToSearchOptions({ options: [multi], index, isAddressSearch: false, chainFilter: null })
+    const out = applyRwaGroupingToSearchOptions({
+      options: [multi],
+      index,
+      isAddressSearch: false,
+      chainFilter: null,
+      hoistRwaToTop: false,
+    })
     expect(out[0]?.type).toBe(OnchainItemListOptionType.RwaCollection)
+  })
+
+  it('aggregates stats across ALL matched issuer tokens: lowest price ("from") + summed volume', () => {
+    // The xstocks token is deduped into the ondo-emitted collection, but its (lower) price must still win.
+    const out = applyRwaGroupingToSearchOptions({
+      options: [
+        token(MAINNET, '0xa', 'TSLAON', { priceUsd: 250, pricePercentChange1d: 1.2, volume1dUsd: 100 }),
+        token(MAINNET, '0xc', 'TSLAX', { priceUsd: 248.42, pricePercentChange1d: -0.5, volume1dUsd: 50 }),
+      ],
+      index,
+      isAddressSearch: false,
+      chainFilter: null,
+      hoistRwaToTop: false,
+    })
+    expect(out).toHaveLength(1)
+    expect((out[0] as RwaCollectionOption).searchStats).toEqual({
+      priceUsd: 248.42,
+      pricePercentChange1d: -0.5,
+      volume1dUsd: 150,
+    })
+  })
+
+  it('keeps the "from" floor on a chain-filtered search (per-chain searchStats carry the parent price)', () => {
+    const out = applyRwaGroupingToSearchOptions({
+      options: [
+        token(MAINNET, '0xa', 'TSLAON', { priceUsd: 250, pricePercentChange1d: 1.2, volume1dUsd: 40 }),
+        token(MAINNET, '0xc', 'TSLAX', { priceUsd: 248.42, pricePercentChange1d: -0.5, volume1dUsd: 10 }),
+      ],
+      index,
+      isAddressSearch: false,
+      chainFilter: MAINNET as never,
+      hoistRwaToTop: false,
+    })
+    expect(out).toHaveLength(1)
+    expect(out[0]?.type).toBe(OnchainItemListOptionType.RwaCollection)
+    expect((out[0] as RwaCollectionOption).searchStats).toEqual({
+      priceUsd: 248.42,
+      pricePercentChange1d: -0.5,
+      volume1dUsd: 50,
+    })
+  })
+
+  it('omits collection stats when no matched token carries any', () => {
+    const out = applyRwaGroupingToSearchOptions({
+      options: [token(MAINNET, '0xa', 'TSLAON')],
+      index,
+      isAddressSearch: false,
+      chainFilter: null,
+      hoistRwaToTop: false,
+    })
+    expect(out[0]?.type).toBe(OnchainItemListOptionType.RwaCollection)
+    expect(out[0]).not.toHaveProperty('searchStats')
   })
 })

@@ -1,7 +1,6 @@
-import type { RpcErrorContext, RpcObserver } from '@universe/chains'
+import { type RpcErrorContext, type RpcObserver, UniverseChainId } from '@universe/chains'
 import { getRpcObserver, setRpcObserver } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { CreateConnectorFn } from 'wagmi'
 import { instrumentWalletConnectRpc } from '~/connection/instrumentWalletConnectRpc'
 

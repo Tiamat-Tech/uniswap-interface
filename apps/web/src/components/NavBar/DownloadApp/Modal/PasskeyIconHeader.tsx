@@ -1,6 +1,6 @@
-import { Flex } from 'ui/src'
-import { Faceid } from 'ui/src/components/icons/Faceid'
-import { Fingerprint } from 'ui/src/components/icons/Fingerprint'
+import { Flex } from '@universe/mycelium'
+import { Faceid } from '@universe/mycelium/icons/Faceid'
+import { Fingerprint } from '@universe/mycelium/icons/Fingerprint'
 
 export function PasskeyIconHeader(): JSX.Element {
   return (
@@ -10,7 +10,7 @@ export function PasskeyIconHeader(): JSX.Element {
         backgroundColor="$surface2"
         p="$spacing12"
         borderRadius="$rounded16"
-        transform={[{ rotate: '-15deg' }, { translateY: -5 }]}
+        transform={[{ rotate: '-15deg' }, { translateY: '-5px' }]}
         left={0}
       >
         <Fingerprint size="$icon.24" color="$neutral1" />

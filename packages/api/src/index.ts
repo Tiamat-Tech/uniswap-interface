@@ -37,7 +37,6 @@ export { createSignedRequestBody, createSignedRequestParams } from '@universe/ap
 // GraphQL API
 export * as GraphQLApi from '@universe/api/src/clients/graphql/generated'
 export {
-  useTokenBasicInfoPartsFragment,
   useTokenBasicProjectPartsFragment,
   useTokenMarketPartsFragment,
   useTokenProjectMarketsPartsFragment,
@@ -211,14 +210,12 @@ export {
   type GetWalletsBalancesQueryParams,
 } from '@universe/api/src/clients/dataApi/getGetWalletsBalancesQueryOptions'
 export {
-  TopPoolsOrderBy,
   TokensOrderBy,
   type BalanceComponent,
   type GetPortfolioRequest,
   type GetPortfolioResponse,
   type GetWalletBalancesRequest,
   type GetWalletBalancesResponse,
-  type ListTopPoolsResponse,
   type ListTokensResponse,
   type WalletBalance,
 } from '@uniswap/client-data-api/dist/data/v1/api_pb'
@@ -226,7 +223,6 @@ export { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes
 export {
   type ChainToken as DataApiChainToken,
   type MultichainToken as DataApiMultichainToken,
-  type Pool as DataApiPool,
   type Token as DataApiToken,
   TokenReportEventType,
 } from '@uniswap/client-data-api/dist/data/v1/types_pb'
@@ -237,8 +233,19 @@ export {
   type DataApiServiceClientV2,
 } from '@universe/api/src/clients/dataApi/createDataApiServiceClientV2'
 
+// Launch Service (launches.v1)
+export {
+  createLaunchServiceClient,
+  type LaunchServiceClient,
+} from '@universe/api/src/clients/launches/createLaunchServiceClient'
+
 // Notifications API
 export { createNotificationsApiClient } from '@universe/api/src/clients/notifications/createNotificationsApiClient'
+export {
+  parseNotificationExtra,
+  serializeNotificationExtra,
+  type NotificationExtra,
+} from '@universe/api/src/clients/notifications/notificationExtra'
 export { BackgroundType, ContentStyle, OnClickAction } from '@universe/api/src/clients/notifications/types'
 export type {
   AckNotificationRequest,
@@ -252,6 +259,12 @@ export type {
 } from '@universe/api/src/clients/notifications/types'
 
 // Config Service API (server-side only)
+export {
+  RpcHttpError,
+  isRpcNotFound,
+  rpcConnectCode,
+  rpcHttpStatus,
+} from '@universe/api/src/clients/configService/connectrpcClient'
 export { createConfigServerClient } from '@universe/api/src/clients/configService/createConfigServerClient'
 export type {
   ApproveProposedParamReply,
@@ -323,14 +336,17 @@ export {
   type ConnectRpcContext,
 } from '@universe/api/src/connectRpc/base'
 export {
-  parseProtectionInfo,
   parseRestProtocolVersion,
-  parseSafetyLevel,
   transformInput,
   transformWalletsInput,
   type WithoutWalletAccount,
   type WithoutWalletAccounts,
 } from '@universe/api/src/connectRpc/utils'
+export {
+  getConnectQueryRetryDelay,
+  isConnectUnavailableError,
+  shouldRetryConnectQuery,
+} from '@universe/api/src/connectRpc/retry'
 
 // Conversion Tracking API
 export * as ConversionTrackingApi from '@universe/api/src/clients/conversionTracking'

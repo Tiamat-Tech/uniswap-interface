@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { expectSaga } from 'redux-saga-test-plan'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { plan } from 'uniswap/src/features/transactions/swap/plan/planSaga'
@@ -201,5 +201,41 @@ describe('executePlanSaga', () => {
         }),
       )
     })
+  })
+
+  it('leaves provider-submission analytics to the shared plan saga', async () => {
+    const step = {
+      payload: mockSwapTxRequest,
+      tokenInChainId: UniverseChainId.Mainnet,
+      txRequest: mockSwapTxRequest,
+      stepIndex: 0,
+      type: 'SwapTransaction',
+    }
+    mockedShouldSubmitViaPrivateRpc.mockReturnValue(false as unknown as ReturnType<typeof shouldSubmitViaPrivateRpc>)
+    mockedPrepareTransactionServices.mockImplementation(function* prepared(): Generator<
+      unknown,
+      {
+        transactionSigner: typeof mockTransactionSigner
+        calculatedNonce: { nonce: number }
+      },
+      unknown
+    > {
+      yield* []
+      return { transactionSigner: mockTransactionSigner, calculatedNonce: { nonce: 9 } }
+    } as unknown as typeof prepareTransactionServices)
+    mockTransactionSigner.prepareTransaction.mockResolvedValue({ nonce: 9 } as never)
+    mockTransactionSigner.signTransaction.mockResolvedValue('0xsigned' as never)
+    mockTransactionSigner.sendTransaction.mockResolvedValue('0xhash' as never)
+    mockedPlan.mockImplementation(function* invokeSwapStep(planArg: unknown): Generator<unknown, void, unknown> {
+      yield* (planArg as { handleSwapTransactionStep: (value: unknown) => Generator }).handleSwapTransactionStep({
+        step,
+        planId: 'plan-1',
+        analytics: mockAnalytics,
+      })
+    } as unknown as typeof plan)
+
+    await expectSaga(executePlan, buildParams()).run()
+
+    expect(windowCallsOf(WalletEventName.SwapSubmitted)).toHaveLength(0)
   })
 })

@@ -1,6 +1,7 @@
+import { Flex } from '@universe/mycelium'
+import { useIsDarkMode, useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, useIsDarkMode, useMedia } from 'ui/src'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { logger } from 'utilities/src/logger/logger'
 import { ErrorBoundary } from '~/components/ErrorBoundary'
@@ -12,6 +13,7 @@ import { WithdrawModal } from '~/features/Toucan/Auction/Bids/WithdrawModal/With
 import { useAuctionTokenColor } from '~/features/Toucan/Auction/hooks/useAuctionTokenColor'
 import { useBidFormState } from '~/features/Toucan/Auction/hooks/useBidFormState'
 import { useBidTokenInfo } from '~/features/Toucan/Auction/hooks/useBidTokenInfo'
+import { useIsQuickLaunchAuction } from '~/features/Toucan/Auction/hooks/useIsQuickLaunchAuction'
 import { useWithdrawButtonState } from '~/features/Toucan/Auction/hooks/useWithdrawButtonState'
 import {
   AuctionDetails,
@@ -86,12 +88,12 @@ export function AuctionChartContainer({
   onShowBidFormModal,
   onLearnMorePress,
 }: AuctionChartContainerProps) {
-  const { auctionDetails, auctionDetailsLoadState, auctionProgressState, isGraduated, currentBlockNumber } =
+  const { auctionDetails, auctionDetailsLoadState, auctionProgressState, outcome, currentBlockNumber } =
     useAuctionStore((state) => ({
       auctionDetails: state.auctionDetails,
       auctionDetailsLoadState: state.auctionDetailsLoadState,
       auctionProgressState: state.progress.state,
-      isGraduated: state.progress.isGraduated,
+      outcome: state.progress.outcome,
       currentBlockNumber: state.currentBlockNumber,
     }))
   const { effectiveTokenColor } = useAuctionTokenColor()
@@ -111,13 +113,17 @@ export function AuctionChartContainer({
 
   const { canPlaceBid, showMobileWithdrawButton } = useBidFormState()
 
+  // QuickLaunch: quick launches have no demand chart, so force the clearing-price view.
+  const isQuickLaunch = useIsQuickLaunchAuction()
+  const effectiveTab = isQuickLaunch ? BidDistributionChartTab.ClearingPrice : activeTab
+
   // Withdraw button state for $lg inline button (not $sm - that uses fixed bottom button)
   const {
     label: withdrawLabel,
     isDisabled: isWithdrawDisabled,
     disabledTooltip: withdrawDisabledTooltip,
   } = useWithdrawButtonState({
-    isGraduated,
+    outcome,
     claimBlock: auctionDetails?.claimBlock,
     currentBlockNumber,
     chainId: auctionDetails?.chainId,
@@ -164,9 +170,9 @@ export function AuctionChartContainer({
 
   return (
     <Flex flexDirection="column">
-      <BidDistributionChartHeader activeTab={activeTab} onTabChange={onTabChange} />
+      <BidDistributionChartHeader activeTab={effectiveTab} onTabChange={onTabChange} />
       <Flex flexDirection="column" gap="$spacing16">
-        {activeTab === BidDistributionChartTab.Demand ? (
+        {effectiveTab === BidDistributionChartTab.Demand ? (
           <ErrorBoundary fallback={BidDemandChartErrorFallback}>
             <Suspense fallback={renderPlaceholder(t('common.loading'))}>
               <BidDemandChartPanel
@@ -191,7 +197,7 @@ export function AuctionChartContainer({
             </Suspense>
           </ErrorBoundary>
         )}
-        <ChartFooter activeTab={activeTab} onLearnMorePress={onLearnMorePress} />
+        <ChartFooter activeTab={effectiveTab} onLearnMorePress={onLearnMorePress} />
         {/* Mobile action buttons - visible when layout stacks ($xl) */}
         <Flex
           display="none"

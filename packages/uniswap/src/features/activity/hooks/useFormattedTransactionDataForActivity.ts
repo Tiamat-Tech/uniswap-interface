@@ -1,6 +1,7 @@
 import { PartialMessage } from '@bufbuild/protobuf'
 import { FiatOnRampParams } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { TransactionTypeFilter } from '@uniswap/client-data-api/dist/data/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import { isAndroid } from '@universe/environment'
 import isEqual from 'lodash/isEqual'
 import { useCallback, useMemo, useRef } from 'react'
@@ -11,8 +12,10 @@ import { isLoadingItem, isSectionHeader, LoadingItem } from 'uniswap/src/compone
 import { formatTransactionsByDate } from 'uniswap/src/features/activity/formatTransactionsByDate'
 import { useMergeLocalAndRemoteTransactions } from 'uniswap/src/features/activity/hooks/useMergeLocalAndRemoteTransactions'
 import { useSyncRemotePlans } from 'uniswap/src/features/activity/hooks/useSyncRemotePlans'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { useListTransactions } from 'uniswap/src/features/dataApi/listTransactions/listTransactions'
+import {
+  normalizeTransactionSearchText,
+  useListTransactions,
+} from 'uniswap/src/features/dataApi/listTransactions/listTransactions'
 import { PaginationControls } from 'uniswap/src/features/dataApi/types'
 import { useLocalizedDayjs } from 'uniswap/src/features/language/localizedDayjs'
 import { useCurrencyIdToVisibility } from 'uniswap/src/features/transactions/selectors'
@@ -56,6 +59,7 @@ export interface FormattedTransactionDataResult extends PaginationControls {
   hasData: boolean
   isLoading: boolean
   isFetching: boolean
+  isFetchNextPageError: boolean
   error: Error | undefined
   sectionData: ActivityItem[] | undefined
   keyExtractor: (item: ActivityItem) => string
@@ -97,6 +101,7 @@ export function useFormattedTransactionDataForActivity({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
     dataUpdatedAt,
   } = useListTransactions({
     evmAddress,
@@ -123,7 +128,8 @@ export function useFormattedTransactionDataForActivity({
     evmAddress,
     svmAddress,
     remoteTransactions: formattedTransactions,
-    skipLocalTransactions: !!searchText,
+    // Local transactions aren't searchable, so they're only dropped when the remote results are actually filtered
+    skipLocalTransactions: !!normalizeTransactionSearchText(searchText),
   })
 
   // TODO(CONS-722): update to only TradingApi.Routing.DUTCH_V2 once limit orders can be excluded from REST query
@@ -201,6 +207,7 @@ export function useFormattedTransactionDataForActivity({
     fetchNextPage,
     hasNextPage: hasNextPage && !hasReachedLimit(transactions, maxItems),
     isFetchingNextPage,
+    isFetchNextPageError,
     dataUpdatedAt,
   }
 }

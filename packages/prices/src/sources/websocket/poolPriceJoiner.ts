@@ -1,3 +1,4 @@
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { isRawPoolPriceMessage } from '@universe/prices/src/sources/websocket/messageParser'
 
 /** A joined USD price tick produced by the pool price joiner. */
@@ -120,17 +121,18 @@ export function createPoolPriceJoiner(): PoolPriceJoiner {
     ) {
       return []
     }
+    // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- pool id (a v4 pool is a 32-byte hash), not a token address
     const roomKey = `${chainId}:${String(protocolVersion).toLowerCase()}:${poolId.toLowerCase()}`
     if (!passesVersionGate(roomKey, version)) {
       return []
     }
-    const quote = quoteTokenAddress.toLowerCase()
+    const quote = normalizeTokenAddressForCache(quoteTokenAddress)
     if (!quote) {
       // No pinned quote — nothing to price the base in; REST fallback covers.
       return []
     }
-    const token0 = token0Address.toLowerCase()
-    const token1 = token1Address.toLowerCase()
+    const token0 = normalizeTokenAddressForCache(token0Address)
+    const token1 = normalizeTokenAddressForCache(token1Address)
     const baseIsToken0 = quote === token1
     if (!baseIsToken0 && quote !== token0) {
       // Quote isn't a side of this pool — malformed; drop.
@@ -171,7 +173,7 @@ export function createPoolPriceJoiner(): PoolPriceJoiner {
     if (!Number.isFinite(priceUsd) || priceUsd <= 0) {
       return []
     }
-    const quote = input.quoteTokenAddress.toLowerCase()
+    const quote = normalizeTokenAddressForCache(input.quoteTokenAddress)
     quoteUsdRates.set(rateKey(chainId, quote), { rate: priceUsd, timestamp })
     const updates: PoolPriceUpdate[] = []
     for (const leg of legs.values()) {

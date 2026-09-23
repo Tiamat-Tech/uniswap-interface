@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import type { SearchModalOption } from 'uniswap/src/components/lists/items/types'
+import type { SearchModalListOption } from 'uniswap/src/components/lists/items/types'
 import type { OnchainItemSection } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { getMultichainRowReductionMetricsFromChainCounts } from 'uniswap/src/features/portfolio/getMultichainPortfolioMetrics'
 import { getSearchModalTokenRowChainCounts } from 'uniswap/src/features/search/SearchModal/utils/getSearchModalTokenRowChainCounts'
@@ -16,7 +16,7 @@ export function useMultichainSearchModalMetricsAnalytics({
   isSearchResultsLoading,
   isSearchQueryPending,
 }: {
-  sections: OnchainItemSection<SearchModalOption>[] | undefined
+  sections: OnchainItemSection<SearchModalListOption>[] | undefined
   isSearchResultsLoading: boolean
   /** True while the search query has not caught up to debounced results (user still typing). */
   isSearchQueryPending: boolean

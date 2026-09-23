@@ -36,7 +36,10 @@ export function useOnCompleteEmbeddedWalletLogin(
       setEmbeddedWalletState({ walletAddress, walletId, isConnected: true })
       await connect(config, { connector })
       if (isCreate) {
-        sendAnalyticsEvent(InterfaceEventName.EmbeddedWalletCreated, { unitag_source: unitagSource })
+        sendAnalyticsEvent(InterfaceEventName.EmbeddedWalletCreated, {
+          wallet_address: walletAddress,
+          unitag_source: unitagSource,
+        })
       } else {
         sendAnalyticsEvent(InterfaceEventName.WalletConnected, {
           result: WalletConnectionResult.Succeeded,

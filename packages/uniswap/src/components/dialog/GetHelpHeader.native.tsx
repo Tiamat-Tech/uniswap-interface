@@ -1,4 +1,4 @@
-import { TouchableArea } from 'ui/src'
+import { TouchableArea } from '@universe/mycelium'
 import { GetHelpButtonUI } from 'uniswap/src/components/dialog/GetHelpButtonUI'
 import type { GetHelpHeaderProps } from 'uniswap/src/components/dialog/GetHelpHeader'
 import { type GetHelpButtonProps, GetHelpHeaderContent } from 'uniswap/src/components/dialog/GetHelpHeaderContent'

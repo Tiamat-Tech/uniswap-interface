@@ -1,13 +1,15 @@
+import { UniverseChainId } from '@universe/chains'
 import { isTouchable, isWebApp } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
+import { AdaptiveWebPopoverContentCompat, PopoverCompat } from '@universe/mycelium/popover-compat'
+import { useMedia, useShadowPropsMedium } from '@universe/mycelium/theme-hooks-compat'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AdaptiveWebPopoverContent, Flex, Popover, useMedia, useShadowPropsMedium } from 'ui/src'
 import { NetworkFilterDropdownContent } from 'uniswap/src/components/network/NetworkFilterV2/NetworkFilterDropdownContent'
 import { NetworkFilterTrigger } from 'uniswap/src/components/network/NetworkFilterV2/NetworkFilterTrigger'
 import type { NetworkFilterV2Props } from 'uniswap/src/components/network/NetworkFilterV2/NetworkFilterV2'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useEvent } from 'utilities/src/react/hooks'
 
 const DESKTOP_DROPDOWN_MAX_HEIGHT = 320
@@ -109,7 +111,7 @@ export function NetworkFilterV2({
   }, [isMobileSheet, isOpen])
 
   return (
-    <Popover
+    <PopoverCompat
       stayInFrame
       allowFlip
       open={isOpen}
@@ -117,7 +119,7 @@ export function NetworkFilterV2({
       offset={{ mainAxis: DROPDOWN_OFFSET }}
       onOpenChange={handleOpenChange}
     >
-      <Popover.Trigger ref={triggerRef}>
+      <PopoverCompat.Trigger ref={triggerRef}>
         <NetworkFilterTrigger
           defaultChainId={defaultChainId}
           includeAllNetworks={includeAllNetworks}
@@ -126,9 +128,9 @@ export function NetworkFilterV2({
           tooltipLabel={isTouchable ? undefined : selectedChainTooltipLabel}
           onPress={handleToggleOpen}
         />
-      </Popover.Trigger>
+      </PopoverCompat.Trigger>
 
-      <AdaptiveWebPopoverContent
+      <AdaptiveWebPopoverContentCompat
         backgroundColor="$surface1"
         borderColor="$surface3"
         borderRadius="$rounded24"
@@ -162,7 +164,7 @@ export function NetworkFilterV2({
             onPressChain={handlePressChain}
           />
         </Flex>
-      </AdaptiveWebPopoverContent>
-    </Popover>
+      </AdaptiveWebPopoverContentCompat>
+    </PopoverCompat>
   )
 }

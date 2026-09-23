@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { GatedFeature } from '@universe/compliance'
 import { FeatureFlags } from '@universe/gating'
 import { OnchainItemListOptionType, type TokenOption } from 'uniswap/src/components/lists/items/types'
@@ -5,7 +6,6 @@ import { OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItem
 import { type PortfolioBalancesResult } from 'uniswap/src/components/TokenSelector/hooks/usePortfolioBalancesForAddressById'
 import { TokenSelectorVariation } from 'uniswap/src/components/TokenSelector/types'
 import { useTokenSectionsForSwapV2 } from 'uniswap/src/components/TokenSelectorV2/hooks/useTokenSectionsForSwapV2'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { renderHook } from 'uniswap/src/test/test-utils'
 
 const {

@@ -14,7 +14,9 @@ import {
   getPriceHistogramBarCountForWidth,
   getPriceHistogramBarOpacity,
 } from '~/pages/Liquidity/CreateAuction/components/PriceHistogram'
+import { createDefaultCustomPriceRangeEntry } from '~/pages/Liquidity/CreateAuction/customPriceRanges'
 import { CUSTOM_PRICE_RANGE_POSITIVE_INFINITY } from '~/pages/Liquidity/CreateAuction/types'
+import { FULL_RANGE_REMAINDER_ENTRY_ID, withFullRangeRemainderEntry } from '~/pages/Liquidity/CreateAuction/utils'
 
 function formatPercentEnUs(value: Maybe<number | string>, maxDecimals?: PercentNumberDecimals): string {
   return formatPercent({ rawPercentage: value, locale: Locale.EnglishUnitedStates, maxDecimals })
@@ -152,27 +154,50 @@ describe('PriceHistogram helpers', () => {
 
   it('formats custom layer title from liquidity percent and min/max bounds', () => {
     expect(
-      getCustomPriceHistogramLayerTitle(
-        {
+      getCustomPriceHistogramLayerTitle({
+        entry: {
           id: 'a',
           liquidityPercent: 35,
           minPercentFromClearing: -50,
           maxPercentFromClearing: 100,
         },
-        formatPercentEnUs,
-      ),
+        formatPercent: formatPercentEnUs,
+      }),
     ).toBe('35% (-50%, +100%)')
 
     expect(
-      getCustomPriceHistogramLayerTitle(
-        {
+      getCustomPriceHistogramLayerTitle({
+        entry: {
           id: 'b',
           liquidityPercent: 40,
           minPercentFromClearing: -33,
           maxPercentFromClearing: 50,
         },
-        formatPercentEnUs,
-      ),
+        formatPercent: formatPercentEnUs,
+      }),
     ).toBe('40% (-33%, +50%)')
+  })
+})
+
+describe('full-range remainder layer', () => {
+  it('stacks at the bottom even when a real range ties it on width', () => {
+    // The default row is -100 / +∞, so it produces the same sort width as the remainder and the
+    // comparator returns 0. A stable sort then keeps input order, which is why the remainder has to
+    // come first — otherwise it renders above the range it is supposed to sit behind.
+    const entries = withFullRangeRemainderEntry([{ ...createDefaultCustomPriceRangeEntry(), liquidityPercent: 45 }])
+
+    expect(entries[0]!.id).toBe(FULL_RANGE_REMAINDER_ENTRY_ID)
+
+    const layers = getCustomPriceHistogramLayers({
+      entries,
+      barColor: '#FC72FF',
+      neutral1Color: '#000000',
+    })
+
+    expect(layers).toHaveLength(2)
+    const remainder = layers.find((layer) => layer.entryId === FULL_RANGE_REMAINDER_ENTRY_ID)!
+    const other = layers.find((layer) => layer.entryId !== FULL_RANGE_REMAINDER_ENTRY_ID)!
+    // y grows downward, so the bottom layer is the one with the larger y.
+    expect(remainder.y).toBeGreaterThan(other.y)
   })
 })

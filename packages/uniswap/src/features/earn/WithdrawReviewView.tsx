@@ -1,15 +1,15 @@
 import { type Currency, type CurrencyAmount } from '@uniswap/sdk-core'
 import { type ChainedQuoteResponse, TradingApi } from '@universe/api'
+import { type UniverseChainId, Platform } from '@universe/chains'
 import { isMobileApp } from '@universe/environment'
-import { useCallback, useMemo, useState } from 'react'
+import { Flex, iconSizes, ModalCloseIcon, Text, TouchableArea } from '@universe/mycelium'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, ModalCloseIcon, Text, TouchableArea, useIsShortMobileDevice } from 'ui/src'
+import { useIsShortMobileDevice } from 'ui/src'
 import { BackArrow } from 'ui/src/components/icons/BackArrow'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { useTradingApiEarnQuoteQuery } from 'uniswap/src/data/apiClients/tradingApi/useTradingApiEarnQuoteQuery'
 import { useActiveAccount } from 'uniswap/src/features/accounts/store/hooks'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getEarnWithdrawInputAmount } from 'uniswap/src/features/earn/amount'
 import { EarnAnalyticsSurface, EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import { EARN_REVIEW_AMOUNT_LINE_HEIGHT } from 'uniswap/src/features/earn/constants'
@@ -37,9 +37,9 @@ import {
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { getEarnVaultWithdrawDestinationCurrencyId } from 'uniswap/src/features/earn/withdrawDestination'
 import { WithdrawReviewDetails } from 'uniswap/src/features/earn/WithdrawReviewDetails'
+import { getWithdrawQuoteRequestBase } from 'uniswap/src/features/earn/WithdrawReviewViewUtils'
 import { useLocalFiatToUSDConverter } from 'uniswap/src/features/fiatCurrency/useLocalFiatToUSDConverter'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { EarnEventName } from 'uniswap/src/features/telemetry/constants/features'
 import { Trace } from 'uniswap/src/features/telemetry/Trace'
 import type {
@@ -55,10 +55,7 @@ import type {
 } from 'uniswap/src/features/transactions/swap/plan/types'
 import { activePlanStore } from 'uniswap/src/features/transactions/swap/review/stores/activePlan/activePlanStore'
 import { isChainedQuoteResponse } from 'uniswap/src/features/transactions/swap/utils/routing'
-import {
-  getTokenAddressForApi,
-  toTradingApiSupportedChainId,
-} from 'uniswap/src/features/transactions/swap/utils/tradingApi'
+import { toTradingApiSupportedChainId } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
 import { useStore } from 'zustand'
@@ -66,6 +63,7 @@ import { useStore } from 'zustand'
 const DEFAULT_EARN_ANALYTICS_SURFACE = isMobileApp ? EarnAnalyticsSurface.Mobile : EarnAnalyticsSurface.Web
 
 export interface ExecuteEarnWithdrawParams {
+  attemptId: string
   earnIntent: TradingApi.EarnIntent
   withdrawMode: TradingApi.EarnWithdrawMode
   inputCurrency: Currency
@@ -208,30 +206,18 @@ export function WithdrawReviewView({
     }
   }, [vault.vaultAddress, vaultTradingApiChainId, withdrawMode])
 
-  const quoteRequestBase: TradingApi.QuoteRequest | undefined = useMemo(() => {
-    const tokenOut = getTokenAddressForApi(currency)
-    if (
-      !evmAccount ||
-      !currency ||
-      !quoteRequestAmount ||
-      !tokenOut ||
-      !outputTradingApiChainId ||
-      !vaultTradingApiChainId
-    ) {
-      return undefined
-    }
-    return {
-      type: TradingApi.TradeType.EXACT_INPUT,
-      amount: quoteRequestAmount.quotient.toString(),
-      tokenIn: vault.vaultAddress,
-      tokenOut,
-      tokenInChainId: vaultTradingApiChainId,
-      tokenOutChainId: outputTradingApiChainId,
-      swapper: evmAccount.address,
-      recipient: evmAccount.address,
-      routingPreference: TradingApi.RoutingPreference.BEST_PRICE,
-    }
-  }, [currency, evmAccount, quoteRequestAmount, outputTradingApiChainId, vault.vaultAddress, vaultTradingApiChainId])
+  const quoteRequestBase: TradingApi.QuoteRequest | undefined = useMemo(
+    () =>
+      getWithdrawQuoteRequestBase({
+        accountAddress: evmAccount?.address,
+        currency,
+        outputTradingApiChainId,
+        vault,
+        vaultTradingApiChainId,
+        withdrawAmount: quoteRequestAmount,
+      }),
+    [currency, evmAccount, quoteRequestAmount, outputTradingApiChainId, vault, vaultTradingApiChainId],
+  )
 
   const quoteQuery = useTradingApiEarnQuoteQuery({
     base: quoteRequestBase,
@@ -287,23 +273,24 @@ export function WithdrawReviewView({
   )
 
   const balanceAfterUsd = Math.max(position.depositedUsd - parsedAmountUsd, 0)
-  const { logFailed, logFinalized, logSubmitted, reviewedEventProperties } = useEarnReviewAnalytics({
-    action: 'withdraw',
-    amountUsd: parsedAmountUsd,
-    analyticsEntryPoint,
-    analyticsSurface,
-    destinationChainId: chainId,
-    destinationCurrency: currency,
-    position,
-    quote: chainedQuote,
-    sourceChainId: vault.chainId,
-    sourceTokenAddress: vault.vaultAddress,
-    sourceTokenSymbol: vaultShareCurrency?.symbol,
-    tokenAmount: tokenAmountValue ?? undefined,
-    underlyingTokenSymbol: vaultUnderlyingCurrencyInfo?.currency.symbol,
-    vault,
-    withdrawMode,
-  })
+  const { logFailed, logFinalized, logReviewReady, logSubmitButtonClicked, logSubmitted, reviewedEventProperties } =
+    useEarnReviewAnalytics({
+      action: 'withdraw',
+      amountUsd: parsedAmountUsd,
+      analyticsEntryPoint,
+      analyticsSurface,
+      destinationChainId: chainId,
+      destinationCurrency: currency,
+      position,
+      quote: chainedQuote,
+      sourceChainId: vault.chainId,
+      sourceTokenAddress: vault.vaultAddress,
+      sourceTokenSymbol: vaultShareCurrency?.symbol,
+      tokenAmount: tokenAmountValue ?? undefined,
+      underlyingTokenSymbol: vaultUnderlyingCurrencyInfo?.currency.symbol,
+      vault,
+      withdrawMode,
+    })
 
   const hasBlockingError = getEarnReviewHasBlockingError({ hasQuoteError, insufficientGasWarning })
   const ctaDisabled = getEarnReviewCtaDisabled({
@@ -317,7 +304,14 @@ export function WithdrawReviewView({
     hasExecuteHandler: !!onExecuteWithdraw,
   })
 
+  useEffect(() => {
+    if (!ctaDisabled) {
+      logReviewReady()
+    }
+  }, [ctaDisabled, logReviewReady])
+
   const handleWithdrawPress = useCallback(() => {
+    const attemptId = logSubmitButtonClicked()
     clearExecutionState()
     if (
       !currency ||
@@ -328,10 +322,12 @@ export function WithdrawReviewView({
       !earnIntent ||
       !onExecuteWithdraw
     ) {
+      logFailed({ error: undefined, attemptId })
       return
     }
     startSubmitting()
     onExecuteWithdraw({
+      attemptId,
       earnIntent,
       withdrawMode,
       inputCurrency: vaultShareCurrency,
@@ -339,10 +335,15 @@ export function WithdrawReviewView({
       outputCurrency: currency,
       quote: quoteQuery.data,
       onSuccess: handleSuccess,
-      onFailure: createEarnPlanFailureCallback({ handleFailure, logFailed }),
-      onSubmitted: logSubmitted,
+      onFailure: createEarnPlanFailureCallback({
+        handleFailure,
+        logFailed: (error, context) => logFailed({ error, context, attemptId }),
+      }),
+      onSubmitted: () => {
+        logSubmitted(attemptId)
+      },
       onPlanFinalized: (params) => {
-        logFinalized(params)
+        logFinalized(params, attemptId)
         onPlanFinalized?.(params)
       },
     })
@@ -355,6 +356,7 @@ export function WithdrawReviewView({
     handleSuccess,
     logFailed,
     logFinalized,
+    logSubmitButtonClicked,
     logSubmitted,
     onExecuteWithdraw,
     onPlanFinalized,

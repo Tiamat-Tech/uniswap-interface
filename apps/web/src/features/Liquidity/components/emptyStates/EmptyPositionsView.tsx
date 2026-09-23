@@ -1,7 +1,8 @@
+import { Button, Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex } from 'ui/src'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import {
   BUTTON_AREA_WIDTH,
   PositionsEmptyStateLayout,
@@ -23,6 +24,7 @@ export function EmptyPositionsView({
       title={t('positions.noPositions.title')}
       description={t('positions.noPositions.description')}
       withBorder={withBorder}
+      testID={TestID.PositionsEmptyState}
       action={
         <Flex row gap="$gap8" $md={{ flexDirection: 'column', width: '100%' }} width={BUTTON_AREA_WIDTH}>
           <Trace logPress element={ElementName.PositionsEmptyStateExplorePools}>

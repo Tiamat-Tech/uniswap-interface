@@ -1,7 +1,7 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useId } from 'react'
 import { StyleSheet } from 'react-native'
 import { Defs, LinearGradient, Rect, Stop, Svg } from 'react-native-svg'
-import { useSporeColors } from 'ui/src/hooks/useSporeColors'
 
 /** Default digit rail height; matches AnimatedNumber.native DIGIT_HEIGHT. */
 const DEFAULT_DIGIT_HEIGHT = 40

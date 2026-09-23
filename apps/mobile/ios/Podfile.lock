@@ -5001,7 +5001,7 @@ PODS:
     - Firebase/Firestore (= 12.4.0)
     - React-Core
     - RNFBApp
-  - RNGestureHandler (3.0.0):
+  - RNGestureHandler (3.2.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -5028,6 +5028,7 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
+    - RNWorklets (>= 0.8.0)
     - SocketRocket
     - Yoga
   - RNImageColors (1.5.2):
@@ -5065,7 +5066,7 @@ PODS:
   - RNQrGenerator (1.4.3):
     - React
     - ZXingObjC
-  - RNReanimated (4.4.2):
+  - RNReanimated (4.4.3):
     - boost
     - DoubleConversion
     - fast_float
@@ -5092,12 +5093,12 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/apple (= 4.4.2)
-    - RNReanimated/common (= 4.4.2)
+    - RNReanimated/apple (= 4.4.3)
+    - RNReanimated/common (= 4.4.3)
     - RNWorklets
     - SocketRocket
     - Yoga
-  - RNReanimated/apple (4.4.2):
+  - RNReanimated/apple (4.4.3):
     - boost
     - DoubleConversion
     - fast_float
@@ -5127,7 +5128,7 @@ PODS:
     - RNWorklets
     - SocketRocket
     - Yoga
-  - RNReanimated/common (4.4.2):
+  - RNReanimated/common (4.4.3):
     - boost
     - DoubleConversion
     - fast_float
@@ -6118,12 +6119,12 @@ SPEC CHECKSUMS:
   RNFBApp: a349eebf3b10a0b9104ed5cf262732678eacd2a5
   RNFBAuth: f25a96e3daefeea47d01750322e1b640e2dd57b2
   RNFBFirestore: a118348c7e21cbbba19b68cab7e0fcca6b62b2b2
-  RNGestureHandler: 5c6b47ffeca206916b5d345361319404aaffef9a
+  RNGestureHandler: a9b56743e7b8026dd8e96b1e2bbf0cfbfd573982
   RNImageColors: 9ac05083b52d5c350e6972650ae3ba0e556466c1
   RNLocalize: d4b8af4e442d4bcca54e68fc687a2129b4d71a81
   RNPermissions: c6de3647e6f8fc9b8e4d7ae4aa3af50bcb7f3944
   RNQrGenerator: ac6a6c766e80dd3625038929ed2b13e2f3edcafb
-  RNReanimated: 574819eaca022d85a510ef492ea373c757604c46
+  RNReanimated: 6668768aa558774623856089550c0257b13dcd6b
   RNScreens: d42c535167dd9e60f9e5219cad0ff726f7002b5b
   RNSVG: 0971eb425c6a55ba6768af77911a5c1b0b2d4625
   RNWorklets: 79d13b035a95eea8ac151978c1be9bdbd10afb76

@@ -1,4 +1,5 @@
 import { Currency, Percent } from '@uniswap/sdk-core'
+import { getIsPermissionedForAnalytics } from 'uniswap/src/features/permissionedTokens/getIsPermissionedForAnalytics'
 import { SwapPriceUpdateUserResponse } from 'uniswap/src/features/telemetry/types'
 import { TransactionOriginType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import {
@@ -68,6 +69,7 @@ export const formatSwapButtonClickEventProperties = ({
     token_out_address: getTokenAddress(trade.outputAmount.currency),
     token_in_symbol: displayedInputCurrency.symbol,
     token_out_symbol: trade.outputAmount.currency.symbol,
+    is_permissioned: getIsPermissionedForAnalytics([displayedInputCurrency, trade.outputAmount.currency]),
     token_in_amount: formatToDecimal(trade.inputAmount, trade.inputAmount.currency.decimals),
     token_out_amount: formatToDecimal(trade.outputAmount, trade.outputAmount.currency.decimals),
     token_in_amount_usd: fiatValueInput,

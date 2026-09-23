@@ -81,7 +81,7 @@ export function updateBidOutOfRangeIndicator({
   formatFdvValue,
   fdvLabel,
   bidTokenInfo,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals,
   colors,
   canExtendToBid,
@@ -93,7 +93,7 @@ export function updateBidOutOfRangeIndicator({
   formatFdvValue: (amount: number) => string
   fdvLabel: string
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals: number
   colors: ToucanBidDistributionChartControllerCreateParams['colors']
   /** Whether clicking the indicator can extend the chart to show the bid */
@@ -140,7 +140,7 @@ export function updateBidOutOfRangeIndicator({
     const formattedValue = formatTickForDisplay({
       tickValue: userBidPriceDecimal,
       bidTokenInfo,
-      totalSupply,
+      tokenTotalSupply,
       auctionTokenDecimals,
       formatter: formatFdvValue,
     })

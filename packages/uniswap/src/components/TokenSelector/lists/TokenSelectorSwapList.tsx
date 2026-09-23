@@ -1,7 +1,8 @@
 import { GqlResult } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { GatedFeature, useIsFeatureGated } from '@universe/compliance'
+import { Flex } from '@universe/mycelium'
 import { memo, useCallback, useMemo, useRef } from 'react'
-import { Flex } from 'ui/src'
 import { TokenSelectorListOption, TokenSelectorOption } from 'uniswap/src/components/lists/items/types'
 import { type OnchainItemSection, OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { SectionHeader } from 'uniswap/src/components/lists/SectionHeader'
@@ -21,10 +22,8 @@ import {
   TokenSelectorFlow,
   TokenSelectorVariation,
 } from 'uniswap/src/components/TokenSelector/types'
-import { isSwapListLoading } from 'uniswap/src/components/TokenSelector/utils'
 import { useBridgingTokensOptions } from 'uniswap/src/features/bridging/hooks/tokens'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { DataApiOutageBanner } from 'uniswap/src/features/dataApi/outage/DataApiOutageBanner'
 import { ClearRecentSearchesButton } from 'uniswap/src/features/search/ClearRecentSearchesButton'
 
@@ -177,16 +176,17 @@ export function useTokenSectionsForSwap({
     options: bridgingSectionTokenOptions,
   })
 
+  // Deliberately does NOT blank out while `loading` is true. A refetch briefly drops one constituent
+  // section, and discarding the whole list for that swapped the mounted rows for the skeleton
+  // mid-scroll. `undefined` now means "nothing to show at all", which is the first load — and that is
+  // the only case `SelectorBaseList` should render its skeleton for.
   const sections = useMemo(() => {
-    if (isSwapListLoading({ loading, portfolioSection, trendingSection, isTestnetModeEnabled })) {
-      return undefined
-    }
-
     if (isTestnetModeEnabled) {
-      return [...(suggestedSection ?? []), ...(portfolioSection ?? [])]
+      const builtForTestnet = [...(suggestedSection ?? []), ...(portfolioSection ?? [])]
+      return builtForTestnet.length ? builtForTestnet : undefined
     }
 
-    return [
+    const built = [
       ...(suggestedSection ?? []),
       ...(shouldShowStocks ? (stocksSection ?? []) : []),
       ...(bridgingSection ?? []),
@@ -194,8 +194,8 @@ export function useTokenSectionsForSwap({
       ...(recentSection ?? []),
       ...(trendingSection ?? []),
     ]
+    return built.length ? built : undefined
   }, [
-    loading,
     portfolioSection,
     trendingSection,
     suggestedSection,

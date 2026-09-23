@@ -1,9 +1,34 @@
+import { shouldShowNowTradingCard } from '~/features/Toucan/Auction/utils/auctionDisplayVisibility'
+import { type AuctionDisplayState, PoolAvailability } from '~/features/Toucan/Auction/utils/resolveAuctionDisplayState'
+
 interface ShouldShowTokenLaunchedBannerParams {
   isAuctionEnded: boolean
+  isTokenProvenanceEnabled: boolean
+  isGraduated: boolean
+  /** Undefined while provenance is off. */
+  displayState: AuctionDisplayState | undefined
+  tradingRestrictedUntilTge: boolean
 }
 
-export function shouldShowTokenLaunchedBanner({ isAuctionEnded }: ShouldShowTokenLaunchedBannerParams): boolean {
-  return isAuctionEnded
+export function shouldShowTokenLaunchedBanner({
+  isAuctionEnded,
+  isTokenProvenanceEnabled,
+  isGraduated,
+  displayState,
+  tradingRestrictedUntilTge,
+}: ShouldShowTokenLaunchedBannerParams): boolean {
+  if (!isAuctionEnded) {
+    return false
+  }
+  // Provenance replaces the ordinary trading banner, not failure or trading-restriction guidance.
+  if (!isTokenProvenanceEnabled || !isGraduated || tradingRestrictedUntilTge) {
+    return true
+  }
+  // Yield only once the now-trading card can render; show neither while the pool lookup is still loading.
+  return (
+    !shouldShowNowTradingCard({ state: displayState, tradingRestrictedUntilTge }) &&
+    displayState?.poolAvailability !== PoolAvailability.Loading
+  )
 }
 
 interface IsTokenLaunchTradeAvailableParams {

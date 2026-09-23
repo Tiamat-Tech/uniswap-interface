@@ -1,10 +1,12 @@
+import type { ColorTokens } from '@universe/mycelium'
+import { borderRadii, Flex, iconSizes, Text, TouchableArea } from '@universe/mycelium'
+import type { IconProps } from '@universe/mycelium/icons'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ColorTokens, IconProps } from 'ui/src'
-import { Flex, Popover, Text, TouchableArea, useSporeColors } from 'ui/src'
+import { Popover } from 'ui/src'
 import { ExternalLink, InfoCircleFilled } from 'ui/src/components/icons'
-import { borderRadii, iconSizes } from 'ui/src/theme'
 import type { LocalizationContextState } from 'uniswap/src/features/language/LocalizationContext'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ExplorerDataType, getExplorerLink, openUri } from 'uniswap/src/utils/linking'
@@ -167,7 +169,10 @@ export function TransactionAssetList({
 
   const renderAssetDetails = (asset: TransactionAsset, groupedAsset?: GroupedApprovalAsset): ReactNode => {
     const amountText = formatAmount ? formatAmount(asset) : formatAmountWithLocale(asset, formatNumberOrString)
-    const hasMultipleAddresses = groupedAsset && groupedAsset.allAssets.length > 1
+    const shouldShowApprovalAddresses =
+      groupedAsset !== undefined &&
+      groupedAsset.allAssets.some((grouped) => Boolean(grouped.spenderAddress)) &&
+      (groupedAsset.allAssets.length > 1 || groupedAsset.allAssets.some((grouped) => Boolean(grouped.approvalScope)))
 
     return (
       <Flex gap="$spacing4">
@@ -181,7 +186,7 @@ export function TransactionAssetList({
             </Text>
           )}
         </Flex>
-        {hasMultipleAddresses && formatAmount && (
+        {groupedAsset && shouldShowApprovalAddresses && formatAmount && (
           <ApprovalAddressesPopover assets={groupedAsset.allAssets} formatAmount={formatAmount} />
         )}
       </Flex>

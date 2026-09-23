@@ -1,25 +1,28 @@
+import { Flex, Text, type TextProps, TouchableArea } from '@universe/mycelium'
+import type { ColorTokens } from '@universe/mycelium'
+import type { ComponentProps } from 'react'
 import type { Animated } from 'react-native'
-import {
-  ColorTokens,
-  Flex,
-  GetThemeValueForKey,
-  Separator,
-  Text,
-  TouchableArea,
-  useLayoutAnimationOnChange,
-} from 'ui/src'
+import { Separator, useLayoutAnimationOnChange } from 'ui/src'
 import type { IconProps } from 'ui/src/components/factories/createIcon'
 import { ChevronsIn } from 'ui/src/components/icons/ChevronsIn'
 import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
-import type { TextProps } from 'ui/src/components/text/Text'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+
+/**
+ * Legacy `GetThemeValueForKey<'marginHorizontal' | 'paddingVertical'>` retyped as a plain
+ * space-token string (both live call sites only ever pass a `$spacing*` token or leave it
+ * undefined); `TouchableArea.mx`/`Flex.py` themselves still resolve whatever value flows in.
+ * Unlike the closed union it replaces, a typo'd token (e.g. `"$saping8"`) is a silent runtime
+ * no-op here, not a compile error.
+ */
+type LegacySpaceValue = number | Animated.AnimatedNode | `$${string}` | null
 
 export type ExpandoRowProps = {
   isExpanded: boolean
   onPress: () => void
   label: string
-  mx?: number | Animated.AnimatedNode | GetThemeValueForKey<'marginHorizontal'> | null
-  py?: number | Animated.AnimatedNode | GetThemeValueForKey<'paddingVertical'> | null
+  mx?: LegacySpaceValue
+  py?: LegacySpaceValue
   color?: ColorTokens
   labelVariant?: TextProps['variant']
   iconSize?: IconProps['size']
@@ -38,8 +41,21 @@ export function ExpandoRow({
   useLayoutAnimationOnChange(isExpanded)
 
   return (
-    <TouchableArea activeOpacity={1} mx={mx} testID={TestID.ExpandoRow} onPress={onPress}>
-      <Flex row alignItems="center" justifyContent="space-between" py={py}>
+    // The compat `mx`/`py` types are a closed token union (SpaceValue), narrower than the open
+    // `$${string}` template (and `AnimatedNode`) this legacy prop type carries; `LegacySpaceValue`
+    // covers every value that ever flows through here, so this boundary cast is safe.
+    <TouchableArea
+      activeOpacity={1}
+      mx={mx as unknown as ComponentProps<typeof TouchableArea>['mx']}
+      testID={TestID.ExpandoRow}
+      onPress={onPress}
+    >
+      <Flex
+        row
+        alignItems="center"
+        justifyContent="space-between"
+        py={py as unknown as ComponentProps<typeof Flex>['py']}
+      >
         <Flex centered grow row gap="$spacing12">
           <Separator />
 

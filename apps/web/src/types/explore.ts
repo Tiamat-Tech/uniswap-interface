@@ -1,8 +1,6 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import { Amount, ChainToken, PoolStats, TokenStats } from '@uniswap/client-explore/dist/uniswap/explore/v1/service_pb'
-import { Percent } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
-import type { FeeData as CreatePositionFeeData } from 'uniswap/src/features/positions/types'
+import type { FeeData as CreatePositionFeeData, PositionRewardApr } from 'uniswap/src/features/positions/types'
 
 /** Explore URL tab segments — shared routing / URL surface (not feature-local). */
 export enum ExploreTab {
@@ -20,11 +18,6 @@ export type LegacyExploreStatChainToken = Pick<
 > &
   Partial<Pick<PlainMessage<ChainToken>, 'volume1h' | 'volume1d' | 'volume7d' | 'volume30d' | 'volume1y'>>
 
-/** Explore Stats period volumes (omitted from `TokenStat` in favor of filtered `volume`). */
-export type ExploreStatVolumeAmounts = Partial<
-  Pick<PlainMessage<TokenStats>, 'volume1Hour' | 'volume1Day' | 'volume1Week' | 'volume1Month' | 'volume1Year'>
->
-
 /** Data-only shape for token stats (display/API). Plain type so plain objects satisfy it without cast. */
 export type TokenStat = Omit<
   PlainMessage<TokenStats>,
@@ -32,14 +25,10 @@ export type TokenStat = Omit<
 > & {
   volume?: Amount
   priceHistory?: PricePoint[]
-  feeData?: GraphQLApi.FeeData
   /** Stable key for sparkline/cache/row: multichainId when from multichain, normalized address when single-chain. */
   id?: string
   chainTokens?: LegacyExploreStatChainToken[]
 }
-
-/** TokenStat plus explore period volumes still present after `convertTokenStatsToTokenStat` spread. */
-export type TokenStatWithExploreVolumes = TokenStat & ExploreStatVolumeAmounts
 
 type PoolStatWithoutMethods = Omit<
   PoolStats,
@@ -56,8 +45,16 @@ type PoolStatWithoutMethods = Omit<
 >
 
 export interface PoolStat extends PoolStatWithoutMethods {
-  apr: Percent
+  /** Backend-served fee APR in percent units (4.99 = 4.99%), from `PoolRankStats.apr`. */
+  apr?: number
+  /** Backend-summed fee + reward APR, from `PoolRankStats.totalApr`. Never recomposed here. */
+  totalApr?: number
   boostedApr?: number
+  /**
+   * The tokens `boostedApr` is paid in, one entry per token, from `PoolRankStats.token_boosts`.
+   * Empty when the pool runs no live campaign — every reward badge renders nothing on an empty list.
+   */
+  rewards?: PositionRewardApr[]
   volOverTvl?: number
   hookAddress?: string
   feeTier?: CreatePositionFeeData

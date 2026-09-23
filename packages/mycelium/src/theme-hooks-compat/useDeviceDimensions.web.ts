@@ -1,19 +1,18 @@
 /**
  * Web leg of the `useDeviceDimensions` compat
  * (`ui/src/hooks/useDeviceDimensions`): the window's inner dimensions, live
- * across resizes. Web app only — the reference's extension branch (sizing via
- * react-native `useWindowDimensions`) is out of scope for INFRA-2952, so
- * extension contexts fail loudly like the native stubs.
+ * across resizes. Serves BOTH web-app and extension runtimes on a single code
+ * path: it tracks `window.inner*` via the window `resize` event — exactly what
+ * the reference's plain-web branch reads — while the reference's extension
+ * branch sizes via react-native-web's `useWindowDimensions`, i.e.
+ * `visualViewport` metrics.
+ * One bounded divergence: `window.inner*` includes classic scrollbar width
+ * (~17px on Windows) and pinch-zoom scale, which the extension branch's
+ * `visualViewport` metrics exclude — pinned, together with extension parity,
+ * in `packages/tailwind/src/parity/device-dimensions-extension/`.
  */
 import { useSyncExternalStore } from 'react'
 import type { DeviceDimensions } from './useDeviceDimensions'
-
-function assertNotExtensionRuntime(): void {
-  // chrome-extension:, moz-extension:, safari-web-extension:
-  if (typeof window !== 'undefined' && window.location.protocol.endsWith('extension:')) {
-    throw new Error('useDeviceDimensions (theme-hooks compat): extension leg is out of scope, see INFRA-2952')
-  }
-}
 
 const SERVER_DIMENSIONS: DeviceDimensions = { fullHeight: 0, fullWidth: 0 }
 
@@ -52,6 +51,5 @@ function getServerDimensionsSnapshot(): DeviceDimensions {
 }
 
 export function useDeviceDimensions(): DeviceDimensions {
-  assertNotExtensionRuntime()
   return useSyncExternalStore(subscribeToDimensions, getDimensionsSnapshot, getServerDimensionsSnapshot)
 }

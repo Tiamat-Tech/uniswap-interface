@@ -9,14 +9,38 @@
  * onto the Base UI trigger delay/closeDelay (both ledgered).
  */
 import { cn } from '../cn'
+import { type CompatEmission, composeCompatEmission } from '../compat/compose'
 import { flexCompatClassName } from '../flex-compat/compile'
-import type { FlexCompatProps } from '../flex-compat/props'
-import type { TooltipAnimationDirection, TooltipCompatDelay, TooltipContentCompatProps } from './props'
+import { BASE_CLASSES, flexStyleClasses } from '../flex-compat/flex-style-classes'
+import type { FlexCompatProps, FlexCompatStyleProps } from '../flex-compat/props'
+import type {
+  TooltipAnimationDirection,
+  TooltipCompatConfigContextValue,
+  TooltipCompatDelay,
+  TooltipContentCompatProps,
+} from './props'
 
 /** Legacy ui/src TooltipRoot styled defaults (Tooltip.web.tsx). */
 export const TOOLTIP_DEFAULT_OFFSET = { mainAxis: 16 } as const
 export const TOOLTIP_DEFAULT_DELAY = { close: 500, open: 0 } as const
 export const TOOLTIP_DEFAULT_REST_MS = 200
+
+/**
+ * The `data-slot` the web leg's Popup renders (TooltipCompat.web.tsx) —
+ * shared with the touch-session hook's tap-away containment check so the two
+ * can't drift apart into a silent mismatch.
+ */
+export const TOOLTIP_COMPAT_POPUP_DATA_SLOT = 'tooltip-compat-popup'
+
+/**
+ * The config-context default value: the web provider's fallback and the
+ * base/native context defaults all reference this one constant, so the three
+ * legs cannot drift on it.
+ */
+export const TOOLTIP_DEFAULT_CONFIG: TooltipCompatConfigContextValue = {
+  offset: TOOLTIP_DEFAULT_OFFSET,
+  ...mapTooltipDelay({ delay: TOOLTIP_DEFAULT_DELAY, restMs: TOOLTIP_DEFAULT_REST_MS }),
+}
 
 /**
  * Legacy `ContentInner` styled defaults — including the light-theme shadow.
@@ -29,6 +53,7 @@ export const TOOLTIP_DEFAULT_REST_MS = 200
  * compiler composes raw box-shadow lengths.
  */
 export const TOOLTIP_CONTENT_FRAME_DEFAULTS: FlexCompatProps = {
+  pointerEvents: 'none',
   gap: '$spacing8',
   alignItems: 'center',
   justifyContent: 'center',
@@ -140,8 +165,11 @@ export function tooltipContentFrameClassName(props: Partial<TooltipContentCompat
  * through the real Tailwind engine and fails if any stops emitting CSS
  * (`tooltip-classes.test.ts`).
  */
+// `translate`, not `transform`: v4 `translate-x/y-[…]` set the separate CSS
+// `translate` property, and an arbitrary transition list is literal — with
+// `transform` here the 4px slide would snap instead of animate.
 const TOOLTIP_MOTION_BASE_CLASSES =
-  'transition-[transform,opacity] duration-150 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0'
+  'transition-[translate,opacity] duration-150 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0'
 const TOOLTIP_MOTION_OFFSET_CLASSES: Record<TooltipAnimationDirection, string> = {
   left: 'data-starting-style:translate-x-[4px] data-ending-style:translate-x-[4px]',
   right: 'data-starting-style:translate-x-[-4px] data-ending-style:translate-x-[-4px]',
@@ -156,6 +184,42 @@ export function tooltipMotionClasses(direction: TooltipAnimationDirection = 'top
 /** Compile the full popup className for the given Tooltip.Content props. */
 export function tooltipContentCompatClassName(props: Partial<TooltipContentCompatProps>): string {
   return cn(tooltipContentFrameClassName(props), tooltipMotionClasses(props.animationDirection), 'outline-none')
+}
+
+const ANIMATION_DIRECTIONS: readonly TooltipAnimationDirection[] = ['left', 'right', 'top', 'bottom']
+
+/**
+ * Every class the tooltip's own chrome compiles to (content frame defaults
+ * incl. the light-theme shadow, all motion directions, both arrow elements) —
+ * the tooltip's contribution to the generated safelist and the strict path's
+ * membership set (engine-memoized).
+ */
+export function tooltipFixedCompatClasses(): string[] {
+  return [
+    tooltipContentCompatClassName({}),
+    ...ANIMATION_DIRECTIONS.map((direction) => tooltipContentCompatClassName({ animationDirection: direction })),
+    tooltipArrowCompatClassName(),
+    tooltipArrowInnerCompatClassName(),
+  ]
+}
+
+/**
+ * Compile the full popup surface for rendering (INFRA-3217): guaranteed-
+ * emitted classes plus the inline-style lane for caller base-pool values
+ * outside the closed set (the frame's own defaults are all safelisted).
+ */
+export function tooltipContentCompatEmission(props: Partial<TooltipContentCompatProps>): CompatEmission {
+  const caller = styleProps(props)
+  const emission = composeCompatEmission<FlexCompatStyleProps>({
+    props: { ...frameDefaultsFor(caller), ...caller },
+    baseClasses: BASE_CLASSES,
+    styleClasses: flexStyleClasses,
+    fixedClasses: tooltipFixedCompatClasses,
+  })
+  return {
+    className: cn(emission.className, tooltipMotionClasses(props.animationDirection), 'outline-none'),
+    style: emission.style,
+  }
 }
 
 /**

@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { useSporeColors } from 'ui/src/hooks/useSporeColors'
-import type { ThemeKeys } from 'ui/src/index'
+import type { SporeThemeKeys } from 'ui/src/theme/color/types'
 import type { ColorStrategy, ExtractedColors } from 'ui/src/utils/colors/types'
 import { getExtractedColors } from 'ui/src/utils/colors/utils/getExtractedColors'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
 type ExtractedColorsOptions = {
-  fallback: ThemeKeys
+  fallback: SporeThemeKeys
   cache?: boolean
   colorStrategy?: ColorStrategy
 }

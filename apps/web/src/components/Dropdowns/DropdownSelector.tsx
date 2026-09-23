@@ -1,4 +1,4 @@
-import { Flex, Text } from 'ui/src'
+import { Flex, Text } from '@universe/mycelium'
 import { GeneratedIcon } from 'ui/src/components/factories/createIcon'
 import { Check } from 'ui/src/components/icons/Check'
 import { Dropdown, DropdownProps, InternalMenuItem } from '~/components/Dropdowns/Dropdown'

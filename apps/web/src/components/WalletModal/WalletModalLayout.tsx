@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { useShowMoonpayText } from '~/components/AccountDrawer/MiniPortfolio/hooks'
 import { ConnectionErrorView } from '~/components/WalletModal/ConnectionErrorView'
 import { PrivacyPolicyNotice } from '~/components/WalletModal/PrivacyPolicyNotice'
@@ -24,7 +24,7 @@ export function WalletModalLayout({
   return (
     <>
       {downloadHeader}
-      <Flex backgroundColor="$surface1" p="$padding16" flex={1} gap="$gap16" data-testid="wallet-modal">
+      <Flex backgroundColor="$surface1" p="$padding16" flex={1} gap="$gap16" testID="wallet-modal">
         <ConnectionErrorView />
         {header}
         <Flex gap="$gap12">

@@ -1,10 +1,11 @@
 import { isExtensionApp } from '@universe/environment'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import type { GeneratedIcon } from '@universe/mycelium/icons'
+import { BookOpen } from '@universe/mycelium/icons/BookOpen'
+import { Lock } from '@universe/mycelium/icons/Lock'
+import { StickyNoteTextSquare } from '@universe/mycelium/icons/StickyNoteTextSquare'
 import { useTranslation } from 'react-i18next'
-import { Flex, type GeneratedIcon, Text, TouchableArea } from 'ui/src'
-import { BookOpen } from 'ui/src/components/icons/BookOpen'
-import { Lock } from 'ui/src/components/icons/Lock'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { StickyNoteTextSquare } from 'ui/src/components/icons/StickyNoteTextSquare'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useEvent } from 'utilities/src/react/hooks'
@@ -50,7 +51,6 @@ export function AboutModal({
   return (
     <Modal isModalOpen={isOpen} name={ModalName.About} onClose={onClose}>
       <Flex
-        animation="fast"
         gap="$gap8"
         pb={isExtensionApp ? undefined : '$spacing24'}
         py={isExtensionApp ? '$spacing16' : undefined}

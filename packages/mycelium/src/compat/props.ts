@@ -1,6 +1,6 @@
+import type { SporeAnimationCurveName } from '@universe/tailwind/animations'
 /**
  * The component-agnostic half of the Tamagui→Tailwind compat prop contract.
- *
  * A component's full prop type is `CompatProps<S>`, where `S` is that
  * component's own curated style-prop surface (e.g. `FlexCompatStyleProps`).
  * The generic surfaces here — pseudo states, responsive media, platform/theme
@@ -9,20 +9,44 @@
  * every migrated component, so a new component only has to define `S`.
  */
 import type * as React from 'react'
+// Type-only — react-native runtime imports are banned outside .native legs.
+import type { GestureResponderEvent, StyleProp, ViewStyle } from 'react-native'
 import type { AnimateEnterExitPreset, AnimateEnterPreset, AnimateExitPreset } from './animations'
+import type { CompatAriaProps } from './aria-props'
+// Value legs (Spore tokens + the non-token legacy family) live beside their
+// runtime resolvers in css-values.ts — INFRA-3232/3258.
+import type { BorderWidthValue, ColorValue, RadiusValue, SizeValue, SpaceValue, ZIndexValue } from './css-values'
+import type { CompatGestureResponderProps } from './gesture-responder-props'
+import type { InheritedTextStyleProps } from './inherited-text-props'
 import type { LongTailStyleProp } from './style-props'
-import type { SporeColorToken, SporeRadiusToken, SporeSpaceToken } from './tokens'
+import type { TamaguiVariable } from './tokens'
 
-/** Spore space token, raw pixel number, percentage, or `auto`. */
-export type SpaceValue = SporeSpaceToken | number | `${number}%` | 'auto'
-/** Spore color token or any raw CSS color (`#131313`, `rgba(0,0,0,0.5)`, …). */
-export type ColorValue = SporeColorToken | (string & {})
-/** Numbers are pixels; strings pass through (`'100%'`, `'auto'`, `'max-content'`). */
-export type SizeValue = number | string
+export type {
+  BorderWidthValue,
+  ColorValue,
+  CssLengthValue,
+  CssPassthroughValue,
+  CssUniversalValue,
+  RadiusValue,
+  SizeValue,
+  SpaceValue,
+  ZIndexValue,
+} from './css-values'
+export type { TamaguiVariable }
 
 export type PositionValue = 'absolute' | 'relative' | 'static' | 'fixed' | 'sticky' | 'unset'
-export type OverflowValue = 'visible' | 'hidden' | 'scroll' | 'auto' | 'unset'
-export type DisplayValue = 'inherit' | 'none' | 'inline' | 'block' | 'contents' | 'flex' | 'inline-flex' | 'unset'
+export type OverflowValue = 'visible' | 'hidden' | 'clip' | 'scroll' | 'auto' | 'unset'
+export type DisplayValue =
+  | 'inherit'
+  | 'none'
+  | 'inline'
+  | 'block'
+  | 'contents'
+  | 'flex'
+  | 'inline-flex'
+  | 'grid'
+  | 'inline-grid'
+  | 'unset'
 
 export interface InsetShorthand {
   top?: SpaceValue
@@ -81,12 +105,12 @@ export interface CompatStyleProps {
   // visuals
   backgroundColor?: ColorValue
   borderColor?: ColorValue
-  borderWidth?: number
-  borderTopWidth?: number
-  borderBottomWidth?: number
-  borderLeftWidth?: number
-  borderRightWidth?: number
-  borderRadius?: SporeRadiusToken | number
+  borderWidth?: BorderWidthValue
+  borderTopWidth?: BorderWidthValue
+  borderBottomWidth?: BorderWidthValue
+  borderLeftWidth?: BorderWidthValue
+  borderRightWidth?: BorderWidthValue
+  borderRadius?: RadiusValue
   opacity?: number
   overflow?: OverflowValue
 
@@ -96,11 +120,11 @@ export interface CompatStyleProps {
   right?: SpaceValue
   bottom?: SpaceValue
   left?: SpaceValue
-  zIndex?: number
+  zIndex?: ZIndexValue
 
   // transforms (merged into one `transform` declaration, Tamagui ordering)
-  x?: number
-  y?: number
+  x?: BorderWidthValue
+  y?: BorderWidthValue
   scale?: number
   scaleX?: number
   scaleY?: number
@@ -117,15 +141,15 @@ export interface CompatStyleProps {
 
   // shadows (composed into one `box-shadow` declaration, Tamagui format)
   shadowColor?: ColorValue
-  shadowOffset?: { width: number; height: number }
+  shadowOffset?: { width: BorderWidthValue; height: BorderWidthValue }
   shadowOpacity?: number
-  shadowRadius?: number
+  shadowRadius?: BorderWidthValue
   boxShadow?: string
 }
 
-/** Generic long-tail props — compiled to arbitrary-property utilities. */
+/** Generic long-tail props — compiled to arbitrary-property utilities. Variables unwrap like every other lane. */
 export type LongTailStyleProps = {
-  [K in LongTailStyleProp]?: string | number
+  [K in LongTailStyleProp]?: string | number | TamaguiVariable
 }
 
 /**
@@ -158,17 +182,19 @@ export type MediaPropKey =
   | '$lgHeight'
 
 /**
- * Responsive media props. The generated variants (`media-sm:` …) emit media
- * queries byte-identical to Tamagui's (`ui/src/theme/media.ts` — max-width /
- * max-height, inclusive bounds).
+ * Responsive media props. Generated variants (`media-sm:` …) emit media
+ * queries byte-identical to Tamagui's (`ui/src/theme/media.ts`). Platform
+ * pools nest inside media values just like Tamagui (`$md={{ '$platform-web':
+ * {…} }}`); native pools are accepted-but-ignored since these components are
+ * web-only.
  */
 export type CompatMediaProps<S> = {
-  [K in MediaPropKey]?: S & CompatPseudoProps<S>
+  [K in MediaPropKey]?: S & CompatPseudoProps<S> & CompatPlatformProps<S>
 }
 
 export interface CompatPlatformProps<S> {
   /** Applied on web builds (these components are web-only, so: always applied). */
-  '$platform-web'?: S & CompatPseudoProps<S>
+  '$platform-web'?: S & CompatPseudoProps<S> & InheritedTextStyleProps
   /** Native-only overrides — ignored on web, exactly like Tamagui does. */
   '$platform-native'?: Record<string, unknown>
   '$platform-ios'?: Record<string, unknown>
@@ -177,9 +203,9 @@ export interface CompatPlatformProps<S> {
 
 export interface CompatThemeProps<S> {
   /** Applied when a `.dark` ancestor is present (the web dark-theme marker). */
-  '$theme-dark'?: S
+  '$theme-dark'?: S & CompatPseudoProps<S>
   /** Applied when no `.dark` ancestor is present. */
-  '$theme-light'?: S
+  '$theme-light'?: S & CompatPseudoProps<S>
 }
 
 export type GroupState = 'hover' | 'press' | 'focus' | 'focusVisible' | 'focusWithin'
@@ -195,37 +221,36 @@ export type CompatGroupProps<S> = {
   [K in GroupStatePropKey]?: S
 }
 
-export interface CompatAnimationProps {
+export interface CompatAnimationProps<S> {
   /**
    * Accepted for compatibility; timing configs are driver concerns Tamagui
    * resolves at runtime (including the per-property object form). The CSS
-   * presets below carry fixed timings instead.
+   * presets below carry fixed timings instead. Names are the Spore curve
+   * vocabulary (`@universe/tailwind/animations`), the number-exact port of
+   * the legacy driver presets. Its Reanimated leg (`…/animations/reanimated`)
+   * is what HAND-ROLLED native conversions call directly, not a driver this
+   * prop's VALUE feeds: see the `animation-prop` native ruling in
+   * `.claude/skills/tamagui-conversion/references/manual-lane.md`. Name leg
+   * is a closed union (SporeAnimationCurveName), not `string`, so
+   * arbitrary/dynamic names don't typecheck.
    */
-  animation?: string | readonly unknown[] | Readonly<Record<string, unknown>> | null
+  animation?: SporeAnimationCurveName | readonly unknown[] | Readonly<Record<string, unknown>> | null
   animateOnly?: string[]
+  /** Never styling (compose ignores it); read by `Presence` (src/presence) on a direct child — `false` opts out of the exit hold, unmounting immediately. */
   animatePresence?: boolean
   animateEnter?: AnimateEnterPreset
   animateExit?: AnimateExitPreset
   animateEnterExit?: AnimateEnterExitPreset
+  /**
+   * First-paint-only style values, merged then released a tick later
+   * (`createCompatComponent`, `./dom`) — a mount-flip, not a keyframe; needs an explicit `transition` (`animation` above is accepted-and-inert here).
+   * Composes in the base pool, so a same-property override from a higher-precedence pool (`$platform-web`/`$theme-*`/media/`forceStyle`) still wins over it, and collides with `animateEnter`/`animateExit`/`animateEnterExit` on the same property (`checkAnimationPresetCollision`) — treat the two as mutually exclusive per property.
+   * `exitStyle` is deferred (needs Presence's AnimatePresence lifecycle, INFRA-3289).
+   */
+  enterStyle?: S
 }
 
-/** RN aria-* passthrough surface (forwarded verbatim to the DOM element). */
-export interface CompatAriaProps {
-  'aria-busy'?: boolean
-  'aria-checked'?: boolean | 'mixed'
-  'aria-disabled'?: boolean
-  'aria-expanded'?: boolean
-  'aria-hidden'?: boolean
-  'aria-label'?: string
-  'aria-labelledby'?: string
-  'aria-live'?: 'polite' | 'assertive' | 'off'
-  'aria-modal'?: boolean
-  'aria-selected'?: boolean
-  'aria-valuemax'?: number
-  'aria-valuemin'?: number
-  'aria-valuenow'?: number
-  'aria-valuetext'?: string
-}
+export type { CompatAriaProps }
 
 /**
  * Deprecated RN accessibility props. `accessibilityLabel`/`accessibilityRole`
@@ -260,12 +285,19 @@ export interface CompatLegacyA11yProps {
   onMagicTap?(this: void): void
 }
 
+/** Legacy typed press events as the RN `GestureResponderEvent` while dispatching DOM events, so both are
+ *  assignable. Narrowing to `GestureResponderEvent` alone measured WORSE on every project. */
+type CompatPressEvent = React.MouseEvent<HTMLElement> | GestureResponderEvent
+type CompatPressInOutEvent = CompatPressEvent | React.TouchEvent<HTMLElement>
+
 /**
  * Interaction handlers. Method syntax keeps parameter typing bivariant so
  * handlers written against Tamagui's RN-flavored event types remain
  * assignable; at runtime they receive the corresponding DOM events
- * (onPress → click, onPressIn/Out → pointerdown/up, onHoverIn/Out →
- * mouseenter/leave), which is what Tamagui dispatches on web too.
+ * (onPress → click, onPressIn/Out → mousedown/up + touchstart/end — exactly
+ * what Tamagui dispatches on web (`getWebEvents` in @tamagui/web) — and
+ * onHoverIn/Out → pointerenter/leave, the platform's one hover seam, a
+ * deliberate divergence from Tamagui's mouseenter/leave; see compat/dom.tsx).
  */
 export interface CompatEventProps {
   /**
@@ -276,20 +308,44 @@ export interface CompatEventProps {
     this: void,
     event: { nativeEvent: { layout: { x: number; y: number; width: number; height: number } } },
   ): void
-  onPress?(this: void, event: React.MouseEvent<HTMLElement>): void
-  onPressIn?(this: void, event: React.PointerEvent<HTMLElement>): void
-  onPressOut?(this: void, event: React.PointerEvent<HTMLElement>): void
+  onPress?(this: void, event: CompatPressEvent): void
+  onPressIn?(this: void, event: CompatPressInOutEvent): void
+  onPressOut?(this: void, event: CompatPressInOutEvent): void
   /**
    * Tamagui web has no long-press timing: its click handler invokes
    * onLongPress together with onPress. Compat components dispatch identically.
    */
-  onLongPress?(this: void, event: React.MouseEvent<HTMLElement>): void
-  onHoverIn?(this: void, event: React.MouseEvent<HTMLElement>): void
-  onHoverOut?(this: void, event: React.MouseEvent<HTMLElement>): void
+  onLongPress?(this: void, event: CompatPressEvent): void
+  /**
+   * Raw click handler, accepted like Tamagui web (createComponent destructures
+   * `onClick` for next/link compat) and merged into the composed click handler
+   * AHEAD of onPress/onLongPress — Tamagui's compose order. Like every
+   * press-family prop it trips the truthiness-based press attach gate.
+   */
+  onClick?(this: void, event: React.MouseEvent<HTMLElement>): void
+  /**
+   * Rides onPointerEnter with the touch anti-flicker filter — the platform's
+   * ONE hover seam (the same seam the styled() factory binds), a deliberate
+   * documented divergence from Tamagui web's composed mouseenter (#37920; see
+   * compat/dom.tsx). Attaches whenever present (compat has no hover attach
+   * gate); a raw onPointerEnter chains after it.
+   */
+  onHoverIn?(this: void, event: React.PointerEvent<HTMLElement>): void
+  /**
+   * Rides onPointerLeave, unfiltered — leave always resets so a touch-filtered
+   * enter can never strand stale hover state.
+   */
+  onHoverOut?(this: void, event: React.PointerEvent<HTMLElement>): void
   onMouseEnter?(this: void, event: React.MouseEvent<HTMLElement>): void
   onMouseLeave?(this: void, event: React.MouseEvent<HTMLElement>): void
-  onMouseDown?(this: void, event: React.MouseEvent<HTMLElement>): void
-  onMouseUp?(this: void, event: React.MouseEvent<HTMLElement>): void
+  /**
+   * Tamagui web merges raw onMouseDown/onMouseUp into its composed
+   * pressIn/pressOut handlers, which are wired to the touch events too — so
+   * these can receive touch events, exactly like under Tamagui.
+   */
+  onMouseDown?(this: void, event: React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElement>): void
+  onMouseUp?(this: void, event: React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElement>): void
+  onMouseMove?(this: void, event: React.MouseEvent<HTMLElement>): void
   onFocus?(this: void, event: React.FocusEvent<HTMLElement>): void
   onBlur?(this: void, event: React.FocusEvent<HTMLElement>): void
   onPointerEnter?(this: void, event: React.PointerEvent<HTMLElement>): void
@@ -309,15 +365,21 @@ export interface CompatEventProps {
   onTouchEnd?(this: void, event: React.TouchEvent<HTMLElement>): void
   onTouchCancel?(this: void, event: React.TouchEvent<HTMLElement>): void
   onTouchEndCapture?(this: void, event: React.TouchEvent<HTMLElement>): void
+  onPointerOut?(this: void, event: React.PointerEvent<HTMLElement>): void
+  // Raw DOM handlers with no Tamagui composed equivalent, forwarded verbatim.
+  // `onScroll` lives on `FlexCompatOwnEventProps` instead, since ScrollViewCompat
+  // already owns a differently-shaped `onScroll` on this shared surface.
+  onKeyDown?(this: void, event: React.KeyboardEvent<HTMLElement>): void
+  onAnimationEnd?(this: void, event: React.AnimationEvent<HTMLElement>): void
+  onTransitionEnd?(this: void, event: React.TransitionEvent<HTMLElement>): void
 }
 
 /**
  * Native-only rendering hints and Tamagui runtime knobs: accepted so call
- * sites keep compiling, inert on web — which matches Tamagui's own web
- * behavior for every prop in this block except the deprecated child-spacing
- * trio at the end (see its docs and the parity exclusions ledger).
+ * sites keep compiling, inert on web (except the deprecated child-spacing
+ * trio at the end). Extends the gesture-responder family (own file, `max-lines` split).
  */
-export interface CompatInertProps {
+export interface CompatInertProps extends CompatGestureResponderProps {
   collapsable?: boolean
   collapsableChildren?: boolean
   needsOffscreenAlphaCompositing?: boolean
@@ -353,12 +415,33 @@ export interface CompatInertProps {
   separator?: React.ReactNode
 }
 
+/**
+ * The compat `style` prop: web `CSSProperties` or an RN `StyleProp<ViewStyle>`,
+ * so consumer APIs typed `StyleProp<ViewStyle | ...>` forward into it without
+ * casts (same union as `CheckboxCompatStyleProp`). Native legs hand it to the
+ * RN style array verbatim; web legs flatten it with `flattenCompatStyle`.
+ * Caveats on web: `RegisteredStyle` ids cannot be resolved there and are
+ * dropped, and RN-only style keys (`marginHorizontal`, transform arrays, …)
+ * are NOT converted to CSS — web-rendered call sites must pass CSS-compatible
+ * declarations, as before; development builds warn once per such key
+ * (`mergeCompatStyle`).
+ */
+export type CompatStyleProp = StyleProp<ViewStyle | React.CSSProperties>
+
 export interface CompatBehavioralProps {
   className?: string
-  style?: React.CSSProperties
+  style?: CompatStyleProp
   children?: React.ReactNode
   id?: string
   testID?: string
+  /**
+   * Arbitrary `data-*` attributes, forwarded to the DOM on web (`domProps`),
+   * dropped by the native allow-list — mirrors Tamagui web's viewProps
+   * routing (e.g. Progress's `data-state`/`data-value`/`data-max`). Lives here
+   * so it widens EVERY primitive's surface, not just Progress; a typo'd
+   * `data-stat` still type-checks (`unknown`-valued).
+   */
+  [dataAttr: `data-${string}`]: unknown
   /** HTML title attribute (hover tooltip), forwarded to the DOM element. */
   title?: string
   /** Rendered element tag, `div` by default (Tamagui `tag`). */
@@ -371,7 +454,10 @@ export interface CompatBehavioralProps {
   htmlFor?: string
   rel?: string
   download?: boolean | string
-  dangerouslySetInnerHTML?: { __html: string }
+  /** Raw HTML `inert` attribute (drops focus/interaction/find-in-page while `true`), forwarded verbatim. */
+  inert?: boolean
+  /** Matches React's own `DOMAttributes['dangerouslySetInnerHTML']` (`TrustedHTML` included); forwarded verbatim, no coercion. */
+  dangerouslySetInnerHTML?: { __html: string | TrustedHTML }
   /**
    * Mirrors Tamagui web: sets `aria-disabled` (which gates `disabledStyle`'s
    * `[aria-disabled]`-scoped CSS) and detaches the composed interaction
@@ -390,7 +476,7 @@ export interface CompatBehavioralProps {
    * `.dark` ancestor class on web, not per-subtree providers. `$theme-dark` /
    * `$theme-light` cover conditional styling per theme.
    */
-  theme?: string | null
+  theme?: string | null | TamaguiVariable
   themeInverse?: boolean
   themeShallow?: boolean
   asChild?: boolean | 'except-style' | 'except-style-web' | 'web'
@@ -406,7 +492,7 @@ export type CompatProps<S> = S &
   CompatPlatformProps<S> &
   CompatThemeProps<S> &
   CompatGroupProps<S> &
-  CompatAnimationProps &
+  CompatAnimationProps<S> &
   CompatAriaProps &
   CompatLegacyA11yProps &
   CompatEventProps &

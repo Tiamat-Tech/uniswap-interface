@@ -11,6 +11,7 @@ import { FavoritesState } from 'uniswap/src/features/favorites/slice'
 import { ModalName, SectionName } from 'uniswap/src/features/telemetry/constants'
 import { SAMPLE_SEED_ADDRESS_1 } from 'uniswap/src/test/fixtures'
 import { CurrencyField } from 'uniswap/src/types/currency'
+import { normalizeCurrencyIdForMapLookup } from 'uniswap/src/utils/currencyId'
 import type { MockedFunction } from 'vitest'
 import { cleanup } from 'wallet/src/test/test-utils'
 
@@ -118,7 +119,7 @@ describe(useExploreTokenContextMenu, () => {
     it('renders proper context menu items when token is favorited', async () => {
       const { result } = renderHookWithProviders(() => useExploreTokenContextMenu(tokenMenuParams), {
         preloadedState: {
-          favorites: { tokens: [tokenMenuParams.currencyId.toLowerCase()] } as FavoritesState,
+          favorites: { tokens: [normalizeCurrencyIdForMapLookup(tokenMenuParams.currencyId)] } as FavoritesState,
         },
         resolvers,
       })
@@ -145,7 +146,12 @@ describe(useExploreTokenContextMenu, () => {
     })
 
     it("dispatches add to favorites redux action when 'Favorite token' is pressed", async () => {
-      const store = mockStore({ favorites: { tokens: [] }, appearance: { theme: 'system' }, userSettings: {} })
+      const store = mockStore({
+        favorites: { tokens: [] },
+        appearance: { theme: 'system' },
+        userSettings: {},
+        wallet: { accounts: {}, activeAccountAddress: null },
+      })
       const { result } = renderHookWithProviders(() => useExploreTokenContextMenu(tokenMenuParams), {
         resolvers,
         store,
@@ -161,16 +167,17 @@ describe(useExploreTokenContextMenu, () => {
       const dispatchedActions = store.getActions()
       expect(dispatchedActions).toContainEqual({
         type: 'favorites/addFavoriteToken',
-        payload: { currencyId: tokenMenuParams.currencyId.toLowerCase() },
+        payload: { currencyId: normalizeCurrencyIdForMapLookup(tokenMenuParams.currencyId) },
       })
       cleanup()
     })
 
     it("dispatches remove from favorites redux action when 'Remove favorite' is pressed", async () => {
       const store = mockStore({
-        favorites: { tokens: [tokenMenuParams.currencyId.toLowerCase()] },
+        favorites: { tokens: [normalizeCurrencyIdForMapLookup(tokenMenuParams.currencyId)] },
         appearance: { theme: 'system' },
         userSettings: {},
+        wallet: { accounts: {}, activeAccountAddress: null },
       })
       const { result } = renderHookWithProviders(() => useExploreTokenContextMenu(tokenMenuParams), {
         resolvers,
@@ -187,7 +194,7 @@ describe(useExploreTokenContextMenu, () => {
       const dispatchedActions = store.getActions()
       expect(dispatchedActions).toContainEqual({
         type: 'favorites/removeFavoriteToken',
-        payload: { currencyId: tokenMenuParams.currencyId.toLowerCase() },
+        payload: { currencyId: normalizeCurrencyIdForMapLookup(tokenMenuParams.currencyId) },
       })
       cleanup()
     })
@@ -198,6 +205,7 @@ describe(useExploreTokenContextMenu, () => {
       favorites: { tokens: [] },
       selectedAppearanceSettings: { theme: 'system' },
       userSettings: {},
+      wallet: { accounts: {}, activeAccountAddress: null },
     })
     const { result } = renderHookWithProviders(() => useExploreTokenContextMenu(tokenMenuParams), {
       store,

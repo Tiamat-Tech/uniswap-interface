@@ -1,11 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import type { TradingApi } from '@universe/api'
+import { Platform } from '@universe/chains'
+import { Flex, ModalCloseIcon, SpinningLoader, Text, TouchableArea } from '@universe/mycelium'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Flex, ModalCloseIcon, SpinningLoader, Text, TouchableArea } from 'ui/src'
 import { BackArrow } from 'ui/src/components/icons/BackArrow'
 import { permanentlyDismissEarnSwapUpsell } from 'uniswap/src/features/behaviorHistory/slice'
+import { getEarnVaultAnalyticsProperties } from 'uniswap/src/features/earn/analytics'
 import { DepositReviewView, type ExecuteEarnDepositParams } from 'uniswap/src/features/earn/DepositReviewView'
 import { EarnBalanceErrorState } from 'uniswap/src/features/earn/EarnBalanceErrorState'
 import { EarnHowItWorksView } from 'uniswap/src/features/earn/EarnHowItWorksView'
@@ -18,7 +20,6 @@ import { resolveEarnAmountPosition } from 'uniswap/src/features/earn/utils'
 import { WithdrawReviewView, type ExecuteEarnWithdrawParams } from 'uniswap/src/features/earn/WithdrawReviewView'
 import { YouNeedTokenView } from 'uniswap/src/features/earn/YouNeedTokenView'
 import { useLocalFiatToUSDConverter } from 'uniswap/src/features/fiatCurrency/useLocalFiatToUSDConverter'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { DEFAULT_TXN_DISMISS_MS } from '~/constants/misc'
 import { useActiveAccount } from '~/features/accounts/store/hooks'
@@ -44,6 +45,7 @@ export function EarnVaultModalContent({
   vaultData,
 }: EarnVaultModalContentProps): JSX.Element | null {
   const {
+    analyticsProperties: vaultAnalyticsProperties,
     balanceLookupErrored,
     balanceLookupHasData,
     balanceLookupSettled,
@@ -125,6 +127,7 @@ export function EarnVaultModalContent({
   const runEarnExecution = useCallback(
     (params: ExecuteEarnDepositParams | ExecuteEarnWithdrawParams, onFinalizedSuccess: () => void) => {
       earnSagaCallback({
+        attemptId: params.attemptId,
         earnIntent: params.earnIntent,
         inputCurrency: params.inputCurrency,
         outputCurrency: params.outputCurrency,
@@ -247,7 +250,14 @@ export function EarnVaultModalContent({
         />
       )
     case EarnVaultView.HowItWorks:
-      return <EarnHowItWorksView onBack={onBackToVault} onClose={onClose} onContinue={onContinueDeposit} />
+      return (
+        <EarnHowItWorksView
+          analyticsProperties={vaultAnalyticsProperties}
+          onBack={onBackToVault}
+          onClose={onClose}
+          onContinue={onContinueDeposit}
+        />
+      )
     case EarnVaultView.NeedToken:
       return (
         <YouNeedTokenView
@@ -263,6 +273,7 @@ export function EarnVaultModalContent({
     case EarnVaultView.DepositAmount:
       return (
         <DepositAmountView
+          analyticsProperties={vaultAnalyticsProperties}
           vault={vault}
           depositSourceOptions={depositSourceOptions}
           selectedDepositSource={selectedDepositSource}
@@ -308,8 +319,18 @@ export function EarnVaultModalContent({
         livePosition: position,
         snapshotPosition: flow.position,
       })
+      // No isPositionUnknown gate: a withdraw flow always starts from a resolved position
+      // snapshot, so has_existing_position never comes from missing data.
+      const withdrawAnalyticsProperties = getEarnVaultAnalyticsProperties({
+        entryPoint: analyticsEntryPoint,
+        position: withdrawPosition,
+        surface: analyticsSurface,
+        underlyingTokenSymbol: symbol,
+        vault,
+      })
       return (
         <WithdrawAmountView
+          analyticsProperties={withdrawAnalyticsProperties}
           vault={vault}
           position={withdrawPosition}
           initialAmount={flow.amount}

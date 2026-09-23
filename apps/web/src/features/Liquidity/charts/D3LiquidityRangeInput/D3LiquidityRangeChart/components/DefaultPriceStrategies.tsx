@@ -1,32 +1,44 @@
-import { Flex, Shine, styled, Text } from 'ui/src'
+import { clickableStyle, cn, Flex, type FlexCompatProps, Text } from '@universe/mycelium'
+import { Shine } from 'ui/src'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import i18n from 'uniswap/src/i18n'
 import { useEvent } from 'utilities/src/react/hooks'
 import { POPUP_MEDIUM_DISMISS_MS } from '~/components/Popups/constants'
 import { useChartPriceState } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/selectors/priceSelectors'
-import { useLiquidityChartStoreRenderingContext } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/selectors/viewSelectors'
 import { DefaultPriceStrategy } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/types'
 import { useLiquidityChartStoreActions } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/useLiquidityChartStore'
 import { popupRegistry } from '~/state/popups/registry'
 import { PopupType } from '~/state/popups/types'
-import { ClickableTamaguiStyle } from '~/theme/components/styles'
 
-const Container = styled(Flex, {
-  flex: 1,
-  width: '100%',
-  p: '$spacing12',
-  gap: '$spacing8',
-  borderRadius: '$rounded12',
-  borderWidth: 1,
-  borderColor: '$surface3',
-  position: 'relative',
-  $sm: {
-    p: '$spacing8',
-    gap: '$spacing4',
-  },
-  ...ClickableTamaguiStyle,
-})
+function Container({ $sm: sm, hoverStyle, pressStyle, className, style, ...props }: FlexCompatProps): JSX.Element {
+  return (
+    <Flex
+      flex={1}
+      width="100%"
+      p="$spacing12"
+      gap="$spacing8"
+      borderRadius="$rounded12"
+      borderWidth={1}
+      borderColor="$surface3"
+      position="relative"
+      // Merge, don't spread: Tamagui deep-merged a caller's object-valued prop into the config's value for the same key.
+      $sm={{
+        p: '$spacing8',
+        gap: '$spacing4',
+        ...sm,
+      }}
+      {...clickableStyle}
+      // `clickableStyle`'s object-valued keys merge too: a replacing spread drops the hover/press
+      // opacity feedback, the `no-underline` class, or the opacity-scoped transition.
+      hoverStyle={{ ...clickableStyle.hoverStyle, ...hoverStyle }}
+      pressStyle={{ ...clickableStyle.pressStyle, ...pressStyle }}
+      className={cn(clickableStyle.className, className)}
+      style={[clickableStyle.style, style]}
+      {...props}
+    />
+  )
+}
 
 type PriceStrategy = {
   key: DefaultPriceStrategy
@@ -85,7 +97,7 @@ const DefaultPriceStrategyComponent = ({
       <Container
         group
         onPress={() => onSelect(strategy.key)}
-        background={selected ? '$surface3' : '$surface1'}
+        backgroundColor={selected ? '$surface3' : '$surface1'}
         justifyContent="space-between"
       >
         <Flex gap="$spacing8" $sm={{ gap: '$spacing2' }}>
@@ -98,8 +110,7 @@ const DefaultPriceStrategyComponent = ({
                 variant="body4"
                 color="$neutral2"
                 opacity={0}
-                animation="quick"
-                animateOnly={['opacity']}
+                transition="opacity 200ms cubic-bezier(0.25,0.46,0.45,0.94)"
                 $group-hover={{ opacity: 1 }}
               >
                 {strategy.tooltip}
@@ -119,8 +130,7 @@ const DefaultPriceStrategyComponent = ({
 }
 
 export function DefaultPriceStrategies({ isLoading }: { isLoading: boolean }) {
-  const { selectedPriceStrategy, isFullRange } = useChartPriceState()
-  const renderingContext = useLiquidityChartStoreRenderingContext()
+  const { selectedPriceStrategy, isFullRange, tickSpacing } = useChartPriceState()
   const actions = useLiquidityChartStoreActions()
 
   const handleSelect = useEvent((key: DefaultPriceStrategy) => {
@@ -143,11 +153,7 @@ export function DefaultPriceStrategies({ isLoading }: { isLoading: boolean }) {
     }
   })
 
-  if (!isLoading && !renderingContext) {
-    return null
-  }
-
-  const priceStrategies = renderingContext ? getPriceStrategies(renderingContext.tickSpacing) : []
+  const priceStrategies = getPriceStrategies(tickSpacing)
 
   return (
     <Flex backgroundColor="$surface2" gap="$gap16" p="$spacing16">

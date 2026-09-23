@@ -1,7 +1,11 @@
+import { UniverseChainId } from '@universe/chains'
 import { isMobileApp, isMobileWeb, isWebApp, isWebIOS, isWebPlatform } from '@universe/environment'
+import { Flex, LinearGradient, Text } from '@universe/mycelium'
+import { useMedia, useScrollbarStyles } from '@universe/mycelium/theme-hooks-compat'
+import { spacing } from '@universe/mycelium/tokens'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, Flex, LinearGradient, Text, useMedia, useScrollbarStyles } from 'ui/src'
 import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import PasteButton from 'uniswap/src/components/buttons/PasteButton'
 import { useNetworkSelectorOptions } from 'uniswap/src/components/network/NetworkFilterV2/useNetworkSelectorOptions'
@@ -26,7 +30,6 @@ import { TokenSelectorV2ListSwitch } from 'uniswap/src/components/TokenSelectorV
 import { TokenSelectorV2Skeleton } from 'uniswap/src/components/TokenSelectorV2/TokenSelectorV2Skeleton'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useFilterCallbacks } from 'uniswap/src/features/search/SearchModal/hooks/useFilterCallbacks'
 import { SearchTextInput } from 'uniswap/src/features/search/SearchTextInput'
 import { InterfaceEventName, ModalName, SectionName, UniswapEventName } from 'uniswap/src/features/telemetry/constants'
@@ -39,6 +42,19 @@ import { useEvent } from 'utilities/src/react/hooks'
 import { useDebounce } from 'utilities/src/time/timing'
 
 const BOTTOM_FADE_HEIGHT = 32
+
+// Explicit, non-`all` multi-property CSS transition (web-only render path: getSupportsSidebar
+// gates on isWebApp) porting the legacy Tamagui 'quick' width/opacity/margin collapse. Scoped to
+// exactly the four properties the legacy animateOnly named.
+const SIDEBAR_TRANSITION_PROPERTIES = ['width', 'opacity', 'margin-left', 'margin-right']
+const SIDEBAR_TRANSITION = SIDEBAR_TRANSITION_PROPERTIES.map(
+  (property) => `${property} ${SPORE_ANIMATION_CURVE_CSS.quick}`,
+).join(', ')
+
+// Kept outside the component so the branch doesn't count against its own complexity budget.
+function sidebarInertProps(sidebarExpanded: boolean): { inert?: true } {
+  return sidebarExpanded ? {} : { inert: true }
+}
 
 export type TokenSelectorV2ContentProps = Omit<TokenSelectorProps, 'isModalOpen'> & { renderedInModal: boolean }
 
@@ -160,8 +176,6 @@ export function TokenSelectorV2Content({
     [onChangeChainFilter, onSelectChain],
   )
 
-  const showSidebar = supportsSidebar && sidebarExpanded
-
   const mainPane = (
     <Flex
       grow
@@ -277,33 +291,43 @@ export function TokenSelectorV2Content({
           style={scrollbarStyles}
         >
           {mainPane}
-          <AnimatePresence>
-            {showSidebar && (
-              // Negative mr bleeds the sidebar through the outer surface2 frame so its scrollbar rides the modal edge.
-              <Flex
-                key="my-tokens-sidebar"
-                animation="quick"
-                animateOnly={['width', 'opacity', 'marginLeft', 'marginRight']}
-                enterStyle={{ width: 0, opacity: 0, ml: 0, mr: 0 }}
-                exitStyle={{ width: 0, opacity: 0, ml: 0, mr: 0 }}
-                ml="$spacing8"
-                mr={-TOKEN_SELECTOR_V2_SIDEBAR_EDGE_BLEED}
-                opacity={1}
-                overflow="hidden"
-                width={TOKEN_SELECTOR_V2_SIDEBAR_TOTAL_WIDTH}
-              >
-                <MyTokensSidebar
-                  addresses={addresses}
-                  chainFilter={chainFilter}
-                  chainIds={effectiveChainIds}
-                  portfolioData={portfolioData}
-                  searchFilter={debouncedSearchFilter}
-                  onCollapse={onToggleSidebar}
-                  onSelectCurrency={onSelectCurrencyCallback}
-                />
-              </Flex>
-            )}
-          </AnimatePresence>
+          {supportsSidebar && (
+            // Negative marginRight bleeds the sidebar through the outer surface2 frame so its
+            // scrollbar rides the modal edge. Always mounted (once supportsSidebar is true) so the
+            // width/opacity/margin collapse below is a smooth CSS transition rather than a mount/
+            // unmount snap. Raw div (not Flex) so `inert` pulls the collapsed sidebar's rows and
+            // collapse button out of the tab order: mycelium's Flex compat layer doesn't forward
+            // `inert`, matching ExpandableSearchRowContainer.web.tsx's own raw-div workaround.
+            // oxlint-disable-next-line react/forbid-elements -- see above
+            <div
+              aria-hidden={!sidebarExpanded}
+              {...sidebarInertProps(sidebarExpanded)}
+              style={{
+                // Restores the compat Flex's own display/flexShrink so the sidebar keeps its
+                // flex-column layout context (and doesn't collapse to content height) now that
+                // it's a raw div.
+                display: 'flex',
+                flexDirection: 'column',
+                flexShrink: 0,
+                transition: SIDEBAR_TRANSITION,
+                width: sidebarExpanded ? TOKEN_SELECTOR_V2_SIDEBAR_TOTAL_WIDTH : 0,
+                opacity: sidebarExpanded ? 1 : 0,
+                marginLeft: sidebarExpanded ? spacing.spacing8 : 0,
+                marginRight: sidebarExpanded ? -TOKEN_SELECTOR_V2_SIDEBAR_EDGE_BLEED : 0,
+                overflow: 'hidden',
+              }}
+            >
+              <MyTokensSidebar
+                addresses={addresses}
+                chainFilter={chainFilter}
+                chainIds={effectiveChainIds}
+                portfolioData={portfolioData}
+                searchFilter={debouncedSearchFilter}
+                onCollapse={onToggleSidebar}
+                onSelectCurrency={onSelectCurrencyCallback}
+              />
+            </div>
+          )}
         </Flex>
       </Trace>
     </Trace>

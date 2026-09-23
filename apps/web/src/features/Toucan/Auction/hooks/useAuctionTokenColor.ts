@@ -1,4 +1,4 @@
-import { useSporeColors } from 'ui/src'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 
 /**

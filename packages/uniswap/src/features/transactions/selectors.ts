@@ -1,9 +1,9 @@
 import { createSelector, Selector } from '@reduxjs/toolkit'
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import { SearchableRecipient } from 'uniswap/src/features/address/types'
 import { uniqueAddressesOnly } from 'uniswap/src/features/address/utils'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TransactionsState } from 'uniswap/src/features/transactions/slice'
 import { isUniswapX } from 'uniswap/src/features/transactions/swap/utils/routing'
 import {

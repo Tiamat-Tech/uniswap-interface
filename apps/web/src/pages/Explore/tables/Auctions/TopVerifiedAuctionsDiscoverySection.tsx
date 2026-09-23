@@ -1,16 +1,15 @@
+import { Button, Flex, Text } from '@universe/mycelium'
+import { ArrowRight } from '@universe/mycelium/icons/ArrowRight'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text, useMedia } from 'ui/src'
-import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useTopVerifiedAuctions } from '~/features/Toucan/hooks/useTopAuctions/useTopVerifiedAuctions'
-import { useWheelHorizontalScroll } from '~/pages/Explore/categories/useWheelHorizontalScroll'
+import { rightEdgeFadeStyle, useWheelHorizontalScroll } from '~/pages/Explore/categories/useWheelHorizontalScroll'
 import { AuctionChip } from '~/pages/Explore/tables/Auctions/AuctionChip'
 
 const EXPLORE_AUCTIONS_HREF = '/explore/auctions'
 const SCROLL_CARD_WIDTH = 260
-const EDGE_FADE_WIDTH_PX = 24
-const EDGE_FADE_MASK = `linear-gradient(to right, black calc(100% - ${EDGE_FADE_WIDTH_PX}px), transparent)`
 
 /**
  * Top verified auctions surfaced in the Positions empty state. Reuses the Explore AuctionChip.
@@ -46,11 +45,11 @@ export function TopVerifiedAuctionsDiscoverySection(): JSX.Element | null {
               '$platform-web': {
                 overflowX: 'auto',
                 overscrollBehaviorX: 'none',
-                ...(showRightFade ? { maskImage: EDGE_FADE_MASK, WebkitMaskImage: EDGE_FADE_MASK } : {}),
+                ...rightEdgeFadeStyle(showRightFade),
               },
             }
           : {
-              '$platform-web': { display: 'grid', gridAutoRows: 'auto' },
+              '$platform-web': { display: 'grid' },
               gridTemplateColumns: 'repeat(4, 1fr)',
             })}
       >

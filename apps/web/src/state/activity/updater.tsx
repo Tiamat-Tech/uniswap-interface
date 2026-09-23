@@ -1,8 +1,6 @@
 import { SharedQueryClient } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useCallback } from 'react'
 import { isL2ChainId } from 'uniswap/src/features/chains/utils'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { getDisplayedPriceSource } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 import { AuctionEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -95,19 +93,15 @@ export function canFinalizeBaseTransactionUpdate({
 function resolveSwapPriceSource({
   inputCurrencyId,
   chainId,
-  isCentralizedPricesEnabled,
 }: {
   inputCurrencyId: string | undefined
   chainId: number
-  isCentralizedPricesEnabled: boolean
 }) {
   const address = inputCurrencyId?.includes('-') ? currencyIdToAddress(inputCurrencyId) : undefined
   if (!address) {
     return undefined
   }
   return getDisplayedPriceSource({
-    isCentralizedPricesEnabled,
-    surface: 'usdc',
     chainId,
     address,
     queryClient: SharedQueryClient,
@@ -133,8 +127,6 @@ function remapUniswapXCancelStatus({
 export function useOnActivityUpdate(): OnActivityUpdate {
   const dispatch = useAppDispatch()
   const analyticsContext = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
-  const isEarnEnabled = useIsEarnEnabled()
   const handleUniswapXActivityUpdate = useHandleUniswapXActivityUpdate()
 
   return useCallback(
@@ -165,7 +157,15 @@ export function useOnActivityUpdate(): OnActivityUpdate {
           !original.typeInfo.depositConfirmed &&
           update.status === TransactionStatus.Success
         ) {
-          dispatch(interfaceConfirmBridgeDeposit({ chainId, id: original.id, address: original.from, ...update }))
+          dispatch(
+            interfaceConfirmBridgeDeposit({
+              chainId,
+              id: original.id,
+              address: original.from,
+              // The deposit receipt's fee (from the tx poller) is the bridge's only source-chain gas cost
+              networkFee: update.networkFee,
+            }),
+          )
           return
         }
 
@@ -239,7 +239,6 @@ export function useOnActivityUpdate(): OnActivityUpdate {
             priceSource: resolveSwapPriceSource({
               inputCurrencyId: original.typeInfo.inputCurrencyId,
               chainId,
-              isCentralizedPricesEnabled,
             }),
           })
         } else if (original.typeInfo.type === TransactionType.Bridge) {
@@ -267,7 +266,6 @@ export function useOnActivityUpdate(): OnActivityUpdate {
             priceSource: resolveSwapPriceSource({
               inputCurrencyId: original.typeInfo.inputCurrencyId,
               chainId: bridgeChainIn,
-              isCentralizedPricesEnabled,
             }),
           })
         } else if (original.typeInfo.type === TransactionType.AuctionLaunch && original.typeInfo.analytics) {
@@ -293,7 +291,6 @@ export function useOnActivityUpdate(): OnActivityUpdate {
         }
 
         maybeAddEarnSwapUpsellPopup({
-          isEarnEnabled,
           status: updatedTransaction.status,
           typeInfo: updatedTransaction.typeInfo,
           transactionId: updatedTransaction.id,
@@ -322,7 +319,6 @@ export function useOnActivityUpdate(): OnActivityUpdate {
           recordDeliveredPlanNotification(planId)
 
           maybeAddEarnSwapUpsellPopup({
-            isEarnEnabled,
             status: update.status,
             typeInfo: update.typeInfo,
             transactionId: update.id,
@@ -333,7 +329,7 @@ export function useOnActivityUpdate(): OnActivityUpdate {
         }
       }
     },
-    [analyticsContext, dispatch, handleUniswapXActivityUpdate, isCentralizedPricesEnabled, isEarnEnabled],
+    [analyticsContext, dispatch, handleUniswapXActivityUpdate],
   )
 }
 

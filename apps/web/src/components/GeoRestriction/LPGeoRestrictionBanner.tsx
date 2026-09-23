@@ -1,7 +1,7 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { GlobeFilled } from '@universe/mycelium/icons/GlobeFilled'
+import { InfoCircle } from '@universe/mycelium/icons/InfoCircle'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { GlobeFilled } from 'ui/src/components/icons/GlobeFilled'
-import { InfoCircle } from 'ui/src/components/icons/InfoCircle'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { openUri } from 'uniswap/src/utils/linking'
@@ -34,7 +34,8 @@ export function LPGeoRestrictionBanner({ tokenSymbol }: { tokenSymbol?: string }
       >
         {/* The text column's flex basis is its max-content width, so the row overflows and the
             shrink lands on the icons — an SVG's min-content is 0, so they collapse rather than hold
-            their 20px. `flexShrink={0}` on each pins them. */}
+            their 20px. `flexShrink: 0` on each pins them; the two icons come from different systems,
+            so one takes a style prop and the other a Tamagui prop. */}
         <GlobeFilled size="$icon.20" color="$neutral2" flexShrink={0} />
         <Flex flex={1} gap="$spacing2">
           <Text variant="body3" color="$neutral1">
@@ -44,7 +45,7 @@ export function LPGeoRestrictionBanner({ tokenSymbol }: { tokenSymbol?: string }
             {t('liquidity.geoRestriction.banner.description')}
           </Text>
         </Flex>
-        <InfoCircle size="$icon.20" color="$neutral3" flexShrink={0} />
+        <InfoCircle size="$icon.20" color="$neutral3" style={{ flexShrink: 0 }} />
       </Flex>
     </TouchableArea>
   )

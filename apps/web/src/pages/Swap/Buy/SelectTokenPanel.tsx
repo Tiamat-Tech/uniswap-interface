@@ -1,12 +1,12 @@
 import { Currency } from '@uniswap/sdk-core'
-import { Flex, FlexProps, Text } from 'ui/src'
-import { Chevron } from 'ui/src/components/icons/Chevron'
-import { iconSizes } from 'ui/src/theme'
+import { clickableStyle, Flex, type FlexCompatProps as FlexProps, iconSizes, Text } from '@universe/mycelium'
+import { Chevron } from '@universe/mycelium/icons/Chevron'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { PortfolioBalance } from 'uniswap/src/features/dataApi/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
+import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
+import { currencyId } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
-import { ClickableTamaguiStyle } from '~/theme/components/styles'
 
 export const SelectTokenPanel = ({
   currency,
@@ -17,6 +17,7 @@ export const SelectTokenPanel = ({
   balance?: PortfolioBalance
 } & FlexProps) => {
   const { convertFiatAmountFormatted, formatNumberOrString } = useLocalizationContext()
+  const currencyInfo = useCurrencyInfo(currencyId(currency))
 
   return (
     <Flex
@@ -26,10 +27,10 @@ export const SelectTokenPanel = ({
       p="$spacing16"
       gap="$spacing12"
       alignItems="center"
-      {...ClickableTamaguiStyle}
+      {...clickableStyle}
       {...rest}
     >
-      <CurrencyLogo currency={currency} size={iconSizes.icon40} />
+      <CurrencyLogo currencyInfo={currencyInfo} size={iconSizes.icon40} />
       <Flex grow>
         <Text color="$neutral1" loading={!currency}>
           {currency?.symbol}

@@ -6,9 +6,9 @@
 import { BitmapCoordinatesRenderingScope, CanvasRenderingTarget2D } from 'fancy-canvas'
 import {
   ICustomSeriesPaneRenderer,
+  IRange,
   PaneRendererCustomData,
   PriceToCoordinateConverter,
-  Range,
   Time,
 } from 'lightweight-charts'
 import { StackedAreaData } from '~/components/Charts/StackedLineChart/stacked-area-series/data'
@@ -175,7 +175,7 @@ export class StackedAreaSeriesRenderer<TData extends StackedAreaData> implements
     isV4DataEnabled,
   }: {
     bars: StackedAreaBarItem[]
-    visibleRange: Range<number>
+    visibleRange: IRange<number>
     renderingScope: BitmapCoordinatesRenderingScope
     zeroY: number
     hoveredIndex?: number | null

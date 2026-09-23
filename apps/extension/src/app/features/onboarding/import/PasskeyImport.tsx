@@ -1,7 +1,7 @@
+import { Flex } from '@universe/mycelium'
 import { usePasskeyImportContext } from 'src/app/features/onboarding/import/PasskeyImportContextProvider'
 import { OnboardingScreen } from 'src/app/features/onboarding/OnboardingScreen'
 import { useOnboardingSteps } from 'src/app/features/onboarding/OnboardingStepsContext'
-import { Flex } from 'ui/src'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { ExtensionOnboardingFlow, ExtensionOnboardingScreens } from 'uniswap/src/types/screens/extension'
 import { PasskeyImportLoading } from 'wallet/src/features/onboarding/PasskeyImportLoading'

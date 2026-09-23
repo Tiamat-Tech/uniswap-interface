@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 // oxlint-disable-next-line no-restricted-imports -- `Modal` from uniswap always passes `adaptToSheet={isWebApp}`; this flow must stay centered on all breakpoints (no bottom sheet).
 import { AdaptiveWebModal } from 'ui/src/components/modal/AdaptiveWebModal'
 import { CalendarModalTimeRow } from '~/pages/Liquidity/CreateAuction/components/DatePicker/CalendarModalTimeRow'

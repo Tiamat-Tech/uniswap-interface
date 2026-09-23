@@ -1,6 +1,8 @@
+import '~/features/Toucan/Auction/Banners/QuickLaunchStatsRow.css'
+import { Flex, type FlexCompatProps as FlexProps, Skeleton, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, FlexProps, Skeleton, Text, styled, useMedia } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { fromQ96ToDecimalWithTokenDecimals } from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
@@ -9,6 +11,7 @@ import { useStatsBannerData } from '~/features/Toucan/Auction/hooks/useStatsBann
 import { AuctionProgressState } from '~/features/Toucan/Auction/store/types'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { approximateNumberFromRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
+import { hasTokenTotalSupply } from '~/features/Toucan/Auction/utils/tokenTotalSupply'
 
 /** Tabular figures so the live countdown doesn't jitter as digits change. */
 const MONOSPACE_NUMERIC_STYLE = {
@@ -16,14 +19,9 @@ const MONOSPACE_NUMERIC_STYLE = {
   fontFeatureSettings: "'tnum' 1",
 } as const
 
-const Divider = styled(Flex, {
-  width: 1,
-  alignSelf: 'stretch',
-  backgroundColor: '$surface3',
-  $lg: {
-    display: 'none',
-  },
-})
+function Divider(): JSX.Element {
+  return <Flex width={1} alignSelf="stretch" backgroundColor="$surface3" $lg={{ display: 'none' }} />
+}
 
 function StatCellSkeleton() {
   return (
@@ -36,7 +34,7 @@ function StatCellSkeleton() {
 /** Remounts on value change so data updates fade in; nothing pulses between updates. */
 function FadeOnUpdate({ value, children }: { value: string; children: React.ReactNode }) {
   return (
-    <Flex key={value} animation="200ms" enterStyle={{ opacity: 0 }}>
+    <Flex key={value} className="quick-launch-stat-fade-in">
       {children}
     </Flex>
   )
@@ -96,8 +94,8 @@ export function QuickLaunchStatsRow() {
   // Floor FDV (the auction's lowest possible launch valuation) as subtext under the clearing FDV.
   const floorFdvFormatted = useMemo(() => {
     const floorPriceQ96 = auctionDetails?.floorPrice
-    const totalSupplyRaw = auctionDetails?.tokenTotalSupply || auctionDetails?.totalSupply
-    if (!floorPriceQ96 || !totalSupplyRaw || !bidTokenInfo) {
+    const totalSupplyRaw = auctionDetails?.tokenTotalSupply
+    if (!floorPriceQ96 || !hasTokenTotalSupply(totalSupplyRaw) || !bidTokenInfo) {
       return undefined
     }
     const auctionTokenDecimals = auctionDetails.token?.currency.decimals ?? 18

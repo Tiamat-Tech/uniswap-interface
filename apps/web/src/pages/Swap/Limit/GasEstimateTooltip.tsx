@@ -1,5 +1,5 @@
-import { Flex, Text } from 'ui/src'
-import { Gas } from 'ui/src/components/icons/Gas'
+import { Flex, Text } from '@universe/mycelium'
+import { Gas } from '@universe/mycelium/icons/Gas'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ElementName, SwapEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'

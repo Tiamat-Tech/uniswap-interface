@@ -19,7 +19,9 @@ export function mapRwaSparkline(sparkline?: ApiRwaSparkline): RwaSparkline {
   }
 }
 
-export function mapRwaChainToken(chainToken: RwaChainToken): ChainToken {
+type ChainTokenSource = Pick<RwaChainToken, 'chainId' | 'address'>
+
+export function mapRwaChainToken(chainToken: ChainTokenSource): ChainToken {
   return {
     chainId: chainToken.chainId,
     address: chainToken.address,
@@ -27,7 +29,7 @@ export function mapRwaChainToken(chainToken: RwaChainToken): ChainToken {
 }
 
 /** Mainnet-first, then ascending chainId — matches search path ordering. */
-export function sortRwaChainTokens(chainTokens: readonly RwaChainToken[]): ChainToken[] {
+export function sortRwaChainTokens(chainTokens: readonly ChainTokenSource[]): ChainToken[] {
   return chainTokens
     .filter((chainToken) => chainToken.address)
     .map(mapRwaChainToken)

@@ -1,6 +1,7 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { useShadowPropsShort } from '@universe/mycelium/theme-hooks-compat'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, useShadowPropsShort } from 'ui/src'
 import { EyeSlash } from 'ui/src/components/icons'
 import { HiddenWordView } from 'ui/src/components/placeholders/HiddenWordView'
 import { MNEMONIC_LENGTH_HD } from 'wallet/src/constants/accounts'

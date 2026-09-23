@@ -1,3 +1,4 @@
+import { fetchGasFeeQuery } from 'uniswap/src/data/apiClients/gasService/useGasFeeQuery'
 import {
   type AuctionLaunchTransactionInfo,
   TransactionType,
@@ -22,6 +23,13 @@ vi.mock('~/state/sagas/transactions/utils', () => ({
   getDisplayableError: vi.fn(),
 }))
 vi.mock('~/state/walletCapabilities/reducer', () => ({ selectIsAtomicBatchingSupportedByChainId: vi.fn() }))
+// The gas-population fallbacks warn so a broken gas service is visible in telemetry; mock the
+// logger so those warns don't trip the fail-on-console test guard.
+const { mockLogger } = vi.hoisted(() => ({ mockLogger: { debug: vi.fn(), warn: vi.fn(), error: vi.fn() } }))
+vi.mock('utilities/src/logger/logger', () => ({ logger: mockLogger }))
+// The saga fetches gas params via the gas service before each sequential send; mock the query so the
+// test never touches gating/statsig, and so the gas-population helper can be exercised directly.
+vi.mock('uniswap/src/data/apiClients/gasService/useGasFeeQuery', () => ({ fetchGasFeeQuery: vi.fn() }))
 
 // approve(address,uint256): selector + left-padded spender word + max-uint256 amount word.
 const APPROVE_DATA = `0x095ea7b3${'0'.repeat(24)}000000000022d473030f116ddee9f6b43ac78ba3${'f'.repeat(64)}`
@@ -36,6 +44,11 @@ function approveTx(): ValidatedTransactionRequest {
 }
 
 const WALLET = '0xF570F45f598fD48AF83FABD692629a2caFe899ec'
+
+/** Narrows a manually-driven generator's yielded redux-saga CALL effect so its fn/args can be asserted. */
+function asCallEffect(value: unknown): { payload: { fn: (...args: never[]) => unknown; args: unknown[] } } {
+  return value as { payload: { fn: (...args: never[]) => unknown; args: unknown[] } }
+}
 
 const account = { address: WALLET } as unknown as SignerMnemonicAccountDetails
 
@@ -115,7 +128,8 @@ describe('submitAuctionLaunch', () => {
     const gen = submitAuctionLaunch(params)
     gen.next() // call(selectChain)
     gen.next(true) // chain switched -> select(atomic support)
-    gen.next(() => false) // atomic NOT supported -> for loop -> call(handleOnChainStep)
+    gen.next(() => false) // atomic NOT supported -> for loop -> call(populateGasServiceParams)
+    gen.next(tx(1)) // gas params resolved -> call(handleOnChainStep)
     const result = gen.next('0xhash') // first (only) tx hash
     expect(result.done).toBe(true)
     // The sequential path adds the pending activity toast itself (the atomic path does so inside handleAtomicSendCalls).
@@ -130,8 +144,10 @@ describe('submitAuctionLaunch', () => {
     const gen = submitAuctionLaunch(params)
     gen.next() // call(selectChain)
     gen.next(true) // chain switched -> select(atomic support)
-    gen.next(() => false) // atomic NOT supported -> loop -> handleApprovalTransactionStep (approval step)
-    gen.next(undefined) // approval confirmed -> advance loop -> handleOnChainStep (launch step)
+    gen.next(() => false) // atomic NOT supported -> loop -> call(populateGasServiceParams) for approval
+    gen.next(approveTx()) // gas params resolved -> handleApprovalTransactionStep (approval step)
+    gen.next(undefined) // approval confirmed -> advance loop -> call(populateGasServiceParams) for launch
+    gen.next(tx(1)) // gas params resolved -> handleOnChainStep (launch step)
     const result = gen.next('0xlaunch') // launch toast + onSuccess
     expect(result.done).toBe(true)
     // Only the launch gets an activity toast; the approval is shown in the review-modal progress indicator.
@@ -139,6 +155,56 @@ describe('submitAuctionLaunch', () => {
     expect(popupRegistry.addPopup).toHaveBeenCalledWith({ type: PopupType.Transaction, hash: '0xlaunch' }, '0xlaunch')
     expect(params.onSuccess).toHaveBeenCalledWith('0xlaunch')
     expect(params.onFailure).not.toHaveBeenCalled()
+  })
+
+  it('submits the launch step with the gas params merged by the gas service', () => {
+    const launchTx = tx(1)
+    const params = makeParams({ transactions: [launchTx] })
+    const gen = submitAuctionLaunch(params)
+    gen.next() // call(selectChain)
+    gen.next(true) // chain switched -> select(atomic support)
+    const gasEffect = asCallEffect(gen.next(() => false).value) // -> call(populateGasServiceParams, launchTx)
+    expect(gasEffect.payload.args[0]).toBe(launchTx)
+    const gasParams = { gasLimit: '500000', maxFeePerGas: '2000000000', maxPriorityFeePerGas: '1000000000' }
+    const stepEffect = asCallEffect(gen.next({ ...launchTx, ...gasParams }).value) // -> call(handleOnChainStep)
+    const stepParams = stepEffect.payload.args[0] as { step: { txRequest: ValidatedTransactionRequest } }
+    expect(stepParams.step.txRequest).toEqual({ ...launchTx, ...gasParams })
+    gen.next('0xhash')
+    expect(params.onSuccess).toHaveBeenCalledWith('0xhash')
+  })
+
+  it('gas population merges gas-service params and returns the tx unchanged when the service fails', async () => {
+    const launchTx = tx(1)
+    const params = makeParams({ transactions: [launchTx] })
+    const gen = submitAuctionLaunch(params)
+    gen.next()
+    gen.next(true)
+    // Grab the actual populate function off the yielded call effect so its fallback paths can be exercised.
+    const gasEffect = asCallEffect(gen.next(() => false).value)
+    const populate = gasEffect.payload.fn as (tx: ValidatedTransactionRequest) => Promise<ValidatedTransactionRequest>
+
+    const gasParams = { gasLimit: '500000', maxFeePerGas: '2000000000', maxPriorityFeePerGas: '1000000000' }
+    vi.mocked(fetchGasFeeQuery).mockResolvedValueOnce({ value: '1', displayValue: '1', params: gasParams })
+    await expect(populate(launchTx)).resolves.toEqual({ ...launchTx, ...gasParams })
+
+    // No params (e.g. the gas service failed and only a client-side display estimate came back):
+    // submit the tx untouched so ethers' own estimation stays the fallback, and warn so the
+    // fallback isn't invisible in telemetry.
+    vi.mocked(fetchGasFeeQuery).mockResolvedValueOnce({ value: '1', displayValue: '1' })
+    await expect(populate(launchTx)).resolves.toBe(launchTx)
+    expect(mockLogger.warn).toHaveBeenCalledTimes(1)
+
+    // A thrown error must not become a new launch-failure mode, but it must be logged.
+    const gasServiceError = new Error('gas service down')
+    vi.mocked(fetchGasFeeQuery).mockRejectedValueOnce(gasServiceError)
+    await expect(populate(launchTx)).resolves.toBe(launchTx)
+    expect(mockLogger.warn).toHaveBeenCalledTimes(2)
+    expect(mockLogger.warn).toHaveBeenLastCalledWith(
+      'submitAuctionLaunchSaga',
+      'populateGasServiceParams',
+      expect.stringContaining('Gas service failed'),
+      { error: gasServiceError },
+    )
   })
 
   it('onFailure receives an Error that preserves EIP-1193 code when the wallet throws a plain object', () => {

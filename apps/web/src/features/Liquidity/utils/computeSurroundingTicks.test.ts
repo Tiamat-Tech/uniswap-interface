@@ -2,14 +2,12 @@ import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes
 import { Price, Token } from '@uniswap/sdk-core'
 import { FeeAmount, TICK_SPACINGS } from '@uniswap/v3-sdk'
 import JSBI from 'jsbi'
-import { TickData } from '~/data/AllV3TicksQuery'
+import { TickData } from '~/features/Liquidity/types/ticks'
 import { computeSurroundingTicks, TickProcessed } from '~/features/Liquidity/utils/computeSurroundingTicks'
 
 const getV3Tick = (tick: number, liquidityNet: number): TickData => ({
   tick,
   liquidityNet: JSBI.BigInt(liquidityNet).toString(),
-  price0: undefined,
-  price1: undefined,
 })
 
 describe('#computeSurroundingTicks', () => {

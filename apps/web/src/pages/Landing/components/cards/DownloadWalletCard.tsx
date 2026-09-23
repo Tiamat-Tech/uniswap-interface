@@ -1,8 +1,9 @@
 import { Alignment, Fit, Layout, useRive } from '@rive-app/react-canvas'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex } from '@universe/mycelium'
+import { Star } from '@universe/mycelium/icons/Star'
+import { useIsDarkMode, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, useIsDarkMode, useSporeColors } from 'ui/src'
-import { Star } from 'ui/src/components/icons/Star'
 import { UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { PillButton } from '~/pages/Landing/components/cards/PillButton'
 import { ValuePropCard } from '~/pages/Landing/components/cards/ValuePropCard'
@@ -47,7 +48,7 @@ export function DownloadWalletCard() {
           <Trans
             i18nKey="landing.walletBody"
             components={{
-              Star: <Star color="$accent1" size="$icon.24" display="inline" verticalAlign="middle" />,
+              Star: <Star color="$accent1" size="$icon.24" style={{ display: 'inline', verticalAlign: 'middle' }} />,
               nowrap: <span style={{ whiteSpace: 'nowrap' }} />,
             }}
           />
@@ -55,7 +56,7 @@ export function DownloadWalletCard() {
           <Trans
             i18nKey="landing.walletBody.old"
             components={{
-              Star: <Star color="$accent1" size="$icon.24" display="inline" verticalAlign="middle" />,
+              Star: <Star color="$accent1" size="$icon.24" style={{ display: 'inline', verticalAlign: 'middle' }} />,
             }}
           />
         )

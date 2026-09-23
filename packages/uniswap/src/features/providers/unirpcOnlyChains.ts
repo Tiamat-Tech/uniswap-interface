@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 
 /**
  * Private/unlaunched chains whose only RPC access path is authenticated UniRPC —

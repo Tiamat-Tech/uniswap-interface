@@ -1,4 +1,4 @@
-import { FeatureFlags, getFeatureFlagName } from '@universe/gating'
+import { EmbeddedWalletOnboardingProperties, Experiments, FeatureFlags, getFeatureFlagName } from '@universe/gating'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { expect, getTest } from '~/playwright/fixtures'
 import { getVisibleDropdownElementByTestId } from '~/playwright/fixtures/utils'
@@ -8,7 +8,9 @@ const test = getTest()
 const EW_ENABLED = `featureFlagOverride=${getFeatureFlagName(FeatureFlags.EmbeddedWallet)}`
 const NOT_CONNECTED = 'eagerlyConnect=false'
 // Force arm B (treatment) of the onboarding experiment via the param-value override.
-const EXPERIMENT_TREATMENT = 'experimentOverride=embedded_wallet_onboarding:newFlowEnabled:true'
+const EXPERIMENT_TREATMENT = `experimentOverride=${Experiments.EmbeddedWalletOnboarding}:${EmbeddedWalletOnboardingProperties.NewFlowEnabled}:true`
+// Pin arm A (control); revisit when the experiment ships to treatment and the classic pager is deleted.
+const EXPERIMENT_CONTROL = `experimentOverride=${Experiments.EmbeddedWalletOnboarding}:${EmbeddedWalletOnboardingProperties.NewFlowEnabled}:false`
 
 // Unitags moved from REST `/username?username=` to ConnectRPC. Mock the gRPC endpoint
 // so unitag availability resolves to `available: true` without hitting the real backend.
@@ -26,7 +28,7 @@ test.describe(
   },
   () => {
     test('Modal opens to ChooseUnitag step when EW enabled', async ({ page }) => {
-      await page.goto(`/swap?${NOT_CONNECTED}&${EW_ENABLED}`)
+      await page.goto(`/swap?${NOT_CONNECTED}&${EW_ENABLED}&${EXPERIMENT_CONTROL}`)
 
       await page.getByTestId(TestID.NavConnectWalletButton).click()
       await getVisibleDropdownElementByTestId(page, TestID.CreateAccount).click()
@@ -36,7 +38,7 @@ test.describe(
     })
 
     test('KeyManagement page appears after unitag is chosen', async ({ page }) => {
-      await page.goto(`/swap?${NOT_CONNECTED}&${EW_ENABLED}`)
+      await page.goto(`/swap?${NOT_CONNECTED}&${EW_ENABLED}&${EXPERIMENT_CONTROL}`)
 
       await page.getByTestId(TestID.NavConnectWalletButton).click()
       await getVisibleDropdownElementByTestId(page, TestID.CreateAccount).click()
@@ -53,10 +55,14 @@ test.describe(
     })
 
     test('PasskeyGeneration page appears after KeyManagement continue', async ({ page }) => {
-      await page.goto(`/swap?${NOT_CONNECTED}&${EW_ENABLED}`)
+      await page.goto(`/swap?${NOT_CONNECTED}&${EW_ENABLED}&${EXPERIMENT_CONTROL}`)
 
       await page.getByTestId(TestID.NavConnectWalletButton).click()
       await getVisibleDropdownElementByTestId(page, TestID.CreateAccount).click()
+
+      // Control opens straight to ChooseUnitag (no welcome screen).
+      await expect(page.getByTestId(TestID.DownloadUniswapModal)).toBeVisible()
+      await expect(page.getByText('Choose a username')).toBeVisible()
 
       await page.route(GET_USERNAME_URL, (route) =>
         route.fulfill({ contentType: 'application/json', body: AVAILABLE_USERNAME_RESPONSE }),
@@ -75,7 +81,7 @@ test.describe(
     })
 
     test('Back navigation: PasskeyGeneration → KeyManagement → ChooseUnitag', async ({ page }) => {
-      await page.goto(`/swap?${NOT_CONNECTED}&${EW_ENABLED}`)
+      await page.goto(`/swap?${NOT_CONNECTED}&${EW_ENABLED}&${EXPERIMENT_CONTROL}`)
 
       await page.getByTestId(TestID.NavConnectWalletButton).click()
       await getVisibleDropdownElementByTestId(page, TestID.CreateAccount).click()

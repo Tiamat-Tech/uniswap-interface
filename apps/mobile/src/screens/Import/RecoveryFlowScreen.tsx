@@ -12,13 +12,13 @@ import {
   RecoveryStep,
   useRecoveryFlow,
 } from '@universe/embedded-wallet'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { OnboardingStackParamList } from 'src/app/navigation/types'
 import { OnboardingScreen } from 'src/features/onboarding/OnboardingScreen'
 import { getPrivyConfig } from 'src/features/passkey/PrivyProviderWrapper'
 import { useRecoveryPrivyAuth } from 'src/features/passkey/useRecoveryPrivyAuth'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ImportType } from 'uniswap/src/types/onboarding'
 import { OnboardingScreens } from 'uniswap/src/types/screens/mobile'

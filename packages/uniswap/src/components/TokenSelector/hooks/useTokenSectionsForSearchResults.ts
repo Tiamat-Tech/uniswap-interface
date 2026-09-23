@@ -1,4 +1,5 @@
 import { GqlResult } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { TokenOption } from 'uniswap/src/components/lists/items/types'
@@ -11,7 +12,6 @@ import { mergeSearchResultsWithBridgingTokens } from 'uniswap/src/components/Tok
 import { TradeableAsset } from 'uniswap/src/entities/assets'
 import type { AddressGroup } from 'uniswap/src/features/accounts/store/types/AccountsState'
 import { useBridgingTokensOptions } from 'uniswap/src/features/bridging/hooks/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { useMultichainSearchTokens } from 'uniswap/src/features/dataApi/searchTokens'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
@@ -62,7 +62,7 @@ export function useTokenSectionsForSearchResults({
     data: searchResultsMultichain,
     error: searchTokensError,
     refetch: refetchSearchTokens,
-    loading: searchTokensLoading,
+    isLoading: searchTokensLoading,
   } = useMultichainSearchTokens({
     searchQuery: searchFilter,
     chainFilter,
@@ -147,7 +147,7 @@ export function useTokenSectionsForSearchResults({
 
   const refetchAll = useCallback(() => {
     refetchPortfolioBalances?.()
-    refetchSearchTokens?.()
+    void refetchSearchTokens()
     refetchPortfolioTokenOptions?.()
     refetchBridgingTokenOptions?.()
   }, [refetchBridgingTokenOptions, refetchPortfolioBalances, refetchPortfolioTokenOptions, refetchSearchTokens])

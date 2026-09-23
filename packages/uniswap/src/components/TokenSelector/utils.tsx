@@ -96,21 +96,6 @@ export function mergeSearchResultsWithBridgingTokens({
   return [bridgingSection, ...extractedSearchResults].filter((section) => section.data.length > 0)
 }
 
-export function isSwapListLoading({
-  loading,
-  portfolioSection,
-  trendingSection,
-  isTestnetModeEnabled,
-}: {
-  loading: boolean
-  portfolioSection: OnchainItemSection<TokenOption>[] | undefined
-  trendingSection: OnchainItemSection<TokenOption>[] | undefined
-  isTestnetModeEnabled: boolean
-}): boolean {
-  // the trending section is not shown on testnet
-  return loading && (isTestnetModeEnabled ? !portfolioSection : !portfolioSection || !trendingSection)
-}
-
 export function flowToModalName(flow: TokenSelectorFlow): ModalNameType | undefined {
   switch (flow) {
     case TokenSelectorFlow.Swap:

@@ -1,11 +1,11 @@
+import { Button, Flex, Text } from '@universe/mycelium'
+import { Check } from '@universe/mycelium/icons/Check'
+import { CopySheets } from '@universe/mycelium/icons/CopySheets'
+import { Eye } from '@universe/mycelium/icons/Eye'
+import { EyeSlash } from '@universe/mycelium/icons/EyeSlash'
+import { FileListLock } from '@universe/mycelium/icons/FileListLock'
+import { GraduationCap } from '@universe/mycelium/icons/GraduationCap'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
-import { Check } from 'ui/src/components/icons/Check'
-import { CopySheets } from 'ui/src/components/icons/CopySheets'
-import { Eye } from 'ui/src/components/icons/Eye'
-import { EyeSlash } from 'ui/src/components/icons/EyeSlash'
-import { FileListLock } from 'ui/src/components/icons/FileListLock'
-import { GraduationCap } from 'ui/src/components/icons/GraduationCap'
 import { MNEMONIC_LENGTH_EW } from 'wallet/src/constants/accounts'
 
 function PlaceholderBars({ rowCount }: { rowCount: number }) {

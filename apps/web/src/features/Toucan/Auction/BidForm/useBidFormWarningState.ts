@@ -1,11 +1,9 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { type UniverseChainId, AddressStringFormat, areAddressesEqual, normalizeAddress } from '@universe/chains'
 import { useMemo } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 import { zeroAddress } from '~/chains'
 import { AuctionProgressState, type UserBid } from '~/features/Toucan/Auction/store/types'
-import { TOUCAN_AUCTION_SUPPORTED_CHAINS } from '~/features/Toucan/supportedChains'
+import { useToucanAuctionSupportedChains } from '~/features/Toucan/supportedChains'
 import { getSupportedAuctionCurrencyAddresses } from '~/pages/Liquidity/CreateAuction/raiseCurrency'
 
 interface UseBidFormWarningStateParams {
@@ -13,14 +11,30 @@ interface UseBidFormWarningStateParams {
   currency?: string
   auctionProgressState: AuctionProgressState
   userBids: UserBid[]
-  validationHook?: string
   validationError?: boolean
+  /**
+   * A non-zero validation hook that the backend recognized NOTHING about — an empty
+   * validations array. Its bid acceptance is governed by code we have never inspected, so
+   * the auction is treated as unsupported, while hooks we do model (KYC, ERC-1155 gate, a
+   * max bid price ceiling) stay bidable.
+   *
+   * Keyed on the lookup RESULT, not on the mere presence of a hook. Does not cover a
+   * composed hook whose modeled leg yields a validation — see the call site in BidForm.
+   */
+  isUnmodeledValidationHook?: boolean
+  /**
+   * True when a maxBidPrice() validation hook's ceiling has been reached, leaving no
+   * valid bid price. The auction is still running but cannot take new bids.
+   */
+  isMaxBidPriceReached?: boolean
 }
 
 interface BidFormWarningState {
   showDisabledState: boolean
   shouldShowWarningBanner: boolean
   shouldDisableBidForm: boolean
+  /** Render the ceiling-reached alert instead of the concluded-auction one. */
+  showMaxBidPriceReachedState: boolean
 }
 
 export function useBidFormWarningState({
@@ -28,18 +42,19 @@ export function useBidFormWarningState({
   currency,
   auctionProgressState,
   userBids,
-  validationHook,
   validationError,
+  isMaxBidPriceReached,
+  isUnmodeledValidationHook,
 }: UseBidFormWarningStateParams): BidFormWarningState {
-  const isToucanAuctionKYCEnabled = useFeatureFlag(FeatureFlags.ToucanAuctionKYC)
+  const auctionSupportedChains = useToucanAuctionSupportedChains()
 
   return useMemo(() => {
     const isAuctionEnded = auctionProgressState === AuctionProgressState.ENDED
     const hasNoBids = userBids.length === 0
     const showDisabledState = isAuctionEnded && hasNoBids
 
-    const isSupportedChain = Boolean(chainId && TOUCAN_AUCTION_SUPPORTED_CHAINS.includes(chainId))
-    const normalizedCurrency = currency?.toLowerCase()
+    const isSupportedChain = Boolean(chainId && auctionSupportedChains.includes(chainId))
+    const normalizedCurrency = currency ? normalizeAddress(currency, AddressStringFormat.Lowercase) : undefined
     const isNativeBidToken = Boolean(
       chainId &&
       normalizedCurrency &&
@@ -59,19 +74,35 @@ export function useBidFormWarningState({
           }),
         ),
       )
-    const isValidationErrorWarning = isToucanAuctionKYCEnabled
-      ? Boolean(validationError)
-      : Boolean(validationHook && validationHook !== zeroAddress)
+    // Unsupported means either the validation lookup FAILED, or it succeeded and
+    // recognized nothing about a hook that is actually present. The mere presence of a
+    // hook is not enough — hooks we understand (KYC, ERC-1155 gate, a max bid price
+    // ceiling) are all bidable.
+    const isValidationErrorWarning = Boolean(validationError) || Boolean(isUnmodeledValidationHook)
     const isUnsupportedChainWarning = Boolean(chainId && !isSupportedChain)
     const isUnsupportedBidTokenWarning = Boolean(isSupportedChain && normalizedCurrency && !isSupportedBidToken)
     const shouldShowWarningBanner =
       isUnsupportedChainWarning || isUnsupportedBidTokenWarning || isValidationErrorWarning
-    const shouldDisableBidForm = showDisabledState || shouldShowWarningBanner
+    // A reached ceiling closes an otherwise-running auction to new bids, so it disables
+    // the form exactly like a concluded one. Suppressed once the auction has actually
+    // ended, so the concluded copy wins rather than stacking two alerts.
+    const showMaxBidPriceReachedState = Boolean(isMaxBidPriceReached) && !isAuctionEnded
+    const shouldDisableBidForm = showDisabledState || shouldShowWarningBanner || showMaxBidPriceReachedState
 
     return {
       showDisabledState,
       shouldShowWarningBanner,
       shouldDisableBidForm,
+      showMaxBidPriceReachedState,
     }
-  }, [auctionProgressState, chainId, currency, userBids, validationError, validationHook, isToucanAuctionKYCEnabled])
+  }, [
+    auctionProgressState,
+    auctionSupportedChains,
+    chainId,
+    currency,
+    userBids,
+    validationError,
+    isMaxBidPriceReached,
+    isUnmodeledValidationHook,
+  ])
 }

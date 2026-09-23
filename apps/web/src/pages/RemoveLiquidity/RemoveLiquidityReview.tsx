@@ -1,13 +1,13 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { CurrencyAmount } from '@uniswap/sdk-core'
 import { useGetPasskeyAuthStatus } from '@universe/embedded-wallet'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Button, Flex, Separator, Text } from 'ui/src'
+import { Button, Separator } from 'ui/src'
 import { Passkey } from 'ui/src/components/icons/Passkey'
-import { iconSizes } from 'ui/src/theme'
+import { iconSizes } from 'ui/src/theme/iconSizes'
 import { ProgressIndicator } from 'uniswap/src/components/ConfirmSwapModal/ProgressIndicator'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
@@ -47,7 +47,6 @@ export function RemoveLiquidityReview({ onClose }: { onClose: () => void }) {
   const account = useWallet().evmAccount
   const dispatch = useDispatch()
   const trace = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const { needsPasskeySignin } = useGetPasskeyAuthStatus(connectedAccount.connector?.id)
 
   const { txContext, gasFeeEstimateUSD } = removeLiquidityTxContext
@@ -159,11 +158,14 @@ export function RemoveLiquidityReview({ onClose }: { onClose: () => void }) {
             currency0AmountUsd: currency0AmountToRemoveUSD,
             currency1AmountUsd: currency1AmountToRemoveUSD,
             version,
-            isCentralizedPricesEnabled,
           }),
           expectedAmountBaseRaw: unwrappedCurrency0AmountToRemove.quotient.toString(),
           expectedAmountQuoteRaw: unwrappedCurrency1AmountToRemove.quotient.toString(),
           closePosition: percent === '100',
+          feeToken0AmountRaw: fee0Amount?.quotient.toString(),
+          feeToken1AmountRaw: fee1Amount?.quotient.toString(),
+          feeToken0AmountUSD: fiatFeeValue0 ? parseFloat(fiatFeeValue0.toExact()) : undefined,
+          feeToken1AmountUSD: fiatFeeValue1 ? parseFloat(fiatFeeValue1.toExact()) : undefined,
         },
       }),
     )

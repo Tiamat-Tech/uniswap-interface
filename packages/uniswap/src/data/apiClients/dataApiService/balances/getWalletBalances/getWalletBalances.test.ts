@@ -4,6 +4,7 @@ import type {
   GetWalletBalancesResponse,
   WalletBalance,
 } from '@uniswap/client-data-api/dist/data/v1/api_pb.d'
+import { Platform } from '@universe/chains'
 import {
   doesGetWalletBalancesQueryMatchAddress,
   getUnavailableCategories,
@@ -19,7 +20,6 @@ import {
   sumAvailableBalanceSlices,
 } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
 import type { PortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/buildPortfolioBalance'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
 const TEST_EVM_ADDRESS_1 = '0x1234567890123456789012345678901234567890'

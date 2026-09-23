@@ -1,11 +1,13 @@
 import type { ChainTokenRankStats, RankedMultichainToken } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import { SpamCode } from '@universe/api'
+import { chainIdToPlatform } from '@universe/chains'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import {
   CurrencyInfo,
   MultichainSearchResult,
   SafetyInfo,
   SearchMultichainParent,
+  SearchTokenStats,
 } from 'uniswap/src/features/dataApi/types'
 import { buildCurrency, buildCurrencyInfo } from 'uniswap/src/features/dataApi/utils/buildCurrency'
 import {
@@ -14,9 +16,23 @@ import {
   getRestTokenSafetyInfoV2,
 } from 'uniswap/src/features/dataApi/utils/getCurrencySafetyInfo'
 import type { CurrencyId } from 'uniswap/src/types/currency'
-import { currencyId } from 'uniswap/src/utils/currencyId'
+import { currencyId, isDefaultNativeAddress } from 'uniswap/src/utils/currencyId'
 
 type MultichainToken = NonNullable<RankedMultichainToken['multichainToken']>
+
+/**
+ * Data-api endpoints serve native tokens under three formats: the literal 'ETH' string, the legacy
+ * 0xeee… placeholder, and (since the v2 migration) the zero address. None of these is ever a real
+ * deployed token, so all three normalize unconditionally to the chain's canonical native address —
+ * including on chains like Polygon/Celo whose canonical native address is a real contract address,
+ * where `isNativeCurrencyAddress` alone would reject the placeholders.
+ */
+export function normalizeBackendNativeAddress({ chainId, address }: { chainId: number; address: string }): string {
+  if (address === 'ETH' || isDefaultNativeAddress({ address, platform: chainIdToPlatform(chainId) })) {
+    return getNativeAddress(chainId)
+  }
+  return address
+}
 
 type ParentSafetyInfo = {
   safetyInfo: SafetyInfo
@@ -51,7 +67,7 @@ function dataApiChainAddressToCurrencyInfo({
 }): CurrencyInfo | null {
   const currency = buildCurrency({
     chainId,
-    address: address === 'ETH' ? getNativeAddress(chainId) : address,
+    address: normalizeBackendNativeAddress({ chainId, address }),
     decimals: parent.decimals,
     symbol: parent.symbol,
     name: parent.name,
@@ -70,6 +86,7 @@ function dataApiChainAddressToCurrencyInfo({
     safetyInfo: parentSafetyInfo.safetyInfo,
     isSpam: parentSafetyInfo.isSpam,
     spamCode: parentSafetyInfo.spamCode,
+    categoryIds: parent.categoryIds,
   })
 }
 
@@ -109,11 +126,50 @@ export function pickPrimaryDeployment({
 }
 
 /**
- * Converts a v2 RankedMultichainToken (from ListTokens) into the shared MultichainSearchResult
- * type used by the search modal UI. Returns undefined when no valid chain tokens can be built.
+ * Builds parent-level display stats from a RankedMultichainToken: spot price and 1d change from
+ * the token's price data (mirrors mobile's rankedMultichainTokenToTokenItemData), 1d volume from
+ * the aggregate rank stats. Returns undefined when none are present.
+ */
+function buildSearchTokenStats(rankedToken: RankedMultichainToken): SearchTokenStats | undefined {
+  const price = rankedToken.multichainToken?.price
+  const stats: SearchTokenStats = {
+    priceUsd: price?.spotUsd,
+    pricePercentChange1d: price?.percentChange1d,
+    volume1dUsd: rankedToken.stats?.volume1d,
+  }
+  // Object.values drops `undefined` from optional props, so re-widen or the check looks always-true
+  const hasAny = Object.values(stats).some((value: number | undefined) => value !== undefined)
+  return hasAny ? stats : undefined
+}
+
+/**
+ * Per-chain variant of the parent stats: price fields stay parent-level (per-chain prices are
+ * effectively identical), but 1d volume is replaced with this chain's own when the response
+ * carries per-chain stats — a chain-filtered row should show that chain's volume, not the
+ * cross-chain aggregate.
+ */
+function buildChainSearchStats({
+  parentStats,
+  chainVolume1d,
+}: {
+  parentStats: SearchTokenStats | undefined
+  chainVolume1d: number | undefined
+}): SearchTokenStats | undefined {
+  if (!parentStats && chainVolume1d === undefined) {
+    return undefined
+  }
+  return { ...parentStats, volume1dUsd: chainVolume1d ?? parentStats?.volume1dUsd }
+}
+
+/**
+ * Converts a v2 RankedMultichainToken (from ListTokens or Search) into the shared
+ * MultichainSearchResult type used by the search modal UI. Returns undefined when no valid chain
+ * tokens can be built. Pass `isSuppressed` for tokens from the v2 search suppressed bucket — the
+ * flag is stamped on the result and the shared `searchMultichainParent` so chain-filtered paths keep it.
  */
 export function dataApiMultichainTokenToSearchResult(
   rankedToken: RankedMultichainToken,
+  { isSuppressed = false }: { isSuppressed?: boolean } = {},
 ): MultichainSearchResult | undefined {
   const multichainToken = rankedToken.multichainToken
   if (!multichainToken) {
@@ -140,7 +196,13 @@ export function dataApiMultichainTokenToSearchResult(
   const searchMultichainParent: SearchMultichainParent = {
     id: multichainToken.multichainId,
     tokenCurrencyIds: tokens.map((t) => t.currencyId) as CurrencyId[],
+    isSuppressed,
   }
+
+  const parentStats = buildSearchTokenStats(rankedToken)
+  const chainVolume1dByChainId = new Map(
+    rankedToken.chainStats.map((chainStat) => [chainStat.chainId, chainStat.stats?.volume1d]),
+  )
 
   return {
     id: multichainToken.multichainId,
@@ -148,6 +210,18 @@ export function dataApiMultichainTokenToSearchResult(
     symbol: multichainToken.symbol,
     logoUrl: multichainToken.project?.logoUrl || undefined,
     safetyInfo: parentSafetyInfo.safetyInfo,
-    tokens: tokens.map((t) => ({ ...t, searchMultichainParent })),
+    isSuppressed,
+    ...(parentStats && { stats: parentStats }),
+    tokens: tokens.map((t) => {
+      const searchStats = buildChainSearchStats({
+        parentStats,
+        chainVolume1d: chainVolume1dByChainId.get(t.currency.chainId),
+      })
+      return {
+        ...t,
+        searchMultichainParent,
+        ...(searchStats && { searchStats }),
+      }
+    }),
   }
 }

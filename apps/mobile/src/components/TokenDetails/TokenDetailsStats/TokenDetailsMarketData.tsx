@@ -1,40 +1,32 @@
-import { GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { UniverseChainId, chainIdToPlatform } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import type { IconProps } from '@universe/mycelium/icons'
+import { ChartBar } from '@universe/mycelium/icons/ChartBar'
+import { ChartPie } from '@universe/mycelium/icons/ChartPie'
+import { ChartPyramid } from '@universe/mycelium/icons/ChartPyramid'
+import { GlobeFilled } from '@universe/mycelium/icons/GlobeFilled'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
+import { TrendDown } from '@universe/mycelium/icons/TrendDown'
+import { TrendUp } from '@universe/mycelium/icons/TrendUp'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React, { memo, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
 import { StatsRow } from 'src/components/TokenDetails/TokenDetailsStats/StatsRow'
 import { StatValue } from 'src/components/TokenDetails/TokenDetailsStats/StatValue'
-import { useFeatureFlaggedProjectTokens } from 'src/components/TokenDetails/useFeatureFlaggedProjectTokens'
-import { useTokenDetailsPreferProjectMarketData } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
-import { Flex, Text, TouchableArea, useSporeColors } from 'ui/src'
-import type { IconProps } from 'ui/src/components/factories/createIcon'
-import { ChartBar, ChartPie, ChartPyramid, GlobeFilled, TrendDown, TrendUp } from 'ui/src/components/icons'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { WarningModal } from 'uniswap/src/components/modals/WarningModal/WarningModal'
 import { NetworkPile } from 'uniswap/src/components/network/NetworkPile/NetworkPile'
-import { useTokenBasicInfoPartsFragment, useTokenBasicProjectPartsFragment } from 'uniswap/src/data/graphql/fragments'
 import { selectHasViewedContractAddressExplainer } from 'uniswap/src/features/behaviorHistory/selectors'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
-import {
-  adaptLegacyMarketData,
-  adaptLegacyProjectMarketData,
-} from 'uniswap/src/features/dataApi/tokenDetails/legacyMarketDataAdapters'
 import { useTokenMarketStats } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
-import { isMultichainProjectTokens } from 'uniswap/src/features/dataApi/tokenProjects/utils/isMultichainProjectTokens'
-import { currencyIdToContractInput } from 'uniswap/src/features/dataApi/utils/currencyIdToContractInput'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { chainIdToPlatform } from 'uniswap/src/features/platforms/utils/chains'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { isDefaultNativeAddress } from 'uniswap/src/utils/currencyId'
 import { NumberType } from 'utilities/src/format/types'
 
 export const TokenDetailsMarketData = memo(function TokenDetailsMarketDataInner(): JSX.Element {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const { t } = useTranslation()
   const colors = useSporeColors()
   const defaultTokenColor = colors.neutral3.get()
@@ -47,88 +39,49 @@ export const TokenDetailsMarketData = memo(function TokenDetailsMarketDataInner(
     openContractAddressExplainerModal,
     openMultichainAddressSheet,
     copyAddressToClipboard,
+    initialIsMultichainAsset,
+    multichainTokens,
+    hasMultichainAddresses,
   } = useTokenDetailsContext()
   const hasViewedContractAddressExplainer = useSelector(selectHasViewedContractAddressExplainer)
-  const token = useTokenBasicInfoPartsFragment({ currencyId }).data
-  const project = useTokenBasicProjectPartsFragment({ currencyId }).data.project
   const [showVolumeInfo, setShowVolumeInfo] = useState(false)
-  const preferProjectMarketData = useTokenDetailsPreferProjectMarketData()
-
-  const { data: screenData } = GraphQLApi.useTokenDetailsScreenQuery({
-    variables: {
-      ...currencyIdToContractInput(currencyId),
-      multichain: true,
-    },
-    fetchPolicy: 'cache-only',
-  })
-
-  const aggregatedData = useMemo(() => {
-    if (!screenData?.token?.multichainMarket) {
-      return undefined
-    }
-    return {
-      market: adaptLegacyMarketData(screenData.token.multichainMarket),
-      projectMarket: adaptLegacyProjectMarketData(screenData.token.project?.markets?.[0]),
-    }
-  }, [screenData?.token?.multichainMarket, screenData?.token?.project?.markets])
-
-  // Gate out unlaunched chains (e.g. Arc/Robinhood) so they don't appear in the Networks row or
-  // make the token look multichain.
-  const featureFlaggedScreenTokens = useFeatureFlaggedProjectTokens(screenData?.token?.project?.tokens)
-  const featureFlaggedProjectTokens = useFeatureFlaggedProjectTokens(project?.tokens)
 
   const networkChainIds = useMemo((): UniverseChainId[] => {
-    if (!featureFlaggedScreenTokens.length) {
+    if (!hasMultichainAddresses) {
       return [chainId]
     }
-    const chainIds = new Set<UniverseChainId>()
-    for (const projectToken of featureFlaggedScreenTokens) {
-      const id = fromGraphQLChain(projectToken.chain)
-      if (id !== null) {
-        chainIds.add(id)
-      }
-    }
-    if (chainIds.size === 0) {
-      return [chainId]
-    }
-    return Array.from(chainIds)
-  }, [chainId, featureFlaggedScreenTokens])
+    return multichainTokens.map((token) => token.chainId)
+  }, [hasMultichainAddresses, multichainTokens, chainId])
 
   const singleNetworkChainId = networkChainIds.length === 1 ? networkChainIds[0] : undefined
 
-  const isMultichainToken = isMultichainProjectTokens(featureFlaggedProjectTokens)
-  // Default to the aggregate endpoint until project.tokens loads — better than assuming single-chain.
-  const projectTokensLoaded = project?.tokens !== undefined
-  const shouldQueryMultichainAggregate = !projectTokensLoaded || isMultichainToken
-
-  /** Native currency pages have no contract address to copy / multichain address sheet (see TokenDetailsLinks). */
   const hasCopyableContractAddress = useMemo(() => {
     if (isDefaultNativeAddress({ address, platform: chainIdToPlatform(chainId) })) {
       return false
     }
-    return Boolean(token.address)
-  }, [address, chainId, token.address])
+    return Boolean(address)
+  }, [address, chainId])
 
   const onMultichainNetworksRowPress = useCallback((): void => {
-    if (!token.address) {
+    if (!address) {
       return
     }
     if (!hasViewedContractAddressExplainer) {
       openContractAddressExplainerModal()
       return
     }
-    if (isMultichainToken) {
+    if (hasMultichainAddresses) {
       openMultichainAddressSheet()
       return
     }
-    void copyAddressToClipboard(token.address)
+    void copyAddressToClipboard(address)
   }, [
     copyAddressToClipboard,
     hasViewedContractAddressExplainer,
-    isMultichainToken,
     openContractAddressExplainerModal,
     openMultichainAddressSheet,
-    token.address,
+    address,
+    hasMultichainAddresses,
   ])
 
   const {
@@ -139,9 +92,7 @@ export const TokenDetailsMarketData = memo(function TokenDetailsMarketDataInner(
     low52w,
     isLoading: isStatsLoading,
   } = useTokenMarketStats(currencyId, {
-    aggregatedData,
-    preferProjectMarketData,
-    isMultichainAggregateView: shouldQueryMultichainAggregate,
+    isMultichainAggregateView: initialIsMultichainAsset || hasMultichainAddresses,
   })
 
   const hasLimitedVolumeData = chainId === UniverseChainId.Tempo
@@ -164,7 +115,6 @@ export const TokenDetailsMarketData = memo(function TokenDetailsMarketDataInner(
           isLoading={isStatsLoading}
           numericValue={marketCap ?? undefined}
           formattedValue={convertFiatAmountFormatted(marketCap, NumberType.FiatTokenStats)}
-          disableAnimations={!isDataLivelinessEnabled}
         />
       </StatsRow>
 
@@ -176,7 +126,6 @@ export const TokenDetailsMarketData = memo(function TokenDetailsMarketDataInner(
           isLoading={isStatsLoading}
           numericValue={fdv ?? undefined}
           formattedValue={convertFiatAmountFormatted(fdv, NumberType.FiatTokenStats)}
-          disableAnimations={!isDataLivelinessEnabled}
         />
       </StatsRow>
 
@@ -189,7 +138,6 @@ export const TokenDetailsMarketData = memo(function TokenDetailsMarketDataInner(
           isLoading={isStatsLoading}
           numericValue={volume ?? undefined}
           formattedValue={convertFiatAmountFormatted(volume, NumberType.FiatTokenStats)}
-          disableAnimations={!isDataLivelinessEnabled}
         />
       </StatsRow>
 
@@ -201,7 +149,6 @@ export const TokenDetailsMarketData = memo(function TokenDetailsMarketDataInner(
           isLoading={isStatsLoading}
           numericValue={high52w ?? undefined}
           formattedValue={convertFiatAmountFormatted(high52w, NumberType.FiatTokenDetails)}
-          disableAnimations={!isDataLivelinessEnabled}
         />
       </StatsRow>
 
@@ -213,7 +160,6 @@ export const TokenDetailsMarketData = memo(function TokenDetailsMarketDataInner(
           isLoading={isStatsLoading}
           numericValue={low52w ?? undefined}
           formattedValue={convertFiatAmountFormatted(low52w, NumberType.FiatTokenDetails)}
-          disableAnimations={!isDataLivelinessEnabled}
         />
       </StatsRow>
 

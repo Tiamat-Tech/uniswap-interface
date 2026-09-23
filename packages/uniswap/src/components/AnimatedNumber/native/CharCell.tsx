@@ -1,6 +1,6 @@
+import type { ResolvedFontStyle } from '@universe/mycelium'
 import { Text, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
-import type { ResolvedFontStyle } from 'ui/src/theme'
 import { DigitSlot } from 'uniswap/src/components/AnimatedNumber/native/DigitSlot'
 import { startFlashSequence } from 'uniswap/src/components/AnimatedNumber/native/startFlashSequence'
 import type { AnimatedNumberTick } from 'uniswap/src/components/AnimatedNumber/native/types'

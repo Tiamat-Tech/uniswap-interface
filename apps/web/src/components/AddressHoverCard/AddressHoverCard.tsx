@@ -1,23 +1,24 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import { chainIdToPlatform, Platform, type UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea, useIsTouchDevice } from '@universe/mycelium'
 import type { ReactNode } from 'react'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { AnimatableCopyIcon, Flex, Popover, Separator, Text, TouchableArea, useIsTouchDevice } from 'ui/src'
+import { AnimatableCopyIcon, Popover, Separator } from 'ui/src'
 import { iconSizes } from 'ui/src/theme'
 import { useShadowPropsMedium } from 'ui/src/theme/shadows'
 import { zIndexes } from 'ui/src/theme/zIndexes'
 import { AddressDisplay } from 'uniswap/src/components/accounts/AddressDisplay'
 import { RelativeChange } from 'uniswap/src/components/RelativeChange/RelativeChange'
 import { useBlockExplorerLogo } from 'uniswap/src/features/chains/logos'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { usePortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/balancesRest'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType, CopyNotificationType } from 'uniswap/src/features/notifications/slice/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { ExplorerDataType, getExplorerLink, openUri } from 'uniswap/src/utils/linking'
 import { NumberType } from 'utilities/src/format/types'
 import { useCopyClipboard } from 'utilities/src/react/useCopyClipboard'
@@ -31,7 +32,7 @@ const iconButtonProps = {
 
 interface AddressHoverCardProps {
   address?: string
-  platform: Platform
+  chainId: UniverseChainId
   children: ReactNode
 }
 
@@ -40,14 +41,14 @@ export function useShowsAddressHoverCard(address?: string): boolean {
   return Boolean(address) && !isTouchDevice
 }
 
-export function AddressHoverCard({ address, platform, children }: AddressHoverCardProps): JSX.Element {
+export function AddressHoverCard({ address, chainId, children }: AddressHoverCardProps): JSX.Element {
   const { t } = useTranslation()
   const dispatch = useDispatch()
   const { convertFiatAmountFormatted } = useLocalizationContext()
   const [isOpen, setIsOpen] = useState(false)
   const popoverContentRef = useRef<HTMLDivElement>(null)
   const [isCopied, copyToClipboard] = useCopyClipboard(ONE_SECOND_MS)
-  const chainId = platform === Platform.SVM ? UniverseChainId.Solana : UniverseChainId.Mainnet
+  const platform = chainIdToPlatform(chainId)
   const BlockExplorerLogo = useBlockExplorerLogo(chainId)
   const shadowProps = useShadowPropsMedium()
   const showsHoverCard = useShowsAddressHoverCard(address)
@@ -87,7 +88,8 @@ export function AddressHoverCard({ address, platform, children }: AddressHoverCa
     await openUri({ uri: explorerUrl })
   }, [address, chainId])
 
-  useCloseOnOutsideScroll({ contentRef: popoverContentRef, isOpen, setIsOpen })
+  const closeCard = useCallback((): void => setIsOpen(false), [])
+  useCloseOnOutsideScroll({ contentRef: popoverContentRef, isOpen, onClose: closeCard })
 
   if (!address || !showsHoverCard) {
     return <>{children}</>
@@ -142,7 +144,11 @@ export function AddressHoverCard({ address, platform, children }: AddressHoverCa
               <TouchableArea {...iconButtonProps} onPress={handleCopyAddress}>
                 <AnimatableCopyIcon isCopied={isCopied} size={iconSizes.icon20} textColor="$neutral2" />
               </TouchableArea>
-              <TouchableArea {...iconButtonProps} onPress={handleOpenExplorer}>
+              <TouchableArea
+                {...iconButtonProps}
+                testID={TestID.AddressHoverCardExplorerLink}
+                onPress={handleOpenExplorer}
+              >
                 <BlockExplorerLogo size={iconSizes.icon16} />
               </TouchableArea>
             </Flex>

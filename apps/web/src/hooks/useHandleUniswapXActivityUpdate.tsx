@@ -1,8 +1,6 @@
 import { useTrace } from '@uniswap/analytics'
 import { SharedQueryClient, TradingApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { useCallback } from 'react'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { getDisplayedPriceSource } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 import { finalizeTransaction, updateTransaction } from 'uniswap/src/features/transactions/slice'
 import {
@@ -27,8 +25,6 @@ interface HandleUniswapXActivityUpdateParams {
 export function useHandleUniswapXActivityUpdate(): (params: HandleUniswapXActivityUpdateParams) => void {
   const dispatch = useAppDispatch()
   const analyticsContext = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
-  const isEarnEnabled = useIsEarnEnabled()
 
   return useCallback(
     ({ activity, popupDismissalTime }: HandleUniswapXActivityUpdateParams): void => {
@@ -54,7 +50,6 @@ export function useHandleUniswapXActivityUpdate(): (params: HandleUniswapXActivi
         )
 
         maybeAddEarnSwapUpsellPopup({
-          isEarnEnabled,
           status: update.status,
           typeInfo: update.typeInfo,
           transactionId: update.id,
@@ -100,8 +95,6 @@ export function useHandleUniswapXActivityUpdate(): (params: HandleUniswapXActivi
           },
           priceSource: inputAddress
             ? getDisplayedPriceSource({
-                isCentralizedPricesEnabled,
-                surface: 'usdc',
                 chainId: activity.chainId,
                 address: inputAddress,
                 queryClient: SharedQueryClient,
@@ -110,6 +103,6 @@ export function useHandleUniswapXActivityUpdate(): (params: HandleUniswapXActivi
         })
       }
     },
-    [dispatch, analyticsContext, isCentralizedPricesEnabled, isEarnEnabled],
+    [dispatch, analyticsContext],
   )
 }

@@ -1,8 +1,8 @@
 import { GeneratedIcon } from 'ui/src'
+import { CoinConvert } from 'ui/src/components/icons/CoinConvert'
 import { Flag } from 'ui/src/components/icons/Flag'
 import { Pools } from 'ui/src/components/icons/Pools'
-import { SwapDotted } from 'ui/src/components/icons/SwapDotted'
-import { AppTFunction } from 'ui/src/i18n/types'
+import { AppTFunction } from 'utilities/src/i18n/types'
 
 export enum HookFlag {
   BeforeAddLiquidity = 'before-add-liquidity',
@@ -65,7 +65,7 @@ export function getFlagWarning(flag: HookFlag, t: AppTFunction): FlagWarning | u
     case HookFlag.BeforeSwap:
     case HookFlag.BeforeSwapReturnsDelta:
       return {
-        Icon: SwapDotted,
+        Icon: CoinConvert,
         name: t('common.swap'),
         info: t('position.hook.swapWarning'),
         dangerous: false,

@@ -1,7 +1,7 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Percent } from '@uniswap/sdk-core'
 import { getCreateTierFeeBreakdown } from 'uniswap/src/features/fees/feeCurve'
-import { DEFAULT_FEE_TIER_PAIRS, getPairedNewFeeTierBps } from 'uniswap/src/features/fees/feeTiers'
+import { DEFAULT_FEE_TIER_PAIRS } from 'uniswap/src/features/fees/feeTiers'
 import { bpsToFeeAmount, feeAmountToBps } from 'uniswap/src/features/fees/feeUnits'
 import { getFeeBreakdown } from 'uniswap/src/features/fees/getFeeBreakdown'
 import type { FeeBreakdown } from 'uniswap/src/features/fees/types'
@@ -10,6 +10,7 @@ import { PercentNumberDecimals } from 'utilities/src/format/types'
 import { BIPS_BASE } from '~/constants/misc'
 import {
   calculateTickSpacingFromFeeAmount,
+  createdPoolsAtFeeAmount,
   type FeeTierOption,
   getFeeTierTitle,
   isDynamicFeeTier,
@@ -17,19 +18,37 @@ import {
 } from '~/features/Liquidity/utils/feeTiers'
 import { FeeTierData } from '~/types/liquidity'
 
-// Post-cutover the canonical v4 tiers are the new lower ones; an old tier is shown only when its pool
-// already holds at least this much liquidity (USD), so we keep users in that deep pool instead of
+// Post-cutover the canonical v4 tiers are the new lower ones; an existing tier earns a box only when its
+// pool already holds at least this much liquidity (USD), so we keep users in that deep pool instead of
 // fragmenting liquidity into a parallel new-tier pool. Spec: "Same-tier pool handling (v4 only)".
 const KEEP_EXISTING_TIER_MIN_TVL = 5000
 
+// The v4 grid is this many boxes wide. Existing pools worth joining claim slots first; the canonical new
+// tiers only fill what's left over — so the width is one box per canonical pairing, and a fifth pairing
+// added upstream widens the grid rather than being silently dropped off the end.
+const V4_GRID_SIZE = DEFAULT_FEE_TIER_PAIRS.length
+
 /** FeeData for a not-yet-created tier given its LP fee in bps (tick spacing derived from the fee). */
-function feeDataFromBps(bps: number, useSingleTickSpacing: boolean): FeeData {
+function feeDataFromBps(bps: number): FeeData {
   const feeAmount = bpsToFeeAmount(bps)
   return {
     isDynamic: false,
     feeAmount,
-    tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount, useSingleTickSpacing),
+    tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount),
   }
+}
+
+function tvlOf(pool: { tvl: string | undefined }): number {
+  return parseFloat(pool.tvl ?? '') || 0
+}
+
+function isIncentivized(pool: { boostedApr?: number }): boolean {
+  return (pool.boostedApr ?? 0) > 0
+}
+
+/** Ranks pools sharing a fee amount by which one a user would rather join: incentivized first, then deepest. */
+function byWorthJoining(a: FeeTierData, b: FeeTierData): number {
+  return Number(isIncentivized(b)) - Number(isIncentivized(a)) || tvlOf(b) - tvlOf(a)
 }
 
 /**
@@ -38,13 +57,27 @@ function feeDataFromBps(bps: number, useSingleTickSpacing: boolean): FeeData {
  * represents the pool worth joining rather than whichever the record happened to list first.
  */
 function poolAtFee(feeTierData: Record<string, FeeTierData>, feeAmount: number): FeeTierData | undefined {
-  const isIncentivized = (pool: FeeTierData): boolean => (pool.boostedApr ?? 0) > 0
   return Object.values(feeTierData)
     .filter((data) => !isDynamicFeeTier(data.fee) && data.fee.feeAmount === feeAmount)
-    .sort(
-      (a, b) =>
-        Number(isIncentivized(b)) - Number(isIncentivized(a)) || (parseFloat(b.tvl) || 0) - (parseFloat(a.tvl) || 0),
-    )[0]
+    .sort(byWorthJoining)[0]
+}
+
+/**
+ * The already-deployed pool a custom fee-tier entry should join instead of creating beside: of the pools
+ * {@link createdPoolsAtFeeAmount} finds at that fee, the one most worth joining.
+ *
+ * Unlike {@link poolAtFee} this only considers pools that exist — `feeTierData` also carries the canonical
+ * defaults with `created: false`, and those are exactly what the create flow is for.
+ */
+export function getCreatedPoolAtFeeAmount({
+  feeTierData,
+  feeAmount,
+}: {
+  feeTierData: Record<string, FeeTierData>
+  feeAmount: number
+}): FeeTierData | undefined {
+  const fee: FeeData = { isDynamic: false, feeAmount, tickSpacing: calculateTickSpacingFromFeeAmount(feeAmount) }
+  return createdPoolsAtFeeAmount({ feeTierData, fee }).sort(byWorthJoining)[0]
 }
 
 /** A pool's served protocol fee (a raw fee amount) in bps, or undefined when the backend didn't serve one. */
@@ -53,9 +86,9 @@ function protocolFeeToBps(protocolFee: number | undefined): number | undefined {
 }
 
 /**
- * v4 effective-rate breakdown for a create-flow tier: from the pool's served protocol fee when a pool
- * already exists at the tier, else derived from the governance curve (exact for vanilla, unavailable for
- * hooked). The FE only computes fees here — for a not-yet-created vanilla pool the curve is deterministic.
+ * v4 effective-rate breakdown for a create-flow tier: the pool's served protocol fee when a pool exists,
+ * else the governance curve (exact for vanilla, unavailable for hooked). Undefined for a dynamic tier,
+ * which has no fixed rate to break down — matching withServedFeeBreakdownData / withSubtractiveFeeBreakdown.
  */
 function v4Breakdown({
   feeAmount,
@@ -65,7 +98,10 @@ function v4Breakdown({
   feeAmount: number
   pool: FeeTierData | undefined
   hook: string | undefined
-}): FeeBreakdown {
+}): FeeBreakdown | undefined {
+  if (pool && isDynamicFeeTier(pool.fee)) {
+    return undefined
+  }
   if (!pool) {
     return getCreateTierFeeBreakdown({ feeAmount, protocolVersion: ProtocolVersion.V4, hook })
   }
@@ -77,54 +113,36 @@ function v4Breakdown({
 }
 
 /**
- * Resolve one canonical new↔old pairing to the tier the v4 create flow shows: the new tier by default
- * (canonical post-cutover), or the old tier when its pool already holds >= {@link
- * KEEP_EXISTING_TIER_MIN_TVL} so we don't fragment that liquidity. `pool` is the backing pool when one
- * exists (a deep old pool, or a pool already sitting at the new tier), else undefined (curve breakdown).
+ * Existing pools that have earned a box of their own, deepest first — already deep enough that we'd
+ * rather users joined them than fragment into a parallel canonical-tier pool, or incentivized (the
+ * rewards are the reason to join, and dropping the pool hides its reward APR entirely).
  *
- * An incentivized old pool is kept regardless of TVL: the rewards are the reason to join it, and dropping
- * it hides the reward APR entirely (the paired new tier has no pool, so no `boostedApr` to display).
+ * One per fee amount: several pools can share an LP fee across tick spacings, and `poolAtFee` picks the
+ * one worth representing. Not limited to the canonical fee amounts — a pair's deepest pool often sits at
+ * a fee no pairing covers (USDC/USDT's $9.25M pool is at 0.0007%), and hiding it strands that liquidity.
  */
-function resolveCanonicalTier({
-  pair,
-  feeTierData,
-  useSingleTickSpacing,
-}: {
-  pair: { newBps: number; oldBps: number }
-  feeTierData: Record<string, FeeTierData>
-  useSingleTickSpacing: boolean
-}): { feeData: FeeData; pool: FeeTierData | undefined } {
-  const oldPool = poolAtFee(feeTierData, bpsToFeeAmount(pair.oldBps))
-  if (oldPool && ((parseFloat(oldPool.tvl) || 0) >= KEEP_EXISTING_TIER_MIN_TVL || (oldPool.boostedApr ?? 0) > 0)) {
-    return { feeData: oldPool.fee, pool: oldPool }
-  }
-  const newPool = poolAtFee(feeTierData, bpsToFeeAmount(pair.newBps))
-  return { feeData: newPool?.fee ?? feeDataFromBps(pair.newBps, useSingleTickSpacing), pool: newPool }
+function tiersWorthJoining(feeTierData: Record<string, FeeTierData>): FeeTierData[] {
+  const feeAmounts = new Set(
+    Object.values(feeTierData)
+      .filter((data) => !isDynamicFeeTier(data.fee))
+      .map((data) => data.fee.feeAmount),
+  )
+  return [...feeAmounts]
+    .flatMap((feeAmount) => poolAtFee(feeTierData, feeAmount) ?? [])
+    .filter((pool) => tvlOf(pool) >= KEEP_EXISTING_TIER_MIN_TVL || isIncentivized(pool))
+    .sort((a, b) => tvlOf(b) - tvlOf(a))
 }
 
 /**
- * The v4 fee tier to pre-select in the create flow: the most-used existing tier, steered to its paired
- * new tier when that most-used tier is a shallow canonical default — so the pre-selection matches a
- * rendered card (a shallow old default isn't shown; its new tier is). Deep/non-default tiers are kept,
- * as are incentivized ones — {@link resolveCanonicalTier} renders those regardless of TVL.
+ * The canonical new tier for a pairing, backed by its pool when one already exists (so a shallow pool at
+ * the new tier still shows its TVL rather than "Not created") and otherwise not-yet-created.
  */
-export function getSteeredRecommendedFee({
-  mostUsedFee,
-  tvl,
-  boostedApr,
-  useSingleTickSpacing,
-}: {
-  mostUsedFee: FeeData
-  tvl: string | undefined
-  boostedApr?: number
-  useSingleTickSpacing: boolean
-}): FeeData {
-  const pairedNewBps = getPairedNewFeeTierBps(feeAmountToBps(mostUsedFee.feeAmount))
-  const isShallow = (parseFloat(tvl ?? '') || 0) < KEEP_EXISTING_TIER_MIN_TVL && !(boostedApr ?? 0)
-  if (pairedNewBps !== undefined && isShallow) {
-    return feeDataFromBps(pairedNewBps, useSingleTickSpacing)
-  }
-  return mostUsedFee
+function canonicalTier({ pair, feeTierData }: { pair: { newBps: number }; feeTierData: Record<string, FeeTierData> }): {
+  feeData: FeeData
+  pool: FeeTierData | undefined
+} {
+  const pool = poolAtFee(feeTierData, bpsToFeeAmount(pair.newBps))
+  return { feeData: pool?.fee ?? feeDataFromBps(pair.newBps), pool }
 }
 
 /**
@@ -147,36 +165,112 @@ function withSubtractiveFeeBreakdown(tier: FeeTierOption, protocolVersion: Proto
 }
 
 /**
+ * The on-chain pool the URL deep-linked to — same tick spacing and fee value as `selectedFee` ("same value"
+ * = both dynamic, or same fee amount). Only a `created` pool: `feeTierData` also seeds canonical defaults
+ * (`created: false`), and pinning one would evict the value's real deep pool as a "Not created" row.
+ */
+function pinnedPoolFor(
+  feeTierData: Record<string, FeeTierData>,
+  selectedFee: FeeData | undefined,
+): FeeTierData | undefined {
+  if (!selectedFee) {
+    return undefined
+  }
+  const pinnedIsDynamic = isDynamicFeeTier(selectedFee)
+  return Object.values(feeTierData).find(
+    (data) =>
+      data.created &&
+      data.fee.tickSpacing === selectedFee.tickSpacing &&
+      isDynamicFeeTier(data.fee) === pinnedIsDynamic &&
+      (pinnedIsDynamic || data.fee.feeAmount === selectedFee.feeAmount),
+  )
+}
+
+/** A grid box for `feeData`, carrying the stats of the pool backing it (none for a not-yet-created tier). */
+function toOption({
+  feeData,
+  pool,
+  title,
+  hook,
+}: {
+  feeData: FeeData
+  pool: FeeTierData | undefined
+  title: string
+  hook: string | undefined
+}): FeeTierOption {
+  return {
+    value: feeData,
+    title,
+    selectionPercent: pool?.percentage,
+    tvl: pool?.tvl,
+    boostedApr: pool?.boostedApr,
+    rewards: pool?.rewards,
+    protocolFee: pool?.protocolFee,
+    // A not-yet-created new-default tier (no pool) renders "Not created" instead of a TVL line.
+    created: pool?.created ?? false,
+    feeBreakdown: v4Breakdown({ feeAmount: feeData.feeAmount, pool, hook }),
+  }
+}
+
+/**
+ * Point the grid box for the deep-linked fee value at that exact tick spacing's pool rather than the
+ * value's deepest. Only re-points an already-rendered box (never adds one), so the "one box per value,
+ * deepest wins" shape is untouched with no pin. v4 only — v2/v3 fees map 1:1 to a tick spacing.
+ */
+function repointOptionsToPinnedTickSpacing({
+  options,
+  feeTierData,
+  selectedFee,
+  hook,
+}: {
+  options: FeeTierOption[]
+  feeTierData: Record<string, FeeTierData>
+  selectedFee: FeeData | undefined
+  hook: string | undefined
+}): FeeTierOption[] {
+  const pinnedPool = pinnedPoolFor(feeTierData, selectedFee)
+  if (!pinnedPool) {
+    return options
+  }
+  const pinnedIsDynamic = isDynamicFeeTier(pinnedPool.fee)
+  return options.map((option) => {
+    // Every dynamic box reads as the same value (no numeric fee to pair on); static boxes match on amount.
+    const sameValue = pinnedIsDynamic
+      ? isDynamicFeeTier(option.value)
+      : !isDynamicFeeTier(option.value) && option.value.feeAmount === pinnedPool.fee.feeAmount
+    if (!sameValue || option.value.tickSpacing === pinnedPool.fee.tickSpacing) {
+      return option
+    }
+    // Same fee value, so the box keeps its title (e.g. "Best for stable pairs").
+    return toOption({ feeData: pinnedPool.fee, pool: pinnedPool, title: option.title, hook })
+  })
+}
+
+/**
  * Create-pool fee tier options.
- * - Flag off: the pool-backed defaults unchanged.
- * - v2/v3 (flag on): the same tiers, each gaining a breakdown so every box shows the all-in rate with
- *   the LP/protocol split on hover — served when a pool exists, else the subtractive fee-switch schedule —
- *   and a `created` flag so a not-yet-created tier renders "Not created" (same as v4).
- * - v4 (flag on): the four canonical new tiers (0.0075 / 0.0375 / 0.25 / 0.90%), each with its effective
- *   rate (served when a pool already exists at that tier, else derived from the curve). A pairing shows
- *   its old tier instead only when that pool is deep (>= $5k), so we don't fragment existing liquidity.
- *   A hook's dynamic-fee pool is appended as its own box (it can be the most-used / pre-selected tier);
- *   its option is already built in `defaultFeeTiers` (getDefaultFeeTiersWithData, top-by-TVL).
+ * - v2/v3: the pool-backed defaults, each with a breakdown (served, else the subtractive schedule) and a
+ *   `created` flag so a not-yet-created tier renders "Not created".
+ * - v4: a {@link V4_GRID_SIZE}-box grid — tiers worth joining (deep/incentivized) claim slots deepest-first,
+ *   canonical new tiers backfill, a hook's dynamic pool is appended from `defaultFeeTiers`. `poolAtFee` and
+ *   the top-by-TVL pick keep one pool per value; `selectedFee` re-points a box to a deep link.
  */
 export function getCreateFeeTierOptions({
-  isFeeDisplayEnabled,
   protocolVersion,
   defaultFeeTiers,
   feeTierData,
   hook,
-  useSingleTickSpacing,
+  selectedFee,
 }: {
-  isFeeDisplayEnabled: boolean
   protocolVersion: ProtocolVersion
   defaultFeeTiers: FeeTierOption[]
   feeTierData: Record<string, FeeTierData>
   hook: string | undefined
-  useSingleTickSpacing: boolean
+  /**
+   * The selected fee — the URL's on load, else the user's live pick. Re-points a box only when it names a
+   * pool at a spacing the box isn't already showing; a no-op once a rendered box is selected.
+   */
+  selectedFee?: FeeData
 }): FeeTierOption[] {
-  if (!isFeeDisplayEnabled) {
-    return defaultFeeTiers
-  }
-
   // v2/v3: no keep-vs-swap; attach the subtractive breakdown for the hover tooltip, and carry the pool's
   // `created` flag (as the v4 branch does) so a not-yet-created tier renders "Not created", not a blank slot.
   if (protocolVersion !== ProtocolVersion.V4) {
@@ -186,26 +280,36 @@ export function getCreateFeeTierOptions({
     }))
   }
 
-  const canonicalTiers = DEFAULT_FEE_TIER_PAIRS.map((pair) => {
-    const { feeData, pool } = resolveCanonicalTier({ pair, feeTierData, useSingleTickSpacing })
-    return {
-      value: feeData,
-      title: getFeeTierTitle(bpsToFeeAmount(pair.oldBps)),
-      selectionPercent: pool?.percentage,
-      tvl: pool?.tvl,
-      boostedApr: pool?.boostedApr,
-      protocolFee: pool?.protocolFee,
-      // A not-yet-created new-default tier (no pool) renders "Not created" instead of a TVL line.
-      created: pool?.created ?? false,
-      feeBreakdown: v4Breakdown({ feeAmount: feeData.feeAmount, pool, hook }),
-    }
-  })
+  const poolTiers = tiersWorthJoining(feeTierData).slice(0, V4_GRID_SIZE)
+  const claimedFeeAmounts = new Set(poolTiers.map((pool) => pool.fee.feeAmount))
 
-  // A hook's dynamic-fee pool isn't a canonical numeric tier, so it's dropped by the DEFAULT_FEE_TIER_PAIRS
-  // map above — but it can be the most-used tier (the pre-selected fee / "Highest TVL" header), so append
-  // its already-built option from defaultFeeTiers. Rendered only when a hook is present (allowDynamicFee).
+  // Canonical tiers only backfill the empty slots. A pairing is skipped once either side of it is already
+  // on the grid: offering the new tier next to the deep old pool it pairs with is exactly the liquidity
+  // fragmentation the pairing exists to prevent.
+  const canonicalTiers = DEFAULT_FEE_TIER_PAIRS.filter(
+    (pair) =>
+      !claimedFeeAmounts.has(bpsToFeeAmount(pair.oldBps)) && !claimedFeeAmounts.has(bpsToFeeAmount(pair.newBps)),
+  )
+    .slice(0, V4_GRID_SIZE - poolTiers.length)
+    .map((pair) =>
+      toOption({
+        ...canonicalTier({ pair, feeTierData }),
+        title: getFeeTierTitle(bpsToFeeAmount(pair.oldBps)),
+        hook,
+      }),
+    )
+
+  const gridTiers = [
+    ...poolTiers.map((pool) => toOption({ feeData: pool.fee, pool, title: getFeeTierTitle(pool.fee.feeAmount), hook })),
+    ...canonicalTiers,
+  ]
+
+  // A dynamic-fee pool has no numeric tier to rank or pair on, so it's excluded from the grid above — but
+  // it can still be the most-used tier (the pre-selected fee / "Highest TVL" header), so append its
+  // already-built option from defaultFeeTiers. Rendered only when a hook is present (allowDynamicFee).
   const dynamicTier = defaultFeeTiers.find((tier) => isDynamicFeeTier(tier.value))
-  return dynamicTier ? [...canonicalTiers, dynamicTier] : canonicalTiers
+  const gridWithDynamic = dynamicTier ? [...gridTiers, dynamicTier] : gridTiers
+  return repointOptionsToPinnedTickSpacing({ options: gridWithDynamic, feeTierData, selectedFee, hook })
 }
 
 /** A synthesized, not-yet-created FeeTierData row for a new canonical v4 tier (no pool, zero liquidity). */
@@ -249,24 +353,67 @@ function withServedFeeBreakdownData(data: FeeTierData): FeeTierData {
 }
 
 /**
- * The "Select fee tier" search list. Flag off: the tiers as-is. Flag on (v4 create only): the four new
- * default tiers first (their real pool if one exists, else synthesized so they stay selectable), then
+ * Collapse rows a user reads as one fee (same `formattedFee`) but that differ by tick spacing down to the
+ * one worth joining (incentivized, then deepest — {@link byWorthJoining}), so the list never shows two rows
+ * for what reads as one fee — e.g. two dynamic-fee pools on one hook, both "Dynamic fee". The shallower
+ * sibling is intentionally stranded. A deep-linked `selectedFee` wins over TVL, so that direct link still
+ * resolves to — and can select — its pool; first-seen order is preserved and a pinned pool with no row of
+ * its own is appended, not dropped. (`formattedFee` is the pool's own display string, so no new key is needed.)
+ */
+function collapseFeeTierDataByValue({
+  tiers,
+  feeTierData,
+  selectedFee,
+}: {
+  tiers: FeeTierData[]
+  feeTierData: Record<string, FeeTierData>
+  selectedFee?: FeeData
+}): FeeTierData[] {
+  const pinnedPool = pinnedPoolFor(feeTierData, selectedFee)
+
+  const groups = new Map<string, FeeTierData[]>()
+  for (const tier of tiers) {
+    groups.set(tier.formattedFee, [...(groups.get(tier.formattedFee) ?? []), tier])
+  }
+
+  const collapsed = [...groups].map(([formattedFee, group]) => {
+    if (pinnedPool && formattedFee === pinnedPool.formattedFee) {
+      // Prefer the pinned pool's own row; surface it directly if it was filtered out of `tiers` (e.g. 0 TVL).
+      const pinnedRow = group.find((tier) => tier.fee.tickSpacing === pinnedPool.fee.tickSpacing)
+      return pinnedRow ?? withServedFeeBreakdownData(pinnedPool)
+    }
+    return [...group].sort(byWorthJoining)[0]
+  })
+
+  // Deep-linked to a real pool whose fee value has no row at all: show it rather than dropping it.
+  if (pinnedPool && !groups.has(pinnedPool.formattedFee)) {
+    collapsed.push(withServedFeeBreakdownData(pinnedPool))
+  }
+
+  return collapsed
+}
+
+/**
+ * The "Select fee tier" search list. `useNewDefaultFeeTiers` off: the tiers as-is. On (v4 create only):
+ * the four new default tiers first (their real pool if one exists, else synthesized so they stay selectable), then
  * every other tier that actually has liquidity — a pool with TVL, or a dynamic-fee tier. The seeded old
  * default tiers with no TVL are dropped (they're no longer canonical for v4). Unlike
  * {@link getCreateFeeTierOptions} (the curated inline grid), this doesn't swap a tier out for its pairing.
+ * Same-value tiers differing by tick spacing are then collapsed via {@link collapseFeeTierDataByValue}.
  */
 export function getCreateFeeTierSearchData({
   useNewDefaultFeeTiers,
   feeTierData,
   formatPercent,
   hook,
-  useSingleTickSpacing,
+  selectedFee,
 }: {
   useNewDefaultFeeTiers: boolean
   feeTierData: Record<string, FeeTierData>
   formatPercent: (percent: string | number | undefined, maxDecimals?: PercentNumberDecimals) => string
   hook?: string
-  useSingleTickSpacing: boolean
+  /** The URL-backed selected fee; a pinned tick spacing is shown instead of its value's deepest pool. */
+  selectedFee?: FeeData
 }): FeeTierData[] {
   if (!useNewDefaultFeeTiers) {
     return Object.values(feeTierData)
@@ -276,7 +423,7 @@ export function getCreateFeeTierSearchData({
 
   // The four new default tiers always lead — shown from their real pool if one exists, else synthesized.
   const newDefaultTiers = DEFAULT_FEE_TIER_PAIRS.map((pair) => {
-    const feeData = feeDataFromBps(pair.newBps, useSingleTickSpacing)
+    const feeData = feeDataFromBps(pair.newBps)
     const pool = poolAtFee(feeTierData, feeData.feeAmount)
     return pool ? withServedFeeBreakdownData(pool) : makeUncreatedFeeTierData({ feeData, formatPercent, hook })
   })
@@ -290,5 +437,5 @@ export function getCreateFeeTierSearchData({
     )
     .map(withServedFeeBreakdownData)
 
-  return [...newDefaultTiers, ...otherTiers]
+  return collapseFeeTierDataByValue({ tiers: [...newDefaultTiers, ...otherTiers], feeTierData, selectedFee })
 }

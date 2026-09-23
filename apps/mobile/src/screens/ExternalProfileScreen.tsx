@@ -1,4 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
+import { Flex, spacing } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { StyleProp, StyleSheet, ViewStyle } from 'react-native'
@@ -13,8 +15,6 @@ import TraceTabView from 'src/components/Trace/TraceTabView'
 import { ProfileHeader } from 'src/features/externalProfile/ProfileHeader'
 import { ProfilePoolsTab } from 'src/features/externalProfile/ProfilePoolsTab'
 import { ExploreModalAwareView } from 'src/screens/ModalAwareView'
-import { Flex, useSporeColors } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 import { DisplayNameType } from 'uniswap/src/features/accounts/types'
 import { usePoolsTabVisibility } from 'uniswap/src/features/positions/hooks/usePoolsTabVisibility'
 import { SectionName } from 'uniswap/src/features/telemetry/constants'
@@ -86,7 +86,6 @@ export function ExternalProfileScreen({
   const sharedProps = useMemo<TabContentProps>(
     () => ({
       contentContainerStyle: containerStyle,
-      loadingContainerStyle: containerStyle,
       emptyComponentStyle,
     }),
     [containerStyle, emptyComponentStyle],

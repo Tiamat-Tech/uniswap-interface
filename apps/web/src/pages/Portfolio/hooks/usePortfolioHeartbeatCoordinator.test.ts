@@ -1,6 +1,7 @@
 import { renderHook, act } from '@testing-library/react'
 import { useDynamicConfigValue, useFeatureFlag } from '@universe/gating'
 import { PollingInterval } from 'uniswap/src/constants/misc'
+import { WALLET_POSITIONS_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/liquidityService/queryKeys'
 import { SAMPLE_SEED_ADDRESS_1 } from 'uniswap/src/test/fixtures/gql/assets/constants'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { useInterval } from '~/lib/hooks/useInterval'
@@ -147,7 +148,7 @@ describe('usePortfolioHeartbeatCoordinator', () => {
       })
 
       expect(mockRefetchQueries).toHaveBeenCalledWith(
-        expect.objectContaining({ queryKey: [ReactQueryCacheKey.ListPositions] }),
+        expect.objectContaining({ queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX }),
       )
       expect(mockRefetchQueries).toHaveBeenCalledTimes(6)
     })
@@ -188,7 +189,7 @@ describe('usePortfolioHeartbeatCoordinator', () => {
         expect.objectContaining({ queryKey: [ReactQueryCacheKey.GetWalletBalances] }),
       )
       expect(mockRefetchQueries).toHaveBeenCalledWith(
-        expect.objectContaining({ queryKey: [ReactQueryCacheKey.ListPositions] }),
+        expect.objectContaining({ queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX }),
       )
       expect(mockRefetchQueries).toHaveBeenCalledTimes(2)
     })

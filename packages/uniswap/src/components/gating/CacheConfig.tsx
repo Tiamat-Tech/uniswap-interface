@@ -1,6 +1,7 @@
 import { useApolloClient } from '@apollo/client'
 import { useQueryClient } from '@tanstack/react-query'
-import { Accordion, Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
+import { Accordion } from '@universe/mycelium'
 import { GatingButton } from 'uniswap/src/components/gating/GatingButton'
 import { AccordionHeader } from 'uniswap/src/components/gating/GatingOverrides'
 

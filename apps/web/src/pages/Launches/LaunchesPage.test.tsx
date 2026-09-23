@@ -1,7 +1,7 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
-import { LaunchesOrderBy, type Launch, type Launchpad } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import { LaunchesOrderBy, type Launch, type Launchpad } from '@uniswap/client-launches/dist/launches/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { logger } from 'utilities/src/logger/logger'
 import type { Mock } from 'vitest'
@@ -53,6 +53,9 @@ function createLaunch({
   volume24hUsd,
   fdvUsd,
   chainId = UniverseChainId.Base,
+  // Defaults to a symbol-derived address; pass it explicitly when a case needs many launches to stay
+  // distinct, since `LaunchItem.id` is built from the address and same-length symbols would collide.
+  address = `0x000000000000000000000000000000000000000${symbol.length}`,
 }: {
   launchpadId: string
   name: string
@@ -60,12 +63,13 @@ function createLaunch({
   volume24hUsd?: number
   fdvUsd?: number
   chainId?: UniverseChainId
+  address?: string
 }): PlainMessage<Launch> {
   return {
     launchpadId,
     token: {
       chainId,
-      address: `0x000000000000000000000000000000000000000${symbol.length}`,
+      address,
       symbol,
       name,
       logoUrl: undefined,
@@ -83,6 +87,8 @@ function createLaunch({
       priceChangePercent24h: undefined,
       sparkline: [],
     },
+    recentTrades: [],
+    badges: [],
   }
 }
 
@@ -355,13 +361,24 @@ describe('LaunchesPage', () => {
       mockUseLaunches.mockReturnValue(mockLaunchesResult())
     })
 
-    function mockPromoFlags({ banner, teaser }: { banner: boolean; teaser: boolean }): void {
+    function mockPromoFlags({
+      banner,
+      teaser,
+      arc = false,
+    }: {
+      banner: boolean
+      teaser: boolean
+      arc?: boolean
+    }): void {
       mocked(useFeatureFlag).mockImplementation((flag) => {
         if (flag === FeatureFlags.EnablePoolsXyzBanner) {
           return banner
         }
         if (flag === FeatureFlags.EnablePoolsXyzTeaser) {
           return teaser
+        }
+        if (flag === FeatureFlags.Arc) {
+          return arc
         }
         return false
       })
@@ -389,7 +406,20 @@ describe('LaunchesPage', () => {
       expect(findHeroCall()?.launchpadId).toBeUndefined()
     })
 
-    it('scopes the hero marquee to Pools Robinhood Chain rows even when the feed leaks others', () => {
+    it('widens the hero feed to Arc alongside Robinhood when the Arc flag is on', () => {
+      mockPromoFlags({ banner: true, teaser: false, arc: true })
+
+      renderLaunchesPage()
+
+      expect(findHeroCall()).toMatchObject({
+        launchpadIds: ['pools'],
+        chainIds: [UniverseChainId.Robinhood, UniverseChainId.Arc],
+        sortBy: LaunchesOrderBy.TRENDING,
+        pageSize: 100,
+      })
+    })
+
+    it('admits both Pools launch mechanisms into the hero marquee, and no other launchpad', () => {
       mockPromoFlags({ banner: true, teaser: false })
       const crowd = createLaunch({
         launchpadId: 'uniswap-cca',
@@ -398,25 +428,24 @@ describe('LaunchesPage', () => {
         chainId: UniverseChainId.Robinhood,
       })
       // Instant launches ride the same `pools` group and belong in the marquee too — scoping the
-      // hero to CCA alone is what starved it.
+      // hero to CCA alone is what this feed's params moved away from.
       const instant = createLaunch({
         launchpadId: 'uniswap-bonding-curve',
         name: 'Curve Token',
         symbol: 'CURVEY',
         chainId: UniverseChainId.Robinhood,
       })
-      // A launchpad outside the Uniswap brand on the right chain (a feed that ignored the
-      // launchpad_ids param) and a Pools row on the wrong chain — neither belongs in the hero.
+      // A launchpad outside the Uniswap brand: what a data-api that doesn't recognise the `pools`
+      // group id would serve. It must not reach a Uniswap-branded marquee.
       const leaked = createLaunch({
         launchpadId: 'flaunch',
         name: 'Leak Token',
         symbol: 'LEAK',
         chainId: UniverseChainId.Robinhood,
       })
-      const offChain = createLaunch({ launchpadId: 'uniswap-cca', name: 'Base Token', symbol: 'BSE' })
       mockUseLaunches.mockImplementation((params?: { launchpadIds?: string[] }) =>
         params?.launchpadIds?.includes('pools')
-          ? mockLaunchesResult({ launches: [crowd, instant, leaked, offChain] })
+          ? mockLaunchesResult({ launches: [crowd, instant, leaked] })
           : mockLaunchesResult(),
       )
 
@@ -427,7 +456,172 @@ describe('LaunchesPage', () => {
       expect(within(hero).getAllByText('Quick Token')).toHaveLength(2)
       expect(within(hero).getAllByText('Curve Token')).toHaveLength(2)
       expect(within(hero).queryByText('Leak Token')).not.toBeInTheDocument()
-      expect(within(hero).queryByText('Base Token')).not.toBeInTheDocument()
+    })
+
+    /** `count` Robinhood-chain Pools launches, each distinct so none is de-duplicated away. */
+    function createHeroFeed(count: number): PlainMessage<Launch>[] {
+      return Array.from({ length: count }, (_, index) =>
+        createLaunch({
+          launchpadId: 'uniswap-cca',
+          name: `Hero Token ${index}`,
+          symbol: `HERO${index}`,
+          chainId: UniverseChainId.Robinhood,
+          address: `0x${String(index).padStart(40, '0')}`,
+        }),
+      )
+    }
+
+    function mockHeroFeed(launches: PlainMessage<Launch>[]): void {
+      mockUseLaunches.mockImplementation((params?: { launchpadIds?: string[] }) =>
+        params?.launchpadIds?.includes('pools') ? mockLaunchesResult({ launches }) : mockLaunchesResult(),
+      )
+    }
+
+    it('links each pill to its token page on Pools and the rest of the card to pools.xyz', () => {
+      mockPromoFlags({ banner: true, teaser: false })
+      mockHeroFeed([
+        createLaunch({
+          launchpadId: 'uniswap-cca',
+          name: 'Quick Token',
+          symbol: 'QUICK',
+          chainId: UniverseChainId.Robinhood,
+          address: '0x00000000000000000000000000000000000000aa',
+        }),
+      ])
+
+      renderLaunchesPage()
+
+      const hero = screen.getByTestId(TestID.LaunchesHero)
+      // The stretched card link comes first in the tab order, before any pill.
+      const [cardLink, pill] = within(hero).getAllByRole('link')
+      expect(cardLink).toHaveAttribute('href', 'https://pools.xyz')
+      expect(pill).toHaveTextContent('Quick Token')
+      expect(pill).toHaveAttribute('href', 'https://pools.xyz/t/robinhood/0x00000000000000000000000000000000000000aa')
+      expect(pill).toHaveAttribute('target', '_blank')
+      expect(pill).toHaveAttribute('rel', 'noopener noreferrer')
+    })
+
+    it('keeps the arrow button decorative: hidden from assistive tech and out of the tab order', () => {
+      mockPromoFlags({ banner: true, teaser: false })
+
+      renderLaunchesPage()
+
+      // The stretched card link already carries the name and the tab stop; a second control would
+      // read as a duplicate link to pools.xyz.
+      const hero = screen.getByTestId(TestID.LaunchesHero)
+      const arrow = hero.querySelector('button')
+      expect(arrow).toHaveAttribute('aria-hidden', 'true')
+      expect(arrow).toHaveAttribute('tabindex', '-1')
+      expect(within(hero).queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('hides the loop clones from assistive tech and the tab order', () => {
+      mockPromoFlags({ banner: true, teaser: false })
+      mockHeroFeed(createHeroFeed(3))
+
+      renderLaunchesPage()
+
+      const hero = screen.getByTestId(TestID.LaunchesHero)
+      // Six pills render (two copies of three), but only the first copy is exposed as links.
+      expect(within(hero).getAllByText(/^Hero Token \d+$/)).toHaveLength(6)
+      expect(within(hero).getAllByRole('link', { name: /Hero Token/ })).toHaveLength(3)
+      const clones = hero.querySelectorAll('[aria-hidden="true"] a')
+      expect(clones).toHaveLength(3)
+      clones.forEach((clone) => expect(clone).toHaveAttribute('tabindex', '-1'))
+    })
+
+    it('caps the marquee strip at 20 pills however many launches the feed serves', () => {
+      mockPromoFlags({ banner: true, teaser: false })
+      // Well past the cap, and past what the request's page size would let through unclamped.
+      mockHeroFeed(createHeroFeed(60))
+
+      renderLaunchesPage()
+
+      const hero = screen.getByTestId(TestID.LaunchesHero)
+      // Each pill in the capped strip renders twice — the strip is doubled for the seamless loop —
+      // so 20 distinct pills is 40 elements, and the cap holds the first 20 the feed ordered.
+      expect(within(hero).getAllByText(/^Hero Token \d+$/)).toHaveLength(40)
+      expect(within(hero).getAllByText('Hero Token 19')).toHaveLength(2)
+      expect(within(hero).queryByText('Hero Token 20')).not.toBeInTheDocument()
+    })
+
+    it('derives the marquee duration from the measured strip at 53 px/s', () => {
+      mockPromoFlags({ banner: true, teaser: false })
+      mockHeroFeed(createHeroFeed(3))
+      // jsdom lays nothing out, so stand in for the doubled strip's rendered width.
+      const offsetWidth = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(2120)
+
+      try {
+        renderLaunchesPage()
+
+        // One copy of the strip is half the measured 2120px; 1060px / 53 px/s. Literal on purpose.
+        const hero = screen.getByTestId(TestID.LaunchesHero)
+        const strip = hero.querySelector('.launches-quick-strip')
+        // Inline attribute rather than toHaveStyle: jsdom's computed style doesn't carry animation props.
+        expect(strip).toHaveAttribute('style', 'animation-duration: 20s;')
+      } finally {
+        offsetWidth.mockRestore()
+      }
+    })
+
+    it('hides the loop clone of the strip from assistive tech', () => {
+      mockPromoFlags({ banner: true, teaser: false })
+      mockHeroFeed(createHeroFeed(3))
+
+      renderLaunchesPage()
+
+      // Six pills render (two copies of three); the second copy is presentation only.
+      const hero = screen.getByTestId(TestID.LaunchesHero)
+      expect(within(hero).getAllByText(/^Hero Token \d+$/)).toHaveLength(6)
+      const clone = hero.querySelector('.launches-quick-marquee [aria-hidden="true"]')
+      expect(clone).toHaveTextContent('Hero Token 0')
+      expect(within(clone as HTMLElement).getAllByText(/^Hero Token \d+$/)).toHaveLength(3)
+    })
+
+    it('renders every pill when the feed is shorter than the cap', () => {
+      mockPromoFlags({ banner: true, teaser: false })
+      mockHeroFeed(createHeroFeed(3))
+
+      renderLaunchesPage()
+
+      // A short feed must not be trimmed — the cap is an upper bound, not a fixed strip length.
+      const hero = screen.getByTestId(TestID.LaunchesHero)
+      expect(within(hero).getAllByText(/^Hero Token \d+$/)).toHaveLength(6)
+      expect(within(hero).getAllByText('Hero Token 0')).toHaveLength(2)
+      expect(within(hero).getAllByText('Hero Token 2')).toHaveLength(2)
+    })
+
+    it('pairs Arc with Robinhood in the lockup and the copy when the Arc flag is on', () => {
+      mockPromoFlags({ banner: true, teaser: false, arc: true })
+
+      renderLaunchesPage()
+
+      const hero = screen.getByTestId(TestID.LaunchesHero)
+      expect(within(hero).getByText(/Trade new Arc and Robinhood Chain tokens on/)).toBeInTheDocument()
+      // Two tiles, Arc layered bottom-right; the mask is what knocks the 1.5px halo out of the
+      // Robinhood tile, so its cut-out is Arc's 28px rect inflated by 1.5px on every side.
+      const lockup = within(hero).getByTestId(TestID.LaunchesHeroNetworkLockup)
+      expect(lockup.querySelectorAll('rect[width="28"]')).toHaveLength(2)
+      const halo = lockup.querySelector('mask rect[fill="black"]')
+      expect(halo).toHaveAttribute('x', '16.5')
+      expect(halo).toHaveAttribute('y', '16.5')
+      expect(halo).toHaveAttribute('width', '31')
+      expect(halo).toHaveAttribute('rx', '8.5')
+      expect(lockup.querySelector('g[mask]')).toHaveAttribute('mask', `url(#${lockup.querySelector('mask')?.id})`)
+    })
+
+    it('keeps a single Robinhood tile and Robinhood-only copy while the Arc flag is off', () => {
+      mockPromoFlags({ banner: true, teaser: false, arc: false })
+
+      renderLaunchesPage()
+
+      const hero = screen.getByTestId(TestID.LaunchesHero)
+      expect(within(hero).getByText(/Trade new Robinhood Chain tokens on/)).toBeInTheDocument()
+      expect(within(hero).queryByText(/Arc/)).not.toBeInTheDocument()
+      const lockup = within(hero).getByTestId(TestID.LaunchesHeroNetworkLockup)
+      expect(lockup.querySelectorAll('rect')).toHaveLength(1)
+      expect(lockup.querySelector('rect')).toHaveAttribute('width', '48')
+      expect(lockup.querySelector('mask')).toBeNull()
     })
 
     it('renders the hero when the banner flag is on', () => {

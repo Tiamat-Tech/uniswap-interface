@@ -1,4 +1,4 @@
-import { ISeriesApi, UTCTimestamp } from 'lightweight-charts'
+import { AreaSeries, ISeriesApi, UTCTimestamp } from 'lightweight-charts'
 import { NumberType } from 'utilities/src/format/types'
 import { ChartHoverData, ChartModel, ChartModelParams } from '~/components/Charts/ChartModel'
 import {
@@ -116,9 +116,9 @@ export class DepthChartModel extends ChartModel<DepthPoint> {
     this.leftOverlayEl = makeOverlay(chartDiv)
     this.rightOverlayEl = makeOverlay(chartDiv)
 
-    this.series = this.api.addAreaSeries()
-    this.sellSeries = this.api.addAreaSeries()
-    this.buySeries = this.api.addAreaSeries()
+    this.series = this.api.addSeries(AreaSeries)
+    this.sellSeries = this.api.addSeries(AreaSeries)
+    this.buySeries = this.api.addSeries(AreaSeries)
     this.totalPoints = combined.length
     this.sellCount = params.sellData.length
     this.gapTime = gapTime

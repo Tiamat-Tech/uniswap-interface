@@ -1,5 +1,6 @@
 import { useIsFocused } from '@react-navigation/native'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { getIsNotificationServiceLocalOverrideEnabled } from '@universe/notifications'
 import React, { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +11,6 @@ import { PortfolioOverview } from 'src/components/home/PortfolioChart/PortfolioO
 import { MobileNotificationServiceManager } from 'src/notification-service/MobileNotificationServiceManager'
 import { HomeScreenQuickActions } from 'src/screens/HomeScreen/HomeScreenQuickActions'
 import { useHomeScreenState } from 'src/screens/HomeScreen/useHomeScreenState'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { AccountType } from 'uniswap/src/features/accounts/types'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { usePortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/balancesRest'
@@ -27,7 +27,15 @@ interface HomeScreenPortfolioHeaderState {
   outageModal: JSX.Element
 }
 
-export function useHomeScreenPortfolioHeader(): HomeScreenPortfolioHeaderState {
+interface HomeScreenPortfolioHeaderProps {
+  earnCardExpansionRequestId?: number
+  onEarnCardExpansionRequestHandled?: (requestId: number) => void
+}
+
+export function useHomeScreenPortfolioHeader({
+  earnCardExpansionRequestId,
+  onEarnCardExpansionRequestHandled,
+}: HomeScreenPortfolioHeaderProps): HomeScreenPortfolioHeaderState {
   const activeAccount = useActiveAccountWithThrow()
   const { t } = useTranslation()
   const { chains } = useEnabledChains()
@@ -102,10 +110,12 @@ export function useHomeScreenPortfolioHeader(): HomeScreenPortfolioHeaderState {
         {promoBanner}
         <HomeScreenEarningSection
           evmAddress={activeAccount.address}
+          earnCardExpansionRequestId={earnCardExpansionRequestId}
           isRevealReady={isEarnRevealReady}
           mb={hasIntroCards ? '$spacing8' : undefined}
           mt="$spacing16"
           mx="$spacing20"
+          onEarnCardExpansionRequestHandled={onEarnCardExpansionRequestHandled}
         />
       </Flex>
     ),
@@ -114,6 +124,8 @@ export function useHomeScreenPortfolioHeader(): HomeScreenPortfolioHeaderState {
       showEmptyWalletState,
       chains,
       activeAccount.address,
+      earnCardExpansionRequestId,
+      onEarnCardExpansionRequestHandled,
       isEarnRevealReady,
       portfolioError,
       handleOutageBannerPress,

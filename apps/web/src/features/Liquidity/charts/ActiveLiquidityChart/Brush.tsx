@@ -1,7 +1,7 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { BrushBehavior, brushY, D3BrushEvent, ScaleLinear, select } from 'd3'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSporeColors } from 'ui/src'
 import {
   brushHandleAccentPath,
   brushHandlePath,

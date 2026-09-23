@@ -1,12 +1,15 @@
-import { useCallback, useEffect } from 'react'
+import { Platform } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { TokenDetailsEarnSection as SharedTokenDetailsEarnSection } from 'uniswap/src/components/tokenDetails/TokenDetailsEarnSection'
 import { EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
+import { useEarnLifetimeEarningsUsd } from 'uniswap/src/features/earn/hooks/useEarnLifetimeEarningsUsd'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { EARN_VAULT_MODAL_QUERY_PARAM, EARN_VAULT_MODAL_QUERY_VALUE } from 'uniswap/src/utils/linking'
+import { useActiveAddress } from '~/features/accounts/store/hooks'
 import { EarnVaultModal } from '~/features/earn/EarnVaultModal'
 import { useEarnVaultConnectFlow } from '~/features/earn/hooks/useEarnVaultConnectFlow'
 import { useEarnVaultModalState } from '~/features/earn/hooks/useEarnVaultModalState'
@@ -45,6 +48,21 @@ export function TokenDetailsEarnSection({ earnData }: TokenDetailsEarnSectionPro
 
   const { earnPosition, earnVault, refetch, showEarnError, userHasEarnPosition } = earnData
 
+  // ListEarnPositions has no lifetime PnL, so fetch it per-vault (same pattern as the Portfolio section).
+  const evmAccountAddress = useActiveAddress(Platform.EVM)
+  const lifetimeEarningsVaults = useMemo(
+    () => (earnVault && userHasEarnPosition ? [earnVault] : []),
+    [earnVault, userHasEarnPosition],
+  )
+  const {
+    lifetimeEarningsUsd,
+    isLoading: isLoadingLifetimeEarnings,
+    isError: lifetimeEarningsError,
+  } = useEarnLifetimeEarningsUsd({
+    walletAddress: evmAccountAddress,
+    vaults: lifetimeEarningsVaults,
+  })
+
   // Auto-open the modal when deep-linked via ?modal=earn-vault (e.g., from the extension's
   // earn positions list). Waits for `earnVault` to load before opening, then strips the param
   // so refresh/back-nav doesn't re-trigger.
@@ -74,6 +92,8 @@ export function TokenDetailsEarnSection({ earnData }: TokenDetailsEarnSectionPro
         <SharedTokenDetailsEarnSection
           earnVault={earnVault}
           earnPosition={earnPosition}
+          lifetimeEarningsUsd={isLoadingLifetimeEarnings ? undefined : lifetimeEarningsUsd}
+          lifetimeEarningsError={lifetimeEarningsError}
           onPositionPress={(vault) => openModal(vault, { analyticsEntryPoint: EarnEntryPoint.TokenDetailsEarnSection })}
           onWithdrawPress={(vault) =>
             openWithdrawModal(vault, { analyticsEntryPoint: EarnEntryPoint.TokenDetailsEarnSection })

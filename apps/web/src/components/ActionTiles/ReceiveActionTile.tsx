@@ -1,6 +1,6 @@
+import type { FlexCompatProps as FlexProps } from '@universe/mycelium'
+import { ArrowDownCircleFilled } from '@universe/mycelium/icons/ArrowDownCircleFilled'
 import { useTranslation } from 'react-i18next'
-import { FlexProps } from 'ui/src'
-import { ArrowDownCircleFilled } from 'ui/src/components/icons/ArrowDownCircleFilled'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'

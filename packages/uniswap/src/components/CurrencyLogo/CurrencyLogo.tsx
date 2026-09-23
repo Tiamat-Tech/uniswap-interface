@@ -1,4 +1,4 @@
-import { iconSizes } from 'ui/src/theme'
+import { iconSizes } from '@universe/mycelium'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 

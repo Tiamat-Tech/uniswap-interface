@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { getUniquePositionId, parsePositionId } from 'uniswap/src/features/visibility/utils'
 
 describe(parsePositionId, () => {

@@ -9,7 +9,6 @@ import {
   SharedQueryClient,
 } from '@universe/api'
 import { isDevEnv, REQUEST_SOURCE } from '@universe/environment'
-import { getIsSessionServiceEnabled } from '@universe/gating'
 import {
   createApiNotificationTracker,
   createBaseNotificationProcessor,
@@ -31,14 +30,13 @@ import { createMobileNotificationRenderer } from 'src/notification-service/notif
 import { mobileNotificationStore } from 'src/notification-service/notification-renderer/notificationStore'
 import { getNotificationTelemetry } from 'src/notification-service/notification-telemetry/getNotificationTelemetry'
 import { createMobileLocalTriggerDataSource } from 'src/notification-service/triggers/createMobileLocalTriggerDataSource'
-import { getPortfolioQuery } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolio'
 import { mapLocaleToBackendLocale } from 'uniswap/src/features/language/constants'
 import { getLocale } from 'uniswap/src/features/language/navigatorLocale'
 import { selectCurrentLanguage } from 'uniswap/src/features/settings/selectors'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { type QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
 import { ONE_MINUTE_MS, ONE_SECOND_MS } from 'utilities/src/time/time'
-import { selectActiveAccountAddress } from 'wallet/src/features/wallet/selectors'
+import { getBackupReminderPortfolioValue } from 'wallet/src/features/behaviorHistory/getBackupReminderPortfolioValue'
 
 /**
  * Creates the notification service with all necessary dependencies
@@ -63,8 +61,7 @@ function provideMobileNotificationService(ctx: { getIsApiDataSourceEnabled: () =
         'x-app-version': semver,
       }
     },
-    getSessionService: () =>
-      provideSessionService({ getBaseUrl: () => getEntryGatewayUrl(), getIsSessionServiceEnabled }),
+    getSessionService: () => provideSessionService({ getBaseUrl: () => getEntryGatewayUrl() }),
   })
 
   const apiClient = createNotificationsApiClient({
@@ -118,22 +115,12 @@ function provideMobileNotificationService(ctx: { getIsApiDataSourceEnabled: () =
    * Used by local triggers that need to check portfolio-based conditions.
    */
   const getPortfolioValue = async (): Promise<number> => {
-    const state = store.getState()
-    const evmAddress = selectActiveAccountAddress(state)
-
-    if (!evmAddress) {
-      return 0
-    }
-
-    const queryOpts = getPortfolioQuery({ input: { evmAddress } })
-    const portfolioData = await SharedQueryClient.fetchQuery(queryOpts)
-    return portfolioData?.portfolio?.totalValueUsd ?? 0
+    return getBackupReminderPortfolioValue(store.getState())
   }
 
   const localTriggersDataSource = createMobileLocalTriggerDataSource({
     // oxlint-disable-next-line typescript/no-unsafe-return
     getState: (): MobileState => store.getState(),
-    dispatch: store.dispatch,
     tracker,
     getPortfolioValue,
     pollIntervalMs: 5000,

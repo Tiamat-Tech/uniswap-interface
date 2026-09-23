@@ -1,4 +1,4 @@
-import { ColorTokens } from 'ui/src'
+import { ColorTokens } from '@universe/mycelium'
 import { ProgressBar } from '~/features/Toucan/Shared/ProgressBar'
 
 interface AuctionProgressBarProps {

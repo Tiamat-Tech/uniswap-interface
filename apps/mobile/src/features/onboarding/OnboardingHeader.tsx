@@ -1,7 +1,6 @@
 import { useNavigation } from '@react-navigation/native'
-import { Flex, TouchableArea } from 'ui/src'
+import { Flex, spacing, TouchableArea } from '@universe/mycelium'
 import { RotatableChevron } from 'ui/src/components/icons'
-import { spacing } from 'ui/src/theme'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 

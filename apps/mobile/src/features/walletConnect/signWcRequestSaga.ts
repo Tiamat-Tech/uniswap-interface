@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { buildAuthObject, getSdkError } from '@walletconnect/utils'
 import { providers } from 'ethers'
 import { wcWeb3Wallet } from 'src/features/walletConnect/walletConnectClient'
@@ -12,8 +13,8 @@ import {
 import { call, put } from 'typed-redux-saga'
 import { AssetType } from 'uniswap/src/entities/assets'
 import { SignerMnemonicAccountMeta } from 'uniswap/src/features/accounts/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EthMethod, EthSignMethod } from 'uniswap/src/features/dappRequests/types'
+import { isSignTypedDataMethod } from 'uniswap/src/features/dappRequests/utils'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import {
@@ -76,12 +77,12 @@ function* signWcRequest(params: SignMessageParams | SignTransactionParams) {
         signerManager,
         signAsString: method === EthMethod.PersonalSign,
       })
-    } else if (method === EthMethod.SignTypedData || method === EthMethod.SignTypedDataV4) {
+    } else if ('message' in params && isSignTypedDataMethod(params.method)) {
       result = yield* call(signTypedDataMessage, {
         message: params.message,
-        account,
+        account: params.account,
         signerManager,
-        expectedChainId: chainId,
+        expectedChainId: params.chainId,
       })
     } else if (method === EthMethod.EthSendTransaction && params.request.type === UwULinkMethod.Erc20Send) {
       // The session chain, not params.transaction.chainId. Deriving the expected chain from the
@@ -127,7 +128,6 @@ function* signWcRequest(params: SignMessageParams | SignTransactionParams) {
           chainId: txParams.chainId,
         }),
       )
-      // oxlint-disable-next-line typescript/no-unnecessary-condition
     } else if (method === EthMethod.WalletSendCalls && isUserOpRequest(params.request)) {
       // 4337 UserOp path — gas-sponsored dapp request
       const typeInfo: TransactionTypeInfo = {
@@ -177,7 +177,6 @@ function* signWcRequest(params: SignMessageParams | SignTransactionParams) {
           chainId: params.request.chainId,
         }),
       )
-      // oxlint-disable-next-line typescript/no-unnecessary-condition
     } else if (method === EthMethod.WalletSendCalls && isBatchedTransactionRequest(params.request)) {
       // 7702 encoded transaction path
       const txParams: ExecuteTransactionParams = {

@@ -28,7 +28,7 @@ export function ExtensionStatsigProvider({
   const user = useMemo<StatsigUser | null>(() => (uniqueId ? makeStatsigUser(uniqueId) : null), [uniqueId])
 
   const onStatsigInit = useEvent((): void => {
-    initializeDatadog(appName).catch(() => undefined)
+    initializeDatadog({ appName }).catch(() => undefined)
   })
 
   // We don't want to initialize Statsig until the user ID is ready, as it messes up experiment exposure data.

@@ -6,8 +6,7 @@
  * - `LBPStrategy.migrate(auction)` — permissionless success-path migration, allowed once
  *   `lbpMigrationBlock` is reached, one-shot (`lbpMigrationTxHash` set afterwards).
  */
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
+import { Platform, areAddressesEqual } from '@universe/chains'
 
 /**
  * Whether the connected wallet is the auction's tokensRecipient — the only address allowed to

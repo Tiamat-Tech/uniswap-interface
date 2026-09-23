@@ -1,6 +1,7 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { ExploreStatsResponse, PoolStats } from '@uniswap/client-explore/dist/uniswap/explore/v1/service_pb'
-import { ALL_NETWORKS_ARG, type GqlResult } from '@universe/api'
+import { ALL_NETWORKS_ARG } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { GatedFeature, useIsFeatureGated } from '@universe/compliance'
 import { isMobileApp, isWebApp, isWebPlatform } from '@universe/environment'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
@@ -10,7 +11,8 @@ import { TrendUp } from 'ui/src/components/icons/TrendUp'
 import { usePoolStatsToPoolOptions } from 'uniswap/src/components/lists/items/pools/usePoolStatsToPoolOptions'
 import type { SearchModalOption } from 'uniswap/src/components/lists/items/types'
 import { useFavoriteWalletOptions } from 'uniswap/src/components/lists/items/wallets/useFavoriteWalletOptions'
-import { OnchainItemSection, OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
+import type { OnchainItemSection } from 'uniswap/src/components/lists/OnchainItemList/types'
+import { OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { useOnchainItemListSection } from 'uniswap/src/components/lists/utils'
 import { NewTag } from 'uniswap/src/components/pill/NewTag'
 import { useCurrencyInfosToTokenOptions } from 'uniswap/src/components/TokenSelector/hooks/useCurrencyInfosToTokenOptions'
@@ -19,45 +21,113 @@ import { useTrendingTokensCurrencyInfos } from 'uniswap/src/components/TokenSele
 import { useExploreStatsQuery } from 'uniswap/src/data/apiClients/dataApiService/exploreV1/exploreStats'
 import { useListRankedRwasQuery } from 'uniswap/src/data/apiClients/dataApiService/rwa/listRankedRwas'
 import { mapRankedRwaList } from 'uniswap/src/data/apiClients/dataApiService/rwa/mapRankedRwa'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useTopAuctionOptions } from 'uniswap/src/features/dataApi/searchAuctions'
-import type { MultichainSearchResult } from 'uniswap/src/features/dataApi/types'
-import { ClearRecentSearchesButton } from 'uniswap/src/features/search/ClearRecentSearchesButton'
 import {
   NUMBER_OF_RESULTS_LONG,
   NUMBER_OF_RESULTS_MEDIUM,
   NUMBER_OF_RESULTS_SHORT,
+  NUMBER_OF_SPOTLIT_CATEGORY_TOKENS_ALL_TAB,
+  NUMBER_OF_SPOTLIT_CATEGORY_TOKENS_TOKENS_TAB,
 } from 'uniswap/src/features/search/SearchModal/constants'
-import { useMultichainTrendingTokenRankings } from 'uniswap/src/features/search/SearchModal/hooks/useMultichainTrendingTokenRankings'
-import { useRecentlySearchedOptions } from 'uniswap/src/features/search/SearchModal/hooks/useRecentlySearchedOptions'
+import { useRecentSearchSection } from 'uniswap/src/features/search/SearchModal/hooks/useRecentSearchSection'
 import { useSearchMultichainListTokens } from 'uniswap/src/features/search/SearchModal/hooks/useSearchMultichainListTokens'
-import { optionChainAddresses } from 'uniswap/src/features/search/SearchModal/stocks/applyRwaGrouping'
+import type { SearchModalSectionResult } from 'uniswap/src/features/search/SearchModal/hooks/useSectionsForSearchResultsUtils'
+import {
+  useSpotlitCategorySections,
+  type SpotlitCategorySectionsResult,
+} from 'uniswap/src/features/search/SearchModal/hooks/useSpotlitCategorySections'
 import { buildNoQueryRwaCollectionOptions } from 'uniswap/src/features/search/SearchModal/stocks/noQueryStocks'
-import { findRwaForToken } from 'uniswap/src/features/search/SearchModal/stocks/rwaSearchGrouping'
-import { tagOptionAsRwa } from 'uniswap/src/features/search/SearchModal/stocks/tagOptionAsRwa'
-import { useRwaSearchIndex } from 'uniswap/src/features/search/SearchModal/stocks/useRwaSearchIndex'
 import { SearchTab } from 'uniswap/src/features/search/SearchModal/types'
+import { noop } from 'utilities/src/react/noop'
+import { holdQueryResult } from 'utilities/src/reactQuery/holdQueryResult'
+import type { DerivedQueryResult } from 'utilities/src/reactQuery/types'
 
 // Stable element identity so the stocks section memo (and the sibling memoizedNewTag) isn't busted every render.
 const STOCKS_SECTION_ICON = <TrendUp color="$neutral2" size="$icon.16" />
 
+export interface NoQuerySearchSections extends SearchModalSectionResult {
+  skeletonPillCount: number
+}
+
+type NoQueryTabResult = SearchModalSectionResult & { isInitialLoading: boolean }
+
+type TokenShelfState = Omit<SearchModalSectionResult, 'data'> & {
+  isInitialLoading: boolean
+  sections: OnchainItemSection<SearchModalOption>[] | undefined
+}
+
+/** Spotlit categories when enabled, else the legacy Trending/Stocks pair (`sections` undefined). */
+function selectTokenShelfState({
+  spotlit,
+  legacy,
+}: {
+  spotlit: SpotlitCategorySectionsResult
+  legacy: Omit<TokenShelfState, 'sections'>
+}): TokenShelfState {
+  return spotlit.enabled
+    ? {
+        sections: spotlit.sections,
+        isLoading: spotlit.isLoading,
+        isInitialLoading: spotlit.isInitialLoading,
+        error: null,
+        refetch: spotlit.refetch,
+      }
+    : { ...legacy, sections: undefined }
+}
+
+/** Both paths fall back to an empty list, so `data` is always present. */
+type TrendingTokenResults = Omit<DerivedQueryResult<SearchModalOption[]>, 'data'> & {
+  data: SearchModalOption[]
+  /** First load only, unlike `isLoading`, which also covers background refetches. */
+  isInitialLoading: boolean
+}
+
 /**
- * Trending multichain tokens for the search modal's no-query state. Uses v2 ListTokens
- * (useSearchMultichainListTokens) when FeatureFlags.V2EndpointsTokens is on, else falls back to
- * the TokenRankings-based useMultichainTrendingTokenRankings.
+ * Trending token options for the no-query state, collapsing the flat (single-chain) and multichain
+ * paths into one query-like result. Only the path selected by `isMultichainPath` is fetched.
  */
-function useMultichainTokenResults({
+function useTrendingTokenResults({
+  chainFilter,
+  isMultichainPath,
   pageSize,
   skip,
-  isV2TokensEnabled,
 }: {
+  chainFilter: UniverseChainId | null
+  isMultichainPath: boolean
   pageSize: number
   skip: boolean
-  isV2TokensEnabled: boolean
-}): GqlResult<MultichainSearchResult[]> {
-  const tokenRankings = useMultichainTrendingTokenRankings({ pageSize, skip: skip || isV2TokensEnabled })
-  const listTokens = useSearchMultichainListTokens({ pageSize, skip: skip || !isV2TokensEnabled })
-  return isV2TokensEnabled ? listTokens : tokenRankings
+}): TrendingTokenResults {
+  const {
+    data: tokens,
+    error: flatTokensError,
+    refetch: refetchFlatTokens,
+    isLoading: flatTokensInitialLoading,
+    isFetching: flatTokensFetching,
+  } = useTrendingTokensCurrencyInfos(chainFilter, { skip: skip || isMultichainPath })
+
+  const {
+    data: multichainResults,
+    error: multichainTokensError,
+    refetch: refetchMultichainTokens,
+    isLoading: multichainTokensInitialLoading,
+    isFetching: multichainTokensFetching,
+  } = useSearchMultichainListTokens({ pageSize, skip: skip || !isMultichainPath })
+
+  const flatTokenOptions = useCurrencyInfosToTokenOptions({ currencyInfos: tokens })
+  const multichainTokenOptions = useMultichainSearchResultsToOptions({ results: multichainResults })
+
+  // Background refetches count as loading on both paths so the retry button shows a spinner after an error:
+  // once a query has errored it is no longer pending, so `isLoading` stays false for the duration of the retry.
+  const flatTokensLoading = flatTokensInitialLoading || flatTokensFetching
+  const multichainTokensLoading = multichainTokensInitialLoading || multichainTokensFetching
+
+  return {
+    data: isMultichainPath ? (multichainTokenOptions ?? []) : (flatTokenOptions ?? []),
+    error: isMultichainPath ? multichainTokensError : flatTokensError,
+    isLoading: isMultichainPath ? multichainTokensLoading : flatTokensLoading,
+    isInitialLoading: isMultichainPath ? multichainTokensInitialLoading : flatTokensInitialLoading,
+    refetch: isMultichainPath ? refetchMultichainTokens : refetchFlatTokens,
+  }
 }
 
 export function useSectionsForNoQuerySearch({
@@ -68,43 +138,27 @@ export function useSectionsForNoQuerySearch({
   chainFilter: UniverseChainId | null
   activeTab: SearchTab
   auctionSearchEnabled?: boolean
-}): GqlResult<OnchainItemSection<SearchModalOption>[]> {
+}): NoQuerySearchSections {
   const { t } = useTranslation()
-  const rwaEnabled = useFeatureFlag(FeatureFlags.RwaUxSearch)
-  const isV2TokensEnabled = useFeatureFlag(FeatureFlags.V2EndpointsTokens)
-  // The "Stocks by 24H volume" section renders when the parent `rwa_ux_search` flag is on and the
-  // caller's region isn't RWA-blocked. Grouping/recents-tagging stay on the parent.
-  const isRwaRegionBlocked = useIsFeatureGated(GatedFeature.ISSUER_SPECIFIC_RWA)
-  const stocksSectionEnabled = rwaEnabled && !isRwaRegionBlocked
-  const rwaIndex = useRwaSearchIndex()
+  const isSearchV2UIEnabled = useFeatureFlag(FeatureFlags.SearchV2UI)
+  // The "Stocks by 24H volume" section renders unless the caller's region is RWA-blocked; hidden while the
+  // region is pending so blocked users never see it flash. Grouping/recents-tagging are not region-gated.
+  const stocksSectionEnabled = !useIsFeatureGated(GatedFeature.ISSUER_SPECIFIC_RWA, { pendingValue: true })
 
-  const recentlySearchedOptions: SearchModalOption[] = useRecentlySearchedOptions({
-    chainFilter,
-    activeTab,
-    numberOfRecentSearchResults: NUMBER_OF_RESULTS_SHORT,
-  })
-
-  // Tag recently-searched tokens that are tokenized stocks so they render the category tag. Recents stay individual
-  // token rows (no collection roll-up); reuse the query-state extraction + lookup so the two paths can't drift.
-  const taggedRecentlySearchedOptions = useMemo(() => {
-    if (!rwaEnabled || !rwaIndex.rwas.length) {
-      return recentlySearchedOptions
-    }
-    return recentlySearchedOptions.map((option) => {
-      const match = optionChainAddresses(option)
-        .map((ca) => findRwaForToken(rwaIndex, ca))
-        .find(Boolean)
-      return match ? tagOptionAsRwa({ option, match }) : option
-    })
-  }, [rwaEnabled, rwaIndex, recentlySearchedOptions])
-
-  const recentSearchSection = useOnchainItemListSection({
-    sectionKey: OnchainItemSectionName.RecentSearches,
-    options: taggedRecentlySearchedOptions,
-    endElement: <ClearRecentSearchesButton />,
-  })
+  const { sections: recentSearchSection, skeletonPillCount } = useRecentSearchSection({ chainFilter, activeTab })
 
   const isMultichainPath = chainFilter === null
+
+  // Spotlit categories replace the Trending + Stocks shelves on the All/Tokens tabs; flag off leaves them untouched.
+  const isTokenTab = activeTab === SearchTab.Tokens || activeTab === SearchTab.All
+  const spotlit = useSpotlitCategorySections({
+    chainFilter,
+    tokenCount:
+      activeTab === SearchTab.All
+        ? NUMBER_OF_SPOTLIT_CATEGORY_TOKENS_ALL_TAB
+        : NUMBER_OF_SPOTLIT_CATEGORY_TOKENS_TOKENS_TAB,
+    skip: !isTokenTab,
+  })
 
   const numberOfTrendingTokens =
     activeTab === SearchTab.All
@@ -112,50 +166,35 @@ export function useSectionsForNoQuerySearch({
         ? NUMBER_OF_RESULTS_MEDIUM
         : NUMBER_OF_RESULTS_SHORT
       : NUMBER_OF_RESULTS_LONG
-  const skipTrendingTokensQuery = activeTab !== SearchTab.Tokens && activeTab !== SearchTab.All
+  const skipTrendingTokensQuery = !isTokenTab || spotlit.enabled
 
   const {
-    data: tokens,
-    error: flatTokensError,
-    refetch: refetchFlatTokens,
-    loading: flatTokensLoading,
-  } = useTrendingTokensCurrencyInfos(chainFilter, { skip: skipTrendingTokensQuery || isMultichainPath })
-
-  const {
-    data: multichainResults,
-    error: multichainTokensError,
-    refetch: refetchMultichainTokens,
-    loading: multichainTokensLoading,
-  } = useMultichainTokenResults({
+    data: trendingTokenOptions,
+    error: tokensError,
+    isLoading: loadingTokens,
+    isInitialLoading: trendingTokensInitialLoading,
+    refetch: refetchTokens,
+  } = useTrendingTokenResults({
+    chainFilter,
+    isMultichainPath,
     pageSize: numberOfTrendingTokens,
-    skip: skipTrendingTokensQuery || !isMultichainPath,
-    isV2TokensEnabled,
+    skip: skipTrendingTokensQuery,
   })
-
-  const flatTokenOptions = useCurrencyInfosToTokenOptions({ currencyInfos: tokens })
-  const multichainTokenOptions = useMultichainSearchResultsToOptions({ results: multichainResults })
-
-  const tokensError = isMultichainPath ? multichainTokensError : flatTokensError
-  const loadingTokens = isMultichainPath ? multichainTokensLoading : flatTokensLoading
-  const refetchTokens = isMultichainPath ? refetchMultichainTokens : refetchFlatTokens
-  const trendingTokenOptions: SearchModalOption[] = isMultichainPath
-    ? (multichainTokenOptions ?? [])
-    : (flatTokenOptions ?? [])
 
   const trendingTokenSection = useOnchainItemListSection({
     sectionKey: OnchainItemSectionName.TrendingTokens,
     options: trendingTokenOptions.slice(0, numberOfTrendingTokens),
   })
 
-  // Top tokenized stocks for the empty (no-query) state. Loading/error are non-blocking: the section is simply
-  // omitted when empty, and the error never surfaces as the modal's error. The shelf uses the app's default
-  // enabled-chains policy (testnet-aware) and intentionally does not mirror the grouping index's includeTestnets.
+  // Top tokenized stocks for the empty (no-query) state. Error is non-blocking: the section is simply omitted when
+  // empty, and the error never surfaces as the modal's error. The shelf uses the app's default enabled-chains
+  // policy (testnet-aware) and intentionally does not mirror the grouping index's includeTestnets.
   const chainIds = chainFilter != null ? [chainFilter] : []
-  const { data: rankedRwaData } = useListRankedRwasQuery({
+  const { data: rankedRwaData, isLoading: rankedRwaLoading } = useListRankedRwasQuery({
     category: RwaCategory.STOCKS,
     chainIds,
     includeSparkline1d: false,
-    enabled: stocksSectionEnabled,
+    enabled: stocksSectionEnabled && !spotlit.enabled,
   })
   const stockOptions = useMemo(
     () =>
@@ -212,7 +251,7 @@ export function useSectionsForNoQuerySearch({
     !auctionSearchEnabled || !isWebApp || (activeTab !== SearchTab.Auctions && activeTab !== SearchTab.All)
   const {
     data: topAuctionOptions,
-    loading: topAuctionsLoading,
+    isLoading: topAuctionsLoading,
     error: topAuctionsError,
     refetch: refetchTopAuctions,
   } = useTopAuctionOptions({
@@ -229,9 +268,22 @@ export function useSectionsForNoQuerySearch({
     () => (stocksSectionEnabled ? (stocksSection ?? []) : []),
     [stocksSectionEnabled, stocksSection],
   )
+  const tokenShelf = selectTokenShelfState({
+    spotlit,
+    legacy: {
+      isLoading: loadingTokens,
+      isInitialLoading: trendingTokensInitialLoading || (stocksSectionEnabled && rankedRwaLoading),
+      error: tokensError,
+      refetch: refetchTokens,
+    },
+  })
+  const tokenShelfSections = useMemo(
+    () => tokenShelf.sections ?? [...stockSections, ...(trendingTokenSection ?? [])],
+    [tokenShelf.sections, stockSections, trendingTokenSection],
+  )
   const tokenSections = useMemo(
-    () => [...(recentSearchSection ?? []), ...stockSections, ...(trendingTokenSection ?? [])],
-    [recentSearchSection, stockSections, trendingTokenSection],
+    () => [...(recentSearchSection ?? []), ...tokenShelfSections],
+    [recentSearchSection, tokenShelfSections],
   )
   const poolSections = useMemo(
     () => [...(recentSearchSection ?? []), ...(trendingPoolSection ?? [])],
@@ -250,51 +302,56 @@ export function useSectionsForNoQuerySearch({
       isWebPlatform
         ? [
             ...(recentSearchSection ?? []),
-            ...stockSections,
-            ...(trendingTokenSection ?? []),
+            ...tokenShelfSections,
             ...(trendingPoolSection ?? []),
             ...(favoriteWalletsSection ?? []),
             ...(topAuctionsSection ?? []),
           ]
-        : [...(recentSearchSection ?? []), ...stockSections, ...(trendingTokenSection ?? [])],
-    [
-      favoriteWalletsSection,
-      recentSearchSection,
-      stockSections,
-      topAuctionsSection,
-      trendingPoolSection,
-      trendingTokenSection,
-    ],
+        : [...(recentSearchSection ?? []), ...tokenShelfSections],
+    [favoriteWalletsSection, recentSearchSection, tokenShelfSections, topAuctionsSection, trendingPoolSection],
   )
   const poolsLoading = topPoolsLoading || Boolean(topPools?.length && !trendingPoolOptions.length)
-  const auctionsLoading = auctionSearchEnabled && topAuctionsLoading
-  const auctionsError = auctionSearchEnabled ? (topAuctionsError ?? undefined) : undefined
+  const poolsInitialLoading = isWebPlatform && topPoolsLoading
+  const auctionsLoading = auctionSearchEnabled && isWebApp && topAuctionsLoading
+  const auctionsError = auctionSearchEnabled ? topAuctionsError : null
+  const {
+    isInitialLoading: tokensInitialLoading,
+    isLoading: tokensLoading,
+    error: tokensShelfError,
+    refetch: refetchTokensShelf,
+  } = tokenShelf
 
-  return useMemo((): GqlResult<OnchainItemSection<SearchModalOption>[]> => {
+  const tabResult = useMemo((): NoQueryTabResult => {
     switch (activeTab) {
       case SearchTab.Tokens:
         return {
           data: tokenSections,
-          loading: loadingTokens,
-          error: tokensError,
-          refetch: refetchTokens,
+          isLoading: tokensLoading,
+          isInitialLoading: tokensInitialLoading,
+          error: tokensShelfError,
+          refetch: refetchTokensShelf,
         }
       case SearchTab.Pools:
         return {
           data: poolSections,
-          loading: poolsLoading,
-          error: topPoolsError ?? undefined,
+          isLoading: poolsLoading,
+          isInitialLoading: poolsInitialLoading,
+          error: topPoolsError,
           refetch: refetchPools,
         }
       case SearchTab.Wallets:
         return {
           data: walletSections,
-          loading: false,
+          isLoading: false,
+          isInitialLoading: false,
+          error: null,
+          refetch: noop,
         }
       case SearchTab.Auctions:
         return {
           data: auctionSections,
-          loading: auctionsLoading,
+          isLoading: auctionsLoading,
+          isInitialLoading: auctionsLoading,
           error: auctionsError,
           refetch: refetchTopAuctions,
         }
@@ -302,9 +359,11 @@ export function useSectionsForNoQuerySearch({
       case SearchTab.All:
         return {
           data: allSections,
-          loading: loadingTokens,
-          error: tokensError,
-          refetch: refetchTokens,
+          isLoading: tokensLoading,
+          // Web's All tab also renders pools and auctions; holding on trending alone would shift the pane as they land.
+          isInitialLoading: tokensInitialLoading || poolsInitialLoading || auctionsLoading,
+          error: tokensShelfError,
+          refetch: refetchTokensShelf,
         }
     }
   }, [
@@ -315,13 +374,20 @@ export function useSectionsForNoQuerySearch({
     auctionsLoading,
     poolSections,
     poolsLoading,
+    poolsInitialLoading,
     topPoolsError,
-    loadingTokens,
+    tokensLoading,
+    tokensInitialLoading,
     refetchPools,
-    refetchTokens,
+    refetchTokensShelf,
     refetchTopAuctions,
-    tokensError,
+    tokensShelfError,
     tokenSections,
     walletSections,
   ])
+
+  return useMemo((): NoQuerySearchSections => {
+    const { isInitialLoading, ...result } = tabResult
+    return { ...holdQueryResult({ result, hold: isSearchV2UIEnabled && isInitialLoading }), skeletonPillCount }
+  }, [tabResult, isSearchV2UIEnabled, skeletonPillCount])
 }

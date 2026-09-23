@@ -2,10 +2,10 @@ import { isMobileWeb } from '@universe/environment'
 import { useEffect, useState } from 'react'
 
 /**
- * iOS Safari body scroll lock. The standard overflow:hidden approach (used by
- * @tamagui/remove-scroll inside WebBottomSheet) doesn't stop momentum scroll,
- * so we pin the body via position:fixed and restore the scroll position on
- * cleanup.
+ * iOS Safari body scroll lock. The standard overflow:hidden approach (the shared
+ * `useDisableBodyScroll` pool in `utilities/src/react/useDisableBodyScroll`) doesn't stop
+ * momentum scroll, so we pin the body via position:fixed and restore the scroll
+ * position on cleanup.
  *
  * Also tracks the on-screen keyboard height via visualViewport so callers can
  * pad content and prevent focused-input auto-scroll from burying CTAs under

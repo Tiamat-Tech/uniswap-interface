@@ -12,6 +12,7 @@ export enum WalletEventName {
   CustomGasOverridesApplied = 'Custom Gas Overrides Applied',
   DappRequestCardClosed = 'DappRequestCardClosed',
   DappRequestCardPressed = 'DappRequestCardPressed',
+  DappRequestScanFailed = 'Dapp Request Scan Failed',
   ExploreSearchCancel = 'Explore Search Cancel',
   ExternalLinkOpened = 'External Link Opened',
   GasEstimateAccuracy = 'Gas Estimate Accuracy',

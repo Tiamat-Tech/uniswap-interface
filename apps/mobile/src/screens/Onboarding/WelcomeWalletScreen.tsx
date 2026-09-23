@@ -1,14 +1,15 @@
 import { CompositeScreenProps } from '@react-navigation/core'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
+import { Button, Flex, fonts, iconSizes, Text } from '@universe/mycelium'
+import { opacify, useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { AppStackParamList, OnboardingStackParamList } from 'src/app/navigation/types'
 import { Screen } from 'src/components/layout/Screen'
 import { useNavigationHeader } from 'src/utils/useNavigationHeader'
-import { Button, Flex, Loader, Text, useMedia, useSporeColors } from 'ui/src'
+import { Loader } from 'ui/src'
 import { Arrow } from 'ui/src/components/arrow/Arrow'
 import { Lock } from 'ui/src/components/icons'
-import { fonts, iconSizes, opacify } from 'ui/src/theme'
 import { DisplayNameText } from 'uniswap/src/components/accounts/DisplayNameText'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
@@ -28,7 +29,7 @@ import { useDisplayName } from 'wallet/src/features/wallet/hooks'
 
 type Props = CompositeScreenProps<
   NativeStackScreenProps<OnboardingStackParamList, OnboardingScreens.WelcomeWallet>,
-  NativeStackScreenProps<AppStackParamList, MobileScreens.Home, undefined>
+  NativeStackScreenProps<AppStackParamList, MobileScreens.OnboardingStack, undefined>
 >
 
 export function WelcomeWalletScreen({ navigation, route: { params } }: Props): JSX.Element {

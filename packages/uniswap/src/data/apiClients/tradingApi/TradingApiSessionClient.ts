@@ -10,6 +10,8 @@ import { type PlanEndpoints, tryProvideSession } from '@universe/api'
 import { getConfig } from '@universe/config'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
 import { SessionGateSource } from '@universe/sessions'
+import { config } from 'uniswap/src/config'
+import { getUniswapServiceUrls } from 'uniswap/src/constants/urls'
 import { BASE_UNISWAP_HEADERS } from 'uniswap/src/data/apiClients/createUniswapFetchClient'
 import { getFeatureFlaggedHeaders } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
 import { logger } from 'utilities/src/logger/logger'
@@ -40,7 +42,7 @@ const withSessionRetry = createWithSessionRetry({
 
 // The factory sets credentials: 'include' so web requests carry the session cookie.
 const entryGatewayTradingFetchClientWithSession = createTradingApiFetchClient({
-  getBaseUrl: getEntryGatewayUrl,
+  getBaseUrl: () => getUniswapServiceUrls(config).tradingApiUrl,
   getHeaders,
   getSessionService: () =>
     provideSessionService({
@@ -73,6 +75,9 @@ const TradingApiSessionClientWithRetry: PlanEndpoints = {
   },
   refreshExistingPlan(params) {
     return withSessionRetry(() => BaseTradingApiSessionClient.refreshExistingPlan(params))
+  },
+  cancelExistingPlan(params) {
+    return withSessionRetry(() => BaseTradingApiSessionClient.cancelExistingPlan(params))
   },
 }
 

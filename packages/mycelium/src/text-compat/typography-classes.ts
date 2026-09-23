@@ -10,7 +10,9 @@
  * sibling classes, while arbitrary properties group by property name and
  * merge correctly.
  */
+import { TEXT_ALIGN_CLASS } from '../compat/inherited-text-classes'
 import { arbitrary, type ClassList, enumClass } from '../compat/style-classes'
+import { unwrapVariable } from '../compat/tokens'
 import type { TextCompatStyleProps } from './props'
 import {
   colorCssExpression,
@@ -41,11 +43,15 @@ const VARIANT_FONT: Record<string, keyof typeof FONT_DEFINITIONS> = {
 }
 
 /** `$body` → `body`; undefined for non-token families. */
-function fontTokenName(fontFamily: string | undefined): string | undefined {
-  if (fontFamily === undefined || !fontFamily.startsWith('$')) {
+function fontTokenName(fontFamily: TextCompatStyleProps['fontFamily']): string | undefined {
+  if (fontFamily === undefined) {
     return undefined
   }
-  const name = fontFamily.slice(1)
+  const resolved = unwrapVariable(fontFamily)
+  if (typeof resolved !== 'string' || !resolved.startsWith('$')) {
+    return undefined
+  }
+  const name = resolved.slice(1)
   return name in FONT_DEFINITIONS ? name : undefined
 }
 
@@ -73,8 +79,13 @@ function fontDefinition(fontToken: string): (typeof FONT_DEFINITIONS)[string] {
   return definition
 }
 
-/** Font-relative token → px, falling back to the Text-variant-named fontSize tokens. */
-function resolveFontMetric({
+/**
+ * Font-relative token → px, falling back to the Text-variant-named fontSize
+ * tokens. Exported for the native leg's style lane (INFRA-3229): the class it
+ * feeds (`text-[16px]`) is runtime-interpolated and therefore invisible to
+ * uniwind's static scanner, so the leg has to resolve the same number itself.
+ */
+export function resolveFontMetric({
   value,
   fontToken,
   kind,
@@ -83,69 +94,117 @@ function resolveFontMetric({
   fontToken: string
   kind: 'sizes' | 'lineHeights'
 }): number {
+  const resolved = lookupFontMetric({ value, fontToken, kind })
+  if (resolved === undefined) {
+    throw new Error(
+      `TextCompat: unknown ${kind === 'sizes' ? 'fontSize' : 'lineHeight'} token "${value}" for font "$${fontToken}"`,
+    )
+  }
+  return resolved
+}
+
+/** `$token` → px against the font's map, else the Text-variant-named tokens; undefined when neither resolves. */
+function lookupFontMetric({
+  value,
+  fontToken,
+  kind,
+}: {
+  value: string
+  fontToken: string
+  kind: 'sizes' | 'lineHeights'
+}): number | undefined {
   const name = value.slice(1)
   const fromFont = fontDefinition(fontToken)[kind][name]
   if (fromFont !== undefined) {
     return fromFont
   }
   const fromVariantTokens = lookupToken(VARIANT_METRICS, name)
-  if (fromVariantTokens !== undefined) {
-    return kind === 'sizes' ? fromVariantTokens.fontSize : fromVariantTokens.lineHeight
+  if (fromVariantTokens === undefined) {
+    return undefined
   }
-  throw new Error(
-    `TextCompat: unknown ${kind === 'sizes' ? 'fontSize' : 'lineHeight'} token "${value}" for font "$${fontToken}"`,
-  )
+  return kind === 'sizes' ? fromVariantTokens.fontSize : fromVariantTokens.lineHeight
 }
 
 function fontSizeClass(fontSize: NonNullable<TextCompatStyleProps['fontSize']>, fontToken: string): string {
-  if (typeof fontSize === 'number') {
-    return `text-[${fontSize}px]`
+  const resolved = unwrapVariable(fontSize)
+  if (typeof resolved === 'number') {
+    return `text-[${resolved}px]`
   }
-  if (fontSize.startsWith('$')) {
-    return `text-[${resolveFontMetric({ value: fontSize, fontToken, kind: 'sizes' })}px]`
+  if (resolved.startsWith('$')) {
+    const metric = lookupFontMetric({ value: resolved, fontToken, kind: 'sizes' })
+    if (metric !== undefined) {
+      return `text-[${metric}px]`
+    }
+    // Legacy web passed an unresolvable token through as invalid CSS, which
+    // the browser discards, so the element just inherits its ancestor's
+    // size. Mirror that here instead of throwing. Explicit return so this
+    // branch can't silently absorb a future change meant only for the
+    // plain-CSS-string case below.
+    return `text-[${arbitrary(resolved)}]`
   }
-  return `text-[${arbitrary(fontSize)}]`
+  return `text-[${arbitrary(resolved)}]`
 }
 
 /**
  * `[line-height:…]` rather than `leading-…`: tailwind-merge declares the
  * font-size group as conflicting with `leading`, so a later `text-[13px]`
- * would silently drop an earlier `leading-[20.8px]` — while Tamagui keeps the
+ * would silently drop an earlier `leading-[22px]` — while Tamagui keeps the
  * variant line-height when only fontSize is overridden.
  */
-function lineHeightClass(lineHeight: number | string, fontToken: string): string {
-  if (typeof lineHeight === 'number') {
-    return `[line-height:${lineHeight}px]`
+function lineHeightClass(lineHeight: NonNullable<TextCompatStyleProps['lineHeight']>, fontToken: string): string {
+  const resolved = unwrapVariable(lineHeight)
+  if (typeof resolved === 'number') {
+    return `[line-height:${resolved}px]`
   }
-  if (lineHeight.startsWith('$')) {
-    return `[line-height:${resolveFontMetric({ value: lineHeight, fontToken, kind: 'lineHeights' })}px]`
+  if (resolved.startsWith('$')) {
+    return `[line-height:${resolveFontMetric({ value: resolved, fontToken, kind: 'lineHeights' })}px]`
   }
-  return `[line-height:${arbitrary(lineHeight)}]`
+  return `[line-height:${arbitrary(resolved)}]`
+}
+
+/**
+ * Whether an explicit `fontWeight` survives the pool's `variant` — Tamagui's
+ * style merge is insertion-ordered, so a variant overwrites a fontWeight
+ * authored before it and loses to one authored after it (measured on the
+ * legacy Text: `fontWeight="600" variant="buttonLabel2"` renders the
+ * variant's medium weight, the reverse order ships 600 verbatim — the
+ * INFRA-3457 faux-bold class of conversions). Out-of-scale literals that DO
+ * win pass through verbatim, exactly like Tamagui; there is no config
+ * coercion on either side.
+ */
+export function fontWeightWinsOverVariant(pool: TextCompatStyleProps): boolean {
+  if (pool.variant === undefined) {
+    return true
+  }
+  const keys = Object.keys(pool)
+  return keys.indexOf('fontWeight') > keys.indexOf('variant')
 }
 
 function fontWeightClass(value: NonNullable<TextCompatStyleProps['fontWeight']>): string {
-  if (typeof value === 'number') {
-    return `[font-weight:${value}]`
+  const resolved = unwrapVariable(value)
+  if (typeof resolved === 'number') {
+    return `[font-weight:${resolved}]`
   }
-  const tokenWeight = lookupToken(FONT_WEIGHT_TOKEN, value.startsWith('$') ? value.slice(1) : value)
+  const tokenWeight = lookupToken(FONT_WEIGHT_TOKEN, resolved.startsWith('$') ? resolved.slice(1) : resolved)
   if (tokenWeight !== undefined) {
     return `[font-weight:${tokenWeight}]`
   }
-  if (value.startsWith('$')) {
-    throw new Error(`TextCompat: unknown fontWeight token "${value}"`)
+  if (resolved.startsWith('$')) {
+    throw new Error(`TextCompat: unknown fontWeight token "${resolved}"`)
   }
-  return `[font-weight:${arbitrary(value)}]`
+  return `[font-weight:${arbitrary(resolved)}]`
 }
 
-function fontFamilyClass(value: string): string {
+function fontFamilyClass(value: NonNullable<TextCompatStyleProps['fontFamily']>): string {
   const token = fontTokenName(value)
   if (token !== undefined) {
     return `[font-family:var(--stext-font-${fontDefinition(token).family})]`
   }
-  if (value.startsWith('$')) {
-    throw new Error(`TextCompat: unknown fontFamily token "${value}"`)
+  const resolved = String(unwrapVariable(value))
+  if (resolved.startsWith('$')) {
+    throw new Error(`TextCompat: unknown fontFamily token "${resolved}"`)
   }
-  return `[font-family:${arbitrary(value)}]`
+  return `[font-family:${arbitrary(resolved)}]`
 }
 
 function fontStyleClass(fontStyle: string): string {
@@ -158,8 +217,11 @@ function fontStyleClass(fontStyle: string): string {
 /**
  * The font-relative size/lineHeight token each variant sets (Text.tsx
  * createTextVariant definitions). `monospace` pins raw numbers instead.
+ * Exported for the native style lane (`native-font.ts`): both lanes must
+ * re-key a variant through the same token or a `$md={{ variant: … }}`
+ * re-keyed element diverges between className and leg style.
  */
-const VARIANT_SIZE_TOKEN: Record<string, string> = {
+export const VARIANT_SIZE_TOKEN: Readonly<Record<string, string>> = {
   heading1: '$large',
   heading2: '$medium',
   heading3: '$small',
@@ -184,7 +246,7 @@ const VARIANT_SIZE_TOKEN: Record<string, string> = {
  * back to the variant's own pinned metrics when the context font lacks the
  * token (e.g. $nano outside the body font).
  */
-function variantMetric({
+export function variantMetric({
   variant,
   fontToken,
   kind,
@@ -227,7 +289,7 @@ function fontClasses(pool: TextCompatStyleProps, fontToken: string): ClassList {
   return [
     fontFamily !== undefined && fontFamilyClass(fontFamily),
     fontSize !== undefined && fontSizeClass(fontSize, fontToken),
-    fontWeight !== undefined && fontWeightClass(fontWeight),
+    fontWeight !== undefined && fontWeightWinsOverVariant(pool) && fontWeightClass(fontWeight),
     fontStyle !== undefined && fontStyleClass(fontStyle),
     letterSpacing !== undefined &&
       `[letter-spacing:${typeof letterSpacing === 'number' ? `${letterSpacing}px` : arbitrary(letterSpacing)}]`,
@@ -235,40 +297,35 @@ function fontClasses(pool: TextCompatStyleProps, fontToken: string): ClassList {
   ]
 }
 
-const TEXT_ALIGN_CLASS: Record<string, string> = {
-  left: 'text-left',
-  right: 'text-right',
-  center: 'text-center',
-  justify: 'text-justify',
-  start: 'text-start',
-  end: 'text-end',
-}
-
-const TEXT_TRANSFORM_CLASS: Record<string, string> = {
+export const TEXT_TRANSFORM_CLASS: Record<string, string> = {
   uppercase: 'uppercase',
   lowercase: 'lowercase',
   capitalize: 'capitalize',
   none: 'normal-case',
 }
 
-const TEXT_DECORATION_CLASS: Record<string, string> = {
+export const TEXT_DECORATION_CLASS: Record<string, string> = {
   underline: 'underline',
   'line-through': 'line-through',
   none: 'no-underline',
 }
 
-const WHITE_SPACE_CLASS: Record<string, string> = {
+export const WHITE_SPACE_CLASS: Record<string, string> = {
   normal: 'whitespace-normal',
   nowrap: 'whitespace-nowrap',
   pre: 'whitespace-pre',
   'pre-line': 'whitespace-pre-line',
   'pre-wrap': 'whitespace-pre-wrap',
   'break-spaces': 'whitespace-break-spaces',
+  // Tailwind ships no whitespace-wrap / whitespace-initial utilities —
+  // arbitrary-property form, same shape the enumClass fallback emits.
+  wrap: '[white-space:wrap]',
+  initial: '[white-space:initial]',
 }
 
 function textStyleClasses(pool: TextCompatStyleProps): ClassList {
   const { color, textAlign, textTransform, textDecorationLine, textDecorationColor } = pool
-  const { whiteSpace, wordWrap, textOverflow, userSelect, cursor } = pool
+  const { whiteSpace, wordWrap, wordBreak, textOverflow, userSelect, cursor } = pool
   return [
     color !== undefined && colorPropertyClass('color', color),
     textAlign !== undefined && enumClass({ map: TEXT_ALIGN_CLASS, value: textAlign, cssProp: 'text-align' }),
@@ -279,6 +336,10 @@ function textStyleClasses(pool: TextCompatStyleProps): ClassList {
     textDecorationColor !== undefined && colorPropertyClass('text-decoration-color', textDecorationColor),
     whiteSpace !== undefined && enumClass({ map: WHITE_SPACE_CLASS, value: whiteSpace, cssProp: 'white-space' }),
     wordWrap !== undefined && `[word-wrap:${wordWrap}]`,
+    // Arbitrary-property form like wordWrap (one tailwind-merge group per
+    // property); Tailwind's named word-break utility for `normal` also resets
+    // overflow-wrap, which would clobber a sibling wordWrap.
+    wordBreak !== undefined && `[word-break:${wordBreak}]`,
     textOverflow !== undefined &&
       (textOverflow === 'ellipsis' ? 'text-ellipsis' : textOverflow === 'clip' ? 'text-clip' : '[text-overflow:unset]'),
     userSelect !== undefined && `[user-select:${userSelect}]`,
@@ -287,7 +348,7 @@ function textStyleClasses(pool: TextCompatStyleProps): ClassList {
 }
 
 /** Tamagui Text `numberOfLines: 1` / `ellipse` / `ellipsis` styles. */
-const SINGLE_LINE_ELLIPSIS = ['max-w-full', 'overflow-hidden', 'text-ellipsis', 'whitespace-nowrap']
+export const SINGLE_LINE_ELLIPSIS = ['max-w-full', 'overflow-hidden', 'text-ellipsis', 'whitespace-nowrap']
 
 /** Tamagui Text variants: numberOfLines / ellipse / ellipsis / selectable. */
 function truncationClasses(pool: TextCompatStyleProps): ClassList {

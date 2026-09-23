@@ -12,6 +12,8 @@ export interface OnchainItemListRef {
 
 export type SectionRowInfo = {
   section: SectionHeaderProps & {
+    /** Always resolved for list-rendered headers (see `toSectionHeaderProps`). */
+    sectionRowId: string
     sectionHeaderHeight?: number
   }
 }
@@ -35,6 +37,8 @@ export interface OnchainItemListProps<T extends OnchainItemListOption> {
   expandedItems?: string[]
   renderedInModal: boolean
   focusedRowControl?: Omit<FocusedRowControl, 'rowIndex'>
+  /** Web: focuses the first focusable row once per key value (e.g. the search context). Requires `focusedRowControl`. */
+  autoFocusFirstRowKey?: string
   contentContainerStyle?: StyleProp<ViewStyle>
 }
 

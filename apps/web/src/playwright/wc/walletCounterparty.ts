@@ -167,10 +167,36 @@ export async function createWalletCounterparty(params: {
       return { sessionTopic: topic }
     },
     async close() {
+      // Closing only the socket is not enough: `transportClose()` sets the relayer's
+      // `transportExplicitlyClosed` guard, but the Core's @walletconnect/heartbeat keeps
+      // pulsing every 5s and every Core housekeeping task hangs off that pulse
+      // (publisher.checkQueue, subscriber.checkPending, expirer.checkExpirations). Any of
+      // them can end in `relayer.request()`, which awaits `toEstablishConnection()` ->
+      // `connect()` — a path that does NOT consult `transportExplicitlyClosed` — so a
+      // single post-teardown pulse can resurrect the transport. A resurrected client
+      // re-subscribes the dead session's topics on the WORKER-scoped local relay and is
+      // handed its stored backlog, corrupting the NEXT test's pairing. The heartbeat is
+      // the one clock driving all of those paths, so stopping it is what makes teardown
+      // final.
+      try {
+        client.core.heartbeat.stop()
+      } catch (error) {
+        console.warn(
+          'Wallet counterparty teardown: heartbeat.stop() failed, so the session may resurrect and bleed into the next spec:',
+          error,
+        )
+      }
       try {
         await client.core.relayer.transportClose()
       } catch {
         // best-effort teardown
+      } finally {
+        // Belt-and-braces: detach the Core/relayer/subscriber listeners so a late socket
+        // or provider event cannot re-arm a reconnect either.
+        client.core.relayer.subscriber.events.removeAllListeners()
+        client.core.relayer.events.removeAllListeners()
+        client.core.heartbeat.events.removeAllListeners()
+        client.core.events.removeAllListeners()
       }
     },
   }

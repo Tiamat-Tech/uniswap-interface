@@ -1,5 +1,5 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useEffect, useRef } from 'react'
-import { Flex, Text } from 'ui/src'
 
 interface AnalyticsDebugBadgeProps {
   newEventCount: number

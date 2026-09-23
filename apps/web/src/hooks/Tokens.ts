@@ -1,14 +1,13 @@
 import { Currency } from '@uniswap/sdk-core'
+import { UniverseChainId, AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { useMemo } from 'react'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import {
   useCurrencyInfo as useUniswapCurrencyInfo,
   useCurrencyInfoWithLoading as useUniswapCurrencyInfoWithLoading,
 } from 'uniswap/src/features/tokens/useCurrencyInfo'
-import { AddressStringFormat, normalizeAddress } from 'uniswap/src/utils/addresses'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { useAccount } from '~/hooks/useAccount'

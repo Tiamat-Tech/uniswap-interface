@@ -9,10 +9,15 @@
  * popup defaults to the browser stacking order (Tamagui portals sit at
  * z≈1000) and lands BEHIND an open modal at z-1060.
  *
- * `EffectiveOverlayZIndexContext` is the mycelium-owned equivalent. During
- * the migration, conversion facades bridge the legacy context value into this
- * one at the modal boundary; mycelium overlays consume and re-provide it
- * exactly like `AdaptiveWebPopoverContent` does today.
+ * `EffectiveOverlayZIndexContext` is the mycelium-owned equivalent. Every
+ * legacy overlay host (`AdaptiveWebModal`, `WebBottomSheet`,
+ * `AdaptiveWebPopoverContent`, `Popover`, `Tooltip`) dual-provides both
+ * contexts with the same value via `DualZIndexProvider`
+ * (`ui/src/components/modal/AdaptiveWebModalShared.ts`, INFRA-3819), so a
+ * converted descendant reading only this context gets the right stacking
+ * layer under ANY host — converted or not — with no per-call-site bridging;
+ * the bridge dies with the legacy hosts. Mycelium overlays consume and
+ * re-provide it exactly like `AdaptiveWebPopoverContent` does today.
  */
 import { createContext, useContext } from 'react'
 

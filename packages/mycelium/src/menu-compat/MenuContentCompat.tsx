@@ -14,7 +14,7 @@
 // oxlint-disable react/forbid-elements -- the compat components ARE the raw DOM boundary (no Tamagui Flex here)
 import * as React from 'react'
 import { DropdownMenuItem } from '../shadcn/dropdown-menu'
-import { menuContentContainerClassName, menuSeparatorClassName, resolveMenuColor } from './compile'
+import { menuContentContainerEmission, menuSeparatorClassName, resolveMenuColor } from './compile'
 import { DropdownMenuSheetItemCompat } from './DropdownMenuSheetItemCompat'
 import { getMenuItemColorCompat, type MenuContentCompatProps, type MenuOptionItemCompat } from './types'
 
@@ -63,6 +63,10 @@ export function MenuContentCompat({
     }
   }
 
+  // Strict emission path (INFRA-3217): caller `containerStyles` values
+  // outside the closed set (e.g. `maxHeight: 400`) ride the inline-value lane.
+  const containerEmission = menuContentContainerEmission(containerStyles)
+
   return (
     // The legacy wrapper swallows right-clicks and click/mousedown bubbling.
     // oxlint-disable-next-line react/forbid-elements -- verbatim port of the legacy propagation-stopper div
@@ -72,7 +76,7 @@ export function MenuContentCompat({
       onClick={stopPropagation}
       onMouseDown={stopPropagation}
     >
-      <div className={menuContentContainerClassName(containerStyles)}>
+      <div className={containerEmission.className} style={containerEmission.style}>
         {items.map((item, index) => {
           const {
             Icon: _icon,

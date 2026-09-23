@@ -1,5 +1,5 @@
 import { act, fireEvent } from '@testing-library/react-native'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { useEarnVaults } from 'uniswap/src/features/earn/hooks/useEarnVaults'
 import type { EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
 import { ON_PRESS_EVENT_PAYLOAD } from 'uniswap/src/test/fixtures/events'
@@ -14,9 +14,29 @@ const chainMocks = vi.hoisted(() => ({
   isTestnetModeEnabled: false,
 }))
 
+const accountMocks = vi.hoisted(() => ({
+  isViewOnly: false,
+}))
+
 vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({
   useEnabledChains: () => ({ isTestnetModeEnabled: chainMocks.isTestnetModeEnabled }),
 }))
+
+vi.mock('wallet/src/features/wallet/hooks', async () => {
+  const actual = await vi.importActual<typeof import('wallet/src/features/wallet/hooks')>(
+    'wallet/src/features/wallet/hooks',
+  )
+  const { AccountType } = await import('uniswap/src/features/accounts/types')
+  return {
+    ...actual,
+    useAccounts: () => ({
+      '0x0000000000000000000000000000000000000001': {
+        address: '0x0000000000000000000000000000000000000001',
+        type: accountMocks.isViewOnly ? AccountType.Readonly : AccountType.SignerMnemonic,
+      },
+    }),
+  }
+})
 
 vi.mock('uniswap/src/features/earn/hooks/useEarnVaults', () => ({
   useEarnVaults: vi.fn(),
@@ -90,6 +110,7 @@ describe(HomeScreenEarningSection, () => {
     mockUsePortfolioTotalValue.mockReset()
     mockUsePortfolioTotalValue.mockReturnValue({ data: undefined })
     chainMocks.isTestnetModeEnabled = false
+    accountMocks.isViewOnly = false
   })
 
   it('renders the error card with a working retry when the load fails', () => {
@@ -183,6 +204,119 @@ describe(HomeScreenEarningSection, () => {
     expect(queryByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${VAULT.id}`)).toBeNull()
   })
 
+  it('opens a funded earning card expanded for an Earn deeplink request', () => {
+    const unfundedVault: EarnVaultInfo = {
+      ...VAULT,
+      id: 'vault-b',
+      currencyId: '1-0xb',
+      displayCurrencyId: '1-0xb',
+      vaultAddress: '0xb',
+    }
+    mockEarnVaultsResult({
+      vaults: [VAULT, unfundedVault],
+      positionsByVaultId: new Map([[VAULT.id, POSITION]]),
+    })
+
+    const { getByTestId } = renderWithProviders(
+      <HomeScreenEarningSection evmAddress={EVM_ADDRESS} earnCardExpansionRequestId={1} />,
+    )
+
+    expect(getByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${unfundedVault.id}`)).toBeTruthy()
+  })
+
+  it('keeps a funded-card expansion request pending while loading, then handles it after expanding', () => {
+    const onEarnCardExpansionRequestHandled = vi.fn()
+    const unfundedVault: EarnVaultInfo = {
+      ...VAULT,
+      id: 'vault-b',
+      currencyId: '1-0xb',
+      displayCurrencyId: '1-0xb',
+      vaultAddress: '0xb',
+    }
+    mockEarnVaultsResult({ vaults: [VAULT, unfundedVault], isLoadingPositions: true })
+
+    const { getByTestId, rerender } = renderWithProviders(
+      <HomeScreenEarningSection
+        evmAddress={EVM_ADDRESS}
+        earnCardExpansionRequestId={1}
+        onEarnCardExpansionRequestHandled={onEarnCardExpansionRequestHandled}
+      />,
+      {
+        preloadedState: {
+          behaviorHistory: { ...initialBehaviorHistoryState, hasSeenUnfundedEarnCardReveal: true },
+        },
+      },
+    )
+
+    expect(onEarnCardExpansionRequestHandled).not.toHaveBeenCalled()
+
+    mockEarnVaultsResult({
+      vaults: [VAULT, unfundedVault],
+      positionsByVaultId: new Map([[VAULT.id, POSITION]]),
+    })
+    rerender(
+      <HomeScreenEarningSection
+        evmAddress={EVM_ADDRESS}
+        earnCardExpansionRequestId={1}
+        onEarnCardExpansionRequestHandled={onEarnCardExpansionRequestHandled}
+      />,
+    )
+
+    expect(getByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${unfundedVault.id}`)).toBeTruthy()
+    expect(onEarnCardExpansionRequestHandled).toHaveBeenCalledWith(1)
+  })
+
+  it('hides discovery rows for a view-only wallet while keeping its funded positions', () => {
+    accountMocks.isViewOnly = true
+    const unfundedVault: EarnVaultInfo = {
+      ...VAULT,
+      id: 'vault-b',
+      currencyId: '1-0xb',
+      displayCurrencyId: '1-0xb',
+      vaultAddress: '0xb',
+      apyPercent: 6,
+    }
+    mockEarnVaultsResult({
+      vaults: [VAULT, unfundedVault],
+      positionsByVaultId: new Map([[VAULT.id, POSITION]]),
+    })
+
+    const { getByText, getByTestId, queryByTestId } = renderWithProviders(
+      <HomeScreenEarningSection evmAddress={EVM_ADDRESS} />,
+    )
+
+    expect(getByText('home.earning.title')).toBeTruthy()
+
+    fireEvent.press(getByTestId(TestID.HomeEarningToggle), ON_PRESS_EVENT_PAYLOAD)
+
+    expect(queryByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${unfundedVault.id}`)).toBeNull()
+  })
+
+  it('renders nothing for a view-only wallet with a balance but no positions', () => {
+    accountMocks.isViewOnly = true
+    mockUsePortfolioTotalValue.mockReturnValue({ data: { balanceUSD: 100 } })
+    mockEarnVaultsResult({ vaults: [VAULT] })
+
+    const { queryByTestId, queryByText } = renderWithProviders(<HomeScreenEarningSection evmAddress={EVM_ADDRESS} />)
+
+    expect(queryByTestId(TestID.HomeEarnUnfundedCard)).toBeNull()
+    expect(queryByText('home.earning.title')).toBeNull()
+    expect(mockUsePortfolioTotalValue).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
+  })
+
+  it('still gates a view-only wallet when the address casing differs from the accounts-map key', () => {
+    accountMocks.isViewOnly = true
+    mockUsePortfolioTotalValue.mockReturnValue({ data: { balanceUSD: 100 } })
+    mockEarnVaultsResult({ vaults: [VAULT] })
+
+    const { queryByTestId, queryByText } = renderWithProviders(
+      <HomeScreenEarningSection evmAddress={EVM_ADDRESS.toUpperCase()} />,
+    )
+
+    expect(queryByTestId(TestID.HomeEarnUnfundedCard)).toBeNull()
+    expect(queryByText('home.earning.title')).toBeNull()
+  })
+
   it('renders the unfunded card when the wallet has a balance but no positions', () => {
     mockUsePortfolioTotalValue.mockReturnValue({ data: { balanceUSD: 100 } })
     mockEarnVaultsResult({ vaults: [VAULT] })
@@ -192,6 +326,77 @@ describe(HomeScreenEarningSection, () => {
     expect(getByTestId(TestID.HomeEarnUnfundedCard)).toBeTruthy()
 
     fireEvent.press(getByTestId(TestID.HomeEarnUnfundedToggle), ON_PRESS_EVENT_PAYLOAD)
+    expect(getByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${VAULT.id}`)).toBeTruthy()
+  })
+
+  it('opens an unfunded earning card expanded for an Earn deeplink request', () => {
+    mockUsePortfolioTotalValue.mockReturnValue({ data: { balanceUSD: 100 } })
+    mockEarnVaultsResult({ vaults: [VAULT] })
+
+    const { getByTestId } = renderWithProviders(
+      <HomeScreenEarningSection evmAddress={EVM_ADDRESS} earnCardExpansionRequestId={1} />,
+    )
+
+    expect(getByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${VAULT.id}`)).toBeTruthy()
+  })
+
+  it('keeps an unfunded-card expansion request pending through an error, then handles it after expanding', () => {
+    const onEarnCardExpansionRequestHandled = vi.fn()
+    mockUsePortfolioTotalValue.mockReturnValue({ data: { balanceUSD: 100 } })
+    mockEarnVaultsResult({ isError: true })
+
+    const { getByTestId, rerender } = renderWithProviders(
+      <HomeScreenEarningSection
+        evmAddress={EVM_ADDRESS}
+        earnCardExpansionRequestId={2}
+        onEarnCardExpansionRequestHandled={onEarnCardExpansionRequestHandled}
+      />,
+    )
+
+    expect(getByTestId(TestID.HomeEarningError)).toBeTruthy()
+    expect(onEarnCardExpansionRequestHandled).not.toHaveBeenCalled()
+
+    mockEarnVaultsResult({ vaults: [VAULT] })
+    rerender(
+      <HomeScreenEarningSection
+        evmAddress={EVM_ADDRESS}
+        earnCardExpansionRequestId={2}
+        onEarnCardExpansionRequestHandled={onEarnCardExpansionRequestHandled}
+      />,
+    )
+
+    expect(getByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${VAULT.id}`)).toBeTruthy()
+    expect(onEarnCardExpansionRequestHandled).toHaveBeenCalledWith(2)
+  })
+
+  it('expands an already mounted unfunded card when a warm Earn deeplink arrives', () => {
+    mockUsePortfolioTotalValue.mockReturnValue({ data: { balanceUSD: 100 } })
+    mockEarnVaultsResult({ vaults: [VAULT] })
+
+    const { queryByTestId, getByTestId, rerender } = renderWithProviders(
+      <HomeScreenEarningSection evmAddress={EVM_ADDRESS} />,
+    )
+
+    expect(queryByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${VAULT.id}`)).toBeNull()
+
+    rerender(<HomeScreenEarningSection evmAddress={EVM_ADDRESS} earnCardExpansionRequestId={1} />)
+
+    expect(getByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${VAULT.id}`)).toBeTruthy()
+  })
+
+  it('re-expands a collapsed unfunded card when another Earn deeplink arrives', () => {
+    mockUsePortfolioTotalValue.mockReturnValue({ data: { balanceUSD: 100 } })
+    mockEarnVaultsResult({ vaults: [VAULT] })
+
+    const { queryByTestId, getByTestId, rerender } = renderWithProviders(
+      <HomeScreenEarningSection evmAddress={EVM_ADDRESS} earnCardExpansionRequestId={1} />,
+    )
+
+    fireEvent.press(getByTestId(TestID.HomeEarnUnfundedToggle), ON_PRESS_EVENT_PAYLOAD)
+    expect(queryByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${VAULT.id}`)).toBeNull()
+
+    rerender(<HomeScreenEarningSection evmAddress={EVM_ADDRESS} earnCardExpansionRequestId={2} />)
+
     expect(getByTestId(`${TestID.HomeEarnDiscoveryVaultPrefix}${VAULT.id}`)).toBeTruthy()
   })
 

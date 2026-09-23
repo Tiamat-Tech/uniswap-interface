@@ -1,15 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text, TouchableArea, type TouchableAreaEvent } from '@universe/mycelium'
+import { Presence } from '@universe/mycelium/presence'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  AnimatePresence,
-  ElementAfterText,
-  Flex,
-  Text,
-  TouchableArea,
-  TouchableAreaEvent,
-  useIsDarkMode,
-  useSporeColors,
-} from 'ui/src'
+import { ElementAfterText, useIsDarkMode, useSporeColors } from 'ui/src'
 import { ArrowUpRight } from 'ui/src/components/icons/ArrowUpRight'
 import { X } from 'ui/src/components/icons/X'
 import { opacify } from 'ui/src/theme'
@@ -19,7 +13,6 @@ import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { useIsBridgingChain } from 'uniswap/src/features/bridging/hooks/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useIsSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useIsShowingWebFORNudge } from 'uniswap/src/features/providers/webForNudgeProvider'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { EmptyWalletCards } from '~/components/emptyWallet/EmptyWalletCards'
@@ -52,15 +45,17 @@ export function SwapBottomCard() {
     }
 
     if (shouldShowWebFORNudge) {
+      // Presence mirrors the legacy AnimatePresence wrapper — no exit lane, since this branch
+      // unmounts synchronously; the live mount fade is on EmptyWalletCards' root.
       return (
-        <AnimatePresence>
+        <Presence>
           <EmptyWalletCards
             horizontalLayout
             buyElementName={ElementName.ForEmptyStateBuy}
             receiveElementName={ElementName.ForEmptyStateReceive}
             cexTransferElementName={ElementName.ForEmptyStateCEXTransfer}
           />
-        </AnimatePresence>
+        </Presence>
       )
     }
 

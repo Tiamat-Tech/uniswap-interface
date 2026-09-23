@@ -1,6 +1,6 @@
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { PersistState } from 'redux-persist'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { TransactionTypeInfo } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { createPersistState, createSafeMigration } from 'uniswap/src/state/createSafeMigration'
 

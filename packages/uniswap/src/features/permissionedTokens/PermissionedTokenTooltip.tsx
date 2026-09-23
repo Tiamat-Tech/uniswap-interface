@@ -1,7 +1,7 @@
+import { Flex, Text, zIndexes } from '@universe/mycelium'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import type { ReactNode } from 'react'
-import { Flex, Text, Tooltip } from 'ui/src'
 import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
-import { zIndexes } from 'ui/src/theme'
 
 export function PermissionedTokenTooltip({
   baseText,

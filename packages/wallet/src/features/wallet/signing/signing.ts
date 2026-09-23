@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { ethers } from 'ethers'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { PlatformSplitStubError } from 'utilities/src/errors'
 import { Account } from 'wallet/src/features/wallet/accounts/types'
 import { SignerManager } from 'wallet/src/features/wallet/signing/SignerManager'

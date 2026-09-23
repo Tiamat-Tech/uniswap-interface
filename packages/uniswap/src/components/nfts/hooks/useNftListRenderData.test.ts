@@ -1,8 +1,8 @@
 import { waitFor } from '@testing-library/react-native'
 import { GetWalletNftsResponse } from '@uniswap/client-data-api/dist/data/v2/api_pb'
 import { SharedQueryClient } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { useNftListRenderData } from 'uniswap/src/components/nfts/hooks/useNftListRenderData'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { renderHookWithProviders } from 'uniswap/src/test/render'
 
 const { mockUseEnabledChains, mockGetWalletNfts } = vi.hoisted(() => ({

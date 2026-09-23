@@ -1,6 +1,8 @@
+import { Flex, Text, type TextCompatProps } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router'
-import { Flex, Popover, styled, Text, useMedia } from 'ui/src'
+import { Popover } from 'ui/src'
 import { ArrowChange } from 'ui/src/components/icons/ArrowChange'
 import { Hamburger } from 'ui/src/components/icons/Hamburger'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
@@ -11,15 +13,10 @@ import { MenuDropdown } from '~/components/NavBar/CompanyMenu/MenuDropdown'
 import { MobileMenuDrawer } from '~/components/NavBar/CompanyMenu/MobileMenuDrawer'
 import { useIsMobileDrawer, useTabsVisible } from '~/components/NavBar/ScreenSizes'
 
-const ArrowDownWrapper = styled(Text, {
-  color: '$neutral2',
-  '$group-hover': { color: '$neutral1' },
-  variants: {
-    open: {
-      true: { color: '$neutral1' },
-    },
-  },
-})
+function ArrowDownWrapper({ open, ...rest }: TextCompatProps & { open?: boolean }): JSX.Element {
+  // Resolves against the `group` marker on the wrapping Popover.Trigger Flex below, not this element.
+  return <Text color={open ? '$neutral1' : '$neutral2'} className="group-hover:text-neutral1" {...rest} />
+}
 
 export function CompanyMenu() {
   const popoverRef = useRef<Popover>(null)

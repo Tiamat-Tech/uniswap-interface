@@ -64,6 +64,18 @@ export const ENTRY_GATEWAY_URLS = {
 // (platform prefix "interface", service prefix "gating")
 const STATSIG_PROXY_TARGET = 'https://gating.interface.gateway.uniswap.org'
 
+// Drops edge hop headers before re-proxying: a CloudFront-backed upstream 403s requests
+// that already carry a CloudFront `Via`, and x-origin-verify is our edge secret.
+function upstreamHeaders(c: Context): Record<string, string | undefined> {
+  return {
+    ...c.req.header(),
+    host: undefined,
+    via: undefined,
+    'x-amz-cf-id': undefined,
+    'x-origin-verify': undefined,
+  }
+}
+
 // Development targets the staging WS host until a dev websockets deployment exists
 // (keep in sync with DEV_WEBSOCKET_BASE_URL in @universe/api).
 export const WEBSOCKET_URLS = {
@@ -71,6 +83,8 @@ export const WEBSOCKET_URLS = {
   staging: 'https://websockets.backend-staging.api.uniswap.org',
   production: 'https://websockets.backend-prod.api.uniswap.org',
 } as const
+
+export const CLIENT_IP_HEADERS = ['cf-connecting-ip', 'cloudfront-viewer-address', 'x-forwarded-for', 'x-real-ip']
 
 // ── Cache-Control middleware for image routes ───────────────────────────
 function cacheControl(maxAge: number) {
@@ -140,8 +154,7 @@ export function createApp({
     const response = await proxy(targetUrl, {
       ...c.req,
       headers: {
-        ...c.req.header(),
-        host: undefined,
+        ...upstreamHeaders(c),
         ...(clientIp ? { 'cf-connecting-ip': clientIp } : {}),
       },
       redirect: 'manual',
@@ -159,10 +172,7 @@ export function createApp({
 
     return proxy(`${STATSIG_PROXY_TARGET}${path}${query}`, {
       ...c.req,
-      headers: {
-        ...c.req.header(),
-        host: undefined,
-      },
+      headers: upstreamHeaders(c),
       redirect: 'manual',
     })
   })
@@ -186,6 +196,25 @@ export function createApp({
       return c.text(`WebSocket proxy error: ${err}`, 502)
     }
   })
+
+  // ── Debug: client IP discovery (non-prod only) ──────────────────────
+  // Set by each bundler via scripts/debug-routes.ts. Keep the read inline:
+  // hoisting it to a `const` stops the bundlers folding the block out.
+  if (process.env.ENABLE_DEBUG_ROUTES === 'true') {
+    app.get('/debug/my-ip-address', (c) =>
+      c.text(
+        [
+          // `||` matches the truthiness check the proxy forwards the IP on.
+          `resolved: ${getTrustedClientIp(c) || 'unknown'}`,
+          // The candidates every resolver in the repo reads, so the resolved
+          // value above can be attributed to one of them.
+          ...CLIENT_IP_HEADERS.map((name) => `${name}: ${c.req.header(name) ?? '-'}`),
+        ].join('\n'),
+        200,
+        { 'cache-control': 'no-store' },
+      ),
+    )
+  }
 
   // ── Catch-all: SPA serving + meta tag injection ────────────────────────
   app.all('*', async (c: Context) => {

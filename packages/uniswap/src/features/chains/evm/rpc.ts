@@ -1,6 +1,7 @@
 import { getEntryGatewayUrl } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { config } from 'uniswap/src/config'
-import { RetryOptions, RPCType, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { RetryOptions, RPCType } from 'uniswap/src/features/chains/types'
 import { ONE_MINUTE_MS } from 'utilities/src/time/time'
 
 /** Address that represents native currencies on ETH, Arbitrum, etc. */

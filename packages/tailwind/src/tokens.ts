@@ -10,7 +10,7 @@
  * exceptions on `fonts` that have no sensible CSS representation (`family`,
  * `maxFontSizeMultiplier`).
  */
-import type { BorderRadius, TypographyClass } from './types'
+import type { BorderRadius, FontVariantToken, TypographyClass } from './types'
 
 /** Border radius values in px, from the `--radius-*` custom properties. */
 export const radii = {
@@ -46,8 +46,8 @@ export const typography: Record<TypographyVariant, TypographyToken> = {
   'subheading-1': { fontSize: 18, lineHeight: 24, fontWeight: 485 },
   'subheading-2': { fontSize: 16, lineHeight: 24, fontWeight: 485 },
   'body-1': { fontSize: 18, lineHeight: 24, fontWeight: 485 },
-  'body-2': { fontSize: 16, lineHeight: 24, fontWeight: 485 },
-  'body-3': { fontSize: 14, lineHeight: 20, fontWeight: 485 },
+  'body-2': { fontSize: 16, lineHeight: 22, fontWeight: 485 },
+  'body-3': { fontSize: 14, lineHeight: 18, fontWeight: 485 },
   'body-4': { fontSize: 12, lineHeight: 16, fontWeight: 485 },
   'button-1': { fontSize: 18, lineHeight: 24, fontWeight: 535 },
   'button-2': { fontSize: 16, lineHeight: 24, fontWeight: 535 },
@@ -80,6 +80,20 @@ export const iconSizes = {
   '100': 100,
 } as const
 
+/** Image sizes in px, from the `--image-size-*` custom properties (ui imageSizes parity). */
+export const imageSizes = {
+  '12': 12,
+  '16': 16,
+  '20': 20,
+  '24': 24,
+  '32': 32,
+  '36': 36,
+  '40': 40,
+  '48': 48,
+  '64': 64,
+  '100': 100,
+} as const
+
 /**
  * Spacing scale in px, from the `--ui-spacing-*` custom properties (ui spacing
  * parity). Not `--spacing-*`: that namespace would rebind the Tailwind
@@ -103,6 +117,11 @@ export const spacing = {
   '40': 40,
   '48': 48,
   '60': 60,
+} as const
+
+/** Heights in px, from the `--height-*` custom properties (ui/src/theme/heights.ts parity). */
+export const heights = {
+  'interface-nav': 72,
 } as const
 
 /** Z-index layers, from the `--z-index-*` custom properties (ui zIndexes parity). */
@@ -169,6 +188,22 @@ export type FontVariant =
   | 'button-label-4'
   | 'monospace'
 
+/** `heading-1` → `heading1`, `button-label-1` → `buttonLabel1`. */
+type _KebabToCamel<S extends string> = S extends `${infer Head}-${infer Tail}`
+  ? `${Head}${Capitalize<_KebabToCamel<Tail>>}`
+  : S
+type _Pin<T extends true> = T
+/**
+ * Compile-time pin (INFRA-3290): `FontVariantToken` (./types.ts) must stay `$` + camelCase
+ * `FontVariant` — either drift direction fails typecheck here.
+ */
+type _FontVariantTokenIsPinnedToFontVariant = _Pin<
+  [FontVariantToken] extends [`$${_KebabToCamel<FontVariant>}`]
+    ? [`$${_KebabToCamel<FontVariant>}`] extends [FontVariantToken]
+      ? true
+      : false
+    : false
+>
 /**
  * ui fonts parity values from the `--typography-*` custom properties. Distinct
  * from `typography` (the deliberately re-cut `--text-*` web scale): these carry
@@ -180,7 +215,7 @@ export const fonts = {
   'heading-1': {
     family: 'book',
     fontSize: 52,
-    lineHeight: 49.92,
+    lineHeight: 50,
     fontWeight: '400',
     maxFontSizeMultiplier: 1.2,
     letterSpacing: '-2%',
@@ -196,7 +231,7 @@ export const fonts = {
   'heading-3': {
     family: 'book',
     fontSize: 24,
-    lineHeight: 28.799999999999997,
+    lineHeight: 28,
     fontWeight: '400',
     maxFontSizeMultiplier: 1.2,
     letterSpacing: '-0.5%',
@@ -206,12 +241,12 @@ export const fonts = {
   'body-1': {
     family: 'book',
     fontSize: 18,
-    lineHeight: 23.400000000000002,
+    lineHeight: 24,
     fontWeight: '400',
     maxFontSizeMultiplier: 1.4,
   },
-  'body-2': { family: 'book', fontSize: 16, lineHeight: 20.8, fontWeight: '400', maxFontSizeMultiplier: 1.4 },
-  'body-3': { family: 'book', fontSize: 14, lineHeight: 18.2, fontWeight: '400', maxFontSizeMultiplier: 1.4 },
+  'body-2': { family: 'book', fontSize: 16, lineHeight: 22, fontWeight: '400', maxFontSizeMultiplier: 1.4 },
+  'body-3': { family: 'book', fontSize: 14, lineHeight: 18, fontWeight: '400', maxFontSizeMultiplier: 1.4 },
   'body-4': { family: 'book', fontSize: 12, lineHeight: 16, fontWeight: '400', maxFontSizeMultiplier: 1.4 },
   'body-5': { family: 'book', fontSize: 10, lineHeight: 12, fontWeight: '400', maxFontSizeMultiplier: 1.4 },
   'button-label-1': {

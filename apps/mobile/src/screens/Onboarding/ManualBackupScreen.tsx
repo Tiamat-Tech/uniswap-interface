@@ -1,6 +1,15 @@
 import { useFocusEffect } from '@react-navigation/core'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { SharedEventName } from '@uniswap/analytics-events'
+import { Button, Flex, flexStyles, iconSizes, Text } from '@universe/mycelium'
+import { EyeSlash } from '@universe/mycelium/icons/EyeSlash'
+import { FileListLock } from '@universe/mycelium/icons/FileListLock'
+import { GraduationCap } from '@universe/mycelium/icons/GraduationCap'
+import { Key } from '@universe/mycelium/icons/Key'
+import { Lock } from '@universe/mycelium/icons/Lock'
+import { PapersText } from '@universe/mycelium/icons/PapersText'
+import { Pen } from '@universe/mycelium/icons/Pen'
+import { useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { addScreenshotListener } from 'expo-screen-capture'
 import React, { useCallback, useEffect, useReducer, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,9 +22,6 @@ import { MnemonicDisplay } from 'src/components/mnemonic/MnemonicDisplay'
 import { useLockScreenOnBlur } from 'src/features/lockScreen/hooks/useLockScreenOnBlur'
 import { BackupSpeedBumpModal } from 'src/features/onboarding/BackupSpeedBumpModal'
 import { OnboardingScreen } from 'src/features/onboarding/OnboardingScreen'
-import { Button, Flex, flexStyles, Text, useMedia, useSporeColors } from 'ui/src'
-import { EyeSlash, FileListLock, GraduationCap, Key, Lock, PapersText, Pen } from 'ui/src/components/icons'
-import { iconSizes } from 'ui/src/theme'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -95,7 +101,7 @@ export function ManualBackupScreen({ navigation, route: { params } }: Props): JS
   }
 
   const finishCloudBackup = (): void => {
-    navigate(MobileScreens.Home)
+    navigate(MobileScreens.MainTabs, { screen: MobileScreens.Home })
   }
 
   useFocusEffect(
@@ -115,7 +121,7 @@ export function ManualBackupScreen({ navigation, route: { params } }: Props): JS
     if (confirmContinueButtonPressed && hasBackup(BackupType.Manual, account)) {
       setShowSpeedBumpModal(false)
       if (params.entryPoint === OnboardingEntryPoint.BackupCard) {
-        navigate(MobileScreens.Home)
+        navigate(MobileScreens.MainTabs, { screen: MobileScreens.Home })
       } else {
         navigation.replace(OnboardingScreens.Notifications, params)
       }

@@ -1,9 +1,11 @@
 import type { GasFeeResult } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import { isMobileApp, isWebPlatform } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
 import type { PropsWithChildren } from 'react'
 import { useMemo } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, Text, UniswapXText } from 'ui/src'
+import { UniswapXText } from 'ui/src'
 import { OrderRouting } from 'ui/src/components/icons/OrderRouting'
 import { zIndexes } from 'ui/src/theme'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
@@ -12,7 +14,6 @@ import { RoutingDiagram } from 'uniswap/src/components/RoutingDiagram/RoutingDia
 import { RoutingLabel } from 'uniswap/src/components/RoutingDiagram/RoutingLabel'
 import { LearnMoreLink } from 'uniswap/src/components/text/LearnMoreLink'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useUSDValueOfGasFee } from 'uniswap/src/features/gas/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -152,7 +153,7 @@ export function RoutingHopInfo({
             caption
           ),
           placement: 'top',
-          maxWidth: routes && routes.length > 0 ? 300 : undefined,
+          maxWidth: isUniswapXTrade || (routes && routes.length > 0) ? 300 : undefined,
         }}
         analyticsTitle="Order routing"
       >

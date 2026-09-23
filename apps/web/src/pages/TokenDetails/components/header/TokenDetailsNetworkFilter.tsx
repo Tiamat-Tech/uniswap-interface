@@ -1,17 +1,20 @@
+import type { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, iconSizes } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { useNetworkSelectorOptions } from 'uniswap/src/components/network/NetworkFilterV2/useNetworkSelectorOptions'
 import { NetworkPile } from 'uniswap/src/components/network/NetworkPile/NetworkPile'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import { NetworkFilter } from '~/components/NetworkFilter/NetworkFilter'
 import { useFilteredChainIds } from '~/components/NetworkFilter/useFilteredChains'
 import { HEADER_TRANSITION } from '~/components/StickyCollapsibleHeader/constants'
+import { HeaderDivider } from '~/components/StickyCollapsibleHeader/HeaderDivider'
 import { useActiveAddresses } from '~/features/accounts/store/hooks'
+
+// Per-axis so it beats the size preset's `pl`/`pr`.
+const UNPADDED_TRIGGER_STYLE = { height: 'auto', pt: 0, pb: 0, pl: 0, pr: 0 } as const
 
 interface TokenDetailsNetworkFilterProps {
   chainIds: UniverseChainId[]
@@ -49,7 +52,8 @@ export function TokenDetailsNetworkFilter({
 
   return (
     <Flex row alignItems="stretch">
-      <Flex alignSelf="center">
+      {/* Dropdown wraps its inline-flex trigger in a block div; leading-none stops that line box inflating the row. */}
+      <Flex alignSelf="center" className="leading-none">
         <NetworkFilter
           networks={chainIds}
           currentChainId={selectedChainId}
@@ -59,6 +63,7 @@ export function TokenDetailsNetworkFilter({
           showSearch={isNetworkFilterV2Enabled}
           tieredOptions={isNetworkFilterV2Enabled ? tieredNetworkOptions : undefined}
           isTriggerStyled={false}
+          buttonStyle={UNPADDED_TRIGGER_STYLE}
           customTrigger={
             <Flex row alignItems="center" gap="$spacing6">
               {selectedChainId ? (
@@ -83,7 +88,7 @@ export function TokenDetailsNetworkFilter({
           onPress={setSelectedChainId}
         />
       </Flex>
-      {showAddressCopy && <Flex width={1} backgroundColor="$surface3" mx="$spacing12" />}
+      {showAddressCopy && <HeaderDivider />}
     </Flex>
   )
 }

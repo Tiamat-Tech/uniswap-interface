@@ -17,6 +17,12 @@ vi.mock('utilities/src/telemetry/trace/TraceContext', async (importOriginal) => 
 
 const position = (status: PositionStatus): PositionInfo => ({ status }) as unknown as PositionInfo
 
+type ReportProps = Parameters<typeof usePoolsPositionsReport>[0]
+
+function reportProps(overrides: Partial<ReportProps> & Pick<ReportProps, 'positions'>): ReportProps {
+  return { lifecycleFilter: 'all', pagesLoaded: 1, hasMore: false, isLoading: false, enabled: true, ...overrides }
+}
+
 describe(getPoolsPositionCounts, () => {
   it('counts positions by range status and totals the set', () => {
     const counts = getPoolsPositionCounts([
@@ -47,16 +53,14 @@ describe(usePoolsPositionsReport, () => {
     mockSendAnalyticsEvent.mockClear()
   })
 
-  it('fires once with the rendered counts and pagination state', () => {
+  it('fires once with the rendered counts, filters, and pagination state', () => {
     const positions = [
       position(PositionStatus.IN_RANGE),
       position(PositionStatus.OUT_OF_RANGE),
       position(PositionStatus.CLOSED),
     ]
 
-    renderHook(() =>
-      usePoolsPositionsReport({ positions, pagesLoaded: 1, hasMore: true, isLoading: false, enabled: true }),
-    )
+    renderHook(() => usePoolsPositionsReport(reportProps({ positions, rangeFilter: 'in_range', hasMore: true })))
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
     expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(UniswapEventName.PoolsPositionsReport, {
@@ -64,6 +68,8 @@ describe(usePoolsPositionsReport, () => {
       in_range_count: 1,
       out_of_range_count: 1,
       closed_count: 1,
+      lifecycle_filter: 'all',
+      range_filter: 'in_range',
       pages_loaded: 1,
       has_more: true,
     })
@@ -71,13 +77,9 @@ describe(usePoolsPositionsReport, () => {
 
   it('does not fire while the first page is still loading', () => {
     renderHook(() =>
-      usePoolsPositionsReport({
-        positions: [position(PositionStatus.IN_RANGE)],
-        pagesLoaded: 0,
-        hasMore: true,
-        isLoading: true,
-        enabled: true,
-      }),
+      usePoolsPositionsReport(
+        reportProps({ positions: [position(PositionStatus.IN_RANGE)], pagesLoaded: 0, hasMore: true, isLoading: true }),
+      ),
     )
 
     expect(mockSendAnalyticsEvent).not.toHaveBeenCalled()
@@ -86,12 +88,12 @@ describe(usePoolsPositionsReport, () => {
   it('does not fire while disabled, then fires once when it becomes enabled', () => {
     const positions = [position(PositionStatus.IN_RANGE)]
     const { rerender } = renderHook((props) => usePoolsPositionsReport(props), {
-      initialProps: { positions, pagesLoaded: 1, hasMore: false, isLoading: false, enabled: false },
+      initialProps: reportProps({ positions, enabled: false }),
     })
 
     expect(mockSendAnalyticsEvent).not.toHaveBeenCalled()
 
-    rerender({ positions, pagesLoaded: 1, hasMore: false, isLoading: false, enabled: true })
+    rerender(reportProps({ positions }))
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
   })
@@ -99,41 +101,23 @@ describe(usePoolsPositionsReport, () => {
   it('does not re-fire when the tab is re-opened with an unchanged set', () => {
     const positions = [position(PositionStatus.IN_RANGE)]
     const { rerender } = renderHook((props) => usePoolsPositionsReport(props), {
-      initialProps: { positions, pagesLoaded: 1, hasMore: false, isLoading: false, enabled: true },
+      initialProps: reportProps({ positions }),
     })
 
-    rerender({ positions, pagesLoaded: 1, hasMore: false, isLoading: false, enabled: false })
-    rerender({ positions, pagesLoaded: 1, hasMore: false, isLoading: false, enabled: true })
+    rerender(reportProps({ positions, enabled: false }))
+    rerender(reportProps({ positions }))
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
   })
 
   it('re-fires on re-open when the set changed while the tab was inactive', () => {
     const { rerender } = renderHook((props) => usePoolsPositionsReport(props), {
-      initialProps: {
-        positions: [position(PositionStatus.IN_RANGE)],
-        pagesLoaded: 1,
-        hasMore: false,
-        isLoading: false,
-        enabled: true,
-      },
+      initialProps: reportProps({ positions: [position(PositionStatus.IN_RANGE)] }),
     })
 
-    rerender({
-      positions: [position(PositionStatus.IN_RANGE)],
-      pagesLoaded: 1,
-      hasMore: false,
-      isLoading: false,
-      enabled: false,
-    })
+    rerender(reportProps({ positions: [position(PositionStatus.IN_RANGE)], enabled: false }))
     // A position flipped out of range while the tab was inactive -> re-open emits.
-    rerender({
-      positions: [position(PositionStatus.OUT_OF_RANGE)],
-      pagesLoaded: 1,
-      hasMore: false,
-      isLoading: false,
-      enabled: true,
-    })
+    rerender(reportProps({ positions: [position(PositionStatus.OUT_OF_RANGE)] }))
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(2)
   })
@@ -141,7 +125,7 @@ describe(usePoolsPositionsReport, () => {
   it('re-fires with updated counts when pagination loads more positions', () => {
     const firstPage = [position(PositionStatus.IN_RANGE)]
     const { rerender } = renderHook((props) => usePoolsPositionsReport(props), {
-      initialProps: { positions: firstPage, pagesLoaded: 1, hasMore: true, isLoading: false, enabled: true },
+      initialProps: reportProps({ positions: firstPage, hasMore: true }),
     })
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
@@ -151,7 +135,7 @@ describe(usePoolsPositionsReport, () => {
     )
 
     const secondPage = [...firstPage, position(PositionStatus.OUT_OF_RANGE), position(PositionStatus.CLOSED)]
-    rerender({ positions: secondPage, pagesLoaded: 2, hasMore: false, isLoading: false, enabled: true })
+    rerender(reportProps({ positions: secondPage, pagesLoaded: 2 }))
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(2)
     expect(mockSendAnalyticsEvent).toHaveBeenLastCalledWith(
@@ -166,58 +150,49 @@ describe(usePoolsPositionsReport, () => {
     )
   })
 
+  it('re-fires when the lifecycle filter changes even if the counts are unchanged', () => {
+    const positions = [position(PositionStatus.IN_RANGE)]
+    const { rerender } = renderHook((props) => usePoolsPositionsReport(props), {
+      initialProps: reportProps({ positions, lifecycleFilter: 'open' }),
+    })
+
+    rerender(reportProps({ positions }))
+
+    expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(2)
+    expect(mockSendAnalyticsEvent).toHaveBeenLastCalledWith(
+      UniswapEventName.PoolsPositionsReport,
+      expect.objectContaining({ total_positions: 1, lifecycle_filter: 'all' }),
+    )
+  })
+
   it('does not re-fire when re-rendered with the same positions reference', () => {
     const positions = [position(PositionStatus.IN_RANGE)]
     const { rerender } = renderHook((props) => usePoolsPositionsReport(props), {
-      initialProps: { positions, pagesLoaded: 1, hasMore: false, isLoading: false, enabled: true },
+      initialProps: reportProps({ positions }),
     })
 
-    rerender({ positions, pagesLoaded: 1, hasMore: false, isLoading: false, enabled: true })
+    rerender(reportProps({ positions }))
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
   })
 
   it('does not re-fire when a refetch yields a new array with unchanged counts', () => {
     const { rerender } = renderHook((props) => usePoolsPositionsReport(props), {
-      initialProps: {
-        positions: [position(PositionStatus.IN_RANGE)],
-        pagesLoaded: 1,
-        hasMore: false,
-        isLoading: false,
-        enabled: true,
-      },
+      initialProps: reportProps({ positions: [position(PositionStatus.IN_RANGE)] }),
     })
 
     // New array reference (as React Query produces on a poll), same counts -> suppressed.
-    rerender({
-      positions: [position(PositionStatus.IN_RANGE)],
-      pagesLoaded: 1,
-      hasMore: false,
-      isLoading: false,
-      enabled: true,
-    })
+    rerender(reportProps({ positions: [position(PositionStatus.IN_RANGE)] }))
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
   })
 
   it('re-fires when a position changes range status without changing the total', () => {
     const { rerender } = renderHook((props) => usePoolsPositionsReport(props), {
-      initialProps: {
-        positions: [position(PositionStatus.IN_RANGE)],
-        pagesLoaded: 1,
-        hasMore: false,
-        isLoading: false,
-        enabled: true,
-      },
+      initialProps: reportProps({ positions: [position(PositionStatus.IN_RANGE)] }),
     })
 
-    rerender({
-      positions: [position(PositionStatus.OUT_OF_RANGE)],
-      pagesLoaded: 1,
-      hasMore: false,
-      isLoading: false,
-      enabled: true,
-    })
+    rerender(reportProps({ positions: [position(PositionStatus.OUT_OF_RANGE)] }))
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(2)
     expect(mockSendAnalyticsEvent).toHaveBeenLastCalledWith(

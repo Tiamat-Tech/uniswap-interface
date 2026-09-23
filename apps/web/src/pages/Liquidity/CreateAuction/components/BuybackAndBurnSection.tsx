@@ -1,5 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Switch, Text, useMedia } from 'ui/src'
+import { Switch } from 'ui/src'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ExternalLink } from '~/theme/components/Links'
 
@@ -38,7 +40,7 @@ export function BuybackAndBurnSection({
                 textUnderlinePosition: 'from-font',
               }}
             >
-              {t('toucan.createAuction.step.customizePool.buybackAndBurn.description.link')}
+              {String(t('toucan.createAuction.step.customizePool.buybackAndBurn.description.link'))}
             </ExternalLink>
             .
           </Text>

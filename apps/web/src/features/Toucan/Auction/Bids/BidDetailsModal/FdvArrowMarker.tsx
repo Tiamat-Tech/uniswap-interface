@@ -1,4 +1,4 @@
-import { useSporeColors } from 'ui/src/hooks/useSporeColors'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 
 interface FdvArrowMarkerProps {
   width?: number

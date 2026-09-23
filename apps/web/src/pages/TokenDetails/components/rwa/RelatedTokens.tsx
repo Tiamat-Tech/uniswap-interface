@@ -1,6 +1,5 @@
-import { FeatureFlags } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import {
   EXPLORE_STOCK_SHELF_COUNT,
   useExploreStocks,
@@ -10,14 +9,14 @@ import { CAROUSEL_FADE_WIDTH } from '~/components/TokenCardCarousel/constants'
 import { TokenCardCarousel } from '~/components/TokenCardCarousel/TokenCardCarousel'
 import { useHorizontalSnapCarousel } from '~/components/TokenCardCarousel/useHorizontalSnapCarousel'
 import { getShelfItemKey, ShelfTokenCard } from '~/pages/Explore/rwa/shelf/ShelfTokenCard'
-import { useRWATokenDetailsMatch } from '~/pages/TokenDetails/hooks/useRWATokenDetailsMatch'
+import { useTDPRWAMatch } from '~/pages/TokenDetails/hooks/useTDPRWAMatch'
 
 const RELATED_TOKENS_CARD_WIDTH = 176
 
-/** Related stocks shelf on the RWA TDP, reusing the token card carousel (gated by `FeatureFlags.RWATdpRelatedTokens`). */
+/** Related stocks shelf on the RWA TDP, reusing the token card carousel. */
 export function RelatedTokens(): JSX.Element | null {
   const { t } = useTranslation()
-  const rwaMatch = useRWATokenDetailsMatch(FeatureFlags.RWATdpRelatedTokens)
+  const rwaMatch = useTDPRWAMatch()
 
   const { featured, isLoading } = useExploreStocks([], {
     enabled: Boolean(rwaMatch),

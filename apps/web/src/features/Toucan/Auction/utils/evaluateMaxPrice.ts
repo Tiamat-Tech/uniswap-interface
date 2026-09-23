@@ -1,6 +1,6 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import { priceToQ96WithDecimals, q96ToPriceString } from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
-import { snapToNearestTick } from '~/features/Toucan/Auction/utils/ticks'
+import { computeBidMaxPriceResult } from '~/features/Toucan/Auction/utils/bidMaxPrice'
 
 export interface MinValuationErrorDetails {
   inputValueDecimal: number
@@ -12,6 +12,8 @@ export interface EvaluateMaxPriceResult {
   sanitizedDisplayValue?: string
   error?: string
   errorDetails?: MinValuationErrorDetails
+  /** The entry itself was over the ceiling and got pulled down to the highest legal tick. */
+  cappedToMax?: boolean
 }
 
 interface EvaluateMaxPriceParams {
@@ -24,9 +26,12 @@ interface EvaluateMaxPriceParams {
   minMaxPriceQ96: bigint | undefined
   minValidPriceDisplay: string | undefined
   minValidPriceDisplayFormatted: string | undefined
+  /** The hook's raw ceiling, in Q96, when a validation hook imposes one. */
+  maxBidPriceQ96?: bigint
   bidTokenSymbol: string
   shouldAutoCorrectMin?: boolean
-  formatError: (params: { value: string; symbol: string }) => string
+  /** Error copy for a price below the minimum valid bid, the only bound that still errors. */
+  formatMinError: (params: { value: string; symbol: string }) => string
 }
 
 export function evaluateMaxPrice({
@@ -39,9 +44,10 @@ export function evaluateMaxPrice({
   minMaxPriceQ96,
   minValidPriceDisplay,
   minValidPriceDisplayFormatted,
+  maxBidPriceQ96,
   bidTokenSymbol,
   shouldAutoCorrectMin,
-  formatError,
+  formatMinError,
 }: EvaluateMaxPriceParams): EvaluateMaxPriceResult {
   if (
     bidTokenDecimals === undefined ||
@@ -76,7 +82,7 @@ export function evaluateMaxPrice({
     const inputDisplay = q96ToPriceString({ q96Value: inputQ96, bidTokenDecimals, auctionTokenDecimals })
     const minDisplay = minValidPriceDisplay ?? ''
     return {
-      error: formatError({
+      error: formatMinError({
         value: minValidPriceDisplayFormatted ?? minDisplay,
         symbol: bidTokenSymbol ? ` ${bidTokenSymbol}` : '',
       }),
@@ -87,13 +93,23 @@ export function evaluateMaxPrice({
     }
   }
 
-  const snappedQ96 = snapToNearestTick({
-    value: inputQ96,
-    floorPrice: floorPriceQ96,
-    clearingPrice: clearingPriceQ96,
-    tickSize: tickSizeQ96,
+  // The ceiling caps rather than rejects, so there is no over-ceiling state to report. It
+  // must also be judged after snapping: the field round-trips through a decimal string and
+  // both q96 conversions round half-up, so the highest legal tick reconstructs slightly
+  // heavier than it left and a raw comparison rejects the tick the slider's max selects.
+  const { q96: snappedQ96, cappedToMax } = computeBidMaxPriceResult({
+    rawAmount,
+    auctionTokenDecimals,
+    clearingPriceQ96,
+    floorPriceQ96,
+    tickSizeQ96,
+    maxBidPriceQ96,
   })
+  if (snappedQ96 === undefined) {
+    return {}
+  }
+
   const sanitizedDisplayValue = q96ToPriceString({ q96Value: snappedQ96, bidTokenDecimals, auctionTokenDecimals })
 
-  return { sanitizedQ96: snappedQ96, sanitizedDisplayValue }
+  return { sanitizedQ96: snappedQ96, sanitizedDisplayValue, cappedToMax }
 }

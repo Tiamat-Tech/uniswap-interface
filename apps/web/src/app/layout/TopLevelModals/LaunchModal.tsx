@@ -1,10 +1,12 @@
 // Remove the following line when LaunchModal is used again:
 
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useAtom } from 'jotai'
 import { atomWithStorage } from 'jotai/utils'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Image, ImageProps, Text, TouchableArea, useMedia } from 'ui/src'
+import { Button, Image, ImageProps } from 'ui/src'
 import { X } from 'ui/src/components/icons/X'
 import { iconSizes } from 'ui/src/theme'
 import { Modal } from 'uniswap/src/components/modals/Modal'

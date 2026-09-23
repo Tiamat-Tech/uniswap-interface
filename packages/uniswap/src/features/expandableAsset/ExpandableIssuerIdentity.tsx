@@ -1,7 +1,7 @@
-import { useContext } from 'react'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, iconSizes, Text } from '@universe/mycelium'
+import { useContext, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { GroupHoverTransition } from 'uniswap/src/components/GroupHoverTransition'
 import { NetworkIconList } from 'uniswap/src/components/network/NetworkIconList/NetworkIconList'
@@ -9,12 +9,15 @@ import {
   formatIssuerDisplaySymbol,
   formatIssuerLabel,
 } from 'uniswap/src/data/apiClients/dataApiService/rwa/formatIssuerDisplaySymbol'
-import { pickPrimaryChainToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/pickPrimaryChainToken'
+import {
+  pickDisplayChainToken,
+  pickFilteredChainToken,
+} from 'uniswap/src/data/apiClients/dataApiService/rwa/pickPrimaryChainToken'
 import { getNetworkCount } from 'uniswap/src/data/apiClients/dataApiService/rwa/rwaMetrics'
 import type { IssuerToken, Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { IssuerTableRowHoverContext } from 'uniswap/src/features/expandableAsset/IssuerTableRowHoverContext'
 import { TABLE_SUBLINE_HEIGHT, type ExpandableAssetGroupVariant } from 'uniswap/src/features/expandableAsset/types'
+import { getIssuerTokenDisplayName } from 'uniswap/src/features/rwa/getIssuerTokenDisplayName'
 import { shortenAddress } from 'utilities/src/addresses'
 
 export type ExpandableIssuerIdentityProps = {
@@ -22,10 +25,11 @@ export type ExpandableIssuerIdentityProps = {
   issuer: IssuerToken
   enabledChainIds: readonly UniverseChainId[]
   variant?: ExpandableAssetGroupVariant
-  /** When true (Explore network filter active), multichain issuers show a network badge on the logo. */
-  hasNetworkFilter?: boolean
+  chainFilter?: UniverseChainId
   /** Flat single-issuer table row: show issuer token name instead of grouped asset name. */
   useIssuerNameAsPrimary?: boolean
+  categoryTag?: ReactNode
+  volumeDetail?: string
 }
 
 export function ExpandableIssuerIdentity({
@@ -33,8 +37,10 @@ export function ExpandableIssuerIdentity({
   issuer,
   enabledChainIds,
   variant = 'table',
-  hasNetworkFilter = false,
+  chainFilter,
   useIssuerNameAsPrimary = false,
+  categoryTag,
+  volumeDetail,
 }: ExpandableIssuerIdentityProps): JSX.Element {
   const { t } = useTranslation()
   const issuerTableRowHovered = useContext(IssuerTableRowHoverContext)
@@ -42,11 +48,19 @@ export function ExpandableIssuerIdentity({
     baseSymbol: asset.symbol,
     apiSymbol: issuer.symbol,
   })
-  const chainIds = issuer.chainTokens.map((chain) => chain.chainId as UniverseChainId)
-  const networkCount = getNetworkCount(issuer)
-  const primaryChain = pickPrimaryChainToken(issuer.chainTokens, enabledChainIds)
+  // The on-chain name often repeats the issuer brand ("NVIDIA • Robinhood Token"); the issuer label beside it
+  // already says who issued it, so drop the affix to leave room for the company name.
+  const primaryName = useIssuerNameAsPrimary
+    ? getIssuerTokenDisplayName({ name: issuer.name, issuer: issuer.issuer })
+    : asset.name
+  const chainIds = issuer.chainTokens
+    .map((chain) => chain.chainId as UniverseChainId)
+    .filter((id) => enabledChainIds.includes(id))
+  const networkCount = getNetworkCount(issuer, enabledChainIds)
+  const filteredChain = pickFilteredChainToken({ chainTokens: issuer.chainTokens, enabledChainIds, chainFilter })
+  const primaryChain = pickDisplayChainToken({ chainTokens: issuer.chainTokens, enabledChainIds, chainFilter })
   // Multichain issuers omit the logo badge unless a network filter is active (matches Explore tokens table).
-  const showNetworkBadge = Boolean(primaryChain) && (chainIds.length <= 1 || (variant === 'table' && hasNetworkFilter))
+  const showNetworkBadge = Boolean(primaryChain) && (chainIds.length <= 1 || Boolean(filteredChain))
   const showNetworkHover = variant === 'table' && chainIds.length > 1
   const logoSize = variant === 'search' ? iconSizes.icon40 : iconSizes.icon32
 
@@ -78,6 +92,16 @@ export function ExpandableIssuerIdentity({
     </Text>
   ) : null
 
+  const searchSublineDetail = volumeDetail ? (
+    <Text variant="body3" color="$neutral3" numberOfLines={1}>
+      {volumeDetail}
+    </Text>
+  ) : chainIds.length > 1 ? (
+    networkSubline
+  ) : (
+    addressSubline
+  )
+
   return (
     <Flex row gap="$spacing12" alignItems="center" width="100%" minWidth={0}>
       <TokenLogo
@@ -89,14 +113,15 @@ export function ExpandableIssuerIdentity({
         alwaysShowNetworkLogo={showNetworkBadge}
         hideNetworkLogo={!showNetworkBadge}
       />
-      <Flex flex={1} minWidth={0}>
+      <Flex flex={1} minWidth={0} gap={variant === 'search' ? '$spacing2' : undefined}>
         <Flex row alignItems="baseline" gap="$spacing6" minWidth={0}>
           <Text variant={variant === 'search' ? 'body1' : 'body2'} color="$neutral1" numberOfLines={1} flexShrink={1}>
-            {useIssuerNameAsPrimary ? issuer.name : asset.name}
+            {primaryName}
           </Text>
           <Text variant="body3" color="$neutral3" numberOfLines={1} flexShrink={0}>
             {formatIssuerLabel(issuer.issuer)}
           </Text>
+          {categoryTag}
         </Flex>
         {showNetworkHover ? (
           <GroupHoverTransition
@@ -111,7 +136,7 @@ export function ExpandableIssuerIdentity({
         ) : (
           <Flex row gap="$spacing8" minWidth={0}>
             {symbolSubline}
-            {variant === 'search' ? (chainIds.length > 1 ? networkSubline : addressSubline) : null}
+            {variant === 'search' ? searchSublineDetail : null}
           </Flex>
         )}
       </Flex>

@@ -33,7 +33,11 @@ const customConfig = {
   },
 }
 
-const IS_STORYBOOK_ENABLED = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test'
+// STORYBOOK_ENABLED=true force-includes Storybook in release-mode bundles (the
+// device-farm storybook artifacts). StorybookScreen.tsx gates its .storybook require off the
+// same babel-inlined flag, so the two gates must stay in sync.
+const IS_STORYBOOK_ENABLED =
+  process.env.STORYBOOK_ENABLED === 'true' || (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test')
 
 const finalConfig = withStorybook(mergeConfig(getExpoDefaultConfig(__dirname), defaultConfig, customConfig), {
   enabled: IS_STORYBOOK_ENABLED,
@@ -112,9 +116,12 @@ function getEnvCacheVersion() {
   return `env-${hash.digest('hex').slice(0, 16)}`
 }
 
-// Bust Metro's transform cache whenever the env files change (see getEnvCacheVersion).
-// Append to any existing cacheVersion rather than overwriting it.
-finalConfig.cacheVersion = [finalConfig.cacheVersion, getEnvCacheVersion()].filter(Boolean).join('-')
+// Bust Metro's transform cache whenever the env files change (see getEnvCacheVersion),
+// and never share cached transforms between storybook and non-storybook bundles (the
+// flag is babel-inlined). Append to any existing cacheVersion rather than overwriting it.
+finalConfig.cacheVersion = [finalConfig.cacheVersion, getEnvCacheVersion(), IS_STORYBOOK_ENABLED ? 'sb1' : 'sb0']
+  .filter(Boolean)
+  .join('-')
 
 // uniwind (Tailwind v4 for React Native) must be the OUTERMOST wrapper. It sets
 // `transformerPath` (not `transformer.babelTransformerPath`), so the existing

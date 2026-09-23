@@ -1,5 +1,5 @@
+import { Loader } from '@universe/mycelium'
 import { ReactNode, Suspense } from 'react'
-import { Loader } from 'ui/src/loading/Loader'
 import { FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
 import {
   ARS_ICON,

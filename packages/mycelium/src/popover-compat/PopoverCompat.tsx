@@ -18,6 +18,7 @@
  */
 import * as React from 'react'
 import { Popover as PopoverRecipe, PopoverTrigger as PopoverRecipeTrigger } from '../shadcn/popover'
+import { mapHoverableToDelays, type PopoverCompatHoverDelays } from './hover'
 import type {
   PopoverCompatFocusOutsideEvent,
   PopoverCompatOffset,
@@ -44,13 +45,32 @@ export type PopoverCompatDismissInterceptors = Pick<
 >
 
 /**
- * Mutable registration slot provided by the root, written by the content
- * (there is exactly one content per legacy popover root). Null outside a
- * compat root — the content then has nothing to intercept, matching a
- * standalone render.
+ * Root → trigger/content plumbing, collapsed into one internal provider.
+ * Admission criterion: root-owned plumbing for the root's single
+ * trigger/content pair only — anything else gets its own context, this is
+ * not an ambient state bag.
+ * - `dismissInterceptorsRef`: mutable registration slot written by the content
+ *   (there is exactly one content per legacy popover root);
+ * - `triggerElement`/`setTriggerElement`: the trigger's DOM element as root
+ *   STATE, read by the content to find a focus-trapping host via closest()
+ *   (SWAP-3309). State, not a ref: an uncontrolled open (`defaultOpen`,
+ *   hover) re-renders nothing above the popup, so the trigger's mount itself
+ *   must re-render the content with the element already set;
+ * - `hover`: the legacy `hoverable` mapping the trigger spreads onto the Base
+ *   UI trigger (`openOnHover`/`delay`/`closeDelay`), like the rebuilt ui/src
+ *   web leg.
+ * Null outside a compat root — a standalone content then has nothing to
+ * intercept and no host to discover. `PopoverCompatPositionContext` stays a
+ * separate context: it is package-public with its own native leg.
  */
-export const PopoverCompatDismissInterceptContext =
-  React.createContext<React.MutableRefObject<PopoverCompatDismissInterceptors | null> | null>(null)
+export interface PopoverCompatInternals {
+  dismissInterceptorsRef: React.MutableRefObject<PopoverCompatDismissInterceptors | null>
+  triggerElement: HTMLElement | null
+  setTriggerElement: (element: HTMLElement | null) => void
+  hover: PopoverCompatHoverDelays
+}
+
+export const PopoverCompatInternalsContext = React.createContext<PopoverCompatInternals | null>(null)
 
 interface CloseRequestDetails {
   reason?: string
@@ -111,8 +131,15 @@ function PopoverCompatRoot({
   offset,
   allowFlip,
   strategy,
+  hoverable,
 }: PopoverCompatRootProps): React.JSX.Element {
   const dismissInterceptorsRef = React.useRef<PopoverCompatDismissInterceptors | null>(null)
+  // State, not a ref: the one extra subtree re-render on trigger mount is the
+  // structural guarantee that the content sees the element before any open —
+  // an uncontrolled open (`defaultOpen`, hover) re-renders nothing above the
+  // popup, so a ref read at the content's last render would pin `null` and
+  // portal the first open to document.body (SWAP-3309).
+  const [triggerElement, setTriggerElement] = React.useState<HTMLElement | null>(null)
   const onOpenChangeRef = React.useRef(onOpenChange)
   onOpenChangeRef.current = onOpenChange
 
@@ -133,6 +160,16 @@ function PopoverCompatRoot({
     () => ({ placement, offset, allowFlip, strategy }),
     [placement, offset, allowFlip, strategy],
   )
+  const { openOnHover, openDelayMs, closeDelayMs } = mapHoverableToDelays(hoverable)
+  const internals = React.useMemo(
+    () => ({
+      dismissInterceptorsRef,
+      triggerElement,
+      setTriggerElement,
+      hover: { openOnHover, openDelayMs, closeDelayMs },
+    }),
+    [triggerElement, openOnHover, openDelayMs, closeDelayMs],
+  )
   return (
     <PopoverRecipe
       open={open}
@@ -142,9 +179,9 @@ function PopoverCompatRoot({
       onOpenChange={handleOpenChange}
       modal={false}
     >
-      <PopoverCompatDismissInterceptContext.Provider value={dismissInterceptorsRef}>
+      <PopoverCompatInternalsContext.Provider value={internals}>
         <PopoverCompatPositionContext.Provider value={position}>{children}</PopoverCompatPositionContext.Provider>
-      </PopoverCompatDismissInterceptContext.Provider>
+      </PopoverCompatInternalsContext.Provider>
     </PopoverRecipe>
   )
 }
@@ -152,15 +189,44 @@ function PopoverCompatRoot({
 /**
  * Renders a plain `div` wrapper like the Tamagui trigger stack (not a native
  * button) so arbitrary trigger content keeps its own semantics; Base UI wires
- * the open interaction and aria attributes onto it.
+ * the open interaction and aria attributes onto it. A caller `ref` receives
+ * that div, like the legacy trigger forwards its element (consumers measure
+ * it — the compat contract types it as the wider legacy `HTMLElement`).
  */
-function PopoverCompatTrigger({ children, className, ...handlers }: PopoverCompatTriggerProps): React.JSX.Element {
+function PopoverCompatTrigger({ children, className, ref, ...handlers }: PopoverCompatTriggerProps): React.JSX.Element {
+  const internals = React.useContext(PopoverCompatInternalsContext)
+  const hover = internals?.hover
+  // Setter identity is stable across trigger-element updates, keeping the
+  // callback ref stable (no detach/reattach churn when the context value
+  // changes on trigger mount).
+  const setTriggerElement = internals?.setTriggerElement
+  // Only spread when hover-open is on: the Base UI trigger's click/tap-open
+  // wiring is untouched either way (hover is additive, like the legacy root).
+  const hoverProps = hover?.openOnHover
+    ? { openOnHover: true, delay: hover.openDelayMs, closeDelay: hover.closeDelayMs }
+    : undefined
+  // Adapter between the contract's `Ref<HTMLElement>` and the div's
+  // `Ref<HTMLDivElement>` (a RefObject of the wider type is not directly
+  // assignable) — same callback-ref shape as the recipe's `PopoverAnchor`.
+  // Base UI merges the render element's ref with its own trigger wiring.
+  const forwardTriggerRef = React.useCallback(
+    (element: HTMLDivElement | null): void => {
+      setTriggerElement?.(element)
+      if (typeof ref === 'function') {
+        ref(element)
+      } else if (ref) {
+        ref.current = element
+      }
+    },
+    [ref, setTriggerElement],
+  )
   return (
     <PopoverRecipeTrigger
       data-slot="popover-compat-trigger"
       nativeButton={false}
+      {...hoverProps}
       // oxlint-disable-next-line react/forbid-elements -- the compat trigger IS the raw DOM boundary (no Tamagui Flex here)
-      render={<div className={className} {...handlers} />}
+      render={<div ref={forwardTriggerRef} className={className} {...handlers} />}
     >
       {children}
     </PopoverRecipeTrigger>

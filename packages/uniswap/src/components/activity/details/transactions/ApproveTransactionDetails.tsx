@@ -1,6 +1,5 @@
+import { Flex, iconSizes, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
 import { TransactionTokenContextMenu } from 'uniswap/src/components/activity/details/transactions/TransactionTokenContextMenu'
 import { formatApprovalAmount } from 'uniswap/src/components/activity/utils'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
@@ -26,7 +25,12 @@ export function ApproveTransactionDetails({
 }): JSX.Element | null {
   const { t } = useTranslation()
   const { formatNumberOrString } = useLocalizationContext()
-  const currencyInfo = useCurrencyInfo(buildCurrencyId(transactionDetails.chainId, typeInfo.tokenAddress ?? ''))
+  // tokenAddress is optional on Permit2ApproveTransactionInfo (unresolved metadata case) — treat a
+  // missing address as unresolved rather than building a malformed `${chainId}-` currency id.
+  const currencyId = typeInfo.tokenAddress
+    ? buildCurrencyId(transactionDetails.chainId, typeInfo.tokenAddress)
+    : undefined
+  const currencyInfo = useCurrencyInfo(currencyId)
 
   if (!currencyInfo && typeInfo.type === TransactionType.Permit2Approve) {
     return null

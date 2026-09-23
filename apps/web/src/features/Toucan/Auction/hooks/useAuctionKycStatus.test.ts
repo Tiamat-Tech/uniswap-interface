@@ -5,24 +5,14 @@ import {
   KycVerificationStatus,
   ValidationType,
 } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
-import { useFeatureFlag } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuctionKycStatus } from '~/features/Toucan/Auction/hooks/useAuctionKycStatus'
-import { mocked } from '~/test-utils/mocked'
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
-}))
-
-vi.mock('@universe/gating', () => ({
-  getFeatureFlag: vi.fn(),
-  useFeatureFlag: vi.fn(),
-  FeatureFlags: {
-    ToucanAuctionKYC: 'toucan_auction_kyc',
-  },
 }))
 
 const mockUseVerifyWalletQuery = vi.fn()
@@ -111,7 +101,6 @@ describe('useAuctionKycStatus', () => {
 
   describe('loading state', () => {
     it('returns loading state when query is loading', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(createMockQueryResult({ isLoading: true }))
 
       const { result } = renderHook(() => useAuctionKycStatus(defaultParams))
@@ -128,13 +117,13 @@ describe('useAuctionKycStatus', () => {
         isLoading: true,
         isError: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_UNSPECIFIED,
+        hasNoRecognizedValidations: false,
       })
     })
   })
 
   describe('error state', () => {
     it('returns error state when query has error', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(createMockQueryResult({ isError: true }))
 
       const { result } = renderHook(() => useAuctionKycStatus(defaultParams))
@@ -151,11 +140,11 @@ describe('useAuctionKycStatus', () => {
         isLoading: false,
         isError: true,
         status: KycVerificationStatus.VERIFICATION_STATUS_UNSPECIFIED,
+        hasNoRecognizedValidations: false,
       })
     })
 
     it('returns error state when data is undefined', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(createMockQueryResult({ data: undefined }))
 
       const { result } = renderHook(() => useAuctionKycStatus(defaultParams))
@@ -172,13 +161,13 @@ describe('useAuctionKycStatus', () => {
         isLoading: false,
         isError: true,
         status: KycVerificationStatus.VERIFICATION_STATUS_UNSPECIFIED,
+        hasNoRecognizedValidations: false,
       })
     })
   })
 
   describe('no verification needed', () => {
     it('allows bidding when auction does not need verification', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: {},
@@ -199,13 +188,13 @@ describe('useAuctionKycStatus', () => {
         isError: false,
         // When no KYC validation exists, status is UNSPECIFIED
         status: KycVerificationStatus.VERIFICATION_STATUS_UNSPECIFIED,
+        hasNoRecognizedValidations: true,
       })
     })
   })
 
   describe('verified status', () => {
     it('allows bidding when user is verified (non-presale)', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: {
@@ -230,11 +219,11 @@ describe('useAuctionKycStatus', () => {
         isLoading: false,
         isError: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_COMPLETED,
+        hasNoRecognizedValidations: false,
       })
     })
 
     it('allows bidding when user is verified AND allowlisted (presale)', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: {
@@ -260,11 +249,11 @@ describe('useAuctionKycStatus', () => {
         isLoading: false,
         isError: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_COMPLETED,
+        hasNoRecognizedValidations: false,
       })
     })
 
     it('blocks bidding when user is verified but NOT allowlisted (presale)', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: {
@@ -290,13 +279,13 @@ describe('useAuctionKycStatus', () => {
         isLoading: false,
         isError: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_COMPLETED,
+        hasNoRecognizedValidations: false,
       })
     })
   })
 
   describe('pending status', () => {
     it('shows verification in progress when status is PENDING', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: { status: KycVerificationStatus.VERIFICATION_STATUS_PENDING, hasKycVerification: true },
@@ -317,13 +306,13 @@ describe('useAuctionKycStatus', () => {
         isLoading: false,
         isError: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_PENDING,
+        hasNoRecognizedValidations: false,
       })
     })
   })
 
   describe('retry', () => {
     it('shows retry when status is RETRY', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: { status: KycVerificationStatus.VERIFICATION_STATUS_RETRY, hasKycVerification: true },
@@ -344,13 +333,13 @@ describe('useAuctionKycStatus', () => {
         isLoading: false,
         isError: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_RETRY,
+        hasNoRecognizedValidations: false,
       })
     })
   })
 
   describe('failed verification', () => {
     it('disables bidding when verification fails', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: { status: KycVerificationStatus.VERIFICATION_STATUS_REJECTED, hasKycVerification: true },
@@ -371,13 +360,13 @@ describe('useAuctionKycStatus', () => {
         isLoading: false,
         isError: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_REJECTED,
+        hasNoRecognizedValidations: false,
       })
     })
   })
 
   describe('not started', () => {
     it('prompts user to verify identity when status is NOT_STARTED', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: { status: KycVerificationStatus.VERIFICATION_STATUS_NOT_STARTED, hasKycVerification: true },
@@ -398,7 +387,6 @@ describe('useAuctionKycStatus', () => {
     it('onKycAction opens redirect URL in new tab', () => {
       const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
 
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           data: {
@@ -421,7 +409,6 @@ describe('useAuctionKycStatus', () => {
 
   describe('default - unknown status', () => {
     it('returns default state when status is COMPLETED', () => {
-      mocked(useFeatureFlag).mockReturnValue(true)
       mockUseVerifyWalletQuery.mockReturnValue(
         createMockQueryResult({
           // @ts-expect-error new or unknown status
@@ -443,30 +430,49 @@ describe('useAuctionKycStatus', () => {
         auctionHasPresale: false,
         auctionNeedsVerification: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_COMPLETED,
+        hasNoRecognizedValidations: false,
       })
     })
   })
 
-  describe('feature flag disabled', () => {
-    it('returns default state when feature flag is disabled', () => {
-      mocked(useFeatureFlag).mockReturnValue(false)
-      mockUseVerifyWalletQuery.mockReturnValue(createMockQueryResult({}))
-
+  describe('hasNoRecognizedValidations', () => {
+    it('is true only when the backend recognized nothing at all', () => {
+      mockUseVerifyWalletQuery.mockReturnValue(createMockQueryResult({ data: {} }))
       const { result } = renderHook(() => useAuctionKycStatus(defaultParams))
+      expect(result.current.hasNoRecognizedValidations).toBe(true)
+    })
 
-      expect(result.current).toEqual({
-        canBid: true,
-        kycButtonLabel: undefined,
-        whitelistLabel: undefined,
-        kycButtonDisabled: false,
-        onKycAction: undefined,
+    it('is false for a max-bid-price hook whose ceiling is DISABLED', () => {
+      // The hook treats maxBidPrice() == 0 as "skip the check", so the backend serves the
+      // entry with "0". The entry's presence means recognized; only its value says there is
+      // no ceiling. If this collapsed to "recognized nothing", BidForm would flag the
+      // auction unsupported and disable bidding on a perfectly valid launch.
+      const ceilingDisabled = {
+        validationType: 3,
+        data: { case: 'maxBidPriceData', value: { maxBidPriceQ96: '0' } },
+        validationPassed: true,
+      } as unknown as AuctionValidation
+      mockUseVerifyWalletQuery.mockReturnValue({
+        data: { validations: [ceilingDisabled] } as VerifyWalletResponse,
         isLoading: false,
         isError: false,
-        isAllowlisted: false,
-        auctionHasPresale: false,
-        auctionNeedsVerification: false,
-        status: KycVerificationStatus.VERIFICATION_STATUS_UNSPECIFIED,
       })
+
+      const { result } = renderHook(() => useAuctionKycStatus(defaultParams))
+      expect(result.current.hasNoRecognizedValidations).toBe(false)
+      // The ceiling entry must not be mistaken for a KYC validation.
+      expect(result.current.auctionNeedsVerification).toBe(false)
+      // Deliberately NOT asserting canBid here: with no KYC entry the hook returns
+      // canBid: true from its !auctionNeedsVerification branch regardless of how the
+      // ceiling is treated, so it would pass either way. That the ceiling never acts as a
+      // wallet gate is covered where it can actually fail — the canBid cases in
+      // packages/uniswap/.../useVerifyWallet.test.ts.
+    })
+
+    it('is false while the query is still loading', () => {
+      mockUseVerifyWalletQuery.mockReturnValue(createMockQueryResult({ isLoading: true }))
+      const { result } = renderHook(() => useAuctionKycStatus(defaultParams))
+      expect(result.current.hasNoRecognizedValidations).toBe(false)
     })
   })
 })

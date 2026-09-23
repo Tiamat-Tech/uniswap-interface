@@ -4,6 +4,7 @@ import {
   RegistrationOptions_AuthenticatorAttachment as AuthenticatorAttachment,
 } from '@uniswap/client-privy-embedded-wallet/dist/uniswap/privy-embedded-wallet/v1/service_pb'
 import type { RegistrationOptions } from '@uniswap/client-privy-embedded-wallet/dist/uniswap/privy-embedded-wallet/v1/service_pb'
+import { getValidAddress, Platform } from '@universe/chains'
 import { EmbeddedWalletApiClient } from '@universe/embedded-wallet/src/data/rest/embeddedWallet/requests'
 import {
   clearDeviceSession,
@@ -20,8 +21,6 @@ import {
 import { authenticatePasskey, registerPasskey } from '@universe/embedded-wallet/src/features/passkey/passkey'
 import { authenticateWithPasskey } from '@universe/embedded-wallet/src/features/passkey/passkeySession'
 import { HexString } from '@universe/encoding'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { logger } from 'utilities/src/logger/logger'
 
 export {

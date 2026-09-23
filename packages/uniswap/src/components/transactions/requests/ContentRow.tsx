@@ -1,5 +1,5 @@
+import { Flex, Text, type FlexCompatProps as FlexProps, type TextCompatProps as TextProps } from '@universe/mycelium'
 import { PropsWithChildren } from 'react'
-import { Flex, FlexProps, Text, TextProps } from 'ui/src'
 
 export function ContentRow({
   label,

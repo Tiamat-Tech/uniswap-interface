@@ -1,6 +1,6 @@
 import { type ChainedQuoteResponse, type DiscriminatedQuoteResponse } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { convertGasFeeToDisplayValue } from 'uniswap/src/features/gas/convertGasFeeToDisplayValue'
 import { useUSDValueOfGasFee } from 'uniswap/src/features/gas/hooks'
 import { getDisplayGasStrategy } from 'uniswap/src/features/gas/utils'

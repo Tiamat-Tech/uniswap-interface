@@ -1,5 +1,5 @@
+import type { ResolvedFontStyle } from '@universe/mycelium'
 import { useEffect, useRef, useState } from 'react'
-import type { ResolvedFontStyle } from 'ui/src/theme'
 import {
   ROLL_TRANSITION_MS,
   SLIDE_PERCENT,

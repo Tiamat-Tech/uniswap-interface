@@ -1,4 +1,5 @@
 import { UNI_ADDRESSES } from '@uniswap/sdk-core'
+import { getValidAddress } from '@universe/chains'
 import { AssetType } from 'uniswap/src/entities/assets'
 import { getAmountsFromTrade } from 'uniswap/src/features/transactions/swap/utils/getAmountsFromTrade'
 import {
@@ -7,7 +8,6 @@ import {
   TransactionType,
 } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { isFinalizedTxStatus, isPlanTransactionDetails } from 'uniswap/src/features/transactions/types/utils'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { buildCurrencyId, buildNativeCurrencyId, isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 import { ActivityRowFragments } from '~/pages/Portfolio/Activity/ActivityTable/activityTableModels'
 import { toProtocolInfo } from '~/pages/Portfolio/Activity/ActivityTable/protocolInfo'
@@ -23,8 +23,6 @@ import {
 } from '~/pages/Portfolio/Activity/ActivityTable/registryNftFragments'
 import { ActivityFilterType } from '~/pages/Portfolio/Activity/Filters/activityFilterTypes'
 
-type ActivityRowFragmentsOptions = { isEarnActivityDisplayEnabled?: boolean }
-
 /**
  * Builds activity row fragments for a transaction by mapping from parsed typeInfo.
  * Returns empty object for unsupported transaction types.
@@ -33,18 +31,14 @@ type ActivityRowFragmentsOptions = { isEarnActivityDisplayEnabled?: boolean }
  * @param details - The transaction details with parsed typeInfo
  * @returns Activity row fragments containing amount, counterparty, and type label data
  */
-export function buildActivityRowFragments(
-  details: TransactionDetails,
-  { isEarnActivityDisplayEnabled = true }: ActivityRowFragmentsOptions = {},
-): ActivityRowFragments {
-  const options = { isEarnActivityDisplayEnabled }
-  const cached = getCachedActivityRowFragments(details, options)
+export function buildActivityRowFragments(details: TransactionDetails): ActivityRowFragments {
+  const cached = getCachedActivityRowFragments(details)
   if (cached) {
     return cached
   }
 
-  const fragments = buildActivityRowFragmentsInternal(details, options)
-  cacheActivityRowFragments({ details, fragments, isEarnActivityDisplayEnabled })
+  const fragments = buildActivityRowFragmentsInternal(details)
+  cacheActivityRowFragments({ details, fragments })
   return fragments
 }
 
@@ -53,10 +47,7 @@ export function buildActivityRowFragments(
  * Separated to allow memoization wrapper.
  */
 // oxlint-disable-next-line complexity
-function buildActivityRowFragmentsInternal(
-  details: TransactionDetails,
-  { isEarnActivityDisplayEnabled }: Required<ActivityRowFragmentsOptions>,
-): ActivityRowFragments {
+function buildActivityRowFragmentsInternal(details: TransactionDetails): ActivityRowFragments {
   const { typeInfo, chainId } = details
 
   switch (typeInfo.type) {
@@ -84,7 +75,7 @@ function buildActivityRowFragmentsInternal(
         return {}
       }
       const status = details.status
-      if (isEarnActivityDisplayEnabled && typeInfo.earnAction) {
+      if (typeInfo.earnAction) {
         return buildEarnPlanActivityRowFragments(typeInfo, status)
       }
 

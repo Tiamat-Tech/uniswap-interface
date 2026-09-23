@@ -24,12 +24,14 @@ export const SELECT_RECIPE_CLASS_NAMES = {
     'flex h-[40px] min-w-[140px] cursor-pointer items-center justify-between gap-[8px] rounded-[12px] border border-surface3 bg-surface1 px-[12px] text-[16px] leading-[24px] whitespace-nowrap text-neutral1 outline-none select-none hover:bg-surface2 focus-visible:bg-surface2 data-disabled:cursor-default data-disabled:opacity-60 data-popup-open:bg-surface2 [&_svg]:pointer-events-none [&_svg]:shrink-0',
   triggerIcon: 'size-[20px] text-neutral2 transition-transform duration-200 ease-in-out',
   positioner: 'isolate z-50 outline-none',
+  // No scale-* here yet — `scale` stays in the transition to match sibling
+  // popover.tsx, so future scale styles animate instead of snapping.
   content:
-    'z-50 max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-[16px] border border-surface3 bg-surface1 p-[8px] text-neutral1 shadow-md outline-none transition-[transform,opacity] duration-150 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0',
+    'z-50 max-h-(--available-height) min-w-(--anchor-width) origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-[16px] border border-surface3 bg-surface1 p-[8px] text-neutral1 shadow-md outline-none transition-[scale,opacity] duration-150 ease-out data-starting-style:opacity-0 data-ending-style:opacity-0',
   label: 'px-[8px] py-[6px] text-[12px] leading-[16px] font-medium text-neutral2',
   item: 'relative flex cursor-pointer items-center gap-[8px] rounded-[8px] py-[8px] pr-[32px] pl-[8px] text-[16px] leading-[24px] text-neutral1 outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-60 data-highlighted:bg-surface2 [&_svg]:pointer-events-none [&_svg]:shrink-0',
   itemIndicator: 'pointer-events-none absolute right-[8px] flex size-[16px] items-center justify-center text-accent1',
-  separator: 'my-[6px] -mx-[8px] h-px bg-surface3',
+  separator: 'my-[6px] mx-0 h-px w-full bg-surface3',
   scrollButton: 'flex w-full cursor-default items-center justify-center py-[4px] text-neutral2',
 } as const
 

@@ -1,14 +1,14 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Button, Flex, Text } from '@universe/mycelium'
+import { ChartBar } from '@universe/mycelium/icons/ChartBar'
+import { Coins } from '@universe/mycelium/icons/Coins'
+import { DocumentList } from '@universe/mycelium/icons/DocumentList'
+import { FileListLock } from '@universe/mycelium/icons/FileListLock'
+import { Gas } from '@universe/mycelium/icons/Gas'
+import { Language } from '@universe/mycelium/icons/Language'
+import { Power } from '@universe/mycelium/icons/Power'
+import { ShieldCheck } from '@universe/mycelium/icons/ShieldCheck'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
-import { ChartBar } from 'ui/src/components/icons/ChartBar'
-import { Coins } from 'ui/src/components/icons/Coins'
-import { DocumentList } from 'ui/src/components/icons/DocumentList'
-import { FileListLock } from 'ui/src/components/icons/FileListLock'
-import { Gas } from 'ui/src/components/icons/Gas'
-import { Language } from 'ui/src/components/icons/Language'
-import { Power } from 'ui/src/components/icons/Power'
-import { ShieldCheck } from 'ui/src/components/icons/ShieldCheck'
 import { useAppFiatCurrency } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useEnableCustomGasFeeEntry } from 'uniswap/src/features/gas/hooks/useEnableCustomGasFeeEntry'
 import { useCurrentLanguage, useLanguageInfo } from 'uniswap/src/features/language/hooks'
@@ -81,7 +81,7 @@ export function SettingsMenu({
           />
           <SettingsButton
             icon={
-              <Flex centered width="$icon.24" height="$icon.24">
+              <Flex centered width="$spacing24" height="$spacing24">
                 <ChartBar size="$icon.18" color="$neutral2" />
               </Flex>
             }

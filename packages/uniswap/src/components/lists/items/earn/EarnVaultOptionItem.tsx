@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { FocusedRowControl, OptionItem } from 'uniswap/src/components/lists/items/OptionItem'
 import { EarnVaultOption } from 'uniswap/src/components/lists/items/types'

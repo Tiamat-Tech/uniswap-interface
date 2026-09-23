@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { runSaga } from 'redux-saga'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { addTransaction } from 'uniswap/src/features/transactions/slice'
 import type { HandleOnChainStepParams, OnChainTransactionStep } from 'uniswap/src/features/transactions/steps/types'
 import { TransactionStepType } from 'uniswap/src/features/transactions/steps/types'

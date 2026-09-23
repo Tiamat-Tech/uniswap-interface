@@ -1,10 +1,10 @@
+import { UniverseChainId } from '@universe/chains'
 import { sendUserOperationToBundler } from '@universe/embedded-wallet/src/connection/bundlerClient'
 import {
   sendEmbeddedWalletCalls,
   type WalletSendCallsRequest,
 } from '@universe/embedded-wallet/src/connection/sendCalls'
 import { TradingApiClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { transformTradingApiUserOpToRpcUserOp } from 'uniswap/src/features/smartWallet/userOp/transformTradingApiUserOp'
 import type { RpcUserOperation } from 'viem/account-abstraction'
 

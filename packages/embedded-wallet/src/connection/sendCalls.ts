@@ -1,14 +1,11 @@
 import { TradingApi } from '@universe/api'
-import type { Address } from '@universe/chains'
+import { type Address, UniverseChainId, Platform, areAddressesEqual } from '@universe/chains'
 import { sendUserOperationToBundler } from '@universe/embedded-wallet/src/connection/bundlerClient'
 import type { EthTransactionParams } from '@universe/embedded-wallet/src/features/passkey/embeddedWalletDelegation'
 import { hexToNumber, isValidHexString } from '@universe/encoding'
 import { TradingApiClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { transformTradingApiUserOpToRpcUserOp } from 'uniswap/src/features/smartWallet/userOp/transformTradingApiUserOp'
 import { toTradingApiSupportedChainId } from 'uniswap/src/features/transactions/swap/utils/tradingApi'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import type { RpcUserOperation } from 'viem/account-abstraction'
 
 /**

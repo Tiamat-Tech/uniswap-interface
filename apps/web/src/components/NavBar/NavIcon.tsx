@@ -1,22 +1,26 @@
 import { isMobileWeb } from '@universe/environment'
-import { ReactNode } from 'react'
+import { Flex, type FlexCompatProps, Text, TouchableArea } from '@universe/mycelium'
+import { forwardRef, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, TouchableArea } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
+import { zIndexes } from 'ui/src/theme/zIndexes'
 
-const Container = styled(Flex, {
-  position: 'relative',
-  centered: true,
-  backgroundColor: '$transparent',
-  borderWidth: '$none',
-  borderRadius: '$roundedFull',
-  zIndex: zIndexes.default,
-  hoverStyle: { backgroundColor: '$surface1Hovered' },
-  variants: {
-    active: {
-      true: { backgroundColor: '$surface1Hovered' },
-    },
-  },
+type ContainerProps = FlexCompatProps & { active?: boolean }
+
+const Container = forwardRef<HTMLDivElement, ContainerProps>(function Container({ active, hoverStyle, ...rest }, ref) {
+  return (
+    <Flex
+      ref={ref}
+      position="relative"
+      centered
+      backgroundColor="$transparent"
+      borderWidth="$none"
+      borderRadius="$roundedFull"
+      zIndex={zIndexes.default}
+      hoverStyle={{ backgroundColor: '$surface1Hovered', ...hoverStyle }}
+      {...(active ? { backgroundColor: '$surface1Hovered' } : {})}
+      {...rest}
+    />
+  )
 })
 
 interface NavIconProps {

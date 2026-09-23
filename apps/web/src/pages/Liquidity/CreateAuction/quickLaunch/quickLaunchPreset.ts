@@ -1,44 +1,96 @@
 import {
+  getQuickLaunchFloorPricePerToken as getSdkQuickLaunchFloorPricePerToken,
+  getQuickLaunchGraduationPricePerToken as getSdkQuickLaunchGraduationPricePerToken,
   QUICK_LAUNCH_DURATION_SECONDS,
   QUICK_LAUNCH_FLOOR_FDV_USD,
-  QUICK_LAUNCH_TOTAL_SUPPLY,
 } from '@uniswap/liquidity-launcher-sdk'
+import { logger } from 'utilities/src/logger/logger'
 import type { CreateAuctionStoreState } from '~/pages/Liquidity/CreateAuction/types'
 import { TimeLockPreset } from '~/pages/Liquidity/CreateAuction/types'
 
 // Create-flow glue over the canonical quick-launch preset in `@uniswap/liquidity-launcher-sdk`.
-// The defining parameters (supply, 4h duration, floor FDV, permanent buyback-&-burn LP) live in the
+// The defining parameters (supply, 1h duration, floor FDV, permanent buyback-&-burn LP) live in the
 // SDK — the single source of truth shared with data-api — so this file only maps them onto the
 // wizard store and derives the values the create request needs (floor price, auction window).
 
-/** $5k floor FDV, re-exported from the SDK so importers keep a single reference. */
+/** Preset floor FDV, re-exported from the SDK so importers keep a single reference. */
 export { QUICK_LAUNCH_FLOOR_FDV_USD }
 
-/** Total supply in whole tokens (1B), for the plain-number floor-price math below. */
-const QUICK_LAUNCH_TOTAL_SUPPLY_TOKENS = Number(QUICK_LAUNCH_TOTAL_SUPPLY)
-
-/** The canonical 4h window, in milliseconds. */
+/** The canonical 1h window, in milliseconds. */
 const QUICK_LAUNCH_DURATION_MS = QUICK_LAUNCH_DURATION_SECONDS * 1000
 
-/** Floor price fallback when the ETH/USD oracle hasn't resolved yet (assumes ~$2.5k ETH). */
-export const QUICK_LAUNCH_FALLBACK_FLOOR_ETH_PER_TOKEN = '0.000000002'
+/** The window in whole hours, for the locked-preset copy ("1 hour", "1-hour auction"). */
+export const QUICK_LAUNCH_DURATION_HOURS = QUICK_LAUNCH_DURATION_SECONDS / 3600
 
-/** Floor price in ETH per token for the $5k-FDV floor, as a plain decimal (the service rejects scientific notation). */
+/** ETH/USD assumed by the price fallbacks when the oracle hasn't resolved yet (~$2.5k ETH). */
+const QUICK_LAUNCH_FALLBACK_ETH_USD_PRICE = 2500
+
+// The two fallbacks below are ETH-DENOMINATED (derived at ~$2.5k/ETH). They are only correct for a
+// native-ETH raise — the on-chain quick-launch config is ETH-only (rh-cca hardcodes the native
+// sentinel; the apps/web handoff omits the graduation pin entirely when the raise is non-native and
+// the price is unresolved, see QuickLaunchSection). A degraded oracle drops onto these values, so
+// every fallback is logged (below) to make a bad feed visible instead of silently mispricing.
+
+/** Floor price fallback when the ETH/USD oracle hasn't resolved yet — the SDK preset floor at the assumed ETH/USD. */
+export const QUICK_LAUNCH_FALLBACK_FLOOR_ETH_PER_TOKEN = getSdkQuickLaunchFloorPricePerToken(
+  QUICK_LAUNCH_FALLBACK_ETH_USD_PRICE,
+)
+
+/** Graduation price fallback at the same assumed ETH/USD, so the grad/floor ratio holds under fallback too. */
+export const QUICK_LAUNCH_FALLBACK_GRADUATION_ETH_PER_TOKEN = getSdkQuickLaunchGraduationPricePerToken(
+  QUICK_LAUNCH_FALLBACK_ETH_USD_PRICE,
+)
+
+/**
+ * Floor price in ETH per token for the preset floor FDV, as a plain decimal (the service rejects
+ * scientific notation). Delegates to the SDK derivation; a missing/absurd price maps to the fixed
+ * ETH-denominated fallback and is logged so a degraded price feed is observable.
+ */
 export function getQuickLaunchFloorPricePerToken(raiseUsdPrice: number | null): string {
-  if (raiseUsdPrice === null || !Number.isFinite(raiseUsdPrice) || raiseUsdPrice <= 0) {
+  if (raiseUsdPrice === null) {
     return QUICK_LAUNCH_FALLBACK_FLOOR_ETH_PER_TOKEN
   }
-  const floorUsdPerToken = QUICK_LAUNCH_FLOOR_FDV_USD / QUICK_LAUNCH_TOTAL_SUPPLY_TOKENS
-  const floorEthPerToken = floorUsdPerToken / raiseUsdPrice
-  const fixed = floorEthPerToken.toFixed(18).replace(/0+$/, '').replace(/\.$/, '')
-  // A sub-wei floor (absurd oracle value) serializes as "0", which the backend reads as unset.
-  return fixed === '0' || fixed === '' ? QUICK_LAUNCH_FALLBACK_FLOOR_ETH_PER_TOKEN : fixed
+  try {
+    return getSdkQuickLaunchFloorPricePerToken(raiseUsdPrice)
+  } catch (error) {
+    logger.warn(
+      'quickLaunchPreset',
+      'getQuickLaunchFloorPricePerToken',
+      'floor price derivation failed; using the ETH-denominated fallback floor',
+      { error, raiseUsdPrice },
+    )
+    return QUICK_LAUNCH_FALLBACK_FLOOR_ETH_PER_TOKEN
+  }
+}
+
+/**
+ * Graduation price in ETH per token for the preset graduation FDV, same encoding and fallback
+ * behavior as the floor. Sent as the request's `graduation_price_raise_per_token`, which the
+ * service turns into `requiredCurrencyRaised = graduationPrice x soldSupply` — decoupling the
+ * graduation gate from the floor. A missing/absurd price maps to the fixed ETH-denominated fallback
+ * and is logged so a degraded price feed is observable.
+ */
+export function getQuickLaunchGraduationPricePerToken(raiseUsdPrice: number | null): string {
+  if (raiseUsdPrice === null) {
+    return QUICK_LAUNCH_FALLBACK_GRADUATION_ETH_PER_TOKEN
+  }
+  try {
+    return getSdkQuickLaunchGraduationPricePerToken(raiseUsdPrice)
+  } catch (error) {
+    logger.warn(
+      'quickLaunchPreset',
+      'getQuickLaunchGraduationPricePerToken',
+      'graduation price derivation failed; using the ETH-denominated fallback graduation price',
+      { error, raiseUsdPrice },
+    )
+    return QUICK_LAUNCH_FALLBACK_GRADUATION_ETH_PER_TOKEN
+  }
 }
 
 /** 1-minute start lead — the service only rejects past starts; the standard wizard's 5-minute lead is a UI affordance. */
 export const QUICK_LAUNCH_START_LEAD_MINUTES = 1
 
-/** "Instant start": start = now + the quick-launch lead, end = start + the fixed 4h window. */
+/** "Instant start": start = now + the quick-launch lead, end = start + the fixed 1h window. */
 export function getQuickLaunchAuctionWindow(now: Date = new Date()): { startTime: Date; endTime: Date } {
   const startTime = new Date(now.getTime() + QUICK_LAUNCH_START_LEAD_MINUTES * 60 * 1000)
   const endTime = new Date(startTime.getTime() + QUICK_LAUNCH_DURATION_MS)

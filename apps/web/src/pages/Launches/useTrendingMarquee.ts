@@ -93,9 +93,9 @@ export function useTrendingMarquee({
     // Re-derive focus on (re)attach so an effect re-run can't carry a stale flag — latched true
     // would freeze the marquee; stale false would drift it under a focused card.
     pauseReasons.focus = scrollEl.contains(document.activeElement)
-    // Same for hover: the component's mouse handlers are inert while the row loads, so a pointer
-    // already resting on the row when the marquee attaches would otherwise go undetected and the
-    // row would drift under it until the next mouseenter.
+    // Same for hover: mouseenter never fires for a pointer the row mounts under, so a cursor
+    // already resting on the strip when the marquee attaches would otherwise go undetected and
+    // the row would drift under it until the next mouseenter.
     pauseReasons.hover = scrollEl.matches(':hover')
 
     const step = (timestamp: number): void => {

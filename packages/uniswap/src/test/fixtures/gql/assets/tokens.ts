@@ -1,5 +1,6 @@
 import { Token as SDKToken } from '@uniswap/sdk-core'
 import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import {
   DAI,
   USDC,
@@ -9,7 +10,6 @@ import {
   USDC_POLYGON,
   WRAPPED_NATIVE_CURRENCY,
 } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { amounts } from 'uniswap/src/test/fixtures/gql/amounts'
 import { get24hPriceChange, getLatestPrice, priceHistory } from 'uniswap/src/test/fixtures/gql/history'

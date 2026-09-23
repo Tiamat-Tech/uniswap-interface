@@ -1,11 +1,11 @@
 import { BackupMethodSummary, IconBox, type RecoveryMethod } from '@universe/embedded-wallet'
 import { isMobileWeb } from '@universe/environment'
+import { Button, Flex, ModalCloseIcon, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { Shield } from '@universe/mycelium/icons/Shield'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDispatch } from 'react-redux'
-import { Anchor, Button, Flex, ModalCloseIcon, Text } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { Shield } from 'ui/src/components/icons/Shield'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -222,7 +222,7 @@ function ReconnectAlertStep({
       <Flex width="100%" alignItems="flex-end">
         <ModalCloseIcon size="$icon.20" onClose={onClose} />
       </Flex>
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         <IconBox>
           <Shield size="$icon.24" color="$neutral1" />
         </IconBox>
@@ -233,11 +233,17 @@ function ReconnectAlertStep({
           <Text variant="body2" textAlign="center" color="$neutral2">
             {t('account.passkey.reconnect.description')}
           </Text>
-          <Anchor href={UniswapHelpUrls.articles.backupLoginReconnect} target="_blank" textDecorationLine="none">
+          <Text
+            tag="a"
+            href={UniswapHelpUrls.articles.backupLoginReconnect}
+            target="_blank"
+            rel="noopener noreferrer"
+            textDecorationLine="none"
+          >
             <Text variant="buttonLabel3" color="$neutral1">
               {t('account.passkey.reconnect.learnMore')}
             </Text>
-          </Anchor>
+          </Text>
         </Flex>
       </Flex>
 

@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { blockToTimestamp, calibratedBlockToTimestamp } from '~/utils/blockToTimestamp'
 
 // Mainnet blockTimeMs = 12000

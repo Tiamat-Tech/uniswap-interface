@@ -1,5 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { providers as ethersProviders } from 'ethers'
-import { RPCType, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { RPCType } from 'uniswap/src/features/chains/types'
 import type { CreateEthersProvider } from 'uniswap/src/features/providers/createEthersProvider'
 import type { RpcConfigResolver } from 'uniswap/src/features/providers/resolveRpcConfig'
 import type { Mock } from 'vitest'

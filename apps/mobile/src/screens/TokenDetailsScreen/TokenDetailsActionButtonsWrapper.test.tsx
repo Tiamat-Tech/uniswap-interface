@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native'
+import { act, render, waitFor } from '@testing-library/react-native'
 import React from 'react'
 
 // All vi.mock calls must precede importing the SUT.
@@ -12,6 +12,12 @@ vi.mock('react-i18next', () => ({
       return key
     },
   }),
+}))
+
+const mockQueryClient = vi.hoisted(() => ({}))
+vi.mock('@tanstack/react-query', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-query')>()),
+  useQueryClient: () => mockQueryClient,
 }))
 
 const mockDispatch = vi.fn()
@@ -58,7 +64,7 @@ vi.mock('src/components/TokenDetails/useTokenDetailsCurrentChainBalance', () => 
 }))
 
 vi.mock('src/screens/TokenDetailsScreen/useHighestTvlChain', () => ({
-  useHighestTvlChain: vi.fn().mockReturnValue({ chainId: undefined, address: undefined }),
+  useTDPHighestTvlChain: vi.fn().mockReturnValue({ chainId: undefined, address: undefined }),
 }))
 
 const mockOpenSendSheet = vi.fn()
@@ -129,17 +135,28 @@ vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({
   useEnabledChains: vi.fn().mockReturnValue({ isTestnetModeEnabled: false }),
 }))
 
-// The wrapper gates RWA trading via useGatedTokenDetailsRWAMatch (whitelist match) +
+// The wrapper gates RWA trading via useTokenDetailsRWAMatch (whitelist match) +
 // useIsFeatureGated(ISSUER_SPECIFIC_RWA) (region signal, from compliance v2). That path needs a
 // ComplianceClientProvider. These permissioned-gating tests don't exercise RWA geo-blocking,
 // so mock both hooks at the boundary to keep the RWA machinery out of the test.
-vi.mock('src/components/TokenDetails/useTokenDetailsRWAMatch', () => ({
-  useGatedTokenDetailsRWAMatch: vi.fn().mockReturnValue(undefined),
-}))
+const mockSetRwaMatch = vi.hoisted(() => vi.fn<(value: object | undefined) => void>())
+vi.mock('src/components/TokenDetails/useTokenDetailsRWAMatch', async () => {
+  const { useState } = await import('react')
+  return {
+    useTokenDetailsRWAMatch: () => {
+      const [match, setMatch] = useState<object>()
+      mockSetRwaMatch.mockImplementation((value) => setMatch(value))
+      return match
+    },
+  }
+})
 
+const mockUseIsFeatureGated = vi.hoisted(() => vi.fn().mockReturnValue(false))
+const mockRefetchGatedFeatures = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 vi.mock('@universe/compliance', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@universe/compliance')>()),
-  useIsFeatureGated: vi.fn().mockReturnValue(false),
+  refetchGatedFeatures: mockRefetchGatedFeatures,
+  useIsFeatureGated: mockUseIsFeatureGated,
 }))
 
 vi.mock('uniswap/src/features/fiatOnRamp/hooks', () => ({
@@ -239,6 +256,22 @@ function getSendActionFromMenu(): MenuOption | undefined {
 describe('TokenDetailsActionButtonsWrapper — permissioned-token gating', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUseIsFeatureGated.mockReturnValue(false)
+  })
+
+  it('revalidates region gating only after the token resolves as an RWA', async () => {
+    setupContext()
+
+    render(<TokenDetailsActionButtonsWrapper />)
+
+    expect(mockRefetchGatedFeatures).not.toHaveBeenCalled()
+
+    act(() => mockSetRwaMatch({}))
+    act(() => mockSetRwaMatch({}))
+
+    await waitFor(() => {
+      expect(mockRefetchGatedFeatures).toHaveBeenCalledExactlyOnceWith(mockQueryClient)
+    })
   })
 
   describe('onPressSend (TDP overflow menu)', () => {

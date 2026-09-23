@@ -1,5 +1,6 @@
+import { type ColorTokens, Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { ColorTokens, Flex, Separator, Text } from 'ui/src'
+import { Separator } from 'ui/src'
 
 function ReceiptRow({ label, value, emphasize = false }: { label: string; value: string; emphasize?: boolean }) {
   const labelColor: ColorTokens = emphasize ? '$neutral1' : '$neutral2'

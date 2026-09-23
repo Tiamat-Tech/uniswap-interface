@@ -1,15 +1,26 @@
+import '~/features/Liquidity/PositionPageActionButtons.css'
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { Button, Flex } from '@universe/mycelium'
+import { AdaptiveWebPopoverContentCompat, PopoverCompat as Popover } from '@universe/mycelium/popover-compat'
+import { useIsTouchDevice, useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, DropdownMenuSheetItem, Flex, IconButton, Popover, useIsTouchDevice, useMedia } from 'ui/src'
+import { IconButton } from 'ui/src/components/buttons/IconButton/IconButton'
+import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
+import { Dollar } from 'ui/src/components/icons/Dollar'
 import { GridView } from 'ui/src/components/icons/GridView'
+import { Minus } from 'ui/src/components/icons/Minus'
+import { Plus } from 'ui/src/components/icons/Plus'
 import { X } from 'ui/src/components/icons/X'
-import { zIndexes } from 'ui/src/theme'
 import { MenuOptionItem } from 'uniswap/src/components/menus/ContextMenu'
+import { MenuContent } from 'uniswap/src/components/menus/ContextMenuContent'
 import { PositionInfo } from 'uniswap/src/features/positions/types'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
+import { noop } from 'utilities/src/react/noop'
 import { useTrace } from 'utilities/src/telemetry/trace/TraceContext'
 import { MobileBottomBar } from '~/components/NavBar/MobileBottomBar'
+import { MobileHeaderActions } from '~/components/StickyCollapsibleHeader/HeaderActions/MobileHeaderActions'
+import type { HeaderAction, HeaderActionSection } from '~/components/StickyCollapsibleHeader/HeaderActions/types'
 import { MouseoverTooltip } from '~/components/Tooltip'
 import { logCollectFeesClick } from '~/features/Liquidity/analytics'
 import { ScrollDirection, useScroll } from '~/hooks/useScroll'
@@ -110,25 +121,67 @@ export function PositionPageActionButtons({
     }
   }, [dispatch, hasFees, positionInfo, status, t, onMigrate, trace])
 
+  // On V4-unsupported chains the inline Migrate button renders disabled under a tooltip.
+  // A sheet row has no hover, so the reason rides as a subtitle instead — the row stays
+  // visible but inert, rather than vanishing with no hint the action exists.
+  const migrateDisabledReason = showV4UnsupportedTooltip ? t('pool.migrateLiquidityDisabledTooltip') : undefined
+
+  // '…' + bottom-sheet mechanism the pool detail header uses, with each action keeping its
+  // inline-button handler. Used only for the mid-width band (see the media.lg branch below).
+  const actionSections: HeaderActionSection[] = useMemo(() => {
+    const iconProps = { size: '$icon.18', color: '$neutral2' } as const
+    const entries: { option: MenuOptionItem | undefined; icon: JSX.Element; disabledReason?: string }[] = [
+      { option: migrateOption, icon: <ArrowRight {...iconProps} />, disabledReason: migrateDisabledReason },
+      { option: addLiquidityOption, icon: <Plus {...iconProps} /> },
+      { option: removeLiquidityOption, icon: <Minus {...iconProps} /> },
+      { option: collectFeesOption, icon: <Dollar {...iconProps} /> },
+    ]
+    const actions: HeaderAction[] = entries
+      .filter((entry): entry is (typeof entries)[number] & { option: MenuOptionItem } => entry.option !== undefined)
+      .map(({ option, icon, disabledReason }) => ({
+        title: option.label,
+        icon,
+        show: true,
+        subtitle: disabledReason,
+        textColor: disabledReason ? '$neutral2' : undefined,
+        onPress: disabledReason ? noop : option.onPress,
+      }))
+    return [{ title: t('common.liquidity'), actions }]
+  }, [migrateOption, addLiquidityOption, removeLiquidityOption, collectFeesOption, migrateDisabledReason, t])
+
   if (!isOwner) {
     return null
   }
 
+  // Three tiers, ordered narrowest-first so the more specific breakpoint wins:
+  // ≤450px (media.sm): the floating action button + context menu (MobileBottomBar).
   if (media.sm) {
     return (
       <MobileBottomBar backgroundColor="$surface1" hide={isTouchDevice && scrollDirection === ScrollDirection.DOWN}>
+        {/* Order is load-bearing: MWebActionButtons promotes actionItems[0] to the floating CTA and
+            puts the rest in the menu, so this deliberately leads with Collect fees rather than
+            following actionSections' order above. Don't align the two lists. */}
         <MWebActionButtons
           actionItems={[
             collectFeesOption,
             addLiquidityOption,
             removeLiquidityOption,
-            showV4UnsupportedTooltip ? undefined : migrateOption,
+            // Same treatment as the sheet: greyed with the reason, not hidden.
+            migrateOption && migrateDisabledReason
+              ? { ...migrateOption, disabled: true, subheader: migrateDisabledReason, onPress: noop }
+              : migrateOption,
           ].filter((o): o is MenuOptionItem => o !== undefined)}
         />
       </MobileBottomBar>
     )
   }
 
+  // 450–768px (media.lg && !media.sm): the '…' header menu, mirroring the pool detail page.
+  if (media.lg) {
+    return <MobileHeaderActions actionSections={actionSections} />
+  }
+
+  // >768px: full inline action buttons.
   return (
     <Flex row gap="$gap12" alignItems="center" flexWrap="wrap">
       {migrateOption && (
@@ -172,6 +225,7 @@ function MWebActionButtons({ actionItems }: { actionItems: MenuOptionItem[] }): 
     return null
   }
 
+  // Caller-controlled priority: the first item becomes the floating CTA, the rest go to the menu.
   const ctaButton = actionItems[0]
   const menuItems = actionItems.slice(1)
 
@@ -179,36 +233,21 @@ function MWebActionButtons({ actionItems }: { actionItems: MenuOptionItem[] }): 
     <Flex row backgroundColor="$surface1" gap="$gap12">
       <Button onPress={ctaButton.onPress}>{ctaButton.label}</Button>
       {menuItems.length > 0 && (
-        <Popover placement="top-end" offset={10} onOpenChange={onOpenChange}>
+        <Popover placement="top-end" offset={10} open={isOpen} onOpenChange={onOpenChange}>
           <Popover.Trigger>
             <IconButton emphasis="secondary" icon={isOpen ? <X color="$neutral1" /> : <GridView color="$neutral1" />} />
           </Popover.Trigger>
-          <Popover.Content
-            zIndex={zIndexes.popover}
+          <AdaptiveWebPopoverContentCompat
+            isOpen={isOpen}
+            // Legacy rendered a plain popover even at mWeb widths — never the small-screen sheet.
+            adaptWhen={false}
             backgroundColor="transparent"
-            animation="125ms"
-            enterStyle={{
-              opacity: 0,
-              scale: 0.98,
-              transform: [{ translateY: -4 }],
-            }}
+            className="position-actions-menu-enter"
           >
-            <Flex
-              flexDirection="column"
-              gap="$spacing4"
-              p="$spacing8"
-              backgroundColor="$surface1"
-              borderRadius="$rounded20"
-              borderWidth="$spacing1"
-              borderColor="$surface3"
-            >
-              {menuItems.map(({ label, onPress }) => (
-                <Popover.Close asChild key={label}>
-                  <DropdownMenuSheetItem variant="small" label={label} onPress={onPress} />
-                </Popover.Close>
-              ))}
-            </Flex>
-          </Popover.Content>
+            {/* Shared context-menu content: sizes to the same min/max width as menus elsewhere so the
+                full "Remove liquidity" / "Migrate liquidity" labels render without truncating. */}
+            <MenuContent items={menuItems} handleCloseMenu={() => setIsOpen(false)} />
+          </AdaptiveWebPopoverContentCompat>
         </Popover>
       )}
     </Flex>

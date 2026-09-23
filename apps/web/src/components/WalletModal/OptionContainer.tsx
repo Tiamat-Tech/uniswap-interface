@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { PropsWithChildren } from 'react'
-import { Flex } from 'ui/src'
 
 interface OptionContainerProps extends PropsWithChildren {
   hideBackground?: boolean
@@ -25,7 +25,7 @@ export function OptionContainer({ hideBackground, recent, children, onPress, tes
       backgroundColor={!hideBackground ? '$surface2' : '$transparent'}
       hoverStyle={{ backgroundColor: '$surface3' }}
       onPress={onPress}
-      data-testid={testID}
+      testID={testID}
     >
       {children}
     </Flex>

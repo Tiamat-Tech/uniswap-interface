@@ -58,8 +58,14 @@ export function calculateStrategyTicks({
       }
     }
     case DefaultPriceStrategy.ONE_SIDED_UPPER: {
-      // Start just above current tick
-      const minTick = snapTickToSpacing(currentTick + tickSpacing, tickSpacing)
+      // Start just above current tick, but never at or past the clamped upper bound: a pool
+      // initialized at (or within a spacing of) MAX_TICK would otherwise anchor the range above its
+      // own top edge and invert it. `clampMaxTick` can't repair that — it only pushes max up, and max
+      // is already at the ceiling — so the ordering has to hold here.
+      const minTick = Math.min(
+        usableMaxTick - tickSpacing,
+        Math.max(usableMinTick, snapTickToSpacing(currentTick + tickSpacing, tickSpacing)),
+      )
       // +100% upper: find the tick that is 100% above the current tick
       const hundredPriceTickDelta = Math.round(Math.log(2) / Math.log(1.0001))
       const maxTick = snapTickToSpacing(currentTick + hundredPriceTickDelta, tickSpacing)
@@ -69,10 +75,14 @@ export function calculateStrategyTicks({
       }
     }
     case DefaultPriceStrategy.ONE_SIDED_LOWER: {
-      // -50% lower (same as WIDE), go to just below current tick
+      // -50% lower (same as WIDE), go to just below current tick — mirrored bound, for a pool
+      // initialized at MIN_TICK.
       const halfPriceTickDelta = Math.round(Math.log(0.5) / Math.log(1.0001))
       const minTick = snapTickToSpacing(currentTick + halfPriceTickDelta, tickSpacing)
-      const maxTick = snapTickToSpacing(currentTick - tickSpacing, tickSpacing)
+      const maxTick = Math.max(
+        usableMinTick + tickSpacing,
+        Math.min(usableMaxTick, snapTickToSpacing(currentTick - tickSpacing, tickSpacing)),
+      )
       return {
         minTick: Math.max(usableMinTick, minTick),
         maxTick,

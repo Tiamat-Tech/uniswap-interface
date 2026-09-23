@@ -30,6 +30,7 @@ function toEvent(params: TokenSubscriptionParams, type: EventSubscriptionType): 
       pool: {
         chainId: params.chainId,
         protocolVersion: params.poolRoute.protocolVersion,
+        // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- pool id (a v4 pool is a 32-byte hash), not a token address
         poolId: params.poolRoute.poolId.toLowerCase(),
       },
     }

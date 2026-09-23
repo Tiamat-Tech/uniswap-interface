@@ -1,6 +1,10 @@
 import 'react-native-reanimated'
 import { isBetaEnv, isDevEnv } from '@universe/environment'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { QrCode } from '@universe/mycelium/icons/QrCode'
+import { Scan } from '@universe/mycelium/icons/Scan'
+import { useIsDarkMode, useSporeColorsForTheme } from '@universe/mycelium/theme-hooks-compat'
 import React, { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert } from 'react-native'
@@ -19,9 +23,6 @@ import { openDeepLink } from 'src/features/deepLinking/handleDeepLinkSaga'
 import { useWalletConnect } from 'src/features/walletConnect/useWalletConnect'
 import { pairWithWalletConnectURI } from 'src/features/walletConnect/utils'
 import { addRequest } from 'src/features/walletConnect/walletConnectSlice'
-import { Flex, Text, TouchableArea, useIsDarkMode } from 'ui/src'
-import { QrCode, Scan } from 'ui/src/components/icons'
-import { useSporeColorsForTheme } from 'ui/src/hooks/useSporeColors'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { ScannerModalState } from 'uniswap/src/components/ReceiveQRCode/constants'
 import { ReceiveQRCode } from 'uniswap/src/components/ReceiveQRCode/ReceiveQRCode'
@@ -98,7 +99,7 @@ export function WalletConnectModal({
         return
       }
 
-      if (supportedURI.type === URIType.Address) {
+      if (supportedURI.type === URIType.Address || supportedURI.type === URIType.EIP681) {
         setShouldFreezeCamera(true)
         await preload(supportedURI.value)
         await navigate(supportedURI.value, onClose)
@@ -289,7 +290,7 @@ export function WalletConnectModal({
             borderWidth="$spacing1"
             p="$spacing16"
             paddingEnd="$spacing24"
-            backgroundColor={colors.DEP_backgroundOverlay.val}
+            backgroundColor={colors.surface3.val}
             testID={TestID.QRCodeModalToggle}
             onPress={onPressBottomToggle}
           >

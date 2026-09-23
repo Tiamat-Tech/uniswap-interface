@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import { useEffect, useRef } from 'react'
-import { Flex } from 'ui/src'
 import { AnalyticsDebugEventList } from 'uniswap/src/features/telemetry/debug/AnalyticsDebugEventList'
 import { AnalyticsDebugFilterBar } from 'uniswap/src/features/telemetry/debug/AnalyticsDebugFilterBar'
 import { AnalyticsDebugHeader } from 'uniswap/src/features/telemetry/debug/AnalyticsDebugHeader'

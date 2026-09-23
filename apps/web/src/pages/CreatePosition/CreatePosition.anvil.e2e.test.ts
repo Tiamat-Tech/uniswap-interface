@@ -1,10 +1,9 @@
-import { listPools } from '@uniswap/client-data-api/dist/data/v1/api-DataApiService_connectquery'
 import { LiquidityService } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/api_connect'
 import { PERMIT2_ADDRESS } from '@uniswap/permit2-sdk'
-import { V2_FACTORY_ADDRESSES } from '@uniswap/sdk-core'
+import { CHAIN_TO_ADDRESSES_MAP, V2_FACTORY_ADDRESSES } from '@uniswap/sdk-core'
 import { computePairAddress } from '@uniswap/v2-sdk'
+import { UniverseChainId } from '@universe/chains'
 import { USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { WETH } from 'uniswap/src/test/fixtures/lib/sdk'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { parseEther } from '~/chains'
@@ -18,6 +17,22 @@ import { Mocks } from '~/playwright/mocks/mocks'
 const test = getTest({ withAnvil: true })
 const WETH_ADDRESS = WETH.address
 
+// The create mint executes on the pinned fork, but the liquidity service prices the calldata (and
+// its slippage bounds) against LIVE mainnet. The ETH price gap between the two grows as the pin
+// ages and trips the v4 mint's MaximumAmountExceeded guard. Force a generous — but sub-critical
+// (see SLIPPAGE_CRITICAL_TOLERANCE = 20, which would open a blocking warning) — slippage so the
+// fork-vs-live drift can't fail the create. Real users never see this test-only gap.
+const E2E_CREATE_SLIPPAGE_TOLERANCE = 15
+
+async function stubCreatePosition(page: Page): Promise<void> {
+  await stubLiquidityServiceEndpoint({
+    page,
+    endpoint: LiquidityService.methods.createPosition,
+    service: LiquidityService,
+    modifyRequestData: (data) => ({ ...data, slippageTolerance: E2E_CREATE_SLIPPAGE_TOLERANCE }),
+  })
+}
+
 test.describe(
   'Create position',
   {
@@ -28,18 +43,9 @@ test.describe(
     ],
   },
   () => {
-    test('Create position with full range', async ({ page, anvil, graphql, dataApi }) => {
-      await stubLiquidityServiceEndpoint({
-        page,
-        endpoint: LiquidityService.methods.createPosition,
-        service: LiquidityService,
-      })
+    test('Create position with full range', async ({ page, anvil, graphql }) => {
+      await stubCreatePosition(page)
       await graphql.intercept('SearchTokens', Mocks.Token.search_token_tether)
-      // Fee-tier auto-selection needs ListPools; the live endpoint rate-limits under
-      // suite churn (Cloudflare 429 → the request hangs and step-0 Continue never
-      // enables) and reflects the live tip anyway. Serve a recorded response so the
-      // flow is deterministic against the pinned fork.
-      await dataApi.intercept(listPools, Mocks.DataApiService.list_pools_eth_usdt_v4)
       await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
       await page.goto('/positions/create')
       await page.getByRole('button', { name: 'Choose token' }).click()
@@ -48,20 +54,13 @@ test.describe(
       await page.getByTestId('token-option-1-USDT').first().click()
       await page.getByRole('button', { name: 'Continue' }).click()
       await graphql.waitForResponse('PoolPriceHistory')
-      await graphql.waitForResponse('AllV4Ticks')
       await page.getByText('Full range').click()
       await reviewAndCreatePosition({ page })
     })
 
-    test('Create position with custom range', async ({ page, anvil, graphql, dataApi }) => {
-      await stubLiquidityServiceEndpoint({
-        page,
-        endpoint: LiquidityService.methods.createPosition,
-        service: LiquidityService,
-      })
+    test('Create position with custom range', async ({ page, anvil, graphql }) => {
+      await stubCreatePosition(page)
       await graphql.intercept('SearchTokens', Mocks.Token.search_token_tether)
-      // Recorded ListPools: see 'Create position with full range'.
-      await dataApi.intercept(listPools, Mocks.DataApiService.list_pools_eth_usdt_v4)
       await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
       await page.goto('/positions/create')
       await page.getByRole('button', { name: 'Choose token' }).click()
@@ -70,7 +69,6 @@ test.describe(
       await page.getByTestId('token-option-1-USDT').first().click()
       await page.getByRole('button', { name: 'Continue' }).click()
       await graphql.waitForResponse('PoolPriceHistory')
-      await graphql.waitForResponse('AllV4Ticks')
       await page.getByTestId(TestID.RangeInputIncrement + '-0').click()
       await page.getByTestId(TestID.RangeInputDecrement + '-1').click()
       await reviewAndCreatePosition({ page })
@@ -130,15 +128,9 @@ test.describe(
     })
 
     test.describe('approval flow', () => {
-      test('should approve tokens and create a V4 position', async ({ page, anvil, graphql, dataApi }) => {
-        await stubLiquidityServiceEndpoint({
-          page,
-          endpoint: LiquidityService.methods.createPosition,
-          service: LiquidityService,
-        })
+      test('should approve tokens and create a V4 position', async ({ page, anvil, graphql }) => {
+        await stubCreatePosition(page)
         await graphql.intercept('SearchTokens', Mocks.Token.search_token_tether)
-        // Recorded ListPools: see 'Create position with full range'.
-        await dataApi.intercept(listPools, Mocks.DataApiService.list_pools_eth_usdt_v4)
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
 
         await page.goto('/positions/create')
@@ -148,7 +140,6 @@ test.describe(
         await page.getByTestId('token-option-1-USDT').first().click()
         await page.getByRole('button', { name: 'Continue' }).click()
         await graphql.waitForResponse('PoolPriceHistory')
-        await graphql.waitForResponse('AllV4Ticks')
         await page.getByText('Full range').click()
 
         await page.getByTestId(TestID.AmountInputIn).first().click()
@@ -161,17 +152,8 @@ test.describe(
         await expect(page.getByText('Created position')).toBeVisible()
       })
 
-      test('should handle approval when permit2 allowance is already set', async ({
-        page,
-        anvil,
-        graphql,
-        dataApi,
-      }) => {
-        await stubLiquidityServiceEndpoint({
-          page,
-          endpoint: LiquidityService.methods.createPosition,
-          service: LiquidityService,
-        })
+      test('should handle approval when permit2 allowance is already set', async ({ page, anvil, graphql }) => {
+        await stubCreatePosition(page)
         await stubLiquidityServiceEndpoint({
           page,
           endpoint: LiquidityService.methods.checkLPApproval,
@@ -181,10 +163,16 @@ test.describe(
           },
         })
         await graphql.intercept('SearchTokens', Mocks.Token.search_token_tether)
-        // Recorded ListPools: see 'Create position with full range'.
-        await dataApi.intercept(listPools, Mocks.DataApiService.list_pools_eth_usdt_v4)
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
         await anvil.setErc20Allowance({ address: assume0xAddress(USDT.address), spender: PERMIT2_ADDRESS })
+        // checkLPApproval is stubbed to report no permit needed (v4BatchPermitData: null), so the
+        // Permit2 -> PositionManager allowance the mint pulls USDT through must already be set on
+        // chain — otherwise the mint reverts AllowanceExpired. The ERC20 approve above only lets
+        // Permit2 move USDT; this is the Permit2 allowance the position manager actually spends.
+        await anvil.setPermit2Allowance({
+          token: assume0xAddress(USDT.address),
+          spender: assume0xAddress(CHAIN_TO_ADDRESSES_MAP[UniverseChainId.Mainnet].v4PositionManagerAddress!),
+        })
 
         await page.goto('/positions/create')
         await page.getByRole('button', { name: 'Choose token' }).click()
@@ -193,7 +181,6 @@ test.describe(
         await page.getByTestId('token-option-1-USDT').first().click()
         await page.getByRole('button', { name: 'Continue' }).click()
         await graphql.waitForResponse('PoolPriceHistory')
-        await graphql.waitForResponse('AllV4Ticks')
         await page.getByText('Full range').click()
 
         await page.getByTestId(TestID.AmountInputIn).first().click()
@@ -208,12 +195,8 @@ test.describe(
     })
 
     test.describe('error handling', () => {
-      test('should gracefully handle errors during review', async ({ page, anvil, dataApi }) => {
-        await stubLiquidityServiceEndpoint({
-          page,
-          endpoint: LiquidityService.methods.createPosition,
-          service: LiquidityService,
-        })
+      test('should gracefully handle errors during review', async ({ page, anvil }) => {
+        await stubCreatePosition(page)
         // This test used to force simulateTransaction: true and rely on the LIVE
         // simulation failing; the live service now returns valid calldata, so the error
         // state never appeared. Fail the 1-ETH request deterministically instead; every
@@ -231,10 +214,14 @@ test.describe(
           }
           await route.fallback()
         })
-        // Recorded ListPools: see 'Create position with full range'.
-        await dataApi.intercept(listPools, Mocks.DataApiService.list_pools_eth_usdt_v4)
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
-        await page.goto(`/positions/create?currencyA=NATIVE&currencyB=${USDT.address}`)
+        // Seed the fee tier in the URL so the pair is valid and Continue enables. SelectTokenStep no
+        // longer pre-selects a tier, and the add flow's own default only runs on /positions/add/*
+        // routes, so a URL-seeded pair otherwise reaches this step with no tier and a permanently
+        // disabled Continue. 0.3% is the recommended ETH/USDT tier.
+        await page.goto(
+          `/positions/create?currencyA=NATIVE&currencyB=${USDT.address}&fee={"feeAmount":3000,"tickSpacing":60,"isDynamic":false}`,
+        )
 
         await page.getByRole('button', { name: 'Continue' }).click()
 
@@ -255,11 +242,7 @@ test.describe(
 
     test.describe('Custom fee tier', () => {
       test('should create a position with a custom fee tier', async ({ page, anvil }) => {
-        await stubLiquidityServiceEndpoint({
-          page,
-          endpoint: LiquidityService.methods.createPosition,
-          service: LiquidityService,
-        })
+        await stubCreatePosition(page)
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
         await page.goto(`/positions/create?currencyA=NATIVE&currencyB=${USDT.address}`)
         await page.getByRole('button', { name: 'More', exact: true }).click()
@@ -274,12 +257,13 @@ test.describe(
       })
 
       test('should create a position with a dynamic fee tier', async ({ page, anvil }) => {
+        // Address encodes v4 hook flags AFTER_INITIALIZE (0x1000) + BEFORE_SWAP (0x80); nothing is
+        // deployed there on mainnet, so pool initialization reverts InvalidHookResponse. Etch a
+        // minimal hook that returns the afterInitialize selector (the only hook call the create
+        // makes — the mint never swaps) so the pool initializes on the fork.
         const HOOK_ADDRESS = '0x09DEA99D714A3a19378e3D80D1ad22Ca46085080'
-        await stubLiquidityServiceEndpoint({
-          page,
-          endpoint: LiquidityService.methods.createPosition,
-          service: LiquidityService,
-        })
+        await anvil.setCode({ address: HOOK_ADDRESS, bytecode: '0x636fe7e6eb60e01b60005260206000f3' })
+        await stubCreatePosition(page)
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
         await page.goto(`/positions/create?currencyA=NATIVE&currencyB=${USDT.address}&hook=${HOOK_ADDRESS}`)
         await page.getByRole('button', { name: 'More', exact: true }).click()
@@ -310,7 +294,6 @@ test.describe(
           await route.fulfill({ path: Mocks.LiquidityService.pool_info_eth_weeth })
         })
         await graphql.intercept('PoolPriceHistory', Mocks.PoolPriceHistory.eth_weeth)
-        await graphql.intercept('AllV4Ticks', Mocks.AllV4Ticks.eth_weeth)
         await anvil.setBalance({ address: assume0xAddress(TEST_WALLET_ADDRESS), value: parseEther('10') })
         await anvil.setErc20Balance({ address: assume0xAddress(WEETH_ADDRESS), balance: parseEther('100') })
 
@@ -332,7 +315,6 @@ test.describe(
           await route.fulfill({ path: Mocks.LiquidityService.pool_info_eth_weeth })
         })
         await graphql.intercept('PoolPriceHistory', Mocks.PoolPriceHistory.eth_weeth)
-        await graphql.intercept('AllV4Ticks', Mocks.AllV4Ticks.eth_weeth)
         await anvil.setBalance({ address: assume0xAddress(TEST_WALLET_ADDRESS), value: parseEther('10000') })
         await anvil.setErc20Balance({ address: assume0xAddress(WEETH_ADDRESS), balance: parseEther('10') })
 

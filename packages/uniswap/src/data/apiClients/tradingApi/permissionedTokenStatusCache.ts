@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import type { CheckPermissionsResult } from '@universe/api'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
 // SHORT-TERM: this whole feature can be deleted once the router version no longer depends
@@ -24,7 +25,7 @@ import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 // existing behaviour. So this cache is a monotonic "tokens we've confirmed are permissioned" set.
 
 function permissionedTokenStatusKey(chainId: number, tokenAddress: string): [ReactQueryCacheKey, number, string] {
-  return [ReactQueryCacheKey.PermissionedTokenStatus, chainId, tokenAddress.toLowerCase()]
+  return [ReactQueryCacheKey.PermissionedTokenStatus, chainId, normalizeTokenAddressForCache(tokenAddress)]
 }
 
 /**

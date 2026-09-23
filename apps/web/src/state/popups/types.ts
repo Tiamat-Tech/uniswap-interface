@@ -1,4 +1,4 @@
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { FORTransaction } from 'uniswap/src/features/fiatOnRamp/types'
 import { CurrencyId } from 'uniswap/src/types/currency'
 
@@ -24,7 +24,6 @@ export enum SwitchNetworkAction {
   Sell = 'sell',
   Limit = 'limit',
   LP = 'lp',
-  PoolFinder = 'poolFinder',
 }
 
 export type PopupContent =

@@ -153,7 +153,6 @@ describe('createViemContractFromEthersParams', () => {
       expect(send).toHaveBeenCalledTimes(1)
       expect(send).toHaveBeenCalledWith('eth_sendTransaction', [
         expect.objectContaining({
-          // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid
           from: signerAddress.toLowerCase(),
           to: wethAddress,
           value: '0x7b',
@@ -169,7 +168,6 @@ describe('createViemContractFromEthersParams', () => {
       expect(hash).toBe(txHash)
       expect(send).toHaveBeenCalledWith('eth_sendTransaction', [
         expect.objectContaining({
-          // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid
           from: signerAddress.toLowerCase(),
           to: wethAddress,
           // withdraw(uint256) selector + abi-encoded 5

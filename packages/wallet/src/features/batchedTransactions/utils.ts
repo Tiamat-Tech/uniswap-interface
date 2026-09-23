@@ -6,6 +6,7 @@ import { checkWalletDelegation } from 'uniswap/src/data/apiClients/tradingApi/Tr
 import { DappResponseType } from 'uniswap/src/features/dappRequests/types'
 import { EthTransaction } from 'uniswap/src/types/walletConnect'
 import { logger } from 'utilities/src/logger/logger'
+import { normalizeSendCalls } from 'wallet/src/features/batchedTransactions/normalizeSendCalls'
 import { Capability } from 'wallet/src/features/dappRequests/types'
 import type { SmartWalletCapabilityStatus } from 'wallet/src/features/smartWallet/delegation/types'
 import { isFreshDelegation } from 'wallet/src/features/smartWallet/delegation/utils'
@@ -20,7 +21,7 @@ export function generateBatchId(): string {
 
 /**
  * Transforms an array of EIP-1193 calls into TransactionRequest format for the Trading API.
- * Filters out any calls missing required fields.
+ * Invalid or unsupported calls reject the whole batch so execution cannot diverge from scanning.
  */
 export function transformCallsToTransactionRequests({
   calls,
@@ -31,20 +32,17 @@ export function transformCallsToTransactionRequests({
   chainId: number
   accountAddress: Address
 }): TradingApi.TransactionRequest[] {
-  return calls
-    .map((call): TradingApi.TransactionRequest | undefined => {
-      if (call.to === undefined || call.data === undefined || !chainId) {
-        return undefined
-      }
-      return {
-        to: call.to,
-        data: call.data,
-        value: call.value ?? '0x0',
-        from: accountAddress,
-        chainId: chainId.valueOf(),
-      }
-    })
-    .filter((call): call is TradingApi.TransactionRequest => !!call)
+  if (!chainId) {
+    throw new Error('wallet_sendCalls requires a chain ID')
+  }
+
+  return normalizeSendCalls(calls).map((call) => ({
+    to: call.to,
+    data: call.data,
+    value: call.value ?? '0x0',
+    from: accountAddress,
+    chainId: chainId.valueOf(),
+  }))
 }
 
 export function buildSmartWalletCapabilities({

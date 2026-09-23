@@ -1,19 +1,21 @@
 /* oxlint-disable max-lines */
 import { Currency, CurrencyAmount, Token } from '@uniswap/sdk-core'
 import { UNIVERSAL_ROUTER_ADDRESS, UniversalRouterVersion } from '@uniswap/universal-router-sdk'
+import { isEVMChain } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Anchor, Button, Flex, Text, type TextCompatProps } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { ArrowDown } from '@universe/mycelium/icons/ArrowDown'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
+import { ComponentProps, useCallback, useEffect, useMemo, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Anchor, Button, Flex, styled, Text, useIsShortMobileDevice } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
-import { ArrowDown } from 'ui/src/components/icons/ArrowDown'
+import { useIsShortMobileDevice } from 'ui/src'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { LIMIT_SUPPORTED_CHAINS } from 'uniswap/src/features/chains/chainInfo'
 import { useIsSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
 import { getPrimaryStablecoin } from 'uniswap/src/features/chains/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { isEVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { useIsMismatchAccountQuery } from 'uniswap/src/features/smartWallet/mismatch/hooks'
 import { ElementName, InterfacePageName, SectionName, SwapEventName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -43,7 +45,7 @@ import { usePermit2Allowance } from '~/hooks/usePermit2Allowance'
 import { ConfirmLimitOrderModal } from '~/pages/Swap/Limit/ConfirmLimitOrderModal'
 import { LimitExpirySection } from '~/pages/Swap/Limit/LimitExpirySection'
 import { LimitOrdersNotSupportedBanner } from '~/pages/Swap/Limit/LimitOrdersNotSupportedBanner'
-import { LimitPriceError } from '~/pages/Swap/Limit/LimitPriceError'
+import { LimitPriceError, shouldShowLimitPriceError } from '~/pages/Swap/Limit/LimitPriceError'
 import { OpenLimitOrdersButton } from '~/pages/Swap/Limit/OpenLimitOrdersButton'
 import { getDefaultPriceInverted } from '~/pages/Swap/Limit/state/hooks'
 import { LimitContextProvider, useLimitContext } from '~/pages/Swap/Limit/state/LimitContext'
@@ -54,26 +56,25 @@ import { LimitOrderTrade, TradeFillType } from '~/state/routing/types'
 import type { LimitOrderResult } from '~/types/trade'
 import { maxAmountSpend } from '~/utils/maxAmountSpend'
 
-const CustomHeightSwapSection = styled(SwapSection, {
-  height: 'unset',
-})
+const CustomHeightSwapSection = (props: ComponentProps<typeof SwapSection>): JSX.Element => (
+  <SwapSection height="unset" {...props} />
+)
 
-const ShortArrowWrapper = styled(ArrowWrapper, {
-  mt: -22,
-  mb: -22,
-})
+const ShortArrowWrapper = (props: ComponentProps<typeof ArrowWrapper>): JSX.Element => (
+  <ArrowWrapper mt={-22} mb={-22} {...props} />
+)
 
-const LearnMore = styled(Text, {
-  variant: 'body3',
-  color: '$accent1',
-  animation: '100ms',
-  hoverStyle: {
-    opacity: 0.6,
-  },
-  focusStyle: {
-    opacity: 0.4,
-  },
-})
+const LearnMore = (props: TextCompatProps): JSX.Element => (
+  <Text
+    variant="body3"
+    color="$accent1"
+    // Scoped to opacity (matches the legacy '100ms' curve); `transition: all` would animate theme-token colors.
+    style={{ transition: `opacity ${SPORE_ANIMATION_CURVE_CSS['100ms']}` }}
+    hoverStyle={{ opacity: 0.6 }}
+    focusStyle={{ opacity: 0.4 }}
+    {...props}
+  />
+)
 
 type LimitFormProps = {
   onCurrencyChange?: (selected: CurrencyState) => void
@@ -124,7 +125,8 @@ function LimitForm({ onCurrencyChange }: LimitFormProps) {
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- only react to currency identity changes, callbacks are stable
   }, [inputCurrency, outputCurrency])
 
-  const { currencyBalances, parsedAmounts, parsedLimitPrice, limitOrderTrade, marketPrice } = derivedLimitInfo
+  const { currencyBalances, parsedAmounts, parsedLimitPrice, limitOrderTrade, marketPrice, marketPriceRejected } =
+    derivedLimitInfo
   const [showConfirm, setShowConfirm] = useState(false)
   const [limitOrderResult, setLimitOrderResult] = useState<LimitOrderResult>()
   const [limitOrderError, setLimitOrderError] = useState()
@@ -433,22 +435,30 @@ function LimitForm({ onCurrencyChange }: LimitFormProps) {
           limitPriceError={priceError}
         />
       )}
-      {isLimitSupportedChain && !!priceError && inputCurrency && outputCurrency && limitOrderTrade && (
-        <LimitPriceError
-          priceError={priceError}
-          priceAdjustmentPercentage={currentPriceAdjustment}
-          inputCurrency={inputCurrency}
-          outputCurrency={outputCurrency}
-          priceInverted={limitState.limitPriceInverted}
-        />
-      )}
+      {isLimitSupportedChain &&
+        priceError &&
+        inputCurrency &&
+        outputCurrency &&
+        shouldShowLimitPriceError({
+          priceError,
+          hasLimitOrderTrade: !!limitOrderTrade,
+          marketPriceRejected: !!marketPriceRejected,
+        }) && (
+          <LimitPriceError
+            priceError={priceError}
+            priceAdjustmentPercentage={currentPriceAdjustment}
+            inputCurrency={inputCurrency}
+            outputCurrency={outputCurrency}
+            priceInverted={limitState.limitPriceInverted}
+          />
+        )}
       {!displayDelegationMismatchUI && (
         <Flex row backgroundColor="$surface2" borderRadius="$rounded12" p="$padding12" mt="$padding12">
           <AlertTriangleFilled
             size="$icon.20"
             mr="$spacing12"
             alignSelf="flex-start"
-            color={!isLimitSupportedChain ? '$critical' : '$neutral2'}
+            color={!isLimitSupportedChain ? '$statusCritical' : '$neutral2'}
           />
           <Text variant="body3">
             {!isLimitSupportedChain ? (
@@ -580,7 +590,7 @@ function SubmitOrderButton({
           disabled={isDisabled}
           onPress={!isConnected ? accountDrawer.open : handleContinueToReview}
           id={trade ? 'submit-order-button' : undefined}
-          data-testid={trade ? TestID.SubmitOrderButton : undefined}
+          testID={trade ? TestID.SubmitOrderButton : undefined}
         >
           {buttonText}
         </Button>

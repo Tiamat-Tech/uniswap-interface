@@ -1,9 +1,10 @@
 import { useNavigation } from '@react-navigation/core'
 import { isAndroid, isDevEnv } from '@universe/environment'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, iconSizes } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { default as React, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ListRenderItemInfo } from 'react-native'
 import { useSelector } from 'react-redux'
 import { OnboardingStackNavigationProp, SettingsStackNavigationProp } from 'src/app/navigation/types'
 import { ScreenWithHeader } from 'src/components/layout/screens/ScreenWithHeader'
@@ -12,7 +13,6 @@ import { WalletRestoreType } from 'src/components/RestoreWalletModal/RestoreWall
 import { FooterSettings } from 'src/components/Settings/FooterSettings'
 import { ForceReduxDataLossRow } from 'src/components/Settings/ForceReduxDataLossRow'
 import { SettingsList } from 'src/components/Settings/lists/SettingsList'
-import { SectionData } from 'src/components/Settings/lists/types'
 import { OnboardingRow } from 'src/components/Settings/OnboardingRow'
 import { ResetBehaviorHistoryRow } from 'src/components/Settings/ResetBehaviorHistoryRow'
 import {
@@ -34,7 +34,7 @@ import { useAboutModalState } from 'src/features/settings/hooks/useAboutModalSta
 import { useAdvancedSettingsMenuState } from 'src/features/settings/hooks/useAdvancedSettingsMenuState'
 import { useWalletRestore } from 'src/features/wallet/useWalletRestore'
 import { importFromCloudBackupOption, restoreFromCloudBackupOption } from 'src/screens/Import/constants'
-import { Flex, IconProps, Text, useSporeColors } from 'ui/src'
+import type { IconProps } from 'ui/src'
 import {
   Bell,
   Chart,
@@ -57,7 +57,6 @@ import {
   WavePulse,
   Wrench,
 } from 'ui/src/components/icons'
-import { iconSizes } from 'ui/src/theme'
 import { UniswapHelpUrls, UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { useCurrentAppearanceSetting } from 'uniswap/src/features/appearance/hooks'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
@@ -124,7 +123,7 @@ export function SettingsScreen(): JSX.Element {
   const { walletNeedsRestore, walletRestoreType } = useWalletRestore()
 
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<SettingsSectionItem | SettingsSectionItemComponent>): JSX.Element | null => {
+    ({ item }: { item: SettingsSectionItem | SettingsSectionItemComponent }): JSX.Element | null => {
       if (item.isHidden) {
         return null
       }
@@ -405,7 +404,6 @@ export function SettingsScreen(): JSX.Element {
       edges={isAndroid ? ['top', 'left', 'right', 'bottom'] : undefined}
     >
       <SettingsList
-        keyExtractor={keyExtractor}
         sections={sections}
         ItemSeparatorComponent={renderItemSeparator}
         ListFooterComponent={<FooterSettings />}
@@ -417,10 +415,6 @@ export function SettingsScreen(): JSX.Element {
       />
     </ScreenWithHeader>
   )
-}
-
-function keyExtractor(_item: SectionData, index: number): string {
-  return 'settings' + index
 }
 
 function renderSectionFooter(): JSX.Element {

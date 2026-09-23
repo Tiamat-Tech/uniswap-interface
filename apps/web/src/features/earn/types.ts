@@ -1,11 +1,20 @@
 import { TradingApi } from '@universe/api'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import type { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import type { EarnVaultFlow, EarnVaultTab } from 'uniswap/src/features/earn/hooks/useEarnVaultModalFlow'
 import type { EarnDepositSourceOption, EarnPositionInfo, EarnVaultInfo } from 'uniswap/src/features/earn/types'
-import type { EarnAnalyticsEntryPoint, EarnAnalyticsSurface } from 'uniswap/src/features/telemetry/types'
+import type {
+  EarnAnalyticsBaseProperties,
+  EarnAnalyticsEntryPoint,
+  EarnAnalyticsSurface,
+} from 'uniswap/src/features/telemetry/types'
 
 export type EarnVaultModalVaultData = {
+  /**
+   * Gated vault analytics: undefined while the position is unknown, so a consumer cannot
+   * stamp has_existing_position from missing data. Computed once in EarnVaultModal.
+   */
+  analyticsProperties: EarnAnalyticsBaseProperties | undefined
   balanceLookupErrored: boolean
   balanceLookupHasData: boolean
   balanceLookupSettled: boolean

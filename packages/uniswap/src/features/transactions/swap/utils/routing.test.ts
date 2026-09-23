@@ -8,6 +8,8 @@ import type { ClassicTrade, UniswapXTrade } from 'uniswap/src/features/transacti
 import {
   isGasSponsoredExecution,
   isGasSponsoredTradeExecution,
+  isSwapRouting,
+  planStepTypeToTradingRoute,
 } from 'uniswap/src/features/transactions/swap/utils/routing'
 import { mockPermit } from 'uniswap/src/test/fixtures/permit'
 import {
@@ -150,5 +152,48 @@ describe(isGasSponsoredTradeExecution, () => {
       quote: { ...uniswapXTrade.quote, sponsorshipInfo: { sponsored: true } },
     } as UniswapXTrade
     expect(isGasSponsoredTradeExecution({ trade, executesViaPaymaster: true })).toBe(false)
+  })
+})
+
+describe('isSwapRouting', () => {
+  it.each([
+    TradingApi.Routing.CLASSIC,
+    TradingApi.Routing.DUTCH_V2,
+    TradingApi.Routing.DUTCH_V3,
+    TradingApi.Routing.DUTCH_LIMIT,
+    TradingApi.Routing.PRIORITY,
+    TradingApi.Routing.JUPITER,
+    TradingApi.Routing.CHAINED,
+  ])('should treat %s as a swap', (routing) => {
+    expect(isSwapRouting({ routing })).toBe(true)
+  })
+
+  it.each([TradingApi.Routing.BRIDGE, TradingApi.Routing.WRAP, TradingApi.Routing.UNWRAP])(
+    'should not treat %s as a swap',
+    (routing) => {
+      expect(isSwapRouting({ routing })).toBe(false)
+    },
+  )
+})
+
+describe(planStepTypeToTradingRoute, () => {
+  it.each(Object.values(TradingApi.PlanStepType))('does not throw for PlanStepType.%s', (stepType) => {
+    expect(() => planStepTypeToTradingRoute(stepType)).not.toThrow()
+  })
+
+  it.each([
+    TradingApi.PlanStepType.MARGIN_PRE_SWAP,
+    TradingApi.PlanStepType.MARGIN_OPEN,
+    TradingApi.PlanStepType.MARGIN_CLOSE,
+    TradingApi.PlanStepType.MARGIN_BRIDGE,
+    TradingApi.PlanStepType.MARGIN_ADJUST,
+  ])('maps %s to Routing.CHAINED, same as VAULT_DEPOSIT/VAULT_WITHDRAW', (stepType) => {
+    expect(planStepTypeToTradingRoute(stepType)).toBe(TradingApi.Routing.CHAINED)
+  })
+
+  it('throws for an unmapped step type', () => {
+    expect(() => planStepTypeToTradingRoute('NOT_A_REAL_STEP_TYPE' as TradingApi.PlanStepType)).toThrow(
+      /Unknown step type/,
+    )
   })
 })

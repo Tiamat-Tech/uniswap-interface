@@ -1,8 +1,9 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { Plus } from '@universe/mycelium/icons/Plus'
+import { X } from '@universe/mycelium/icons/X'
 import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Input, Text, TouchableArea, type GetRef } from 'ui/src'
-import { Plus } from 'ui/src/components/icons/Plus'
-import { X } from 'ui/src/components/icons/X'
+import { Input } from 'ui/src'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import {
@@ -105,7 +106,7 @@ function formatTierLiquidityTotal({
   return `${display} ${usdMode ? fiatCurrencyCode : raiseCurrencySymbol}`
 }
 
-type TierInputRef = GetRef<typeof Input>
+type TierInputRef = React.ComponentRef<typeof Input>
 
 function TierField({
   children,

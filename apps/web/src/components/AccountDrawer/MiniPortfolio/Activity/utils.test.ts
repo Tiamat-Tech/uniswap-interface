@@ -1,5 +1,5 @@
 import 'utilities/src/logger/mocks'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { DEFAULT_ERC20_DECIMALS } from 'utilities/src/tokens/constants'
 import { vi } from 'vitest'

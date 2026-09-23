@@ -1,7 +1,9 @@
 import { useApolloClient } from '@apollo/client'
 import { ReactNavigationPerformanceView } from '@shopify/react-native-performance-navigation'
 import { GQLQueries, GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
+import { useIsTokenCategoriesEnabled } from '@universe/gating'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import React, { memo, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FadeInDown, FadeOutDown } from 'react-native-reanimated'
@@ -9,42 +11,41 @@ import type { AppStackScreenProp } from 'src/app/navigation/types'
 import { HeaderScrollScreen } from 'src/components/layout/screens/HeaderScrollScreen'
 import { useIsInModal } from 'src/components/modals/useIsInModal'
 import { PriceExplorer } from 'src/components/PriceExplorer/PriceExplorer'
+import { RelatedTokens } from 'src/components/TokenDetails/relatedTokens/RelatedTokens'
 import { MoreRwaTokens } from 'src/components/TokenDetails/rwa/MoreRwaTokens'
 import { OffHoursMarketWarning } from 'src/components/TokenDetails/rwa/OffHoursMarketWarning'
 import { OtherStocks } from 'src/components/TokenDetails/rwa/OtherStocks'
 import { TokenBalances } from 'src/components/TokenDetails/TokenBalances'
 import { TokenDetailsBridgedAssetSection } from 'src/components/TokenDetails/TokenDetailsBridgedAssetSection'
+import { TokenDetailsCollections } from 'src/components/TokenDetails/TokenDetailsCollections'
 import { TokenDetailsContextProvider, useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
 import { TokenDetailsEarnBanner } from 'src/components/TokenDetails/TokenDetailsEarnBanner'
 import { TokenDetailsEarnSection } from 'src/components/TokenDetails/TokenDetailsEarnSection'
 import { TokenDetailsHeader } from 'src/components/TokenDetails/TokenDetailsHeader'
 import { TokenDetailsLinks } from 'src/components/TokenDetails/TokenDetailsLinks'
+import { TokenDetailsAbout } from 'src/components/TokenDetails/TokenDetailsStats/TokenDetailsAbout'
 import { TokenDetailsStats } from 'src/components/TokenDetails/TokenDetailsStats/TokenDetailsStats'
 import { TokenDetailsVaultShareBanner } from 'src/components/TokenDetails/TokenDetailsVaultShareBanner'
 import { TokenPerformance } from 'src/components/TokenDetails/TokenPerformance'
 import { useMobileTokenDetailsEarnData } from 'src/components/TokenDetails/useMobileTokenDetailsEarnData'
 import { useMobileTokenDetailsVaultShareData } from 'src/components/TokenDetails/useMobileTokenDetailsVaultShareData'
 import { useTokenDetailsCrossChainBalances } from 'src/components/TokenDetails/useTokenDetailsCrossChainBalances'
-import { useGatedTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
+import { useTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
 import { TokenDetailsActionButtonsWrapper } from 'src/screens/TokenDetailsScreen/TokenDetailsActionButtonsWrapper'
 import { HeaderRightElement, HeaderTitleElement } from 'src/screens/TokenDetailsScreen/TokenDetailsHeaders'
 import { TokenDetailsModals } from 'src/screens/TokenDetailsScreen/TokenDetailsModals'
 import { useMobileTDPHeartbeatCoordinator } from 'src/screens/TokenDetailsScreen/useMobileTDPHeartbeatCoordinator'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { Lock } from 'ui/src/components/icons/Lock'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
-import { PollingInterval } from 'uniswap/src/constants/misc'
-import { useTokenBasicInfoPartsFragment, useTokenBasicProjectPartsFragment } from 'uniswap/src/data/graphql/fragments'
+import { useTokenCategories } from 'uniswap/src/data/apiClients/dataApiService/categories/useTokenCategories'
 import { useTokenMetadata } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
-import { isMultichainProjectTokens } from 'uniswap/src/features/dataApi/tokenProjects/utils/isMultichainProjectTokens'
 import { currencyIdToContractInput } from 'uniswap/src/features/dataApi/utils/currencyIdToContractInput'
 import { PermissionedTokenInfoBottomSheet } from 'uniswap/src/features/permissionedTokens/PermissionedTokenInfoBottomSheet'
 import { useLogRWATokenDetailsViewed } from 'uniswap/src/features/rwa/useLogRWATokenDetailsViewed'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TokenWarningCard } from 'uniswap/src/features/tokens/warnings/TokenWarningCard'
 import { MobileScreens } from 'uniswap/src/types/screens/mobile'
-import { AddressStringFormat, normalizeAddress } from 'uniswap/src/utils/addresses'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useBooleanState } from 'utilities/src/react/useBooleanState'
 import { useDelayedRender } from 'utilities/src/react/useDelayedRender'
@@ -69,25 +70,19 @@ export function TokenDetailsScreen({ route, navigation }: AppStackScreenProp<Mob
 
 function TokenDetailsWrapper(): JSX.Element {
   const { chainId, address, currencyId, initialIsMultichainAsset } = useTokenDetailsContext()
-  const { data: token } = useTokenBasicInfoPartsFragment({ currencyId })
-  const { data: projectParts } = useTokenBasicProjectPartsFragment({ currencyId })
-  const metadata = useTokenMetadata(currencyId, { legacyToken: { name: token.name, symbol: token.symbol } })
-  // Combine the navigator-provided hint with the project-derived signal so the
-  // first analytics impression carries the correct value even when the project
-  // fragment hasn't resolved yet.
-  const isMultichainAsset = initialIsMultichainAsset || isMultichainProjectTokens(projectParts.project?.tokens)
+  const metadata = useTokenMetadata(currencyId)
 
   const traceProperties = useMemo(
     () => ({
       chain: chainId,
       address,
       currencyName: metadata.name,
-      multichain: isMultichainAsset,
+      multichain: initialIsMultichainAsset,
     }),
-    [address, chainId, isMultichainAsset, metadata.name],
+    [address, chainId, initialIsMultichainAsset, metadata.name],
   )
 
-  const rwaMatch = useGatedTokenDetailsRWAMatch(FeatureFlags.RWATdp)
+  const rwaMatch = useTokenDetailsRWAMatch()
   useLogRWATokenDetailsViewed({
     rwaMatch,
     tokenAddress: address,
@@ -98,19 +93,18 @@ function TokenDetailsWrapper(): JSX.Element {
   return (
     <ReactNavigationPerformanceView interactive screenName={MobileScreens.TokenDetails}>
       <Trace directFromPage logImpression properties={traceProperties} screen={MobileScreens.TokenDetails}>
-        <TokenDetailsQuery />
+        <TokenDetailsQuery isRWA={Boolean(rwaMatch)} />
       </Trace>
     </ReactNavigationPerformanceView>
   )
 }
 
-const TokenDetailsQuery = memo(function TokenDetailsQueryInner(): JSX.Element {
+const TokenDetailsQuery = memo(function TokenDetailsQueryInner({ isRWA }: { isRWA: boolean }): JSX.Element {
   const { currencyId, setError } = useTokenDetailsContext()
-  // The TDP heartbeat coordinator only takes over refreshing when this flag is on —
-  // otherwise these queries must keep their own poll running, or they'd never refresh.
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
 
-  useMobileTDPHeartbeatCoordinator({ enabled: isDataLivelinessEnabled })
+  // The TDP heartbeat coordinator owns refreshing this screen's queries — none poll on their own.
+  // Balances (GetPortfolio, Zerion-backed) are intentionally off the tick; transaction sagas refetch them on change.
+  useMobileTDPHeartbeatCoordinator(isRWA)
 
   const { error } = GraphQLApi.useTokenDetailsScreenQuery({
     variables: {
@@ -119,7 +113,6 @@ const TokenDetailsQuery = memo(function TokenDetailsQueryInner(): JSX.Element {
     },
     notifyOnNetworkStatusChange: true,
     returnPartialData: true,
-    pollInterval: isDataLivelinessEnabled ? undefined : PollingInterval.Normal,
   })
 
   useEffect(() => setError(error), [error, setError])
@@ -133,9 +126,15 @@ const TokenDetails = memo(function TokenDetailsInner(): JSX.Element {
   const { isContentHidden } = useDelayedRender(CONTEXT_MENU_RENDER_DELAY_MS)
 
   const inModal = useIsInModal(MobileScreens.Explore, true)
+  const { currencyId } = useTokenDetailsContext()
 
   const { enabled: showEarn, activeAddress, earnData } = useMobileTokenDetailsEarnData()
   const { enabled: showVaultShare, vaultShareData } = useMobileTokenDetailsVaultShareData()
+  const tokenCategoriesEnabled = useIsTokenCategoriesEnabled()
+  const { categories, isLoading: isCategoriesLoading } = useTokenCategories(currencyId)
+  // Tags aren't served for RWA tokens yet, so an untagged stock keeps its shelf in place instead of
+  // losing both sections. OtherStocks goes at flag cleanup.
+  const showOtherStocks = !tokenCategoriesEnabled || (!isCategoriesLoading && categories.length === 0)
 
   return (
     <>
@@ -167,17 +166,20 @@ const TokenDetails = memo(function TokenDetailsInner(): JSX.Element {
 
             {showEarn && <TokenDetailsEarnBanner activeAddress={activeAddress} earnData={earnData} />}
           </Flex>
+          {tokenCategoriesEnabled && <TokenDetailsCollections />}
           <Flex gap="$spacing24">
             <TokenPerformance />
-            <MoreRwaTokens />
             <Flex gap="$spacing16">
               <PermissionedPillRow />
-              <Flex px="$spacing16">
+              <Flex gap="$spacing24">
+                <TokenDetailsAbout />
+                {tokenCategoriesEnabled && <RelatedTokens />}
                 <TokenDetailsStats />
               </Flex>
             </Flex>
             <TokenDetailsLinks />
-            <OtherStocks />
+            <MoreRwaTokens />
+            {showOtherStocks && <OtherStocks />}
           </Flex>
         </Flex>
       </HeaderScrollScreen>

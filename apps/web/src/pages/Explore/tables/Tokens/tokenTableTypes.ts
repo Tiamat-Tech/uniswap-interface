@@ -1,6 +1,6 @@
 import type { RankedMultichainToken } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import type { UniverseChainId } from '@universe/chains'
 import type { ReactElement } from 'react'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 export interface PriceCellValue {
   chainId: UniverseChainId

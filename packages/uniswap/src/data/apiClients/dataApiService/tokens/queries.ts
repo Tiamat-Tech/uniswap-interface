@@ -1,28 +1,30 @@
 import { type Message, type PartialMessage, type PlainMessage, toPlainMessage } from '@bufbuild/protobuf'
+import { Code, ConnectError } from '@connectrpc/connect'
 import { keepPreviousData } from '@tanstack/react-query'
-import type {
-  GetTokenHistoryOHLCRequest,
-  GetTokenHistoryOHLCResponse,
-  GetTokenHistoryPriceRequest,
-  GetTokenHistoryPriceResponse,
-  GetTokenHistoryTVLRequest,
-  GetTokenHistoryTVLResponse,
-  GetTokenHistoryVolumeRequest,
-  GetTokenHistoryVolumeResponse,
-  GetTokenMarketsMultiChainRequest,
-  GetTokenMarketsMultiChainResponse,
-  GetTokenMarketsRequest,
-  GetTokenMarketsResponse,
-  GetTokenMultiChainRequest,
-  GetTokenMultiChainResponse,
-  GetTokenRequest,
-  GetTokenResponse,
-  GetTokensMultiChainRequest,
-  GetTokensMultiChainResponse,
-  GetTokensRequest,
-  GetTokensResponse,
+import {
+  type GetTokenHistoryOHLCRequest,
+  type GetTokenHistoryOHLCResponse,
+  type GetTokenHistoryPriceRequest,
+  type GetTokenHistoryPriceResponse,
+  type GetTokenHistoryTVLRequest,
+  type GetTokenHistoryTVLResponse,
+  type GetTokenHistoryVolumeRequest,
+  type GetTokenHistoryVolumeResponse,
+  type GetTokenMarketsMultiChainRequest,
+  type GetTokenMarketsMultiChainResponse,
+  type GetTokenMarketsRequest,
+  type GetTokenMarketsResponse,
+  type GetTokenMultiChainRequest,
+  type GetTokenMultiChainResponse,
+  type GetTokenRequest,
+  type GetTokenResponse,
+  type GetTokensMultiChainRequest,
+  type GetTokensMultiChainResponse,
+  type GetTokensRequest,
+  type GetTokensResponse,
 } from '@uniswap/client-data-api/dist/data/v2/api_pb'
 import { dataApiServiceClientV2 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClientV2'
+import { logger } from 'utilities/src/logger/logger'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { persistableQueryOptions } from 'utilities/src/reactQuery/persistableQueryOptions'
 import { type QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
@@ -163,6 +165,8 @@ export const getGetTokensQueryOptions = createGetQueryOptions({
 
 export const getGetTokenMultiChainQueryOptions = createGetQueryOptions({
   name: 'getTokenMultiChain',
+  // No single-chain fallback needed: the backend serves tokens outside the multichain index as a
+  // single-entry response itself, so a NotFound here means the token is unknown to it entirely.
   fetch: (params: PartialMessage<GetTokenMultiChainRequest>) => dataApiServiceClientV2.getTokenMultiChain(params),
   policy: { staleTime: PRICE_STALE_TIME_MS },
 })
@@ -179,24 +183,49 @@ export const getGetTokenMarketsQueryOptions = createGetQueryOptions({
   policy: { staleTime: STATS_STALE_TIME_MS },
 })
 
+/**
+ * A chain id the data API doesn't recognize in `chainIds` fails the whole request
+ * (invalid_argument, "Unrecognized chainId: ..."), which would blank market stats on every
+ * multichain TDP if a chain ever ships app-side before data-api onboarding. Fall back to the
+ * unfiltered aggregate: over-inclusive for the unknown chain beats no stats at all. If the
+ * backend's error shape changes, the fallback stops firing and behavior is unchanged.
+ */
+async function fetchTokenMarketsMultiChainWithChainIdFallback(
+  params: PartialMessage<GetTokenMarketsMultiChainRequest>,
+): Promise<GetTokenMarketsMultiChainResponse> {
+  try {
+    return await dataApiServiceClientV2.getTokenMarketsMultiChain(params)
+  } catch (error) {
+    const isUnrecognizedChainId =
+      error instanceof ConnectError && error.code === Code.InvalidArgument && error.rawMessage.includes('chainId')
+    if (isUnrecognizedChainId && params.chainIds?.length) {
+      logger.error(error, {
+        tags: { file: 'queries.ts', function: 'fetchTokenMarketsMultiChainWithChainIdFallback' },
+        extra: { chainIds: params.chainIds },
+      })
+      return dataApiServiceClientV2.getTokenMarketsMultiChain({ ...params, chainIds: undefined })
+    }
+    throw error
+  }
+}
+
 export const getGetTokenMarketsMultiChainQueryOptions = createGetQueryOptions({
   name: 'getTokenMarketsMultiChain',
-  fetch: (params: PartialMessage<GetTokenMarketsMultiChainRequest>) =>
-    dataApiServiceClientV2.getTokenMarketsMultiChain(params),
+  fetch: fetchTokenMarketsMultiChainWithChainIdFallback,
   policy: { staleTime: STATS_STALE_TIME_MS },
 })
 
 export const getGetTokenHistoryPriceQueryOptions = createGetQueryOptions({
   name: 'getTokenHistoryPrice',
   fetch: (params: PartialMessage<GetTokenHistoryPriceRequest>) => dataApiServiceClientV2.getTokenHistoryPrice(params),
-  // Refetched on the TDP 30s price tick alongside getToken/getTokenMultiChain, not the config-cadence full tick.
+  // Refetched on the TDP 30s price tick alongside getTokenMultiChain, not the config-cadence full tick.
   policy: { staleTime: PRICE_STALE_TIME_MS },
 })
 
 export const getGetTokenHistoryOHLCQueryOptions = createGetQueryOptions({
   name: 'getTokenHistoryOHLC',
   fetch: (params: PartialMessage<GetTokenHistoryOHLCRequest>) => dataApiServiceClientV2.getTokenHistoryOHLC(params),
-  // Refetched on the TDP 30s price tick alongside getToken/getTokenMultiChain, not the config-cadence full tick.
+  // Refetched on the TDP 30s price tick alongside getTokenMultiChain, not the config-cadence full tick.
   policy: { staleTime: PRICE_STALE_TIME_MS },
 })
 

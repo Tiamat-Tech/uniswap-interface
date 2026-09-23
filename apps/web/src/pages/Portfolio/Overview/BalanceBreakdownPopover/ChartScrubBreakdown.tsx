@@ -1,7 +1,6 @@
+import { assertWebElement, Flex, type MyceliumElement, spacing } from '@universe/mycelium'
 import { UTCTimestamp } from 'lightweight-charts'
 import { useLayoutEffect, useRef } from 'react'
-import { assertWebElement, Flex, TamaguiElement } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 import { ChartHoverCoordinates } from '~/components/Charts/ChartModel'
 import { PriceChartData } from '~/components/Charts/PriceChart'
 import { calculateDelta } from '~/components/DeltaArrow/DeltaArrow'
@@ -39,7 +38,7 @@ export function ChartScrubBreakdown({
   earnSeries: PriceChartData[]
   poolsSeries: PriceChartData[]
 }): JSX.Element | null {
-  const ref = useRef<TamaguiElement>(null)
+  const ref = useRef<MyceliumElement>(null)
   const { x, plotRightEdge } = coordinates
 
   // Clamp the overlay within the plot, clear of the left edge and y-axis labels.

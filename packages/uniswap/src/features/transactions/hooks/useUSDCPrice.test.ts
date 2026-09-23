@@ -1,8 +1,8 @@
 import { renderHook } from '@testing-library/react'
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { normalizeToken, usePrice } from '@universe/prices'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getPrimaryStablecoin } from 'uniswap/src/features/chains/utils'
 import { SolanaToken } from 'uniswap/src/features/tokens/SolanaToken'
 import { useUSDCPrice, useUSDCValueWithStatus } from 'uniswap/src/features/transactions/hooks/useUSDCPrice'
@@ -49,12 +49,12 @@ describe('useUSDCPrice', () => {
   beforeEach(() => {
     mocks.usePrice.mockReset()
     mocks.useTrade.mockReset()
-    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: false })
+    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: false, isStaleRefreshing: false })
     mocks.useTrade.mockReturnValue({ trade: undefined, isLoading: false })
   })
 
   it('uses remote price service for supported EVM chains', () => {
-    mocks.usePrice.mockReturnValue({ price: 2, isLoading: false })
+    mocks.usePrice.mockReturnValue({ price: 2, isLoading: false, isStaleRefreshing: false })
 
     const { result } = renderHook(() => useUSDCPrice(MAINNET_TOKEN))
 
@@ -74,7 +74,7 @@ describe('useUSDCPrice', () => {
   })
 
   it('uses the Solana quote fallback for Solana currencies', () => {
-    mocks.usePrice.mockReturnValue({ price: 999, isLoading: false })
+    mocks.usePrice.mockReturnValue({ price: 999, isLoading: false, isStaleRefreshing: false })
     mocks.useTrade.mockReturnValue({
       trade: {
         routing: TradingApi.Routing.JUPITER,
@@ -114,7 +114,7 @@ describe('useUSDCPrice', () => {
         otherCurrency: undefined,
       }),
     )
-    expect(result.current).toEqual({ price: undefined, isLoading: false })
+    expect(result.current).toEqual({ price: undefined, isLoading: false, isStaleRefreshing: false })
   })
 
   it('returns 1:1 for the chain primary stablecoin', () => {
@@ -127,7 +127,7 @@ describe('useUSDCPrice', () => {
   })
 
   it('keeps tiny remote prices instead of truncating them to zero', () => {
-    mocks.usePrice.mockReturnValue({ price: 0.00000001, isLoading: false })
+    mocks.usePrice.mockReturnValue({ price: 0.00000001, isLoading: false, isStaleRefreshing: false })
 
     const { result } = renderHook(() => useUSDCPrice(MAINNET_TOKEN))
 
@@ -135,23 +135,31 @@ describe('useUSDCPrice', () => {
   })
 
   it('reports loading while the remote price lookup is still in flight', () => {
-    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: true })
+    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: true, isStaleRefreshing: false })
 
     const { result } = renderHook(() => useUSDCPrice(MAINNET_TOKEN))
 
-    expect(result.current).toEqual({ price: undefined, isLoading: true })
+    expect(result.current).toEqual({ price: undefined, isLoading: true, isStaleRefreshing: false })
   })
 
   it('reports settled (not loading) when the remote lookup completes with no price', () => {
-    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: false })
+    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: false, isStaleRefreshing: false })
 
     const { result } = renderHook(() => useUSDCPrice(MAINNET_TOKEN))
 
-    expect(result.current).toEqual({ price: undefined, isLoading: false })
+    expect(result.current).toEqual({ price: undefined, isLoading: false, isStaleRefreshing: false })
+  })
+
+  it('surfaces the withheld-stale-mid-refetch state so callers can defer instead of failing open', () => {
+    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: false, isStaleRefreshing: true })
+
+    const { result } = renderHook(() => useUSDCPrice(MAINNET_TOKEN))
+
+    expect(result.current).toEqual({ price: undefined, isLoading: false, isStaleRefreshing: true })
   })
 
   it('propagates the remote loading state through useUSDCValueWithStatus', () => {
-    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: true })
+    mocks.usePrice.mockReturnValue({ price: undefined, isLoading: true, isStaleRefreshing: false })
 
     const amount = CurrencyAmount.fromRawAmount(MAINNET_TOKEN, '1000000000000000000')
     const { result } = renderHook(() => useUSDCValueWithStatus(amount))

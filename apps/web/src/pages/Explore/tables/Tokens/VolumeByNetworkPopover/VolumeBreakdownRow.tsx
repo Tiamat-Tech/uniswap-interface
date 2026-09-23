@@ -1,5 +1,5 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { type ReactNode } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { GroupHoverTransition } from 'uniswap/src/components/GroupHoverTransition'
 import { useEvent } from 'utilities/src/react/hooks'
 
@@ -12,14 +12,20 @@ const LABEL_SLOT_HEIGHT = 20
 export interface VolumeBreakdownRowLabelProps {
   primaryLabel: string
   hoverLabel: string
+  isHovered: boolean
 }
 
-/** Slides volume ↔ network name on row hover (via parent TouchableArea `group`). */
-export function VolumeBreakdownRowLabel({ primaryLabel, hoverLabel }: VolumeBreakdownRowLabelProps): JSX.Element {
+/** Slides volume ↔ network name on row hover, driven by the row's tracked hover state. */
+export function VolumeBreakdownRowLabel({
+  primaryLabel,
+  hoverLabel,
+  isHovered,
+}: VolumeBreakdownRowLabelProps): JSX.Element {
   return (
     <GroupHoverTransition
       height={LABEL_SLOT_HEIGHT}
       widthMode="container"
+      isHovered={isHovered}
       defaultContent={
         <Text variant="body3" numberOfLines={1} height={LABEL_SLOT_HEIGHT} width="100%">
           {primaryLabel}
@@ -89,7 +95,8 @@ export function VolumeBreakdownRow({
         right={0}
         bottom={0}
         borderRadius="$rounded12"
-        backgroundColor="$surface1"
+        // Mycelium TouchableArea skips the legacy hover-color injection, so the hovered token must be explicit
+        backgroundColor="$surface1Hovered"
         opacity={showListSurface ? 1 : 0}
         pointerEvents="none"
         transition={ROW_HOVER_TRANSITION}

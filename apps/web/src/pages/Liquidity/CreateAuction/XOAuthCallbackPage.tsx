@@ -1,7 +1,7 @@
 import { VerifyXCallbackRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/x_verification_pb'
+import { Flex, Text } from '@universe/mycelium'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { XVerificationClient } from 'uniswap/src/data/apiClients/liquidityService/XVerificationClient'
 
 type CallbackState = 'loading' | 'success' | 'error'

@@ -1,5 +1,5 @@
+import { EVMUniverseChainId } from '@universe/chains'
 import { useEffect, useMemo, useRef } from 'react'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 // oxlint-disable-next-line no-restricted-imports -- Use wagmi version because it supports a chain being passed in
 import { useBlock, useBlockNumber } from 'wagmi'
 import { calibratedBlockToTimestamp } from '~/utils/blockToTimestamp'

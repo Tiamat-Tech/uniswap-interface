@@ -1,18 +1,20 @@
+import { Flex, Text, zIndexes } from '@universe/mycelium'
 import { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
 
-const PlaceholderBar = styled(Flex, {
-  width: '100%',
-  backgroundColor: '$surface2',
-  borderTopLeftRadius: '$rounded6',
-  borderTopRightRadius: '$rounded6',
-  flexShrink: 1,
-  flexGrow: 1,
-  flexBasis: 0,
-  mx: '$spacing2',
-})
+const PlaceholderBar = ({ height }: { height: string }) => (
+  <Flex
+    width="100%"
+    height={height}
+    backgroundColor="$surface2"
+    borderTopLeftRadius="$rounded6"
+    borderTopRightRadius="$rounded6"
+    flexShrink={1}
+    flexGrow={1}
+    flexBasis={0}
+    mx="$spacing2"
+  />
+)
 
 interface BidDistributionChartPlaceholderProps {
   height?: number
@@ -31,7 +33,7 @@ export function BidDistributionChartPlaceholder({ height = 400, children }: BidD
   )
 
   return (
-    <Flex position="relative" width="100%" height={height} row alignItems="flex-end" pb="$spacing20" gap="$gap2">
+    <Flex position="relative" width="100%" height={height} row alignItems="flex-end" pb="$spacing20" gap="$spacing2">
       {barHeights.map((barHeight, index) => (
         <PlaceholderBar key={index} height={`${barHeight}%`} />
       ))}

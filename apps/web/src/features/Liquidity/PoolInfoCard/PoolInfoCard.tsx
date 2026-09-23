@@ -1,29 +1,28 @@
+import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import type { Currency } from '@uniswap/sdk-core'
-import { GraphQLApi, parseRestProtocolVersion } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import type { UniverseChainId } from '@universe/chains'
+import { Button, Flex, iconSizes, Skeleton, Text, TouchableArea } from '@universe/mycelium'
+import { ChevronsIn } from '@universe/mycelium/icons/ChevronsIn'
+import { ChevronsOut } from '@universe/mycelium/icons/ChevronsOut'
+import { useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { curveCardinal, scaleLinear } from 'd3'
 import { type ComponentProps, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Skeleton, Text, TouchableArea, useMedia, useSporeColors } from 'ui/src'
-import { ChevronsIn } from 'ui/src/components/icons/ChevronsIn'
-import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
-import { iconSizes } from 'ui/src/theme'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { fromGraphQLChain } from 'uniswap/src/features/chains/utils'
+import { v2TokenToCurrency } from 'uniswap/src/features/dataApi/utils/parsedToken'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { NumberType } from 'utilities/src/format/types'
 import { getPriceBounds } from '~/components/Charts/PriceChart/utils'
 import { LineChart } from '~/components/Charts/SparklineChart/LineChart'
 import { DeltaArrow, getDeltaTextColor } from '~/components/DeltaArrow/DeltaArrow'
-import { DoubleCurrencyLogo } from '~/components/Logo/DoubleLogo'
-import type { PoolData } from '~/data/pools/usePoolData'
-import { calculate24hLpFeesUsd, calculateApr } from '~/data/pools/useTopPools'
-import { gqlToCurrency, toHistoryDuration, TimePeriod } from '~/data/util'
-import { useServedProtocolFee } from '~/features/fees/useServedProtocolFees'
-import { usePoolPriceChartData } from '~/features/Liquidity/charts/usePoolPriceChartData'
+import { DoubleCurrencyLogo, type ServedLogo } from '~/components/Logo/DoubleLogo'
+import type { PoolData } from '~/data/pools/poolData'
+import { calculate24hLpFeesUsd } from '~/data/pools/poolStats'
+import { toHistoryDuration, TimePeriod } from '~/data/util'
+import { useLiquidityServicePoolPriceChartData } from '~/features/Liquidity/charts/useLiquidityServicePoolPriceChartData'
 import { LiquidityPositionInfoBadges } from '~/features/Liquidity/LiquidityPositionInfoBadges'
-import { LpIncentivesAprDisplay } from '~/features/Liquidity/LPIncentives/LpIncentivesAprDisplay'
+import { RewardAprBadge } from '~/features/Liquidity/LPIncentives/RewardAprBadge'
+import { rewardCurrencyId, toPoolRewardAprEntries } from '~/features/Liquidity/LPIncentives/utils'
 import {
   SIDEBAR_STICKY_TOP_OFFSET,
   SIDEBAR_WIDTH,
@@ -39,23 +38,23 @@ const SPARKLINE_GRID_SIZE = 16
 export function PoolInfoSparkline({ poolData, width: overrideWidth }: { poolData: PoolData; width?: number }) {
   const colors = useSporeColors()
 
-  const isV2 = poolData.protocolVersion === GraphQLApi.ProtocolVersion.V2
-  const isV3 = poolData.protocolVersion === GraphQLApi.ProtocolVersion.V3
-  const isV4 = poolData.protocolVersion === GraphQLApi.ProtocolVersion.V4
+  const isV2 = poolData.protocolVersion === ProtocolVersion.V2
+  const isV3 = poolData.protocolVersion === ProtocolVersion.V3
+  const isV4 = poolData.protocolVersion === ProtocolVersion.V4
 
   const variables = useMemo(
     () => ({
       addressOrId: poolData.idOrAddress,
-      chain: poolData.token0.chain,
+      chainId: poolData.token0.chainId,
       duration: toHistoryDuration(TimePeriod.DAY),
       isV2,
       isV3,
       isV4,
     }),
-    [poolData.idOrAddress, poolData.token0.chain, isV2, isV3, isV4],
+    [poolData.idOrAddress, poolData.token0.chainId, isV2, isV3, isV4],
   )
 
-  const { entries, loading } = usePoolPriceChartData({ variables, priceInverted: false })
+  const { entries, loading } = useLiquidityServicePoolPriceChartData({ variables, priceInverted: false })
 
   if (loading || entries.length <= 1) {
     return <Flex height={SPARKLINE_HEIGHT} />
@@ -200,39 +199,20 @@ function PoolInfoCardLoading() {
 
 export function PoolStatsContent({ poolData, sparklineWidth }: { poolData: PoolData; sparklineWidth?: number }) {
   const { t } = useTranslation()
-  const { formatNumberOrString } = useLocalizationContext()
+  const { formatNumberOrString, formatPercent } = useLocalizationContext()
+  const rewards = toPoolRewardAprEntries(poolData.rewardTokens)
 
   const currentPrice =
     poolData.token1Price && poolData.token0Price ? poolData.token1Price / poolData.token0Price : undefined
 
-  // PoolData is GraphQL-sourced and carries no fee fields — the protocol fee comes from data-api GetProtocolFees.
-  const protocolFeePips = useServedProtocolFee({
-    chainId: fromGraphQLChain(poolData.token0.chain) ?? undefined,
-    protocolVersion: parseRestProtocolVersion(poolData.protocolVersion),
-    poolIdOrHash: poolData.idOrAddress,
-    enabled: true,
-  })?.protocolFee
-
+  // Still derived: GetPool serves an APR but no 24h fee figure.
   const fees24h = calculate24hLpFeesUsd({
     volume24h: poolData.volumeUSD24H,
     feeTier: poolData.feeTier?.feeAmount,
     isDynamic: poolData.feeTier?.isDynamic,
-    protocolVersion: parseRestProtocolVersion(poolData.protocolVersion),
-    protocolFeePips,
+    protocolVersion: poolData.protocolVersion,
+    protocolFeePips: poolData.protocolFeePips,
   })
-
-  const poolApr = useMemo(
-    () =>
-      calculateApr({
-        volume24h: poolData.volumeUSD24H,
-        tvl: poolData.tvlUSD,
-        feeTier: poolData.feeTier?.feeAmount,
-        isDynamic: poolData.feeTier?.isDynamic,
-        protocolVersion: parseRestProtocolVersion(poolData.protocolVersion),
-        protocolFeePips,
-      }),
-    [poolData.volumeUSD24H, poolData.tvlUSD, poolData.feeTier, poolData.protocolVersion, protocolFeePips],
-  )
 
   return (
     <>
@@ -267,19 +247,41 @@ export function PoolStatsContent({ poolData, sparklineWidth }: { poolData: PoolD
             label={t('stats.24fees')}
             value={formatNumberOrString({ value: fees24h, type: NumberType.FiatTokenStats })}
           />
-          <StatCell label={t('pool.apr.1day')} value={poolApr ? `${poolApr.toFixed(2)}%` : '-'} />
+          <StatCell label={t('pool.apr.1day')} value={formatPercent(poolData.apr)} />
         </Flex>
       </Flex>
 
-      {poolData.rewardsCampaign && poolData.rewardsCampaign.boostedApr > 0 && (
+      {rewards.length > 0 && (
         <Flex borderTopWidth="$spacing1" borderTopColor="$surface3" pt="$spacing16" gap="$spacing4">
           <Text variant="body3" color="$neutral2">
             {t('pool.apr.reward')}
           </Text>
-          <LpIncentivesAprDisplay lpIncentiveRewardApr={poolData.rewardsCampaign.boostedApr} />
+          {/* One single-reward badge per row: the section stacks them under its own heading, which
+              is the section's layout decision rather than the badge's. */}
+          {rewards.map((reward) => (
+            <RewardAprBadge key={rewardCurrencyId(reward.token)} rewards={[reward]} hideBackground />
+          ))}
         </Flex>
       )}
     </>
+  )
+}
+
+/**
+ * The pool's served token logos, each tied to its currency so DoubleCurrencyLogo can skip its
+ * per-token lookup whatever order the currencies arrive in (ExpandablePoolInfo's callers pass
+ * display order, which can be the reverse of the pool's sorted token0/token1).
+ */
+function useServedLogos(poolData: PoolData | undefined): ServedLogo[] {
+  return useMemo(
+    () =>
+      poolData
+        ? [poolData.token0, poolData.token1].map((token) => ({
+            currency: v2TokenToCurrency(token),
+            logoUrl: token.logoUrl,
+          }))
+        : [],
+    [poolData],
   )
 }
 
@@ -294,18 +296,10 @@ export function PoolInfoCard({
 }) {
   const { t } = useTranslation()
   const headerHeight = useAppHeaderHeight()
-  const currency0 = useMemo(() => (poolData ? gqlToCurrency(poolData.token0) : undefined), [poolData])
-  const currency1 = useMemo(() => (poolData ? gqlToCurrency(poolData.token1) : undefined), [poolData])
+  const currency0 = useMemo(() => (poolData ? v2TokenToCurrency(poolData.token0) : undefined), [poolData])
+  const currency1 = useMemo(() => (poolData ? v2TokenToCurrency(poolData.token1) : undefined), [poolData])
+  const servedLogos = useServedLogos(poolData)
   const chainId = (currency0?.chainId ?? currency1?.chainId) as UniverseChainId | undefined
-
-  const isFeeDisplayEnabled = useFeatureFlag(FeatureFlags.V4ProtocolFeeDisplay)
-  // PoolData is GraphQL-sourced and carries no fee fields — the protocol fee comes from data-api GetProtocolFees.
-  const protocolFeePips = useServedProtocolFee({
-    chainId,
-    protocolVersion: poolData ? parseRestProtocolVersion(poolData.protocolVersion) : undefined,
-    poolIdOrHash: poolData?.idOrAddress,
-    enabled: isFeeDisplayEnabled,
-  })?.protocolFee
 
   if (!poolData) {
     if (loading) {
@@ -326,18 +320,18 @@ export function PoolInfoCard({
       gap="$spacing16"
     >
       <Flex row gap="$spacing18" alignItems="center">
-        <DoubleCurrencyLogo currencies={[currency0, currency1]} size={48} />
+        <DoubleCurrencyLogo currencies={[currency0, currency1]} servedLogos={servedLogos} size={48} />
         <Flex gap="$spacing4">
           <Text variant="subheading1" color="$neutral1">
             {poolData.token0.symbol} / {poolData.token1.symbol}
           </Text>
-          <Flex row flexWrap="wrap">
+          <Flex row flexWrap="wrap" gap="$spacing2">
             <LiquidityPositionInfoBadges
               version={poolData.protocolVersion}
               v4hook={poolData.hookAddress}
               chainId={chainId}
               feeTier={poolData.feeTier}
-              protocolFeePips={protocolFeePips}
+              protocolFeePips={poolData.protocolFeePips}
               size="default"
             />
           </Flex>
@@ -374,6 +368,7 @@ export function ExpandablePoolInfo({
   const [isExpanded, setIsExpanded] = useState(false)
   const [sparklineWidth, setSparklineWidth] = useState(0)
   const toggleExpand = useCallback(() => setIsExpanded((prev) => !prev), [])
+  const servedLogos = useServedLogos(poolData)
 
   return (
     // Measure on the always-rendered outer container (its width matches the inner expanded
@@ -381,7 +376,11 @@ export function ExpandablePoolInfo({
     // display:none inner Flex only fires onLayout on expand, causing a one-frame width jump.
     <Flex gap={isExpanded ? '$gap12' : 0} onLayout={(e) => setSparklineWidth(e.nativeEvent.layout.width)}>
       <Flex row gap="$gap12" alignItems="center">
-        <DoubleCurrencyLogo currencies={[currency0, currency1]} size={media.md ? iconSizes.icon44 : iconSizes.icon32} />
+        <DoubleCurrencyLogo
+          currencies={[currency0, currency1]}
+          servedLogos={servedLogos}
+          size={media.md ? iconSizes.icon44 : iconSizes.icon32}
+        />
         <Flex row grow gap="$gap12" $md={{ flexDirection: 'column', gap: '$gap4' }}>
           <Flex row gap="$gap8" alignItems="center" testID={TestID.PoolPairLabel}>
             <Text variant="subheading1">{currency0?.symbol}</Text>
@@ -417,8 +416,8 @@ export function ExpandablePoolInfo({
 }
 
 export function PoolInfoCardMobileHeader({ poolData, loading }: { poolData?: PoolData; loading?: boolean }) {
-  const currency0 = useMemo(() => (poolData ? gqlToCurrency(poolData.token0) : undefined), [poolData])
-  const currency1 = useMemo(() => (poolData ? gqlToCurrency(poolData.token1) : undefined), [poolData])
+  const currency0 = useMemo(() => (poolData ? v2TokenToCurrency(poolData.token0) : undefined), [poolData])
+  const currency1 = useMemo(() => (poolData ? v2TokenToCurrency(poolData.token1) : undefined), [poolData])
 
   if (!poolData) {
     if (loading) {

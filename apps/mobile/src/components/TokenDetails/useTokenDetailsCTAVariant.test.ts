@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react'
+import { Bank } from '@universe/mycelium/icons/Bank'
 import { useMultichainBuyVariant } from 'src/components/TokenDetails/useTokenDetailsCTAVariant'
-import { Bank } from 'ui/src/components/icons'
 
 const defaultHandlers = {
   onPressBuyWithCash: vi.fn(),

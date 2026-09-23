@@ -1,9 +1,9 @@
 import { WalletReadyState as SolanaWalletReadyState } from '@solana/wallet-adapter-base'
+import { Platform } from '@universe/chains'
 import { CONNECTION_PROVIDER_IDS } from 'uniswap/src/constants/web3'
 import { ConnectorStatus } from 'uniswap/src/features/accounts/store/types/Connector'
 import { ChainScopeType } from 'uniswap/src/features/accounts/store/types/Session'
 import { SigningCapability } from 'uniswap/src/features/accounts/store/types/Wallet'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useAccountsStoreContext } from '~/features/accounts/store/provider'
 import { renderHook } from '~/test-utils/render'
 

@@ -65,9 +65,6 @@ export const BaseConfigValues = {
 
   // Feature Flags
   enableEntryGatewayProxy: process.env.ENABLE_ENTRY_GATEWAY_PROXY ?? process.env.VITE_ENABLE_ENTRY_GATEWAY_PROXY,
-  enableSessionService: process.env.ENABLE_SESSION_SERVICE,
-  enableSessionUpgradeAuto:
-    process.env.ENABLE_SESSION_UPGRADE_AUTO ?? process.env.REACT_APP_ENABLE_SESSION_UPGRADE_AUTO,
   includePrototypeFeatures: process.env.INCLUDE_PROTOTYPE_FEATURES,
 
   // URL Overrides
@@ -142,8 +139,6 @@ export const BaseConfigSchema = z.object({
 
   // Feature Flags
   enableEntryGatewayProxy: boolFromString.describe('Is the entry gateway proxy enabled'),
-  enableSessionService: boolFromString.describe('Is the session service enabled'),
-  enableSessionUpgradeAuto: boolFromString.describe('Is automatic session upgrade enabled'),
   includePrototypeFeatures: boolFromString.describe('Are prototype features included'),
 
   // URL Overrides

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { TradingApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import {
   resetStoppedEarnPlan,
   useEarnReviewExecutionHandlers,

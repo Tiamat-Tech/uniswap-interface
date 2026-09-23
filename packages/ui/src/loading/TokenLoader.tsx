@@ -1,6 +1,6 @@
 import { isWebPlatform } from '@universe/environment'
-import { Flex } from 'ui/src/components/layout'
-import { Text } from 'ui/src/components/text'
+import { Flex } from '@universe/mycelium'
+import { Text } from '@universe/mycelium'
 import { iconSizes } from 'ui/src/theme'
 
 interface TokenLoaderProps {

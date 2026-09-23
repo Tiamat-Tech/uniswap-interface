@@ -1,5 +1,5 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { ReactNode, useState } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { useEvent } from 'utilities/src/react/hooks'
 
 const MAX_CARDS_PER_ROW = 5
@@ -39,8 +39,10 @@ export function ExpandableTokenTileRow<T>({
       {visibleTokens.map((token) => (
         <Flex
           key={keyExtractor(token)}
-          animation={isNewExpansion ? 'quick' : undefined}
-          enterStyle={isNewExpansion ? { y: -16 } : undefined}
+          // Scoped CSS enter animation — the same classes the compat fadeInDown
+          // enter-animation preset emits; the preset prop itself is banned as new
+          // Tamagui-shaped styling (INFRA-2958).
+          className={isNewExpansion ? 'animate-spore-enter-fade-in-down opacity-[1]' : undefined}
           width={CARD_WIDTH}
         >
           {renderTile(token)}

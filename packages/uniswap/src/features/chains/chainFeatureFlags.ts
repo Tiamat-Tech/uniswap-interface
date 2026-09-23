@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags } from '@universe/gating'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 /**
  * Statsig rollout flags for chains that are supported on all apps but not yet GA.

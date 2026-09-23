@@ -1,23 +1,15 @@
 import { useFocusEffect } from '@react-navigation/core'
+import { ColorTokens, Flex, fonts, spacing, Text, TouchableArea } from '@universe/mycelium'
+import { useDeviceDimensions, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import React, { forwardRef, RefObject, useCallback, useEffect, useImperativeHandle, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { NativeSyntheticEvent, TextInput as RNTextInput, TextInputSelectionChangeEventData } from 'react-native'
 import { TouchableOpacity } from 'react-native-gesture-handler'
 import { useFiatOnRampContext } from 'src/features/fiatOnRamp/FiatOnRampContext'
-import {
-  ColorTokens,
-  Flex,
-  Text,
-  TouchableArea,
-  useIsShortMobileDevice,
-  useShakeAnimation,
-  useSporeColors,
-} from 'ui/src'
+import { useIsShortMobileDevice, useShakeAnimation } from 'ui/src'
 import { ArrowDownArrowUp } from 'ui/src/components/icons'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
 import { useDynamicFontSizing } from 'ui/src/hooks/useDynamicFontSizing'
-import { fonts, spacing } from 'ui/src/theme'
 import { AmountInput } from 'uniswap/src/components/AmountInput/AmountInput'
 import { TextInput } from 'uniswap/src/components/input/TextInput'
 import { Pill } from 'uniswap/src/components/pill/Pill'

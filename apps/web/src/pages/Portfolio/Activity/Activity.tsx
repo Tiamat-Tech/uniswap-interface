@@ -1,7 +1,7 @@
 import { Row } from '@tanstack/react-table'
 import { SharedEventName } from '@uniswap/analytics-events'
+import { Flex, TouchableArea } from '@universe/mycelium'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Flex, TouchableArea } from 'ui/src'
 import { ElementName, InterfacePageName, SectionName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -31,23 +31,15 @@ export function PortfolioActivity() {
   const { evmAddress, svmAddress } = usePortfolioAddresses()
   const { chainId, isExternalWallet } = usePortfolioRoutes()
 
-  const {
-    transactionData,
-    sectionData,
-    showLoading,
-    isFetchingNextPage,
-    sentinelRef,
-    error,
-    dataUpdatedAt,
-    isEarnActivityDisplayEnabled,
-  } = useActivityFiltering({
-    evmAddress,
-    svmAddress,
-    chainId,
-    selectedTransactionType,
-    selectedTimePeriod,
-    searchText,
-  })
+  const { transactionData, sectionData, showLoading, isFetchingNextPage, sentinelRef, error, dataUpdatedAt } =
+    useActivityFiltering({
+      evmAddress,
+      svmAddress,
+      chainId,
+      selectedTransactionType,
+      selectedTimePeriod,
+      searchText,
+    })
 
   const { setActivityOutage } = usePortfolioOutageContext()
   useEffect(() => {
@@ -129,7 +121,6 @@ export function PortfolioActivity() {
                   loading={showLoading}
                   error={!!error && !tableData.length}
                   rowWrapper={rowWrapper}
-                  isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
                 />
 
                 {/* Show skeleton loading indicator while fetching next page */}

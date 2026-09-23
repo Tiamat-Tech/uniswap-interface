@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
-import { AppTFunction } from 'ui/src/i18n/types'
 import { useUrlContext } from 'uniswap/src/contexts/UrlContext'
 import { FiatCurrency, ORDERED_CURRENCIES } from 'uniswap/src/features/fiatCurrency/constants'
 import { FiatCurrencyInfo } from 'uniswap/src/features/fiatOnRamp/types'
@@ -9,6 +8,7 @@ import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import type { UniswapState } from 'uniswap/src/state/uniswapReducer'
 // oxlint-disable-next-line no-restricted-imports -- legacy import will be migrated
 import { FiatCurrencyComponents, getFiatCurrencyComponents } from 'utilities/src/format/localeBased'
+import { AppTFunction } from 'utilities/src/i18n/types'
 
 /**
  * Helper function for getting the ISO currency code from our internal enum
@@ -126,7 +126,9 @@ function useUrlLocalCurrency(): FiatCurrency | undefined {
     return undefined
   }
 
+  // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- fiat currency code, not an address
   const lowerCaseSupportedLocalCurrency = parsedLocalCurrency.toLowerCase()
+  // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- fiat currency code, not an address
   return ORDERED_CURRENCIES.find((localCurrency) => localCurrency.toLowerCase() === lowerCaseSupportedLocalCurrency)
 }
 

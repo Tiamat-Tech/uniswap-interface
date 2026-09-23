@@ -1,5 +1,5 @@
-import { Flex, Text } from 'ui/src'
-import { Unitag } from 'ui/src/components/icons/Unitag'
+import { Flex, Text } from '@universe/mycelium'
+import { Unitag } from '@universe/mycelium/icons/Unitag'
 import { useUnitagsAddressQuery } from 'uniswap/src/data/apiClients/unitagsApi/useUnitagsAddressQuery'
 import { useENSName } from 'uniswap/src/features/ens/api'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -14,7 +14,7 @@ export function AddressDisplay({ address }: { address: Address }) {
   const uniswapUsername = unitag?.username
 
   return (
-    <Flex row gap="2px" alignItems="center" data-testid={TestID.AddressDisplay}>
+    <Flex row className="gap-[2px]" alignItems="center" data-testid={TestID.AddressDisplay}>
       <Text {...EllipsisTamaguiStyle}>{uniswapUsername ?? ENSName ?? shortenAddress({ address })}</Text>
       {uniswapUsername && (
         <Flex pt="$spacing2">

@@ -3,12 +3,18 @@
 /* Light mode is the default */
 :root {
   color-scheme: light;
-  --font-basel: "Basel Grotesk";
+  /* Unlayered :root outranks @layer theme — keep the fallback stack in sync
+     with theme.css or text renders in the browser default while Basel loads. */
+  --font-basel: "Basel Grotesk", sans-serif;
 
   /* Light mode shadows */
   --shadow-short: 0px 1px 6px 2px rgba(0, 0, 0, 0.03), 0px 1px 2px 0px rgba(0, 0, 0, 0.02);
   --shadow-medium: 0px 6px 12px -3px rgba(19, 19, 19, 0.04), 0px 2px 5px -2px rgba(19, 19, 19, 0.03);
   --shadow-large: 0px 10px 20px -5px rgba(19, 19, 19, 0.05), 0px 4px 12px -3px rgba(19, 19, 19, 0.04);
+  /* Theme-reactive shadow colours ($shadowColor/$shadowColorHover) — literals
+     byte-equal to ui/src/theme/themes.ts, lockstep-pinned with native.css */
+  --shadow-color: rgba(0,0,0,0.15);
+  --shadow-color-hover: rgba(0,0,0,0.2);
 
   /* shadcn compatibility */
   --radius: 0.625rem;
@@ -66,6 +72,8 @@
   --accent2: var(--color-accent2-light);
   --accent2-hovered: var(--color-accent2-hovered-light);
   --accent2-solid: var(--color-accent2-solid-light);
+  --pools-brand-green: var(--color-pools-brand-green-light);
+  --poolsBrandGreen: var(--pools-brand-green);
   /* deprecated: accent3 aliases neutral1 — neutral fills match the text neutral palette.
      var() substitutes at computed-value time in :root, so .dark re-declares the alias
      (a nested .dark would otherwise inherit the light value) — remove when legacy Tamagui accent3 is gone */
@@ -111,7 +119,7 @@
   --unicon-7: var(--color-unicon-7-light);
   --unicon-8: var(--color-unicon-8-light);
   --unicon-9: var(--color-unicon-9-light);
-  --unicon-bg-opacity: 0.12;
+  --unicon-bg-opacity: 0.1216;
 }
 
 /* Dark mode applies when .dark class is present */
@@ -122,6 +130,9 @@
   --shadow-short: 0px 1px 3px 0px rgba(0, 0, 0, 0.12), 0px 1px 2px 0px rgba(0, 0, 0, 0.24);
   --shadow-medium: 0px 10px 15px -3px rgba(19, 19, 19, 0.54), 0px 4px 6px -2px rgba(19, 19, 19, 0.4);
   --shadow-large: 0px 16px 24px -6px rgba(0, 0, 0, 0.6), 0px 8px 12px -4px rgba(0, 0, 0, 0.48);
+  /* Theme-reactive shadow colours — see the :root bucket's comment */
+  --shadow-color: rgba(0,0,0,0.4);
+  --shadow-color-hover: rgba(0,0,0,0.5);
 
   /* shadcn compatibility */
   --background: oklch(0.145 0 0);
@@ -178,6 +189,8 @@
   --accent2: var(--color-accent2-dark);
   --accent2-hovered: var(--color-accent2-hovered-dark);
   --accent2-solid: var(--color-accent2-solid-dark);
+  --pools-brand-green: var(--color-pools-brand-green-dark);
+  --poolsBrandGreen: var(--pools-brand-green);
   /* deprecated: accent3 aliases neutral1 — re-declared here so nested .dark scopes pick up the dark value */
   --accent3: var(--neutral1);
   --accent3-hovered: var(--neutral1-hovered);
@@ -220,7 +233,7 @@
   --unicon-7: var(--color-unicon-7-dark);
   --unicon-8: var(--color-unicon-8-dark);
   --unicon-9: var(--color-unicon-9-dark);
-  --unicon-bg-opacity: 0.16;
+  --unicon-bg-opacity: 0.1608;
 }
 
 /* shadcn theme inline block for Tailwind v4 */
@@ -283,6 +296,7 @@
   --color-accent2: var(--accent2);
   --color-accent2-hovered: var(--accent2-hovered);
   --color-accent2-solid: var(--accent2-solid);
+  --color-pools-brand-green: var(--pools-brand-green);
   /* deprecated: accent3 utilities alias neutral1, web-only (absent from native.css) */
   --color-accent3: var(--accent3);
   --color-accent3-hovered: var(--accent3-hovered);
@@ -312,4 +326,8 @@
   --color-network-worldchain: var(--network-worldchain);
   --color-network-xlayer: var(--network-xlayer);
   --color-network-zora: var(--network-zora);
+  /* Theme-reactive shadow colours ($shadowColor/$shadowColorHover) —
+     auto-switching Tailwind utilities */
+  --color-shadow-color: var(--shadow-color);
+  --color-shadow-color-hover: var(--shadow-color-hover);
 }

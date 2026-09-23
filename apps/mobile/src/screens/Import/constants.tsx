@@ -1,11 +1,13 @@
 import { isAndroid } from '@universe/environment'
+import { PaperStack } from '@universe/mycelium/icons/PaperStack'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
 import React from 'react'
-import { OSDynamicCloudIcon, PaperStack, Passkey } from 'ui/src/components/icons'
-import { AppTFunction } from 'ui/src/i18n/types'
+import { OSDynamicCloudIcon } from 'ui/src/components/icons'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { TestID, TestIDType } from 'uniswap/src/test/fixtures/testIDs'
 import { ImportType } from 'uniswap/src/types/onboarding'
 import { OnboardingScreens } from 'uniswap/src/types/screens/mobile'
+import { AppTFunction } from 'utilities/src/i18n/types'
 import { MNEMONIC_LENGTH_HD } from 'wallet/src/constants/accounts'
 
 type ImportMethodScreens =

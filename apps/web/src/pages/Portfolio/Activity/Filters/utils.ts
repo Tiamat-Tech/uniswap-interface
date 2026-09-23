@@ -9,12 +9,12 @@ import { Plus } from 'ui/src/components/icons/Plus'
 import { Pools } from 'ui/src/components/icons/Pools'
 import { ReceiveAlt } from 'ui/src/components/icons/ReceiveAlt'
 import { SendAction } from 'ui/src/components/icons/SendAction'
-import type { AppTFunction } from 'ui/src/i18n/types'
 import type { ActivityItem } from 'uniswap/src/components/activity/generateActivityItemRenderer'
 import { isLoadingItem, isSectionHeader } from 'uniswap/src/components/activity/utils'
 import { getEarnPlanTransactionType } from 'uniswap/src/features/earn/planActivityTitles'
 import { NFTTradeType, TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import type { TransactionDetails } from 'uniswap/src/features/transactions/types/transactionDetails'
+import type { AppTFunction } from 'utilities/src/i18n/types'
 import type { SelectOption } from '~/components/Dropdowns/DropdownSelector'
 import { ActivityFilterType } from '~/pages/Portfolio/Activity/Filters/activityFilterTypes'
 
@@ -43,16 +43,10 @@ export function filterTransactionDetailsFromActivityItems(transactions: Activity
 
 export function getTransactionTypeForActivityFilter({
   transaction,
-  isEarnActivityDisplayEnabled = true,
 }: {
   transaction: TransactionDetails
-  isEarnActivityDisplayEnabled?: boolean
 }): TransactionType {
-  if (
-    isEarnActivityDisplayEnabled &&
-    transaction.typeInfo.type === TransactionType.Plan &&
-    transaction.typeInfo.earnAction
-  ) {
+  if (transaction.typeInfo.type === TransactionType.Plan && transaction.typeInfo.earnAction) {
     return getEarnPlanTransactionType(transaction.typeInfo.earnAction)
   }
 
@@ -180,23 +174,8 @@ export const SERVER_FILTER_MAP: Record<ActivityFilterType, TransactionTypeFilter
   [ActivityFilterType.Withdrawals]: [TransactionTypeFilter.WITHDRAW, TransactionTypeFilter.VAULT_WITHDRAW],
 }
 
-const LEGACY_SERVER_FILTER_MAP: Record<ActivityFilterType, TransactionTypeFilter[] | undefined> = {
-  ...SERVER_FILTER_MAP,
-  [ActivityFilterType.Sends]: [TransactionTypeFilter.SEND, TransactionTypeFilter.SWAP],
-  [ActivityFilterType.Receives]: [TransactionTypeFilter.RECEIVE, TransactionTypeFilter.SWAP],
-  [ActivityFilterType.Withdrawals]: [TransactionTypeFilter.WITHDRAW],
-}
-
-export function getServerTransactionTypesForFilter({
-  filterType,
-  isEarnEnabled,
-}: {
-  filterType: string
-  isEarnEnabled: boolean
-}): TransactionTypeFilter[] | undefined {
-  // TODO(CONS-2244): Remove this fallback once Earn is launched and ListTransactions supports multi-filter requests.
-  const serverFilterMap = isEarnEnabled ? SERVER_FILTER_MAP : LEGACY_SERVER_FILTER_MAP
-  const serverFilterTypes = serverFilterMap[filterType as ActivityFilterType]
+export function getServerTransactionTypesForFilter(filterType: string): TransactionTypeFilter[] | undefined {
+  const serverFilterTypes = SERVER_FILTER_MAP[filterType as ActivityFilterType]
 
   return serverFilterTypes?.length === 1 ? serverFilterTypes : undefined
 }

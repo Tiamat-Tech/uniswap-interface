@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { PropsWithChildren, useCallback } from 'react'
 import { createSearchParams, useLocation, useNavigate } from 'react-router'
 import { navigateToInterfaceFiatOnRamp } from 'src/app/features/for/utils'
@@ -11,7 +12,12 @@ import {
 } from 'src/app/navigation/utils'
 import { UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import {
+  EarnAnalyticsSurface,
+  EarnEntryPoint,
+  getEarnVaultAnalyticsProperties,
+  logEarnVaultSelected,
+} from 'uniswap/src/features/earn/analytics'
 import { useNavigateToNftExplorerLink } from 'uniswap/src/features/nfts/hooks/useNavigateToNftExplorerLink'
 import { CopyNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
@@ -235,7 +241,17 @@ function useNavigateToAdvancedSettings(): () => void {
 }
 
 function useNavigateToEarnVault(): (args: NavigateToEarnVaultArgs) => void {
-  return useCallback(async ({ analyticsEntryPoint, vault }: NavigateToEarnVaultArgs): Promise<void> => {
+  return useCallback(async ({ analyticsEntryPoint, position, vault }: NavigateToEarnVaultArgs): Promise<void> => {
+    // The vault opens in a web tab, so this click is the extension's last chance to attribute
+    // the selection — mirrors the mobile navigation provider.
+    logEarnVaultSelected(
+      getEarnVaultAnalyticsProperties({
+        entryPoint: analyticsEntryPoint ?? EarnEntryPoint.GlobalModal,
+        position,
+        surface: EarnAnalyticsSurface.Extension,
+        vault,
+      }),
+    )
     await focusOrCreateEarnVaultTab({ analyticsEntryPoint, vault })
   }, [])
 }

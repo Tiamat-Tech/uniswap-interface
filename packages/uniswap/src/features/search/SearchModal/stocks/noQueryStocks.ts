@@ -1,6 +1,9 @@
 import type { RwaCollectionOption } from 'uniswap/src/components/lists/items/types'
 import type { Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import { buildRwaCollectionOption } from 'uniswap/src/features/search/SearchModal/stocks/rwaSearchGrouping'
+import {
+  buildRwaCollectionOption,
+  getRwaCollectionSearchStats,
+} from 'uniswap/src/features/search/SearchModal/stocks/rwaSearchGrouping'
 
 export const NO_QUERY_STOCKS_LIMIT = 3
 
@@ -17,6 +20,7 @@ export function buildNoQueryRwaCollectionOptions({
       // A single-issuer stock renders as a token row, so it carries its category tag; multi-issuer rows are
       // expandable tickers whose category is conveyed by the section header.
       showCategoryTag: rwa.issuerTokens.length === 1,
+      searchStats: getRwaCollectionSearchStats(rwa),
     }),
   )
 }

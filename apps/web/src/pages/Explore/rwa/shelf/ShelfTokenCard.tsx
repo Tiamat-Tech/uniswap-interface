@@ -8,7 +8,6 @@ import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledCh
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useEvent } from 'utilities/src/react/hooks'
 import { getTokenDetailsURL } from '~/data/util'
-import { useAssetShelfChainId } from '~/pages/Explore/hooks/useAssetShelfChainId'
 import type { AssetCardClickHandler } from '~/pages/Explore/rwa/shelf/types'
 import { TDP_MULTICHAIN_CHAIN_QUERY_VALUE } from '~/utils/params/chainQueryParam'
 
@@ -24,7 +23,6 @@ export const ShelfTokenCard = memo(function ShelfTokenCard({
 }: ExploreStockShelfItem & { cardWidth: number; onAssetClick?: AssetCardClickHandler }): JSX.Element {
   const navigate = useNavigate()
   const { chains: enabledChainIds } = useEnabledChains()
-  const exploreFilterChainId = useAssetShelfChainId()
   const cardProps = useStockTokenCardProps({ rwa, issuer })
   const resolved = resolvePrimaryChain({ issuer, enabledChainIds })
   const link =
@@ -32,7 +30,7 @@ export const ShelfTokenCard = memo(function ShelfTokenCard({
     getTokenDetailsURL({
       address: resolved.chainToken.address,
       chain: toGraphQLChain(resolved.chainId),
-      chainQueryParam: exploreFilterChainId ? undefined : TDP_MULTICHAIN_CHAIN_QUERY_VALUE,
+      chainQueryParam: TDP_MULTICHAIN_CHAIN_QUERY_VALUE,
     })
 
   const onPress = useEvent((): void => {

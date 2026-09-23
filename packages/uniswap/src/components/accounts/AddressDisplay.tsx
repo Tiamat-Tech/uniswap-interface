@@ -1,6 +1,8 @@
+import { sanitizeAddressText } from '@universe/chains'
+import { ColorTokens, Flex, SpaceTokens, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
 import type { FlexAlignType } from 'react-native'
-import { ColorTokens, Flex, SpaceTokens, Text } from 'ui/src'
+// mycelium's `fonts` is the flat web table; ui's applies the native +1 ramp these prop reads depend on
 import { fonts } from 'ui/src/theme'
 import { DisplayNameText } from 'uniswap/src/components/accounts/DisplayNameText'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
@@ -10,7 +12,6 @@ import { DisplayNameType } from 'uniswap/src/features/accounts/types'
 import { CopyNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
-import { sanitizeAddressText } from 'uniswap/src/utils/addresses'
 import { shortenAddress } from 'utilities/src/addresses'
 
 type AddressDisplayProps = {
@@ -42,6 +43,7 @@ type AddressDisplayProps = {
   gapBetweenLines?: SpaceTokens
   showViewOnlyBadge?: boolean
   addressNumVisibleCharacters?: 4 | 6 | 8
+  numberOfLines?: number
   grow?: boolean
 }
 
@@ -75,6 +77,7 @@ export function AddressDisplay({
   gapBetweenLines = '$none',
   addressNumVisibleCharacters = 6,
   alignItems = 'center',
+  numberOfLines = 1,
   grow,
 }: AddressDisplayProps): JSX.Element {
   const { useWalletDisplayName } = useUniswapContext()
@@ -104,7 +107,7 @@ export function AddressDisplay({
           {notificationsBadgeContainer ? notificationsBadgeContainer({ children: icon, address }) : icon}
         </Flex>
       )}
-      <Flex shrink gap={gapBetweenLines}>
+      <Flex shrink gap={gapBetweenLines} maxWidth="100%">
         <Flex row gap="$spacing12">
           {showCopy && !showAddressAsSubtitle ? (
             <CopyHelper
@@ -128,7 +131,7 @@ export function AddressDisplay({
                   fontFamily: '$heading',
                   fontSize: mainSize,
                   lineHeight: lineHeight ?? fonts[variant].lineHeight,
-                  numberOfLines: 1,
+                  numberOfLines,
                   testID: `address-display/name/${displayName?.name}`,
                   textAlign: centered ? 'center' : undefined,
                 }}
@@ -151,7 +154,7 @@ export function AddressDisplay({
                 fontFamily: '$heading',
                 fontSize: mainSize,
                 lineHeight: lineHeight ?? fonts[variant].lineHeight,
-                numberOfLines: 1,
+                numberOfLines,
                 testID: `address-display/name/${displayName?.name}`,
                 textAlign: centered ? 'center' : undefined,
               }}
@@ -197,7 +200,7 @@ type AddressSubtitleProps = {
 const AddressSubtitle = ({
   address,
   captionTextColor,
-  captionVariant,
+  captionVariant = 'subheading2',
   captionSize,
   centered,
   showCopy,
@@ -224,12 +227,20 @@ const AddressSubtitle = ({
         copyNotificationType={CopyNotificationType.Address}
         analyticsElement={ElementName.CopyAddress}
       >
-        <Text color={captionTextColor} variant={captionVariant}>
+        <Text
+          color={captionTextColor}
+          variant={captionVariant}
+          maxFontSizeMultiplier={fonts[captionVariant].maxFontSizeMultiplier}
+        >
           {sanitizeAddressText(shortenAddress({ address, chars: addressNumVisibleCharacters }))}
         </Text>
       </CopyHelper>
     ) : (
-      <Text color={captionTextColor} variant={captionVariant}>
+      <Text
+        color={captionTextColor}
+        variant={captionVariant}
+        maxFontSizeMultiplier={fonts[captionVariant].maxFontSizeMultiplier}
+      >
         {sanitizeAddressText(shortenAddress({ address, chars: addressNumVisibleCharacters }))}
       </Text>
     )}

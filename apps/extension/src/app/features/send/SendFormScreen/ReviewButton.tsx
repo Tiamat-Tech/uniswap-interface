@@ -1,6 +1,6 @@
 import { isWebPlatform } from '@universe/environment'
+import { Button, Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex } from 'ui/src'
 import { WarningLabel } from 'uniswap/src/components/modals/WarningModal/types'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'

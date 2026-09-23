@@ -4,7 +4,7 @@ import { getListTransactionsQuery } from 'uniswap/src/data/apiClients/dataApiSer
 import { getPortfolioQuery } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolio'
 import { getWalletBalancesQuery } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
 import { NFT_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/dataApiService/nfts/queries'
-import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
+import { WALLET_POSITIONS_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/liquidityService/queryKeys'
 import { useActiveAccountWithThrow } from 'wallet/src/features/wallet/hooks'
 
 interface HomeScreenPortfolioRefreshState {
@@ -35,7 +35,7 @@ export function useHomeScreenPortfolioRefresh({
       SharedQueryClient.invalidateQueries({
         queryKey: getListTransactionsQuery({ input: { evmAddress: activeAccountAddress } }).queryKey,
       }),
-      SharedQueryClient.invalidateQueries({ queryKey: [ReactQueryCacheKey.ListPositions] }),
+      SharedQueryClient.invalidateQueries({ queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX }),
     ]
 
     if (shouldLoadNfts) {

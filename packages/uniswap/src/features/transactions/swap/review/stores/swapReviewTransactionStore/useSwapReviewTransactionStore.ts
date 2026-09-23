@@ -1,5 +1,4 @@
 import { useContext } from 'react'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { useSwapReviewCallbacksStore } from 'uniswap/src/features/transactions/swap/review/stores/swapReviewCallbacksStore/useSwapReviewCallbacksStore'
 import {
   useSwapReviewActions,
@@ -35,7 +34,6 @@ export function useSwapReviewTransactionStore<T>(selector: (state: SwapReviewTra
 
 export function useIsSwapReviewLoading(): boolean {
   const isEarnQuoteRefreshLoading = useIsEarnQuoteRefreshLoading()
-  const isEarnEnabled = useIsEarnEnabled()
   const isEarnFlow = useSwapFormStore((s) => s.isEarnFlow === true)
 
   // A missing `acceptedTrade` or `trade` can happen when the user leaves the app and comes back to the review screen after 1 minute when the TTL for the quote has expired.
@@ -44,7 +42,7 @@ export function useIsSwapReviewLoading(): boolean {
     // Earn quote refreshes (e.g. toggling the deposit) can settle into an error; treat a settled
     // error as "not loading" so the error surfaces instead of an infinite spinner. Non-earn swaps
     // keep the original behavior: a missing `trade` while an `acceptedTrade` exists means loading.
-    const isEarnContext = isEarnEnabled && (isEarnFlow || isEarnTrade(s.acceptedTrade))
+    const isEarnContext = isEarnFlow || isEarnTrade(s.acceptedTrade)
     const isTradeMissing = isEarnContext ? !s.trade && !s.derivedSwapInfo.trade.error : !s.trade
 
     return (

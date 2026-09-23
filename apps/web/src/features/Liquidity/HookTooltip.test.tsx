@@ -1,4 +1,5 @@
 import { HookEntry, HookFlags } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/types_pb'
+import { UniswapHookProvenance } from 'uniswap/src/features/poolHooks/hooks/useUniswapHookProvenance'
 import { shortenAddress } from 'utilities/src/addresses'
 import { describe, expect, it } from 'vitest'
 import { HookTooltip } from '~/features/Liquidity/HookTooltip'
@@ -43,5 +44,19 @@ describe('HookTooltip', () => {
     expect(screen.queryByText('Base')).toBeNull()
     expect(screen.queryByText('Adjusts LP fees dynamically')).toBeNull()
     expect(screen.queryByText('beforeSwap')).toBeNull()
+  })
+
+  it('does not call out provenance for a hook Uniswap neither built nor configured', () => {
+    render(<HookTooltip hookEntry={BASE_HOOK} />)
+    expect(screen.queryByText(/by Uniswap/)).toBeNull()
+  })
+
+  it.each([
+    [UniswapHookProvenance.Built, 'Built by Uniswap'],
+    [UniswapHookProvenance.Configured, 'Configured by Uniswap'],
+    [UniswapHookProvenance.BuiltAndConfigured, 'Built and configured by Uniswap'],
+  ])('calls out %s provenance as "%s"', (provenance, label) => {
+    render(<HookTooltip hookEntry={BASE_HOOK} provenance={provenance} />)
+    expect(screen.getByText(label)).toBeTruthy()
   })
 })

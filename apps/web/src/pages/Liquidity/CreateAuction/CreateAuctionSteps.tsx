@@ -1,4 +1,6 @@
-import { AnimatePresence, Flex, HeightAnimator } from 'ui/src'
+import { Flex } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { Presence } from '@universe/mycelium/presence'
 import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { useCreateAuctionStore } from '~/pages/Liquidity/CreateAuction/CreateAuctionContext'
@@ -17,44 +19,45 @@ export function CreateAuctionSteps() {
 
   return (
     <Flex width="100%" overflow="hidden">
-      <AnimatePresence>
+      <Presence>
         {isAddTokenInfoStep && (
-          <Trace logImpression page={InterfacePageName.LaunchAuctionTokenDetails}>
-            <Flex animation="125ms" exitStyle={{ opacity: 0 }}>
+          // Presence resolves refs on direct children only, so the Flex must wrap Trace (a bare context provider)
+          <Flex className="data-exiting:animate-spore-exit-fade-out opacity-[1]">
+            <Trace logImpression page={InterfacePageName.LaunchAuctionTokenDetails}>
               <AddTokenInfoStep />
-            </Flex>
-          </Trace>
+            </Trace>
+          </Flex>
         )}
-      </AnimatePresence>
+      </Presence>
       {!isAddTokenInfoStep && (
         <HeightAnimator animation="200ms">
-          <AnimatePresence>
+          <Presence>
             {step === CreateAuctionStep.CONFIGURE_AUCTION && (
-              <Trace logImpression page={InterfacePageName.LaunchAuctionAuctionDetails}>
-                <Flex animation="125ms" exitStyle={{ opacity: 0 }}>
+              <Flex className="data-exiting:animate-spore-exit-fade-out opacity-[1]">
+                <Trace logImpression page={InterfacePageName.LaunchAuctionAuctionDetails}>
                   <ConfigureAuctionStep />
-                </Flex>
-              </Trace>
+                </Trace>
+              </Flex>
             )}
-          </AnimatePresence>
-          <AnimatePresence>
+          </Presence>
+          <Presence>
             {step === CreateAuctionStep.CUSTOMIZE_POOL && (
-              <Trace logImpression page={InterfacePageName.LaunchAuctionPoolDetails}>
-                <Flex animation="125ms" exitStyle={{ opacity: 0 }}>
+              <Flex className="data-exiting:animate-spore-exit-fade-out opacity-[1]">
+                <Trace logImpression page={InterfacePageName.LaunchAuctionPoolDetails}>
                   <CustomizePoolStep />
-                </Flex>
-              </Trace>
+                </Trace>
+              </Flex>
             )}
-          </AnimatePresence>
-          <AnimatePresence>
+          </Presence>
+          <Presence>
             {step === CreateAuctionStep.REVIEW_LAUNCH && (
-              <Trace logImpression page={InterfacePageName.LaunchAuctionReview}>
-                <Flex animation="125ms" exitStyle={{ opacity: 0 }}>
+              <Flex className="data-exiting:animate-spore-exit-fade-out opacity-[1]">
+                <Trace logImpression page={InterfacePageName.LaunchAuctionReview}>
                   <ReviewLaunchStep />
-                </Flex>
-              </Trace>
+                </Trace>
+              </Flex>
             )}
-          </AnimatePresence>
+          </Presence>
         </HeightAnimator>
       )}
     </Flex>

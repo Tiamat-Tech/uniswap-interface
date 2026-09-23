@@ -1,13 +1,11 @@
-import { getPosition } from '@uniswap/client-data-api/dist/data/v1/api-DataApiService_connectquery'
 import { LiquidityService } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/api_connect'
 import { PERMIT2_ADDRESS } from '@uniswap/permit2-sdk'
 import { USDT } from 'uniswap/src/constants/tokens'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { assume0xAddress } from '~/chains'
-import { getUniswapServiceUrls } from '~/config'
 import { ONE_MILLION_USDT } from '~/playwright/anvil/utils'
 import { expect, getTest } from '~/playwright/fixtures'
-import { stubLiquidityServiceEndpoint } from '~/playwright/fixtures/liquidityService'
+import { mockGetPosition, stubLiquidityServiceEndpoint } from '~/playwright/fixtures/liquidityService'
 import { Mocks } from '~/playwright/mocks/mocks'
 
 const test = getTest({ withAnvil: true })
@@ -22,19 +20,19 @@ test.describe(
     ],
   },
   () => {
+    // Serve the position read from a fixture (test wallet as owner) so the ownership-gated
+    // "Add liquidity" action renders; the live read returns the position's real mainnet owner.
+    // Defaults to the V4 position; the V3 case re-routes to a V3 fixture.
+    test.beforeEach(async ({ page }) => {
+      await mockGetPosition({ page, mockPath: Mocks.LiquidityService.get_v4_position_multi_token_rewards })
+    })
+
     test('should increase liquidity of a position', async ({ page, anvil }) => {
       await stubLiquidityServiceEndpoint({
         page,
         endpoint: LiquidityService.methods.increasePosition,
         service: LiquidityService,
       })
-      await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
-      await page.route(
-        `${getUniswapServiceUrls().apiBaseUrlV2}/${getPosition.service.typeName}/${getPosition.name}`,
-        async (route) => {
-          await route.fulfill({ path: Mocks.Positions.get_v4_position })
-        },
-      )
       await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
       await page.goto('/positions/v4/ethereum/1')
       await page.getByRole('button', { name: 'Add liquidity' }).dblclick()
@@ -54,12 +52,6 @@ test.describe(
           service: LiquidityService,
         })
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
-        await page.route(
-          `${getUniswapServiceUrls().apiBaseUrlV2}/${getPosition.service.typeName}/${getPosition.name}`,
-          async (route) => {
-            await route.fulfill({ path: Mocks.Positions.get_v4_position })
-          },
-        )
 
         await page.goto('/positions/v4/ethereum/1')
         await page.getByRole('button', { name: 'Add liquidity' }).dblclick()
@@ -72,18 +64,13 @@ test.describe(
       })
 
       test('should approve and increase liquidity on a V3 position', async ({ page, anvil }) => {
+        await mockGetPosition({ page, mockPath: Mocks.LiquidityService.get_v3_position })
         await stubLiquidityServiceEndpoint({
           page,
           endpoint: LiquidityService.methods.increasePosition,
           service: LiquidityService,
         })
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
-        await page.route(
-          `${getUniswapServiceUrls().apiBaseUrlV2}/${getPosition.service.typeName}/${getPosition.name}`,
-          async (route) => {
-            await route.fulfill({ path: Mocks.Positions.get_v3_position })
-          },
-        )
 
         await page.goto('/positions/v3/ethereum/1028438')
         await page.getByRole('button', { name: 'Add liquidity' }).dblclick()
@@ -102,12 +89,6 @@ test.describe(
           service: LiquidityService,
         })
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
-        await page.route(
-          `${getUniswapServiceUrls().apiBaseUrlV2}/${getPosition.service.typeName}/${getPosition.name}`,
-          async (route) => {
-            await route.fulfill({ path: Mocks.Positions.get_v4_position })
-          },
-        )
         await stubLiquidityServiceEndpoint({
           page,
           endpoint: LiquidityService.methods.checkLPApproval,
@@ -138,12 +119,6 @@ test.describe(
       // (post-permit) calldata request — the phase this test exists to cover.
       test('should gracefully handle errors during review', async ({ page, anvil }) => {
         await anvil.setErc20Balance({ address: assume0xAddress(USDT.address), balance: ONE_MILLION_USDT })
-        await page.route(
-          `${getUniswapServiceUrls().apiBaseUrlV2}/${getPosition.service.typeName}/${getPosition.name}`,
-          async (route) => {
-            await route.fulfill({ path: Mocks.Positions.get_v4_position })
-          },
-        )
         await page.route('**/uniswap.liquidity.v2.LiquidityService/IncreasePosition*', async (route) => {
           const requestData = JSON.parse(route.request().postData() ?? '{}')
           if (requestData.signature) {

@@ -1,5 +1,5 @@
-import { PropsWithChildren } from 'react'
-import { Flex, styled, Text } from 'ui/src'
+import { Flex, Text, type TextCompatProps } from '@universe/mycelium'
+import { forwardRef, type ForwardRefExoticComponent, PropsWithChildren, type RefAttributes } from 'react'
 import { LoadingRow } from '~/components/Loader/styled'
 import { MouseoverTooltip, TooltipSize } from '~/components/Tooltip'
 import { useIsMobile } from '~/hooks/screenSize/useIsMobile'
@@ -13,23 +13,30 @@ export type LineItemData = {
   loaderWidth?: number
 }
 
-const LabelText = styled(Text, {
-  variant: 'body3',
-  color: '$neutral2',
-  userSelect: 'text',
+type LabelTextProps = TextCompatProps & { hasTooltip?: boolean }
 
-  variants: {
-    hasTooltip: {
-      true: { cursor: 'help' },
-      false: { cursor: 'auto' },
-    },
-  } as const,
+// Explicit return type: forwardRef's inferred type isn't nameable under declaration emit (TS2883).
+const LabelText: ForwardRefExoticComponent<LabelTextProps & RefAttributes<HTMLElement>> = forwardRef<
+  HTMLElement,
+  LabelTextProps
+>(function LabelText({ hasTooltip, ...rest }, ref) {
+  return (
+    <Text
+      ref={ref}
+      variant="body3"
+      color="$neutral2"
+      userSelect="text"
+      cursor={hasTooltip ? 'help' : 'auto'}
+      {...rest}
+    />
+  )
 })
 
-const DetailRowValue = styled(Text, {
-  variant: 'body3',
-  color: '$neutral1',
-  textAlign: 'right',
+const DetailRowValue: ForwardRefExoticComponent<TextCompatProps & RefAttributes<HTMLElement>> = forwardRef<
+  HTMLElement,
+  TextCompatProps
+>(function DetailRowValue(props, ref) {
+  return <Text ref={ref} variant="body3" color="$neutral1" textAlign="right" {...props} />
 })
 
 type ValueWrapperProps = PropsWithChildren<{

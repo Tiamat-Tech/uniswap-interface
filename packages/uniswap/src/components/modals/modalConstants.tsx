@@ -30,4 +30,6 @@ const ANIMATION_CONFIGS_ANDROID = {
 // Defer heavy gated content until just after the open animation (250ms) settles, so a large
 // initial mount can't stall the sheet mid-present under Fabric. Was 100ms (fired mid-animation).
 export const IS_SHEET_READY_DELAY = 350
+// Upper bound on how long gated content may wait for onAnimate; guarantees the sheet never sits on its skeleton forever.
+export const IS_SHEET_READY_FALLBACK_TIMEOUT = 1500
 export const BSM_ANIMATION_CONFIGS = isIOS ? ANIMATION_CONFIGS_IOS : ANIMATION_CONFIGS_ANDROID

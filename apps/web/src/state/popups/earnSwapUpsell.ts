@@ -37,22 +37,16 @@ export function getEarnSwapUpsellPopupKey({
  * plus a short delay, so the two toasts never show at the same time.
  */
 export function maybeAddEarnSwapUpsellPopup({
-  isEarnEnabled = true,
   status,
   typeInfo,
   transactionId,
   swapPopupKey,
 }: {
-  isEarnEnabled?: boolean
   status: TransactionStatus
   typeInfo: TransactionTypeInfo
   transactionId: string
   swapPopupKey?: string
 }): void {
-  if (!isEarnEnabled) {
-    return
-  }
-
   const outputCurrencyId = getEarnSwapUpsellOutputCurrencyId({
     status,
     typeInfo,

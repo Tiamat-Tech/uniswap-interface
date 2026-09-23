@@ -5,9 +5,9 @@ import { CurrencyAmount } from '@uniswap/sdk-core'
 import { Pair } from '@uniswap/v2-sdk'
 import { FeeAmount, TICK_SPACINGS, Pool as V3Pool } from '@uniswap/v3-sdk'
 import { Pool as V4Pool } from '@uniswap/v4-sdk'
+import { UniverseChainId } from '@universe/chains'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { DAI, nativeOnChain, USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { logger } from 'utilities/src/logger/logger'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -168,6 +168,56 @@ describe('useDerivedPositionInfo', () => {
       const { result } = renderHook(() => useDerivedPositionInfo(defaultCurrencyInputs, defaultPositionState))
 
       expect((result.current as CreateV4PositionInfo).protocolFee).toBe(3000)
+    })
+
+    describe('poolHasNoActiveLiquidity', () => {
+      const renderWithPoolLiquidity = (poolLiquidity?: string) => {
+        const pool = new MockPoolInformation(ProtocolVersion.V4)
+        // Deleting, not assigning undefined: an absent optional proto field is the case that has to
+        // stay distinguishable from a served '0'.
+        if (poolLiquidity === undefined) {
+          delete (pool as Partial<MockPoolInformation>).poolLiquidity
+        } else {
+          pool.poolLiquidity = poolLiquidity
+        }
+        mockUsePoolInfoQuery.mockReturnValue({
+          data: { pools: [pool] },
+          isLoading: false,
+          isFetched: true,
+          refetch: vi.fn(),
+        })
+        const { result } = renderHook(() => useDerivedPositionInfo(defaultCurrencyInputs, defaultPositionState))
+        return (result.current as CreateV4PositionInfo).poolHasNoActiveLiquidity
+      }
+
+      it('is true for a pool serving zero active liquidity', () => {
+        expect(renderWithPoolLiquidity('0')).toBe(true)
+      })
+
+      it('is false for a pool with active liquidity', () => {
+        expect(renderWithPoolLiquidity('7201247293608325509')).toBe(false)
+      })
+
+      it('is false when the served liquidity is unknown, not treated as empty', () => {
+        // `poolLiquidity` is optional on the wire and the SDK conversion defaults it to '0', so an
+        // omitted field must not read as "empty" here or the pool would silently borrow a price line.
+        expect(renderWithPoolLiquidity(undefined)).toBe(false)
+      })
+
+      it('is false for a pool that does not exist yet', () => {
+        mockUsePoolInfoQuery.mockReturnValue({
+          data: { pools: [] },
+          isLoading: false,
+          isFetched: true,
+          refetch: vi.fn(),
+        })
+
+        const { result } = renderHook(() => useDerivedPositionInfo(defaultCurrencyInputs, defaultPositionState))
+
+        const v4Result = result.current as CreateV4PositionInfo
+        expect(v4Result.creatingPoolOrPair).toBe(true)
+        expect(v4Result.poolHasNoActiveLiquidity).toBe(false)
+      })
     })
 
     it('should return undefined protocol fee when the pool does not exist yet', () => {

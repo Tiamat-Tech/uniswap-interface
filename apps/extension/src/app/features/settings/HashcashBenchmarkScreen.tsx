@@ -1,4 +1,5 @@
 /* oxlint-disable max-lines */
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
 import {
   createHashcashMultiWorkerChannel,
   createHashcashWorkerChannel,
@@ -13,7 +14,6 @@ import {
   useHashcashBenchmarkStore,
 } from 'src/app/features/settings/stores/hashcashBenchmarkStore'
 import { createHashcashWorker } from 'src/workers/hashcashWorker'
-import { Button, Flex, ScrollView, Text, TouchableArea } from 'ui/src'
 import { logger } from 'utilities/src/logger/logger'
 import { useShallow } from 'zustand/shallow'
 
@@ -654,7 +654,7 @@ export function HashcashBenchmarkScreen(): JSX.Element {
   }, [results])
 
   return (
-    <ScrollView>
+    <Flex grow shrink overflowX="hidden" overflowY="auto">
       <ScreenHeader title="Hashcash Benchmark" />
 
       <Flex p="$spacing16" gap="$spacing16">
@@ -744,6 +744,6 @@ export function HashcashBenchmarkScreen(): JSX.Element {
         {/* Operation Log */}
         <LogSection />
       </Flex>
-    </ScrollView>
+    </Flex>
   )
 }

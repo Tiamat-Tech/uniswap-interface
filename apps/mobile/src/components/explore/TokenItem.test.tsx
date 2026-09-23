@@ -3,13 +3,14 @@ import { TokenItem } from 'src/components/explore/TokenItem'
 import * as tokenDetailsHooks from 'src/components/TokenDetails/hooks'
 import { TOKEN_ITEM_DATA, tokenItemData } from 'src/test/fixtures'
 import { fireEvent, render, within } from 'src/test/test-utils'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { MobileEventName } from 'uniswap/src/features/telemetry/constants'
 import { ON_PRESS_EVENT_PAYLOAD } from 'uniswap/src/test/fixtures'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
+import { asTextMatch, withVisibleText } from 'uniswap/src/test/matchers'
 
 const arbitrumNetworkLogoTestID = `${TestID.NetworkLogoPrefix}${UniverseChainId.ArbitrumOne}`
 const mainnetNetworkLogoTestID = `${TestID.NetworkLogoPrefix}${UniverseChainId.Mainnet}`
+import { UniverseChainId } from '@universe/chains'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { TokenMetadataDisplayType } from 'wallet/src/features/wallet/types'
 
@@ -24,6 +25,7 @@ describe('TokenItem', () => {
   const mockedTokenDetailsNavigation = {
     navigate: vi.fn(),
     navigateWithPop: vi.fn(),
+    push: vi.fn(),
     preload: vi.fn(),
   }
 
@@ -82,7 +84,7 @@ describe('TokenItem', () => {
       const tokenPrice = getByTestId('token-item/price')
 
       expect(within(tokenPrice).queryByText('$123.45')).toBeTruthy()
-      expect(within(tokenPrice).queryByText('-')).toBeFalsy()
+      expect(within(tokenPrice).queryByText(asTextMatch(withVisibleText('-')))).toBeFalsy()
     })
 
     it('renders price placeholder if token price is not provided', () => {
@@ -93,7 +95,7 @@ describe('TokenItem', () => {
 
       const tokenPrice = getByTestId('token-item/price')
 
-      expect(within(tokenPrice).queryByText('-')).toBeTruthy()
+      expect(within(tokenPrice).queryByText(asTextMatch(withVisibleText('-')))).toBeTruthy()
     })
   })
 

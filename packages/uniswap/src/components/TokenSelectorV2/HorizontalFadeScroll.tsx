@@ -1,6 +1,7 @@
+import { Flex, LinearGradient, ScrollView } from '@universe/mycelium'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { ReactNode, useCallback, useRef, useState } from 'react'
 import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
-import { Flex, LinearGradient, ScrollView } from 'ui/src'
 
 const FADE_WIDTH = 24
 // Ignore sub-pixel rounding when deciding whether an edge is clipped.
@@ -18,6 +19,11 @@ export function HorizontalFadeScroll({ children }: { children: ReactNode }): JSX
 
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
+
+  // Zero-alpha surface1 rather than `transparent`: native interpolates `transparent` as black, which greys the fade.
+  const colors = useSporeColors()
+  const fadeColor = colors.surface1.val
+  const fadeColorClear = opacify(0, fadeColor)
 
   const updateFades = useCallback(() => {
     setCanScrollLeft(scrollXRef.current > EDGE_EPSILON)
@@ -51,7 +57,7 @@ export function HorizontalFadeScroll({ children }: { children: ReactNode }): JSX
   )
 
   return (
-    <Flex position="relative">
+    <Flex overflow="hidden" position="relative">
       <ScrollView
         horizontal
         scrollEventThrottle={16}
@@ -64,7 +70,7 @@ export function HorizontalFadeScroll({ children }: { children: ReactNode }): JSX
       </ScrollView>
       {canScrollLeft && (
         <LinearGradient
-          colors={['$surface1', 'transparent']}
+          colors={[fadeColor, fadeColorClear]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           height="100%"
@@ -77,7 +83,7 @@ export function HorizontalFadeScroll({ children }: { children: ReactNode }): JSX
       )}
       {canScrollRight && (
         <LinearGradient
-          colors={['transparent', '$surface1']}
+          colors={[fadeColorClear, fadeColor]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           height="100%"

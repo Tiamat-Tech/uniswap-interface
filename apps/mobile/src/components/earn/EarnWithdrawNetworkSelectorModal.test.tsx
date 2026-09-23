@@ -1,8 +1,8 @@
+import { UniverseChainId } from '@universe/chains'
 import type { ReactNode } from 'react'
 import { EarnWithdrawNetworkSelectorModal } from 'src/components/earn/EarnWithdrawNetworkSelectorModal'
 import { fireEvent, render, screen } from 'src/test/test-utils'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 
@@ -59,7 +59,8 @@ vi.mock('uniswap/src/features/earn/hooks/useChainsWithUnderlyingBalance', () => 
 }))
 
 vi.mock('wallet/src/features/wallet/hooks', () => ({
-  useActiveAccountAddress: () => '0x0000000000000000000000000000000000000001',
+  useActiveAccountAddress: (): string => '0x0000000000000000000000000000000000000001',
+  useIsViewOnlyWallet: (): boolean => false,
 }))
 
 function getMainnetStablecoinCurrencyId(symbol: 'USDC' | 'USDT'): string {

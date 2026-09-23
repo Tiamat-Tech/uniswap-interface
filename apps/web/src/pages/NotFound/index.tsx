@@ -1,39 +1,33 @@
+import { Flex, Text } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
 import { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text, useIsDarkMode } from 'ui/src'
+import { Button, useIsDarkMode } from 'ui/src'
 import { InterfacePageName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import darkImage from '~/assets/images/404-page-dark.png'
 import lightImage from '~/assets/images/404-page-light.png'
 import { useIsMobile } from '~/hooks/screenSize/useIsMobile'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 
-const Image = deprecatedStyled.img`
-  max-width: 510px;
-  width: 100%;
-  padding: 0 75px;
-`
+const Image = styled('img', {
+  platform: 'web',
+  base: 'max-w-[510px] w-full py-0 px-[75px]',
+})
 
-const Container = deprecatedStyled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`
+const Container = styled('div', {
+  platform: 'web',
+  base: 'flex flex-col items-center',
+})
 
-const Header = deprecatedStyled(Container)`
-  gap: 30px;
-`
+const Header = styled(Container, {
+  platform: 'web',
+  base: 'gap-[30px]',
+})
 
-const PageWrapper = deprecatedStyled(Container)`
-  flex: 1;
-  justify-content: center;
-  gap: 50px;
-
-  @media screen and (min-width: ${({ theme }) => theme.breakpoint.lg}px) {
-    justify-content: space-between;
-    padding-top: 64px;
-  }
-`
+const PageWrapper = styled('div', {
+  platform: 'web',
+  base: 'flex flex-col items-center flex-1 justify-center gap-[50px] min-[768px]:justify-between min-[768px]:pt-[64px]',
+})
 
 interface NotFoundProps {
   title?: ReactNode

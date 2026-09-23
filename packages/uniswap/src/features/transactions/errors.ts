@@ -1,11 +1,11 @@
 import { FetchError, is401Error } from '@universe/api'
 import { isWebApp } from '@universe/environment'
-import { AppTFunction } from 'ui/src/i18n/types'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { reportFingerprintError } from 'uniswap/src/features/transactions/reportFingerprintError'
 import { TokenApprovalTransactionStep } from 'uniswap/src/features/transactions/steps/approve'
 import { TokenRevocationTransactionStep } from 'uniswap/src/features/transactions/steps/revoke'
 import { TransactionStep, TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
+import { AppTFunction } from 'utilities/src/i18n/types'
 
 /** Superclass used to differentiate categorized/known transaction errors from generic/unknown errors. */
 export abstract class TransactionError extends Error {}

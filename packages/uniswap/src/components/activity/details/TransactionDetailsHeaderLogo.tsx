@@ -1,6 +1,6 @@
-import { useSporeColors } from 'ui/src'
+import { iconSizes } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { ContractInteraction } from 'ui/src/components/icons/ContractInteraction'
-import { iconSizes } from 'ui/src/theme'
 import { SwapTypeTransactionInfo } from 'uniswap/src/components/activity/details/types'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { DappLogoWithWCBadge, LogoWithTxStatus } from 'uniswap/src/components/CurrencyLogo/LogoWithTxStatus'
@@ -41,7 +41,6 @@ const TXN_DETAILS_ICON_SIZE = iconSizes.icon40
 
 interface HeaderLogoProps {
   transactionDetails: TransactionDetails
-  isEarnActivityDisplayEnabled?: boolean
 }
 
 const getLogoWithTxStatus = ({
@@ -72,10 +71,7 @@ const getLogoWithTxStatus = ({
   />
 )
 
-export function TransactionDetailsHeaderLogo({
-  transactionDetails,
-  isEarnActivityDisplayEnabled = true,
-}: HeaderLogoProps): JSX.Element | null {
+export function TransactionDetailsHeaderLogo({ transactionDetails }: HeaderLogoProps): JSX.Element | null {
   const { typeInfo } = transactionDetails
 
   switch (typeInfo.type) {
@@ -91,19 +87,13 @@ export function TransactionDetailsHeaderLogo({
       return <TokenTransferHeaderLogo transactionDetails={transactionDetails} typeInfo={typeInfo} />
     case TransactionType.Deposit:
     case TransactionType.Withdraw:
-      return (
-        <DepositWithdrawHeaderLogo
-          transactionDetails={transactionDetails}
-          typeInfo={typeInfo}
-          isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-        />
-      )
+      return <DepositWithdrawHeaderLogo transactionDetails={transactionDetails} typeInfo={typeInfo} />
     case TransactionType.Swap:
       return <SwapHeaderLogo transactionDetails={transactionDetails} typeInfo={typeInfo} />
     case TransactionType.Bridge:
       return <CrossChainHeaderLogo transactionDetails={transactionDetails} typeInfo={typeInfo} />
     case TransactionType.Plan:
-      return isEarnActivityDisplayEnabled && typeInfo.earnAction ? (
+      return typeInfo.earnAction ? (
         <EarnPlanHeaderLogo transactionDetails={transactionDetails} typeInfo={typeInfo} />
       ) : (
         <CrossChainHeaderLogo transactionDetails={transactionDetails} typeInfo={typeInfo} />
@@ -171,11 +161,8 @@ function DepositWithdrawCurrencyLogo({
 function DepositWithdrawHeaderLogo({
   transactionDetails,
   typeInfo,
-  isEarnActivityDisplayEnabled,
-}: SpecificHeaderLogoProps<DepositTransactionInfo | WithdrawTransactionInfo> & {
-  isEarnActivityDisplayEnabled: boolean
-}): JSX.Element {
-  if (isEarnActivityDisplayEnabled && typeInfo.isVault) {
+}: SpecificHeaderLogoProps<DepositTransactionInfo | WithdrawTransactionInfo>): JSX.Element {
+  if (typeInfo.isVault) {
     return <DepositWithdrawCurrencyLogo transactionDetails={transactionDetails} typeInfo={typeInfo} />
   }
 
@@ -245,7 +232,12 @@ function ApproveHeaderLogo({
   transactionDetails,
   typeInfo,
 }: SpecificHeaderLogoProps<ApproveTransactionInfo | Permit2ApproveTransactionInfo>): JSX.Element {
-  const currencyInfo = useCurrencyInfo(buildCurrencyId(transactionDetails.chainId, typeInfo.tokenAddress ?? ''))
+  // tokenAddress is optional on Permit2ApproveTransactionInfo (unresolved metadata case) — treat a
+  // missing address as unresolved rather than building a malformed `${chainId}-` currency id.
+  const currencyId = typeInfo.tokenAddress
+    ? buildCurrencyId(transactionDetails.chainId, typeInfo.tokenAddress)
+    : undefined
+  const currencyInfo = useCurrencyInfo(currencyId)
 
   if (!currencyInfo && typeInfo.type === TransactionType.Permit2Approve) {
     return <UnknownHeaderLogo transactionDetails={transactionDetails} typeInfo={typeInfo} />

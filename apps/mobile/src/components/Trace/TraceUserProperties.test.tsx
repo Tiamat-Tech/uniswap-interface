@@ -1,3 +1,4 @@
+import * as themeHooksCompat from '@universe/mycelium/theme-hooks-compat'
 import React from 'react'
 import { useColorScheme } from 'react-native'
 import renderer, { act } from 'react-test-renderer'
@@ -6,7 +7,6 @@ import * as biometricAppSettingsHooks from 'src/features/biometrics/useBiometric
 import * as deviceBiometricHooks from 'src/features/biometrics/useDeviceSupportsBiometricAuth'
 import { AuthMethod } from 'src/features/telemetry/utils'
 import * as versionUtils from 'src/utils/version'
-import * as useIsDarkModeFile from 'ui/src/hooks/useIsDarkMode'
 import { AccountType } from 'uniswap/src/features/accounts/types'
 import { FiatCurrency } from 'uniswap/src/features/fiatCurrency/constants'
 import * as fiatCurrencyHooks from 'uniswap/src/features/fiatCurrency/hooks'
@@ -126,7 +126,7 @@ describe('TraceUserProperties', () => {
       touchId: false,
       faceId: true,
     })
-    mockFn(useIsDarkModeFile, 'useIsDarkMode', true)
+    mockFn(themeHooksCompat, 'useIsDarkMode', true)
     mockFn(fiatCurrencyHooks, 'useAppFiatCurrency', FiatCurrency.UnitedStatesDollar)
     mockFn(languageHooks, 'useCurrentLanguageInfo', { loggingName: 'English' })
 
@@ -186,7 +186,7 @@ describe('TraceUserProperties', () => {
       touchId: false,
       faceId: false,
     })
-    mockFn(useIsDarkModeFile, 'useIsDarkMode', true)
+    mockFn(themeHooksCompat, 'useIsDarkMode', true)
     mockFn(fiatCurrencyHooks, 'useAppFiatCurrency', FiatCurrency.UnitedStatesDollar)
     mockFn(languageHooks, 'useCurrentLanguageInfo', { loggingName: 'English' })
 

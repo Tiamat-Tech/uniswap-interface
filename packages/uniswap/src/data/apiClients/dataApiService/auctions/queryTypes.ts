@@ -1,4 +1,17 @@
+import type { GetAuctionRequest, GetLatestCheckpointRequest } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
+import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { ONE_MINUTE_MS, ONE_SECOND_MS } from 'utilities/src/time/time'
+
+/**
+ * Query keys for auction queries that are also read outside `auctionQueries` (e.g. the auction hover card, which
+ * loads the service client on demand). Kept here rather than there so those readers share the cache entry without
+ * pulling in the client and transport.
+ */
+export const auctionQueryKeys = {
+  getAuction: (params: GetAuctionRequest | undefined) => [ReactQueryCacheKey.AuctionApi, 'getAuction', params] as const,
+  getLatestCheckpoint: (params: GetLatestCheckpointRequest | undefined) =>
+    [ReactQueryCacheKey.AuctionApi, 'getLatestCheckpoint', params] as const,
+}
 
 /** Stale time constants for auction queries */
 export const AuctionStaleTime = {

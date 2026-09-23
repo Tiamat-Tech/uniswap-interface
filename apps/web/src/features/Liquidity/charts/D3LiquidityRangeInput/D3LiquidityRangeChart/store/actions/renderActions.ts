@@ -30,6 +30,9 @@ export const createRenderActions = (
       return {
         baseCurrency: state.baseCurrency,
         quoteCurrency: state.quoteCurrency,
+        currentPrice: state.currentPrice,
+        currentTick: state.currentTick,
+        creatingPoolOrPair: state.creatingPoolOrPair,
         dimensions: state.dimensions,
         dragStartY: state.dragStartY,
         initialViewSet: state.initialViewSet,

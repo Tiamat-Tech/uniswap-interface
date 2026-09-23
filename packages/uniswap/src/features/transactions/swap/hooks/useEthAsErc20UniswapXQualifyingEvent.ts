@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import {
   EthAsErc20UniswapXProperties,
   Experiments,
@@ -5,7 +6,6 @@ import {
 } from '@universe/gating'
 import { useEffect, useRef } from 'react'
 import { useWalletCheckDelegationQuery } from 'uniswap/src/data/apiClients/tradingApi/useWalletCheckDelegationQuery'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { logExperimentQualifyingEvent } from 'uniswap/src/features/telemetry/utils/logExperimentQualifyingEvent'
 import type { DerivedSwapInfo } from 'uniswap/src/features/transactions/swap/types/derivedSwapInfo'
 import { toTradingApiSupportedChainId } from 'uniswap/src/features/transactions/swap/utils/tradingApi'

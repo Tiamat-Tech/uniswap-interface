@@ -1,4 +1,5 @@
 import { getPortfolio, listTransactions } from '@uniswap/client-data-api/dist/data/v1/api-DataApiService_connectquery'
+import esES from 'uniswap/src/i18n/locales/translations/es-ES.json'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { expect, getTest, type Page } from '~/playwright/fixtures'
 import { getVisibleDropdownElementByTestId } from '~/playwright/fixtures/utils'
@@ -40,10 +41,17 @@ test.describe(
       test('changes language', async ({ page }) => {
         await getVisibleDropdownElementByTestId(page, TestID.LanguageSettingsButton).click()
         await page.getByRole('link', { name: 'Spanish (Spain)' }).nth(1).click()
-        await expect(page.getByText('Intercambio').first()).toBeVisible()
+        // Read the expected copy out of the es-ES bundle rather than hard-coding it: the AI
+        // translation pipeline rewrites values (swap.form.header went "Intercambio" -> "Cambiar"),
+        // which silently rots any literal spelled out here. `html[lang]` is the stable product
+        // contract (LanguageProvider sets it) and keeps this honest if a future es-ES value ever
+        // matches its en-US counterpart, which would make the copy assertion vacuous.
+        await expect(page.locator('html')).toHaveAttribute('lang', 'es-ES')
+        await expect(page.getByText(esES['swap.form.header']).first()).toBeVisible()
         await page.reload()
         await expect(page.url()).toContain('lng=es-ES')
-        await expect(page.getByText('Intercambio').first()).toBeVisible()
+        await expect(page.locator('html')).toHaveAttribute('lang', 'es-ES')
+        await expect(page.getByText(esES['swap.form.header']).first()).toBeVisible()
       })
 
       test('toggles testnet', async ({ page }) => {
@@ -96,7 +104,16 @@ test.describe(
 
       test('settings on mobile should be accessible via bottom sheet', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
-        await expect(page.getByTestId(TestID.AccountDrawer).first()).toHaveAttribute('class', /is_Sheet/)
+        // Scope to the dialog: while the media query flips, the inline (non-sheet) dropdown briefly
+        // carries the same testID, so `.first()` can land on the wrong element. The sheet frame's
+        // hand-authored class has already been renamed twice as the component migrated between
+        // implementations (Tamagui `is_Sheet` → ui/src `uw-sheet-frame` → mycelium `mc-sheet-frame`),
+        // so assert on the stable `sheet-frame` suffix both compat implementations share — the test's
+        // intent is only to prove the drawer presents as a bottom sheet on mobile, not which
+        // implementation renders it.
+        const sheet = page.getByTestId(TestID.AccountDrawer).and(page.getByRole('dialog'))
+        await expect(sheet).toBeVisible()
+        await expect(sheet).toHaveClass(/sheet-frame/)
       })
     })
 

@@ -1,8 +1,8 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Shine } from '@universe/mycelium'
+import { useIsTouchDevice, useMedia } from '@universe/mycelium/theme-hooks-compat'
+import { zIndexes } from '@universe/mycelium/tokens'
 import { memo, useMemo, useState } from 'react'
-import { Flex, Shine, useIsTouchDevice, useMedia } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { PositionInfo } from 'uniswap/src/features/positions/types'
@@ -73,7 +73,6 @@ export const LiquidityPositionCard = memo(function LiquidityPositionCard({
   const { convertFiatAmountFormatted } = useLocalizationContext()
   const isTouchDevice = useIsTouchDevice()
   const [priceInverted, setPriceInverted] = useState(false)
-  const isLPIncentivesEnabled = useFeatureFlag(FeatureFlags.LpIncentives)
 
   const [hover, hoverProps] = useHoverProps()
   const media = useMedia()
@@ -215,16 +214,8 @@ export const LiquidityPositionCard = memo(function LiquidityPositionCard({
           cardHovered={hover && !disabled}
           pricesInverted={priceInverted}
           setPricesInverted={setPriceInverted}
-          lpIncentiveRewardApr={
-            isLPIncentivesEnabled && liquidityPosition.version === ProtocolVersion.V4
-              ? liquidityPosition.boostedApr
-              : undefined
-          }
-          totalApr={
-            isLPIncentivesEnabled && liquidityPosition.version === ProtocolVersion.V4
-              ? liquidityPosition.totalApr
-              : undefined
-          }
+          rewards={liquidityPosition.rewards}
+          totalApr={liquidityPosition.totalApr}
         />
         {!isTouchDevice && !disabled && (
           <Flex position="absolute" top="$spacing16" right="$spacing16" zIndex={zIndexes.mask}>

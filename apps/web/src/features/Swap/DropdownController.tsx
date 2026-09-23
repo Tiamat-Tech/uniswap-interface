@@ -1,6 +1,6 @@
+import { Flex, Separator, Text, TouchableArea } from '@universe/mycelium'
 import { PropsWithChildren } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Separator, Text, TouchableArea } from 'ui/src'
 import { ChevronsIn } from 'ui/src/components/icons/ChevronsIn'
 import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
 

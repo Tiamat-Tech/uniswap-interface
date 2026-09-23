@@ -1,6 +1,6 @@
+import { Flex } from '@universe/mycelium'
+import { TransitionItem } from '@universe/mycelium/animate-presence-pager'
 import { useEffect, useMemo } from 'react'
-import { Flex } from 'ui/src'
-import { TransitionItem } from 'ui/src/animations'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { LanguageMenu } from '~/components/AccountDrawer/LanguageMenu'
@@ -144,7 +144,7 @@ export function DefaultMenu() {
 
   return (
     <Flex width="100%" height="100%">
-      <TransitionItem animationType={animationDirection} animation="100ms" childKey={menuState.variant}>
+      <TransitionItem animationType={animationDirection} curve="100ms" childKey={menuState.variant}>
         {SubMenu}
       </TransitionItem>
     </Flex>

@@ -24,7 +24,6 @@ import {
   parseWrapTransaction,
   parseDepositTransaction,
 } from 'uniswap/src/features/activity/parse/parseTradeTransaction'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { NFTTradeType, TransactionType } from 'uniswap/src/features/transactions/types/transactionDetails'
 import {
   SAMPLE_SEED_ADDRESS_1,
@@ -1082,6 +1081,7 @@ const MOCK_ONRAMP_TRANSFER = {
   totalFee: 2,
 } as unknown as FiatOnRampTransaction
 
+import { UniverseChainId } from '@universe/chains'
 // Import the parseRestOnRampTransaction function
 import { parseOnRampTransaction } from 'uniswap/src/features/activity/parse/parseOnRampTransaction'
 

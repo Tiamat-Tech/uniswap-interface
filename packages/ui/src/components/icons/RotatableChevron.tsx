@@ -1,18 +1,32 @@
+import { FlexCompat as Flex, type FlexCompatProps as FlexProps } from '@universe/mycelium/flex-compat'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { memo, useMemo } from 'react'
 import { I18nManager } from 'react-native'
-import { ColorTokens } from 'tamagui'
 import { IconProps } from 'ui/src/components/factories/createIcon'
+import { useResolvedIconColor } from 'ui/src/components/factories/iconHooks'
+import { IconColorToken } from 'ui/src/components/factories/iconTokens'
 import { Chevron } from 'ui/src/components/icons'
-import { Flex, FlexProps } from 'ui/src/components/layout'
-import { DynamicColor, useSporeColors, UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
-import { getIsValidSporeColor, IconSizeTokens } from 'ui/src/theme/tokens'
+import { IconSizeTokens } from 'ui/src/theme/tokens'
 
 type Props = {
   size?: IconSizeTokens
   direction?: 'up' | 'right' | 'down' | 'left' | 'start' | 'end'
-  color?: ColorTokens
+  // (string & {}) keeps values cast to Tamagui's wider ColorTokens (e.g. CSS color names) assignable
+  color?: IconColorToken | (string & {})
 } & Omit<FlexProps, 'direction' | '$group-item-hover' | 'width' | 'height'> &
   Pick<IconProps, '$group-item-hover'>
+
+/**
+ * The rotate easing, restored explicitly from the Spore curve library. Legacy preset names reach
+ * FlexCompat for API compatibility only: resolving their timing was a Tamagui driver concern the
+ * compat has no runtime for, so nothing would animate otherwise. Keyed off the caller's own preset
+ * so NetworkFilterTrigger's 100ms and PositionStatusFilter's 200ms stay distinct rather than all
+ * collapsing onto `fast`. Scoped to `transform`, never `all`, per the color-flash rule.
+ */
+function rotateTransitionFor(preset: Props['animation']): string {
+  const curve = typeof preset === 'string' ? SPORE_ANIMATION_CURVE_CSS[preset] : SPORE_ANIMATION_CURVE_CSS.fast
+  return `transform ${curve}`
+}
 
 function RotatableChevronIcon({
   color,
@@ -22,8 +36,6 @@ function RotatableChevronIcon({
   '$group-item-hover': $groupItemHover,
   ...rest
 }: Props): JSX.Element {
-  const colors = useSporeColors()
-
   const degree = useMemo(() => {
     switch (direction) {
       case 'start':
@@ -42,21 +54,20 @@ function RotatableChevronIcon({
     }
   }, [direction])
 
-  // Resolve $token color strings to CSS variable references (e.g. var(--neutral2)) so that
-  // the icon factory's resolveValues:'value' doesn't bake them to static computed values at
-  // mount. The browser re-resolves var(--token) on every paint, so the color tracks theme changes.
-  const resolvedColor = useMemo((): DynamicColor | undefined => {
-    if (typeof color !== 'string' || !getIsValidSporeColor(color)) {
-      return color
-    }
-    const key = color.slice(1) as keyof UseSporeColorsReturn
-    // oxlint-disable-next-line typescript/no-unnecessary-condition
-    return colors[key]?.get() ?? color
-  }, [color, colors])
+  const resolvedColor = useResolvedIconColor(color)
 
   return (
-    <Flex centered borderRadius="$roundedFull" rotate={degree} animation={animation} {...rest}>
-      <Chevron $group-item-hover={$groupItemHover} color={resolvedColor as ColorTokens} size={size} />
+    <Flex
+      centered
+      borderRadius="$roundedFull"
+      rotate={degree}
+      // The transition rides the compat prop rather than inline `style` so the native leg drops it
+      // with a warning; a CSS transition string inside `style` reaches an RN View, which ignores
+      // it silently.
+      transition={rotateTransitionFor(animation)}
+      {...rest}
+    >
+      <Chevron $group-item-hover={$groupItemHover} color={resolvedColor as IconProps['color']} size={size} />
     </Flex>
   )
 }

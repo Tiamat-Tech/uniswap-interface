@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import { EarnVaultView } from 'uniswap/src/features/earn/hooks/useEarnVaultModalFlow'
 import type { EarnVaultInfo } from 'uniswap/src/features/earn/types'

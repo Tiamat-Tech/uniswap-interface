@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 
 export function CarouselEdgeFade({
   side,
@@ -23,11 +23,12 @@ export function CarouselEdgeFade({
       width={fadeWidth}
       pointerEvents="none"
       opacity={opacity}
-      $platform-web={{
+      // Gradient interpolates the runtime surface color, so it stays an inline style rather than a class.
+      style={{
         background: isLeft
           ? `linear-gradient(to left, transparent, ${surfaceColor})`
           : `linear-gradient(to right, transparent, ${surfaceColor})`,
-        transition: isLeft ? 'opacity 0.2s ease' : undefined,
+        transition: 'opacity 0.2s ease',
       }}
     />
   )

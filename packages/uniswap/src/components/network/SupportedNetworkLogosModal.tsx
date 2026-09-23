@@ -1,7 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
 import { isWebApp } from '@universe/environment'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Image, Text, TouchableArea } from 'ui/src'
+import { Button, Image } from 'ui/src'
 import { GlobeFilled } from 'ui/src/components/icons/GlobeFilled'
 import { X } from 'ui/src/components/icons/X'
 import { borderRadii, iconSizes, zIndexes } from 'ui/src/theme'
@@ -9,7 +11,6 @@ import { Modal } from 'uniswap/src/components/modals/Modal'
 import { LearnMoreLink } from 'uniswap/src/components/text/LearnMoreLink'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 
 export type SupportedNetworkLogosModalProps = {

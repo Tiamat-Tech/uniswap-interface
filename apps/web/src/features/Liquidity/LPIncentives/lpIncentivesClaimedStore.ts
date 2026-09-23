@@ -1,3 +1,4 @@
+import { AddressStringFormat, normalizeAddress } from '@universe/chains'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { LP_INCENTIVES_CLAIM_STALENESS_MS } from '~/features/Liquidity/LPIncentives/constants'
@@ -16,7 +17,9 @@ export function lpIncentivesClaimedKey({
   chainId: number
   tokenAddress: string
 }): string {
-  return `${walletAddress.toLowerCase()}:${chainId}:${tokenAddress.toLowerCase()}`
+  // Unconditional lowercase (not cache normalization): these keys are persisted, so the
+  // normalization must stay byte-stable with previously stored entries.
+  return `${normalizeAddress(walletAddress, AddressStringFormat.Lowercase)}:${chainId}:${normalizeAddress(tokenAddress, AddressStringFormat.Lowercase)}`
 }
 
 interface LpIncentivesClaimedState {

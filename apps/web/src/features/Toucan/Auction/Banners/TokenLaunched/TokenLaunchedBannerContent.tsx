@@ -1,8 +1,8 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { ArrowRight } from '@universe/mycelium/icons/ArrowRight'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
@@ -12,17 +12,18 @@ import { getTokenDetailsURL } from '~/data/util'
 import { PulsingIndicatorDot } from '~/features/Toucan/Auction/Banners/AuctionIntro/PulsingIndicatorDot'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { approximateNumberFromRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
+import { hasTokenTotalSupply } from '~/features/Toucan/Auction/utils/tokenTotalSupply'
 
 interface TokenLaunchedBannerContentProps {
   tokenName: string
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals: number
   accentColor: string
   currentTickValue?: number
   isTradeAvailable: boolean
   tradeAvailabilityDurationRemaining: string | undefined
   // Redeemable virtual tokens display the real token's FDV from indexed market data rather than
-  // computing it from currentTickValue x totalSupply (which would use the virtual token's supply).
+  // computing it from currentTickValue x tokenTotalSupply (which would use the virtual token's supply).
   // `number` → show it; `null` → redeem mode but FDV unavailable, show "--"; `undefined` → compute.
   fdvUsdOverride?: number | null
   // TDP address for the "Trade now" link. Defaults to the auctioned token; set to the real token
@@ -32,7 +33,7 @@ interface TokenLaunchedBannerContentProps {
 
 export function TokenLaunchedBannerContent({
   tokenName,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals,
   accentColor,
   currentTickValue,
@@ -53,12 +54,14 @@ export function TokenLaunchedBannerContent({
     if (currentTickValue === undefined) {
       return '--'
     }
-    if (!totalSupply || totalSupply === '0') {
-      return convertFiatAmountFormatted(currentTickValue, NumberType.FiatTokenStats)
+    // Without a supply to multiply by, `currentTickValue` is a per-token price — rendering it under
+    // the "Current FDV" label would misstate the valuation by the whole supply.
+    if (!hasTokenTotalSupply(tokenTotalSupply)) {
+      return '--'
     }
 
     const totalTokens = approximateNumberFromRaw({
-      raw: BigInt(totalSupply),
+      raw: BigInt(tokenTotalSupply),
       decimals: auctionTokenDecimals,
       significantDigits: 15,
     })
@@ -69,7 +72,7 @@ export function TokenLaunchedBannerContent({
     }
 
     return convertFiatAmountFormatted(currentFdvUsd, NumberType.FiatTokenStats)
-  }, [auctionTokenDecimals, convertFiatAmountFormatted, currentTickValue, fdvUsdOverride, totalSupply])
+  }, [auctionTokenDecimals, convertFiatAmountFormatted, currentTickValue, fdvUsdOverride, tokenTotalSupply])
 
   const onPress = useCallback(() => {
     if (!auctionDetails) {

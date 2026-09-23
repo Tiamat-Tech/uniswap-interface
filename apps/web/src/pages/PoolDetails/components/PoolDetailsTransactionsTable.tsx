@@ -1,17 +1,23 @@
 /* oxlint-disable typescript/no-unnecessary-condition */
 
 import { createColumnHelper } from '@tanstack/react-table'
-import { GraphQLApi } from '@universe/api'
+import { UniverseChainId, Platform, areAddressesEqual } from '@universe/chains'
+import {
+  Flex,
+  Text,
+  TouchableTextLink,
+  type TouchableTextLinkProps,
+  View,
+  type ViewCompatProps,
+} from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo, useReducer, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, styled, Text, TouchableTextLink, type TouchableTextLinkProps, useMedia, View } from 'ui/src'
 import { WRAPPED_NATIVE_CURRENCY } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { ParsedToken } from 'uniswap/src/features/dataApi/utils/parsedToken'
 import { useAppFiatCurrency } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { ExplorerDataType, getExplorerLink } from 'uniswap/src/utils/linking'
 import { shortenAddress } from 'utilities/src/addresses'
 import { TOKEN_AMOUNT_DISPLAY_FLOOR } from 'utilities/src/format/localeBasedFormats'
@@ -23,7 +29,6 @@ import { TableText } from '~/components/Table/shared/TableText'
 import { TimestampCell } from '~/components/Table/shared/TimestampCell'
 import { FilterHeaderRow } from '~/components/Table/styled'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
-import { supportedChainIdFromGQLChain } from '~/data/chainUtils'
 import {
   getPoolTableTransactionTypeTranslation,
   PoolTableTransaction,
@@ -31,19 +36,18 @@ import {
   usePoolTransactions,
 } from '~/features/Explore/state/transactions/usePoolTransactions'
 import { formatPriceWithSubscript } from '~/pages/PoolDetails/components/formatPriceWithSubscript'
-import { ExternalLink } from '~/theme/components/Links'
+import { ExternalLink, type ExternalLinkProps } from '~/theme/components/Links'
 import { useChainIdFromUrlParam } from '~/utils/params/chainParams'
 
-const StyledExternalLink = styled(ExternalLink, {
-  color: '$neutral2',
-  '$platform-web': {
-    stroke: 'var(--neutral2)',
-  },
-})
+// `stroke` has no compat style prop (it exists only to tint the inline external-link glyph),
+// so it rides the arbitrary-property class escape hatch.
+function StyledExternalLink(props: ExternalLinkProps): JSX.Element {
+  return <ExternalLink color="$neutral2" className="[stroke:var(--neutral2)]" {...props} />
+}
 
-const TableWrapper = styled(View, {
-  minHeight: 256,
-})
+function TableWrapper(props: ViewCompatProps): JSX.Element {
+  return <View minHeight={256} {...props} />
+}
 
 enum PoolTransactionColumn {
   Timestamp = 0,
@@ -63,16 +67,14 @@ const PoolTransactionColumnWidth: { [key in PoolTransactionColumn]: number } = {
   [PoolTransactionColumn.OutputAmount]: 125,
 }
 
-function comparePoolTokens(tokenA: PoolTableTransaction['pool']['token0'], tokenB?: GraphQLApi.Token) {
-  if (tokenB?.address === NATIVE_CHAIN_ID) {
-    const chainId = supportedChainIdFromGQLChain(tokenB.chain)
-    return (
-      chainId &&
-      areAddressesEqual({
-        addressInput1: { address: tokenA.id, chainId },
-        addressInput2: { address: WRAPPED_NATIVE_CURRENCY[chainId]?.address, chainId },
-      })
-    )
+function comparePoolTokens(tokenA: PoolTableTransaction['pool']['token0'], tokenB?: ParsedToken) {
+  // Absent address = native on the parsed shape; swap legs trade as wrapped, so compare as wrapped.
+  if (tokenB && !tokenB.address) {
+    const chainId = tokenB.chainId
+    return areAddressesEqual({
+      addressInput1: { address: tokenA.id, chainId },
+      addressInput2: { address: WRAPPED_NATIVE_CURRENCY[chainId]?.address, chainId },
+    })
   }
   return areAddressesEqual({
     addressInput1: { address: tokenA.id, platform: Platform.EVM },
@@ -84,12 +86,12 @@ export function PoolDetailsTransactionsTable({
   poolAddress,
   token0,
   token1,
-  protocolVersion,
+  isPoolDataLoading,
 }: {
   poolAddress: string
-  token0?: GraphQLApi.Token
-  token1?: GraphQLApi.Token
-  protocolVersion?: GraphQLApi.ProtocolVersion
+  token0?: ParsedToken
+  token1?: ParsedToken
+  isPoolDataLoading?: boolean
 }) {
   const { t } = useTranslation()
   const chainId = useChainIdFromUrlParam() ?? UniverseChainId.Mainnet
@@ -105,12 +107,14 @@ export function PoolDetailsTransactionsTable({
     PoolTableTransactionType.ADD,
   ])
 
+  // The NATIVE_CHAIN_ID fallback is permanent: absent address = native on the parsed shape, and
+  // usePoolTransactions expects the sentinel.
   const { transactions, loading, loadMore, error } = usePoolTransactions({
     address: poolAddress,
     chainId,
     filter,
-    token0,
-    protocolVersion,
+    token0Address: token0 ? (token0.address ?? NATIVE_CHAIN_ID) : undefined,
+    isPoolDataLoading,
   })
 
   const showLoadingSkeleton = loading || !!error
@@ -177,7 +181,7 @@ export function PoolDetailsTransactionsTable({
           size: PoolTransactionColumnWidth[PoolTransactionColumn.Type],
           header: () => (
             <Cell justifyContent="flex-start">
-              <FilterHeaderRow clickable={filterModalIsOpen} onPress={() => toggleFilterModal()} ref={filterAnchorRef}>
+              <FilterHeaderRow onPress={() => toggleFilterModal()} ref={filterAnchorRef}>
                 <Filter
                   allFilters={Object.values(PoolTableTransactionType).map((type) => ({
                     value: type,
@@ -313,7 +317,7 @@ export function PoolDetailsTransactionsTable({
         columns={columns}
         data={transactions}
         loading={loading}
-        error={error}
+        error={Boolean(error)}
         loadMore={loadMore}
         maxHeight={600}
         defaultPinnedColumns={['timestamp', 'swap-type']}

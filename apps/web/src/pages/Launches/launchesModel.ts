@@ -1,9 +1,12 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
-import type { Launch, Launchpad } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import type { Launch, Launchpad } from '@uniswap/client-launches/dist/launches/v1/types_pb'
+import { UniverseChainId, normalizeTokenAddressForCache } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
+import { getTokenDetailsURL } from '~/data/util'
+import { POOLS_URL } from '~/pages/Launches/constants'
+import { resolveLaunchIpfsImageUrl } from '~/pages/Launches/data/resolveLaunchIpfsImageUrl'
+import { getAuctionDetailsURL } from '~/utils/auctionDetailsUrl'
 import { getChainUrlParam } from '~/utils/params/chainParams'
 
 /** One point of the trailing-1h USD price sparkline (unix seconds + USD price), from `LaunchStats.sparkline`. */
@@ -33,6 +36,8 @@ export interface LaunchItem {
   createdSecondsAgo: number
   /** Auction bid page for live CCA launches with a known auction; token detail page otherwise (supported chains only). */
   detailPath?: string
+  /** The token's page on pools.xyz, which shares this app's chain slugs (supported chains only). */
+  poolsTokenUrl?: string
   /** True for Uniswap CCA quick launches (auction-backed). */
   isQuickLaunch: boolean
   /** True once the auction migrated into a live pool (server `graduated`). */
@@ -62,7 +67,13 @@ export const UNISWAP_BONDING_CURVE_LAUNCHPAD_ID = 'uniswap-bonding-curve'
  */
 export const POOLS_LAUNCHPAD_GROUP_ID = 'pools'
 
-/** The mechanism ids `POOLS_LAUNCHPAD_GROUP_ID` expands to — what a `pools` row can be tagged with. */
+/**
+ * The mechanism ids `POOLS_LAUNCHPAD_GROUP_ID` expands to — what a `pools` row can be tagged with.
+ *
+ * Hand-mirrors the backend's `pools` group definition, so it has to move whenever that group does: a
+ * third mechanism the server starts serving would be requested and then silently dropped by callers
+ * re-checking rows against this list, surfacing as a thinner feed rather than an error.
+ */
 export const POOLS_LAUNCHPAD_MECHANISM_IDS: readonly string[] = [
   UNISWAP_CCA_LAUNCHPAD_ID,
   UNISWAP_BONDING_CURVE_LAUNCHPAD_ID,
@@ -142,10 +153,20 @@ export function toLaunchItems({
       isQuickLaunch && launch.graduated !== true
         ? auctionAddressByToken?.get(getAuctionTokenKey({ chainId: token.chainId, tokenAddress: token.address }))
         : undefined
+    const auctionDetailsPath =
+      supportedChainId && liveAuctionAddress
+        ? getAuctionDetailsURL({
+            chainId: supportedChainId,
+            auctionAddress: liveAuctionAddress,
+          })
+        : undefined
     const detailPath = supportedChainId
-      ? liveAuctionAddress
-        ? `/explore/auctions/${getChainUrlParam(supportedChainId)}/${liveAuctionAddress}`
-        : `/explore/tokens/${getChainUrlParam(supportedChainId)}/${token.address}`
+      ? (auctionDetailsPath ??
+        getTokenDetailsURL({ chainUrlParam: getChainUrlParam(supportedChainId), address: token.address }))
+      : undefined
+    // The address is server-supplied, so it's encoded rather than trusted as a path segment.
+    const poolsTokenUrl = supportedChainId
+      ? `${POOLS_URL}/t/${getChainUrlParam(supportedChainId)}/${encodeURIComponent(token.address)}`
       : undefined
     const sparkline = launch.stats?.sparkline.length
       ? launch.stats.sparkline.map((point) => ({ timestamp: Number(point.timestamp), value: point.value }))
@@ -164,7 +185,16 @@ export function toLaunchItems({
           ? getChainInfo(supportedChainId).label
           : (UNSUPPORTED_CHAIN_LABELS[token.chainId] ?? `Chain ${token.chainId}`),
         logoChainId: supportedChainId,
-        logoUrl: token.logoUrl,
+        // The launch image ListLaunches serves is IPFS content for the large majority of rows,
+        // arriving either raw as `ipfs://<cid>` or already baked against ipfs.io — so it wants
+        // the same CDN resolution the launchpad registry logos get rather than the shared
+        // `uriToHttpUrls` ipfs.io path. `resolveLaunchIpfsImageUrl` has the sampled split and the
+        // reasoning.
+        //
+        // Nothing here establishes where those CIDs are pinned: unlike the curated launchpad
+        // registry this value is creator-supplied, and the resolver validates CID shape only. A
+        // CID the CDN cannot resolve costs a 404 and the logo, nothing more.
+        logoUrl: resolveLaunchIpfsImageUrl(token.logoUrl),
         volume24hUsd: launch.stats?.volume24hUsd,
         fdvUsd: launch.stats?.fdvUsd,
         liquidityUsd: launch.stats?.tvlUsd,
@@ -172,6 +202,7 @@ export function toLaunchItems({
         priceChangePercent24h: launch.stats?.priceChangePercent24h,
         createdSecondsAgo: Math.max(0, nowSeconds - Number(launch.launchedAt)),
         detailPath,
+        poolsTokenUrl,
         isQuickLaunch,
         graduated: launch.graduated === true,
         progressPct: launch.auctionFillPct,

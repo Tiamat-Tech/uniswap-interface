@@ -1,6 +1,6 @@
-import { LaunchesOrderBy, LaunchWindow } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import { LaunchesOrderBy, LaunchWindow } from '@uniswap/client-launches/dist/launches/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import { useCallback, useState } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 /** Quick-select category chips on the All-Launches header row. */
 export enum LaunchQuickFilter {
@@ -27,12 +27,18 @@ export const DEFAULT_LAUNCHES_SORT = LaunchesOrderBy.VOLUME_1D
 /**
  * Default order per category. Trending is its own server-side ranking — gated on FDV, 1h price
  * change and distinct 1h buyers, then scored by volume + buyer acceleration — so it needs no
- * client-side cutoff. Every other category keeps the 24h-volume default.
+ * client-side cutoff.
+ *
+ * Recently launched is pure recency (LAUNCHED_AT, newest first). It must not default to a volume
+ * ranking: the server orders by the requested metric and serves a bounded page, so under
+ * VOLUME_1D a token that hasn't traded yet sorts below every token that has and falls off the
+ * page entirely — the one token the category exists to show. Ordering by launch time instead puts
+ * a zero-volume launch at rank 1 the moment it lands. All keeps the 24h-volume default.
  */
 const DEFAULT_SORT_BY_CATEGORY: Record<LaunchQuickFilter, LaunchesOrderBy> = {
   [LaunchQuickFilter.All]: DEFAULT_LAUNCHES_SORT,
   [LaunchQuickFilter.Trending]: LaunchesOrderBy.TRENDING,
-  [LaunchQuickFilter.RecentlyLaunched]: DEFAULT_LAUNCHES_SORT,
+  [LaunchQuickFilter.RecentlyLaunched]: LaunchesOrderBy.LAUNCHED_AT,
 }
 
 /** One category's sort selection, tracked per quick-select so switching chips preserves each re-sort. */
@@ -66,9 +72,10 @@ export interface LaunchesFilterState {
 /**
  * Owns the All-Launches filter state. Launchpad, chain, sort, and the quick-select recency window
  * are all applied server-side (see toLaunchesRequestParams and useLaunches); each category carries
- * its own default sort (TRENDING for the Trending chip, VOLUME_1D elsewhere). The server ranks
- * every sort dimension (TRENDING, VOLUME_1D, TVL, price change, LAUNCHED_AT) with a materialized
- * tail, so the infinite-scroll table renders the server order directly.
+ * its own default sort (TRENDING for the Trending chip, LAUNCHED_AT for Recently launched,
+ * VOLUME_1D for All). The server ranks every sort dimension (TRENDING, VOLUME_1D, TVL, price
+ * change, LAUNCHED_AT) with a materialized tail, so the infinite-scroll table renders the server
+ * order directly.
  */
 export function useLaunchesFilters(): LaunchesFilterState {
   const [sources, setSources] = useState<Set<string>>(new Set())

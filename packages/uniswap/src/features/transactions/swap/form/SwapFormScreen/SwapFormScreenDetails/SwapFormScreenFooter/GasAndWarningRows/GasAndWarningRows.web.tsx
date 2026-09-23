@@ -1,11 +1,12 @@
 import { toScreenInput, useIsBlockedAddress } from '@universe/compliance'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
 import { InsufficientNativeTokenWarning } from 'uniswap/src/features/transactions/components/InsufficientNativeTokenWarning/InsufficientNativeTokenWarning'
 import { BlockedAddressWarning } from 'uniswap/src/features/transactions/modals/BlockedAddressWarning'
 import { TradeInfoRow } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/TradeInfoRow/TradeInfoRow'
+import { useCanonicalBridgeChainId } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/useCanonicalBridgeChainId'
 import { useDebouncedGasInfo } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/useDebouncedGasInfo'
 import { useResetGasCta } from 'uniswap/src/features/transactions/swap/form/SwapFormScreen/SwapFormScreenDetails/SwapFormScreenFooter/GasAndWarningRows/useResetGasCta'
 import { useParsedSwapWarnings } from 'uniswap/src/features/transactions/swap/hooks/useSwapWarnings/useSwapWarnings'
@@ -21,6 +22,7 @@ export const GasAndWarningRows = memo(function GasAndWarningRows(): JSX.Element 
   const { formScreenWarning, warnings } = useParsedSwapWarnings()
   const inlineWarning =
     formScreenWarning && formScreenWarning.displayedInline && !isBlocked ? formScreenWarning.warning : undefined
+  const bridgeChainId = useCanonicalBridgeChainId(inlineWarning)
 
   const debouncedGasInfo = useDebouncedGasInfo()
   const { showResetGas, onResetGas } = useResetGasCta(inlineWarning)
@@ -48,7 +50,7 @@ export const GasAndWarningRows = memo(function GasAndWarningRows(): JSX.Element 
         )}
 
         <Flex gap="$spacing8" px="$spacing8" py="$spacing4">
-          <TradeInfoRow gasInfo={debouncedGasInfo} warning={inlineWarning} />
+          <TradeInfoRow bridgeChainId={bridgeChainId} gasInfo={debouncedGasInfo} warning={inlineWarning} />
           {showResetGas && (
             <TouchableArea testID="gas-info-row-reset-gas" onPress={onResetGas}>
               <Text color="$accent1" variant="body3">

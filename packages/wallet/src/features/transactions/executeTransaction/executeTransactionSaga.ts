@@ -1,8 +1,8 @@
+import type { UniverseChainId } from '@universe/chains'
 import type { providers } from 'ethers'
 import type { SagaIterator } from 'redux-saga'
 import { call } from 'typed-redux-saga'
 import type { SignerMnemonicAccountMeta } from 'uniswap/src/features/accounts/types'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { SwapTradeBaseProperties } from 'uniswap/src/features/telemetry/types'
 import type {
   TransactionOptions,

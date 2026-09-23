@@ -1,6 +1,6 @@
 import { GraphQLApi } from '@universe/api'
+import { Flex } from '@universe/mycelium'
 import { ReactNode } from 'react'
-import { Flex } from 'ui/src'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { isLowVarianceRange } from 'uniswap/src/components/charts/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'

@@ -8,18 +8,15 @@ import type {
   WalletBalance,
 } from '@uniswap/client-data-api/dist/data/v1/api_pb.d'
 import { getGetWalletBalancesQueryOptions, type WithoutWalletAccount } from '@universe/api'
+import { areAddressesEqual, Platform } from '@universe/chains'
 import {
   FeatureFlags,
-  getFeatureFlag,
   getFeatureFlagWithExposureLoggingDisabled,
-  useFeatureFlag,
   useFeatureFlagWithExposureLoggingDisabled,
 } from '@universe/gating'
 import { useMemo } from 'react'
 import { dataApiServiceClientV1 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClient'
 import { type PortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/buildPortfolioBalance'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { type QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
 
@@ -42,17 +39,13 @@ export type PortfolioBalanceBreakdown = {
 
 function toIncludeCategories({
   portfolioPoolsBalancesEnabled,
-  earnEnabled,
 }: {
   portfolioPoolsBalancesEnabled: boolean
-  earnEnabled: boolean
 }): WalletBalanceCategory[] {
-  const categories: WalletBalanceCategory[] = []
+  const categories: WalletBalanceCategory[] = [WalletBalanceCategory.EARN_VAULTS]
   if (portfolioPoolsBalancesEnabled) {
-    categories.push(WalletBalanceCategory.POOLS)
-  }
-  if (earnEnabled) {
-    categories.push(WalletBalanceCategory.EARN_VAULTS)
+    // unshift, not push: order is part of the React Query cache key — [POOLS, EARN_VAULTS] matches existing entries
+    categories.unshift(WalletBalanceCategory.POOLS)
   }
   return categories
 }
@@ -64,18 +57,13 @@ function toIncludeCategories({
 export function useWalletBalancesIncludeCategories(): WalletBalanceCategory[] {
   // Pools is read without logging; its exposure is logged only where the feature is actually shown.
   const portfolioPoolsBalancesEnabled = useFeatureFlagWithExposureLoggingDisabled(FeatureFlags.PortfolioPoolsBalances)
-  const earnEnabled = useFeatureFlag(FeatureFlags.Earn)
-  return useMemo(
-    () => toIncludeCategories({ portfolioPoolsBalancesEnabled, earnEnabled }),
-    [portfolioPoolsBalancesEnabled, earnEnabled],
-  )
+  return useMemo(() => toIncludeCategories({ portfolioPoolsBalancesEnabled }), [portfolioPoolsBalancesEnabled])
 }
 
 /** Non-hook variant of {@link useWalletBalancesIncludeCategories} for imperative request paths. */
 export function getWalletBalancesIncludeCategories(): WalletBalanceCategory[] {
   return toIncludeCategories({
     portfolioPoolsBalancesEnabled: getFeatureFlagWithExposureLoggingDisabled(FeatureFlags.PortfolioPoolsBalances),
-    earnEnabled: getFeatureFlag(FeatureFlags.Earn),
   })
 }
 

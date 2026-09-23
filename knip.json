@@ -70,20 +70,12 @@
         "serve",
         "style-loader",
         "swc-loader",
-        "tamagui-loader",
         "vite",
         "vite-plugin-commonjs",
         "vite-plugin-node-polyfills",
         "vite-plugin-svgr",
         "vite-tsconfig-paths",
         "webpack-cli"
-      ]
-    },
-    "apps/mission-control": {
-      "ignoreDependencies": [
-        "@radix-ui/.+",
-        "@universe/privacy",
-        "clsx"
       ]
     },
     "apps/mobile": {
@@ -104,7 +96,6 @@
         "@react-native-community/cli-platform-ios",
         "@react-native-masked-view/masked-view",
         "@shopify/react-native-skia",
-        "@tamagui/babel-plugin",
         "@uniswap/ethers-rs-mobile",
         "agent-device",
         "babel-loader",
@@ -144,7 +135,6 @@
         "src/setupRive.ts",
         "src/sideEffects.ts",
         "src/polyfills.ts",
-        "src/tamagui.config.ts",
         "functions/**/*.ts",
         "scripts/anvil-fork-headers.ts"
       ],
@@ -153,7 +143,6 @@
         "@babel/preset-env",
         "@cloudflare/vite-plugin",
         "@tailwindcss/vite",
-        "@tamagui/vite-plugin",
         "vite-plugin-bundlesize",
         "vite-plugin-commonjs",
         "vite-plugin-node-polyfills",
@@ -161,7 +150,6 @@
         "vite-tsconfig-paths",
         "@chromatic-com/storybook",
         "@cloudflare/workers-types",
-        "@crowdin/cli",
         "@datadog/datadog-ci",
         "@ethersproject/.+",
         "@graphql-codegen/.+",
@@ -173,7 +161,6 @@
         "@storybook/.+",
         "@svgr/webpack",
         "@swc/core",
-        "@swc/plugin-styled-components",
         "@testing-library/dom",
         "@typechain/ethers-v5",
         "@universe/config",
@@ -294,11 +281,23 @@
     "packages/mycelium": {
       "ignoreDependencies": [
         "@legendapp/list",
+        "@rn-primitives/portal",
+        "@testing-library/react",
         "camelcase",
         "cheerio",
+        "expo-image",
+        "expo-linear-gradient",
+        "react-native",
+        "react-native-gesture-handler",
+        "react-native-image-colors",
+        "react-native-reanimated",
+        "react-native-safe-area-context",
+        "react-native-svg",
+        "react-native-webview",
         "tailwindcss",
+        "uniwind",
         "uppercamelcase",
-        "@testing-library/react"
+        "utilities"
       ],
       "ignore": [
         "src/components/icons/**"
@@ -334,19 +333,14 @@
       "ignoreDependencies": [
         "@react-native-masked-view/masked-view",
         "@shopify/react-native-skia",
-        "@tamagui/animations-moti",
-        "@tamagui/animations-react-native",
-        "@tamagui/font-inter",
-        "@tamagui/theme-base",
         "camelcase",
         "cheerio",
         "esbuild-register",
-        "expo-image",
         "expo-linear-gradient",
         "fs-extra",
         "moti",
         "react-native-keyboard-controller",
-        "react-native-webview",
+        "uniwind",
         "uppercamelcase"
       ]
     },
@@ -377,6 +371,7 @@
     },
     "packages/wallet": {
       "ignoreDependencies": [
+        "@universe/tailwind",
         "react-native-context-menu-view",
         "react-native-image-picker",
         "react-native-restart",
@@ -392,6 +387,12 @@
       "ignoreDependencies": [
         "@nx/devkit",
         "tslib"
+      ]
+    },
+    "packages/tailwind": {
+      "ignoreDependencies": [
+        "@tailwindcss/node",
+        "@tailwindcss/oxide"
       ]
     }
   }

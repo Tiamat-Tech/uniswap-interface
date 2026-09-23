@@ -3,13 +3,12 @@ import type { TokenItemData } from 'src/components/explore/TokenItemData'
 import { buildCurrencyId, buildNativeCurrencyId } from 'uniswap/src/utils/currencyId'
 import type { TokenMetadataDisplayType } from 'wallet/src/features/wallet/types'
 
-export const EXPLORE_TOKEN_ROW_HEIGHT = 67.25
-export const EXPLORE_LIST_DRAW_ROWS = 60
+export const EXPLORE_TOKEN_ROW_HEIGHT = 67
+export const WINDOW_MULTIPLIER = isAndroid ? 3 : 2.5
 export const EXPLORE_SKELETON_ROW_COUNT = 12
-export const EXPLORE_LIST_INITIAL_ITEM_COUNT = 20
-export const EXPLORE_LIST_ITEM_REVEAL_STEP = 25
 export const EXPLORE_LIST_TRAILING_SKELETON_COUNT = 3
 export const EXPLORE_LIST_TOKENS_V2_PAGE_SIZE = 100
+export const EXPLORE_TOKEN_CONTAINER_PROPS = { height: EXPLORE_TOKEN_ROW_HEIGHT } as const
 
 export type ExploreSkeletonRow = {
   rowType: 'skeleton'

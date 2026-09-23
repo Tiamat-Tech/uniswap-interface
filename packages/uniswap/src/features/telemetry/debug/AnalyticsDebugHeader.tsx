@@ -1,5 +1,5 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { useEffect, useRef } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { Minus, Trash, X } from 'ui/src/components/icons'
 import { useEvent } from 'utilities/src/react/hooks'
 

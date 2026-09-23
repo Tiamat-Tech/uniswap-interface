@@ -1,5 +1,6 @@
+import { TouchableArea } from '@universe/mycelium'
+import { useMedia, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { ReactNode } from 'react'
-import { TouchableArea, useMedia, useSporeColors } from 'ui/src'
 import { Pill } from 'uniswap/src/components/pill/Pill'
 
 type TokenSelectorPillProps = {

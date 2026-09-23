@@ -111,6 +111,9 @@
     },
     {
       "path": "packages/embedded-wallet"
+    },
+    {
+      "path": "packages/test"
     }
   ]
 }

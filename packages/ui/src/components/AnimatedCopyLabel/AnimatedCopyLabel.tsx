@@ -1,10 +1,10 @@
+import type { ColorTokens } from '@universe/mycelium'
+import { Flex } from '@universe/mycelium'
+import { Text } from '@universe/mycelium'
+import { TransitionItem } from '@universe/mycelium/animate-presence-pager'
 import { ReactNode } from 'react'
-import { ColorTokens } from 'tamagui'
-import { TransitionItem } from 'ui/src/animations/components/AnimatePresencePager'
 import { CheckmarkCircle } from 'ui/src/components/icons/CheckmarkCircle'
 import { CopySheets } from 'ui/src/components/icons/CopySheets'
-import { Flex } from 'ui/src/components/layout'
-import { Text } from 'ui/src/components/text'
 import { iconSizes } from 'ui/src/theme'
 
 interface AnimatedCopyLabelProps {
@@ -32,7 +32,7 @@ export function AnimatedCopyLabel({
   return (
     <Flex shrink overflow="hidden">
       <TransitionItem
-        animation="fast"
+        curve="fast"
         animationType={isCopied ? 'up' : 'down'}
         childKey={isCopied ? 'copied' : 'default'}
         distance={5}

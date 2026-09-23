@@ -28,7 +28,6 @@ type ScrubValues = {
  */
 export function getBreakdownCardProps({
   poolsEnabled,
-  earnEnabled,
   poolsUnavailable,
   breakdown,
   scrub,
@@ -38,7 +37,6 @@ export function getBreakdownCardProps({
   isAllTimePeriod,
 }: {
   poolsEnabled: boolean
-  earnEnabled: boolean
   poolsUnavailable: boolean
   breakdown: PortfolioBalanceBreakdown | undefined
   scrub: ScrubValues
@@ -49,10 +47,10 @@ export function getBreakdownCardProps({
 }): BreakdownCardProps | undefined {
   const hasTokenBalance = (breakdown?.tokens.balanceUSD ?? 0) > 0
   const hasPoolsBalance = poolsEnabled && !poolsUnavailable && (breakdown?.pools.balanceUSD ?? 0) > 0
-  const hasEarnBalance = earnEnabled && (breakdown?.earn.balanceUSD ?? 0) > 0
+  const hasEarnBalance = (breakdown?.earn.balanceUSD ?? 0) > 0
   const shouldShowBreakdown = hasEarnBalance || (hasTokenBalance && hasPoolsBalance)
 
-  if ((!poolsEnabled && !earnEnabled) || !breakdown || !shouldShowBreakdown) {
+  if (!breakdown || !shouldShowBreakdown) {
     return undefined
   }
 

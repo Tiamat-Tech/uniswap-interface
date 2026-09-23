@@ -1,9 +1,9 @@
+import { borderRadii, TouchableArea } from '@universe/mycelium'
 import type { PropsWithChildren } from 'react'
 import { useCallback, useMemo } from 'react'
 import type { ContextMenuAction, ContextMenuOnPressNativeEvent } from 'react-native-context-menu-view'
 import ContextMenu from 'react-native-context-menu-view'
-import { TouchableArea } from 'ui/src'
-import { borderRadii } from 'ui/src/theme'
+import { useContextMenuPressGate } from 'uniswap/src/components/menus/hooks/useContextMenuPressGate'
 import type { TokenBalanceItemContextMenuProps } from 'uniswap/src/components/portfolio/TokenBalanceItem/TokenBalanceItemContextMenu'
 import { TokenList } from 'uniswap/src/features/dataApi/types'
 import { useTokenContextMenuOptions } from 'uniswap/src/features/portfolio/balances/hooks/useTokenContextMenuOptions'
@@ -36,6 +36,13 @@ export function TokenBalanceItemContextMenu({
     recipient,
   })
 
+  const isMenuEnabled = menuActions.length > 0
+
+  const { onPressIn, onPressOut, handlePress } = useContextMenuPressGate({
+    onPress: onPressToken,
+    isMenuEnabled,
+  })
+
   const actions = useMemo((): ContextMenuAction[] => {
     return menuActions.map((action) => ({
       title: action.label,
@@ -54,8 +61,10 @@ export function TokenBalanceItemContextMenu({
   const style = useMemo(() => ({ borderRadius: borderRadii.rounded16 }), [])
 
   return (
-    <ContextMenu actions={actions} disabled={menuActions.length === 0} style={style} onPress={onContextMenuPress}>
-      <TouchableArea onPress={onPressToken}>{children}</TouchableArea>
+    <ContextMenu actions={actions} disabled={!isMenuEnabled} style={style} onPress={onContextMenuPress}>
+      <TouchableArea onPress={handlePress} onPressIn={onPressIn} onPressOut={onPressOut}>
+        {children}
+      </TouchableArea>
     </ContextMenu>
   )
 }

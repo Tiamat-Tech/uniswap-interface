@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react'
+import { UniverseChainId } from '@universe/chains'
 import {
   OnchainItemListOptionType,
   type RwaTokenOption,
@@ -6,7 +7,6 @@ import {
 } from 'uniswap/src/components/lists/items/types'
 import { OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { useOnchainItemListSection } from 'uniswap/src/components/lists/utils'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ETH_CURRENCY_INFO } from 'uniswap/src/test/fixtures'
 
 describe('useOnchainItemListSection', () => {

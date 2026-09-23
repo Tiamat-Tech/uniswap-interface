@@ -20,7 +20,11 @@ import {
 } from '@uniswap/client-data-api/dist/data/v1/auction_pb'
 import type { AuctionServiceClient, UseQueryApiHelperHookArgs } from '@universe/api'
 import { AuctionServiceClient as AuctionServiceClientInstance } from 'uniswap/src/data/apiClients/dataApiService/auctions/AuctionServiceClient'
-import { AUCTION_DEFAULT_RETRY, AuctionStaleTime } from 'uniswap/src/data/apiClients/dataApiService/auctions/queryTypes'
+import {
+  AUCTION_DEFAULT_RETRY,
+  AuctionStaleTime,
+  auctionQueryKeys,
+} from 'uniswap/src/data/apiClients/dataApiService/auctions/queryTypes'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import { persistableQueryOptions } from 'utilities/src/reactQuery/persistableQueryOptions'
 import { QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
@@ -30,7 +34,7 @@ function getAuctionQueryOptions(
   { params, ...rest }: UseQueryApiHelperHookArgs<GetAuctionRequest, PlainMessage<GetAuctionResponse>>,
 ): QueryOptionsResult<PlainMessage<GetAuctionResponse>, Error, PlainMessage<GetAuctionResponse>, QueryKey> {
   return persistableQueryOptions({
-    queryKey: [ReactQueryCacheKey.AuctionApi, 'getAuction', params],
+    queryKey: auctionQueryKeys.getAuction(params),
     queryFn: async () => {
       if (!params) {
         throw new Error('params required')
@@ -138,7 +142,7 @@ function getLatestCheckpointQueryOptions(
   QueryKey
 > {
   return persistableQueryOptions({
-    queryKey: [ReactQueryCacheKey.AuctionApi, 'getLatestCheckpoint', params],
+    queryKey: auctionQueryKeys.getLatestCheckpoint(params),
     queryFn: async () => {
       if (!params) {
         throw new Error('params required')

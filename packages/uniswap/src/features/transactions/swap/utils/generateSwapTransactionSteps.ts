@@ -1,5 +1,5 @@
 import { permit2Address } from '@uniswap/permit2-sdk'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import {
   createApprovalTransactionStep,
   createApprovalUserOpStep,

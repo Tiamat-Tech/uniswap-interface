@@ -1,5 +1,5 @@
+import { EVMUniverseChainId } from '@universe/chains'
 import { useEffect, useMemo } from 'react'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
 import { ONE_SECOND_MS } from 'utilities/src/time/time'
 // oxlint-disable-next-line no-restricted-imports -- Use wagmi version because it supports a chain being passed in
 import { useBlockNumber } from 'wagmi'

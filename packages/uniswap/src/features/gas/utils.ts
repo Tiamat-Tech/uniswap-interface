@@ -9,6 +9,7 @@ import {
   type TransactionLegacyFeeParams,
   tryProvideSession,
 } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import {
   DynamicConfigs,
   type GasStrategies,
@@ -17,7 +18,7 @@ import {
   getStatsigClient,
 } from '@universe/gating'
 import JSBI from 'jsbi'
-import { RPCType, UniverseChainId } from 'uniswap/src/features/chains/types'
+import { RPCType } from 'uniswap/src/features/chains/types'
 import {
   CHAIN_GAS_STRATEGY_OVERRIDES,
   DEFAULT_GAS_STRATEGY,

@@ -1,4 +1,4 @@
-import { Flex, type FlexProps } from 'ui/src'
+import { Flex, type FlexCompatProps as FlexProps } from '@universe/mycelium'
 
 export function PortfolioPoolsSidebarCard({ children, ...props }: FlexProps): JSX.Element {
   return (

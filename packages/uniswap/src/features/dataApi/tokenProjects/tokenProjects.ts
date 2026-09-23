@@ -22,6 +22,15 @@ export function useTokenProjectsByCurrencyId(
   return useFormattedTokenProjects(currencyIds, formatTokenProjectsByCurrencyId)
 }
 
+/**
+ * Same as useTokenProjects, except projects of native assets (ETH, SOL, BNB, ...) only
+ * contribute their native representations — bridged/wrapped copies of the asset on other
+ * networks are dropped (e.g. Wormhole SOL on EVM chains).
+ */
+export function useTokenProjectsWithoutBridgedNatives(currencyIds: CurrencyId[]): GqlResult<CurrencyInfo[]> {
+  return useFormattedTokenProjects(currencyIds, formatTokenProjectsWithoutBridgedNatives)
+}
+
 function useFormattedTokenProjects<T>(
   currencyIds: CurrencyId[],
   formatData: (tokenProjects: TokenProjects, currencyIds: CurrencyId[]) => T,
@@ -51,6 +60,14 @@ function useFormattedTokenProjects<T>(
 
 function formatTokenProjects(tokenProjects: TokenProjects): CurrencyInfo[] {
   return tokenProjectToCurrencyInfos(tokenProjects)
+}
+
+function formatTokenProjectsWithoutBridgedNatives(tokenProjects: TokenProjects): CurrencyInfo[] {
+  return tokenProjects.flatMap((tokenProject) => {
+    const currencyInfos = tokenProjectToCurrencyInfos([tokenProject])
+    const nativeCurrencyInfos = currencyInfos.filter((currencyInfo) => currencyInfo.currency.isNative)
+    return nativeCurrencyInfos.length > 0 ? nativeCurrencyInfos : currencyInfos
+  })
 }
 
 function formatTokenProjectsByCurrencyId(

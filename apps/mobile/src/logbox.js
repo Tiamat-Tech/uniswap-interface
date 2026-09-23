@@ -15,8 +15,6 @@ if (process.env.IS_E2E_TEST === 'true') {
     'Require cycle',
     'logException:ApolloClient [GraphQL Error]:',
     'logException:ApolloClient [Network Error]:',
-    // Ignore since it's difficult to filter out just these styles and they are often shared styles
-    'FlashList only supports padding related props and backgroundColor in contentContainerStyle.',
     // https://docs.swmansion.com/react-native-reanimated/docs/guides/troubleshooting#reduced-motion-setting-is-enabled-on-this-device
     '[Reanimated] Reduced motion setting is enabled on this device.',
   ])

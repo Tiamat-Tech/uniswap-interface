@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
+import { UniverseChainId } from '@universe/chains'
 import { createElement, type ReactNode } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { Block } from '~/chains'
 import {
   useGetBlockTimestamps,

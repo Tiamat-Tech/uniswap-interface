@@ -49,6 +49,7 @@ DEPLOY_ONLY_GITHUB_PATHS=(
   '.github/workflows/mission_control_staging_deploy.yml'
   '.github/workflows/rh_cca_production_deploy.yml'
   '.github/workflows/rh_cca_staging_deploy.yml'
+  '.github/workflows/web_ecs_production_deploy.yml'
   '.github/workflows/web_ecs_staging_deploy.yml'
   '.github/workflows/web_preview_deploy.yml'
   '.github/workflows/web_production_deploy.yml'
@@ -95,6 +96,52 @@ if [[ -n "$GITHUB_PATHS" ]]; then
     exit 0
   fi
 fi
+
+# Path filters for work nx cannot attribute to a project: root-level paths no
+# project owns, and labs/ (.nxignore'd). One pass over the diff already read
+# above. Consumers must still check RUN_ALL first — the early exits above never
+# reach this loop, so on those paths every row is unset rather than false.
+#
+# Each row is the input set of the work it gates, so it is wider than its own
+# directory. Add an entry when a suite starts reading a new file outside it.
+#   SCRIPTS  — the Bun pins sync-bun-version.ts checks, and bun.lock, which
+#              vercel-affected.ts and clean_for_publication.ts need for
+#              `ignore`. Plus import-boundaries.json, which
+#              swap-ui/ledger.test.ts reads — it is in CONFIG too, but that
+#              row gates a different job.
+#   I18N     — i18n.config.ts's import closure and the locales dir
+#              i18n-config.test.ts reads, plus the .i18n/glossary tree
+#              i18n-glossary.test.ts walks and the .i18n/memory shards
+#              i18n-memory.test.ts validates (without the memory path, an
+#              accidental shard commit in an unrelated PR skips the gate —
+#              the exact PR class it exists to catch). Split out of SCRIPTS because gating
+#              these on the `uniswap` nx project ran the 66s security-gate
+#              suite on 59% of PRs instead of 20%, for 28 tests taking 115ms.
+#   WORKBENCH, RH_CCA — the transitive package closure of each program's
+#              tsconfig references: a packages/mycelium change can break
+#              workbench's typecheck without touching labs/. Their own workflow
+#              files are absent because a change to either exits into run-all.
+#
+# Rows split on their FIRST `|`, so patterns may use alternation freely.
+PATH_FILTERS=(
+  "SCRIPTS|^(scripts/|config/oxlint-plugins/import-boundaries\.json$|package\.json$|apps/web/package\.json$|apps/mobile/eas\.json$|bun\.lock$|\.bun-version$)"
+  "I18N|^(i18n\.config\.ts$|\.i18n/(glossary|memory)/|packages/uniswap/src/(i18n/locales/|features/language/constants\.ts$))"
+  "CONFIG|^config/"
+  "SANDBOX|^labs/sandbox/"
+  "WORKBENCH|^(labs/workbench/|packages/(mycelium|environment|config|logger|privacy|tailwind)/|bun\.lock$|package\.json$|\.bun-version$|\.nvmrc$)"
+  "RH_CCA|^(labs/rh-cca/|packages/(api|config|encoding|environment|logger|mycelium|prices|privacy|react-query|sessions|tailwind|trpc|ui|uniswap|utilities|websocket)/|config/(tsconfig|vitest-presets|oxlint-plugins)/|oxlint\.config\.ts$|\.oxfmtrc\.json$|tsconfig\.base\.json$|bun\.lock$|package\.json$|\.bun-version$|\.nvmrc$)"
+)
+for filter in "${PATH_FILTERS[@]}"; do
+  name="${filter%%|*}"
+  pattern="${filter#*|}"
+  if grep -qE "$pattern" <<< "$CHANGED_PATHS"; then
+    echo "🔎 - $name paths touched"
+    echo "$name=true" >> "$GITHUB_OUTPUT"
+  else
+    echo "⏭️ - $name paths untouched"
+    echo "$name=false" >> "$GITHUB_OUTPUT"
+  fi
+done
 
 # Fail open: a broken affected computation must run everything, not
 # silently skip it.

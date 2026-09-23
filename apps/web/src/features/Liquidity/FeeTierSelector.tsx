@@ -1,7 +1,8 @@
+import { Button, Flex, Text, TouchableArea, type TouchableAreaCompatProps } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { useMemo, useReducer } from 'react'
+import { forwardRef, useMemo, useReducer } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, HeightAnimator, styled, Text, Tooltip, TouchableArea } from 'ui/src'
+import { HeightAnimator, Tooltip } from 'ui/src'
 import { CheckCircleFilled } from 'ui/src/components/icons/CheckCircleFilled'
 import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { FeeDisplay } from 'uniswap/src/components/FeeDisplay/FeeDisplay'
@@ -11,7 +12,7 @@ import { useLocalizationContext } from 'uniswap/src/features/language/Localizati
 import type { FeeData } from 'uniswap/src/features/positions/types'
 import { NumberType } from 'utilities/src/format/types'
 import { BIPS_BASE } from '~/constants/misc'
-import { LpIncentivesAprDisplay } from '~/features/Liquidity/LPIncentives/LpIncentivesAprDisplay'
+import { RewardAprBadge } from '~/features/Liquidity/LPIncentives/RewardAprBadge'
 import { type FeeTierOption, getFeeTierKey, isDynamicFeeTier } from '~/features/Liquidity/utils/feeTiers'
 
 interface FeeTierSelectorProps {
@@ -19,7 +20,6 @@ interface FeeTierSelectorProps {
   onFeeSelect: (fee: FeeData) => void
   feeTiers: FeeTierOption[]
   disabled?: boolean
-  isLpIncentivesEnabled?: boolean
   hasLpRewards?: boolean
   // Content rendered inline after the selected fee text (e.g. "Highest TVL" / "New tier" badges, LP APR)
   headerInlineContent?: ReactNode
@@ -42,28 +42,32 @@ interface FeeTierSelectorProps {
   onToggleExpand?: () => void
 }
 
-const FeeTierContainer = styled(TouchableArea, {
-  flex: 1,
-  width: '100%',
-  p: '$spacing12',
-  gap: '$spacing8',
-  borderRadius: '$rounded12',
-  borderWidth: 1,
-  borderColor: '$surface3',
-  position: 'relative',
+const FeeTierContainer = forwardRef<HTMLElement, TouchableAreaCompatProps>(function FeeTierContainer(props, ref) {
+  return (
+    <TouchableArea
+      ref={ref}
+      flex={1}
+      width="100%"
+      p="$spacing12"
+      gap="$spacing8"
+      borderRadius="$rounded12"
+      borderWidth={1}
+      borderColor="$surface3"
+      position="relative"
+      {...props}
+    />
+  )
 })
 
 function FeeTier({
   feeTier,
   selected,
   onSelect,
-  isLpIncentivesEnabled,
   showTvl,
 }: {
   feeTier: FeeTierOption
   selected: boolean
   onSelect: (value: FeeData) => void
-  isLpIncentivesEnabled?: boolean
   showTvl: boolean
 }) {
   const { t } = useTranslation()
@@ -119,9 +123,8 @@ function FeeTier({
               </>
             )}
           </Flex>
-          {isLpIncentivesEnabled && feeTier.boostedApr !== undefined && feeTier.boostedApr > 0 && (
-            <LpIncentivesAprDisplay lpIncentiveRewardApr={feeTier.boostedApr} isSmall />
-          )}
+          {/* Empty on an unboosted tier, and the badge renders nothing on an empty list. */}
+          <RewardAprBadge rewards={feeTier.rewards ?? []} size="sm" label="rewardApr" />
         </Flex>
       </Flex>
     </FeeTierContainer>
@@ -157,7 +160,6 @@ export function FeeTierSelector({
   onFeeSelect,
   feeTiers,
   disabled,
-  isLpIncentivesEnabled,
   hasLpRewards,
   allowDynamicFee,
   headerInlineContent,
@@ -217,7 +219,7 @@ export function FeeTierSelector({
                 emphasis="secondary"
                 onPress={toggleShowMore}
                 $md={{ width: 32 }}
-                icon={<RotatableChevron direction={isShowMore ? 'up' : 'down'} size="$icon.20" />}
+                icon={<RotatableChevron direction={isShowMore ? 'up' : 'down'} size="$icon.20" color="currentColor" />}
                 iconPosition="after"
               >
                 {isShowMore ? t('common.less') : t('common.more')}
@@ -241,27 +243,14 @@ export function FeeTierSelector({
             >
               {filteredFeeTiers.map((feeTier) => (
                 <FeeTier
-                  key={getFeeTierKey({
-                    feeTier: feeTier.value.feeAmount,
-                    tickSpacing: feeTier.value.tickSpacing,
-                    isDynamicFee: feeTier.value.isDynamic,
-                  })}
+                  key={getFeeTierKey({ feeTier: feeTier.value.feeAmount, tickSpacing: feeTier.value.tickSpacing })}
                   feeTier={feeTier}
                   selected={
                     !!selectedFee &&
-                    getFeeTierKey({
-                      feeTier: feeTier.value.feeAmount,
-                      tickSpacing: feeTier.value.tickSpacing,
-                      isDynamicFee: feeTier.value.isDynamic,
-                    }) ===
-                      getFeeTierKey({
-                        feeTier: selectedFee.feeAmount,
-                        tickSpacing: selectedFee.tickSpacing,
-                        isDynamicFee: selectedFee.isDynamic,
-                      })
+                    getFeeTierKey({ feeTier: feeTier.value.feeAmount, tickSpacing: feeTier.value.tickSpacing }) ===
+                      getFeeTierKey({ feeTier: selectedFee.feeAmount, tickSpacing: selectedFee.tickSpacing })
                   }
                   onSelect={onFeeSelect}
-                  isLpIncentivesEnabled={isLpIncentivesEnabled}
                   showTvl={hasAnyTvl}
                 />
               ))}

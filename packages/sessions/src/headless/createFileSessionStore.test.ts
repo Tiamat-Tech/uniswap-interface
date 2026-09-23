@@ -66,9 +66,11 @@ describe('createFileSessionStore', () => {
     const store = createFileSessionStore({ filePath })
     await store.sessionStorage.set({ sessionId: 'session-123' })
 
+    // oxlint-disable-next-line no-bitwise -- POSIX permission-bit mask
     const fileMode = (await stat(filePath)).mode & 0o777
     expect(fileMode).toBe(0o600)
 
+    // oxlint-disable-next-line no-bitwise -- POSIX permission-bit mask
     const dirMode = (await stat(join(dir, 'nested'))).mode & 0o777
     expect(dirMode).toBe(0o700)
   })

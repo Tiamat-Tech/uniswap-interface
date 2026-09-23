@@ -1,9 +1,10 @@
 import { isWebApp } from '@universe/environment'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { PropsWithChildren, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { capitalize } from 'tsafe'
-import { Flex, Text, TouchableArea } from 'ui/src'
 import { InfoCircle } from 'ui/src/components/icons/InfoCircle'
+import { PoweredByBlockaid } from 'uniswap/src/components/logos/PoweredByBlockaid'
 import { InfoTooltip } from 'uniswap/src/components/tooltip/InfoTooltip'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { getFeeColor, useModalHeaderText, useModalSubtitleText } from 'uniswap/src/features/tokens/warnings/safetyUtils'
@@ -41,9 +42,12 @@ export function FeeOnTransferWarning({
           placement: 'top',
         }}
         button={
-          <WarningModalInfoContainer>
-            <FeeRow feePercent={feePercent} feeType={feeType} />
-          </WarningModalInfoContainer>
+          <Flex width="100%" gap="$spacing8">
+            <WarningModalInfoContainer>
+              <FeeRow feePercent={feePercent} feeType={feeType} />
+            </WarningModalInfoContainer>
+            <PoweredByBlockaid />
+          </Flex>
         }
         trigger={<InfoCircle color="$neutral3" size="$icon.12" />}
         triggerPlacement="end"

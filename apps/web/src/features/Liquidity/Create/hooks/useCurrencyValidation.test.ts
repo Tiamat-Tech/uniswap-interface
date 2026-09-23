@@ -1,5 +1,5 @@
+import { UniverseChainId } from '@universe/chains'
 import { nativeOnChain, USDC, USDC_UNICHAIN } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { useCurrencyValidation } from '~/features/Liquidity/Create/hooks/useCurrencyValidation'
 import { createCurrencyParsersWithValidation } from '~/features/Liquidity/parsers/urlParsers'

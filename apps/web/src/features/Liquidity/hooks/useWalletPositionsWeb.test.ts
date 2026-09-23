@@ -1,33 +1,32 @@
 import { ConnectError } from '@connectrpc/connect'
 import { renderHook } from '@testing-library/react'
 import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
+import { UniverseChainId, Platform } from '@universe/chains'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
+import { DEFAULT_V2_POSITION_STATUS_FILTER } from '~/features/Liquidity/constants'
 import { useWalletPositionsWeb } from '~/features/Liquidity/hooks/useWalletPositionsWeb'
 
 const {
   mockUseWalletPositions,
-  mockUseRequestPositionsForSavedPairs,
   mockUsePositionVisibilityCheck,
   mockUsePendingLPTransactionsChangeListener,
   mockUseEnabledChains,
-  mockParseRestPosition,
+  mockUseFeatureFlag,
 } = vi.hoisted(() => ({
   mockUseWalletPositions: vi.fn(),
-  mockUseRequestPositionsForSavedPairs: vi.fn(),
   mockUsePositionVisibilityCheck: vi.fn(),
   mockUsePendingLPTransactionsChangeListener: vi.fn(),
   mockUseEnabledChains: vi.fn(),
-  mockParseRestPosition: vi.fn(),
+  mockUseFeatureFlag: vi.fn(),
 }))
 
 vi.mock('uniswap/src/features/positions/hooks/useWalletPositions', () => ({
   useWalletPositions: mockUseWalletPositions,
 }))
 
-vi.mock('~/state/user/hooks', () => ({
-  useRequestPositionsForSavedPairs: mockUseRequestPositionsForSavedPairs,
+vi.mock('@universe/gating', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@universe/gating')>()),
+  useFeatureFlag: mockUseFeatureFlag,
 }))
 
 vi.mock('uniswap/src/features/visibility/hooks/usePositionVisibilityCheck', () => ({
@@ -42,8 +41,8 @@ vi.mock('uniswap/src/features/chains/hooks/useEnabledChains', () => ({
   useEnabledChains: mockUseEnabledChains,
 }))
 
-vi.mock('uniswap/src/features/positions/parseRestPosition', () => ({
-  parseRestPosition: mockParseRestPosition,
+vi.mock('uniswap/src/features/positions/hooks/usePositionModifier', () => ({
+  usePositionModifier: vi.fn(() => ({ includeSpamTokens: false, poolIncludeOverrides: [], poolExcludeOverrides: [] })),
 }))
 
 // ---------- Test fixtures ----------
@@ -61,29 +60,6 @@ const positionInfo = (id: string, overrides: Partial<PositionInfo> = {}): Positi
     isHidden: false,
     ...overrides,
   }) as PositionInfo
-
-interface SavedPositionPayload {
-  chainId?: UniverseChainId
-  status?: PositionStatus
-  protocolVersion?: ProtocolVersion
-  tokenId?: string
-  poolId?: string
-}
-
-interface SavedPositionEntry {
-  data?: { position?: SavedPositionPayload }
-}
-
-const savedEntry = (overrides: SavedPositionPayload): SavedPositionEntry => ({
-  data: {
-    position: {
-      chainId: UniverseChainId.Mainnet,
-      status: PositionStatus.IN_RANGE,
-      protocolVersion: ProtocolVersion.V3,
-      ...overrides,
-    },
-  },
-})
 
 const walletPositionsResultFor = (
   allPositions: PositionInfo[] = [],
@@ -104,29 +80,30 @@ const walletPositionsResultFor = (
   ...overrides,
 })
 
+// Mocks the primary (visible) query only; the hidden-only secondary (autoFetchAllPages: true)
+// returns empty. A shared mockReturnValue would feed the same positions to both queries, and the
+// provenance-based partition would then classify every BE position as hidden.
+const mockPrimaryPositions = (positions: PositionInfo[]): void => {
+  mockUseWalletPositions.mockImplementation((args: { autoFetchAllPages?: boolean }) =>
+    args.autoFetchAllPages ? walletPositionsResultFor([]) : walletPositionsResultFor(positions),
+  )
+}
+
 const baseParams = {
   address: ADDRESS,
   chainFilter: null,
   versionFilter: DEFAULT_VERSIONS,
   statusFilter: DEFAULT_STATUSES,
+  v2StatusFilter: [...DEFAULT_V2_POSITION_STATUS_FILTER],
 }
 
 describe('useWalletPositionsWeb', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseWalletPositions.mockReturnValue(walletPositionsResultFor([]))
-    mockUseRequestPositionsForSavedPairs.mockReturnValue([])
     mockUsePositionVisibilityCheck.mockReturnValue(() => true)
     mockUseEnabledChains.mockReturnValue({ chains: FALLBACK_CHAINS })
-    // Identity-ish parse: a minimal saved-position payload becomes a PositionInfo using its tokenId.
-    mockParseRestPosition.mockImplementation((rest?: SavedPositionPayload) => {
-      if (!rest) {
-        return undefined
-      }
-      return positionInfo(rest.tokenId ?? 'saved', {
-        poolId: rest.poolId ?? `pool-${rest.tokenId ?? 'saved'}`,
-      })
-    })
+    mockUseFeatureFlag.mockReturnValue(false)
   })
 
   describe('query input forwarding', () => {
@@ -170,11 +147,47 @@ describe('useWalletPositionsWeb', () => {
     })
   })
 
+  describe('hidden-only secondary query', () => {
+    const hiddenCall = (): { disabled?: boolean; autoFetchAllPages?: boolean } | undefined =>
+      mockUseWalletPositions.mock.calls
+        .map((call) => call[0] as { disabled?: boolean; autoFetchAllPages?: boolean })
+        .find((args) => args.autoFetchAllPages === true)
+
+    it('fires and merges hidden results from the hidden-only secondary query', () => {
+      mockUseWalletPositions.mockImplementation((args: { autoFetchAllPages?: boolean }) =>
+        args.autoFetchAllPages
+          ? walletPositionsResultFor([positionInfo('hid')])
+          : walletPositionsResultFor([positionInfo('vis')]),
+      )
+      mockUsePositionVisibilityCheck.mockReturnValue(({ tokenId }: { tokenId?: string }) => tokenId !== 'hid')
+
+      const { result } = renderHook(() => useWalletPositionsWeb(baseParams))
+
+      expect(hiddenCall()?.disabled).toBe(false)
+      expect(result.current.visiblePositions.map((p) => p.tokenId)).toEqual(['vis'])
+      expect(result.current.hiddenPositions.map((p) => p.tokenId)).toEqual(['hid'])
+    })
+
+    it('classifies hidden-query results as hidden by provenance, even when the visibility check calls them visible', () => {
+      // Server spam positions come back with no spam marking (isHidden=false, no Redux entry), so
+      // the visibility check alone would misfile them as visible; provenance must win.
+      mockUseWalletPositions.mockImplementation((args: { autoFetchAllPages?: boolean }) =>
+        args.autoFetchAllPages
+          ? walletPositionsResultFor([positionInfo('spam')])
+          : walletPositionsResultFor([positionInfo('vis')]),
+      )
+      mockUsePositionVisibilityCheck.mockReturnValue(() => true)
+
+      const { result } = renderHook(() => useWalletPositionsWeb(baseParams))
+
+      expect(result.current.visiblePositions.map((p) => p.tokenId)).toEqual(['vis'])
+      expect(result.current.hiddenPositions.map((p) => p.tokenId)).toEqual(['spam'])
+    })
+  })
+
   describe('partition + visibility', () => {
     it('partitions visible vs hidden via the visibility check', () => {
-      mockUseWalletPositions.mockReturnValue(
-        walletPositionsResultFor([positionInfo('a'), positionInfo('b'), positionInfo('c')]),
-      )
+      mockPrimaryPositions([positionInfo('a'), positionInfo('b'), positionInfo('c')])
       mockUsePositionVisibilityCheck.mockReturnValue(({ tokenId }: { tokenId?: string }) => tokenId !== 'b')
 
       const { result } = renderHook(() => useWalletPositionsWeb(baseParams))
@@ -186,11 +199,7 @@ describe('useWalletPositionsWeb', () => {
     it('passes poolId/tokenId/chainId/isFlaggedSpam to the visibility check', () => {
       const visibilityCheck = vi.fn().mockReturnValue(true)
       mockUsePositionVisibilityCheck.mockReturnValue(visibilityCheck)
-      mockUseWalletPositions.mockReturnValue(
-        walletPositionsResultFor([
-          positionInfo('a', { isHidden: true, chainId: UniverseChainId.Optimism, poolId: 'pool-X' }),
-        ]),
-      )
+      mockPrimaryPositions([positionInfo('a', { isHidden: true, chainId: UniverseChainId.Optimism, poolId: 'pool-X' })])
 
       renderHook(() => useWalletPositionsWeb(baseParams))
 
@@ -203,81 +212,14 @@ describe('useWalletPositionsWeb', () => {
     })
   })
 
-  describe('saved-pair filtering', () => {
-    it('drops saved positions whose chainId mismatches chainFilter', () => {
-      mockUseRequestPositionsForSavedPairs.mockReturnValue([
-        savedEntry({ chainId: UniverseChainId.Mainnet, tokenId: 'mainnet-only' }),
-        savedEntry({ chainId: UniverseChainId.Optimism, tokenId: 'optimism-only' }),
-      ])
-
-      const { result } = renderHook(() =>
-        useWalletPositionsWeb({ ...baseParams, chainFilter: UniverseChainId.Mainnet }),
-      )
-
-      expect(result.current.visiblePositions.map((p) => p.tokenId)).toEqual(['mainnet-only'])
-    })
-
-    it('drops saved positions whose protocolVersion is not in versionFilter', () => {
-      mockUseRequestPositionsForSavedPairs.mockReturnValue([
-        savedEntry({ protocolVersion: ProtocolVersion.V2, tokenId: 'v2-saved' }),
-        savedEntry({ protocolVersion: ProtocolVersion.V3, tokenId: 'v3-saved' }),
-      ])
-
-      const { result } = renderHook(() => useWalletPositionsWeb({ ...baseParams, versionFilter: [ProtocolVersion.V3] }))
-
-      expect(result.current.visiblePositions.map((p) => p.tokenId)).toEqual(['v3-saved'])
-    })
-
-    it('drops saved positions whose status is not in statusFilter', () => {
-      mockUseRequestPositionsForSavedPairs.mockReturnValue([
-        savedEntry({ status: PositionStatus.IN_RANGE, tokenId: 'in-range-saved' }),
-        savedEntry({ status: PositionStatus.CLOSED, tokenId: 'closed-saved' }),
-      ])
-
-      const { result } = renderHook(() =>
-        useWalletPositionsWeb({ ...baseParams, statusFilter: [PositionStatus.IN_RANGE] }),
-      )
-
-      expect(result.current.visiblePositions.map((p) => p.tokenId)).toEqual(['in-range-saved'])
-    })
-  })
-
   describe('dedupe', () => {
-    it('BE wins over saved when composite key collides', () => {
-      const beVersion = positionInfo('shared', { isHidden: false })
-      mockUseWalletPositions.mockReturnValue(walletPositionsResultFor([beVersion]))
-      // Saved entry with same composite key as the BE entry.
-      mockUseRequestPositionsForSavedPairs.mockReturnValue([
-        savedEntry({ tokenId: 'shared', chainId: UniverseChainId.Mainnet }),
-      ])
-      // Distinguish the saved version by toggling isHidden — if saved wins, it'd flip to hidden.
-      mockParseRestPosition.mockImplementation((rest?: SavedPositionPayload) => {
-        if (!rest) {
-          return undefined
-        }
-        return positionInfo(rest.tokenId ?? 'x', { isHidden: true })
-      })
-
-      // Visibility check defers to the entry's isHidden via isFlaggedSpam.
-      mockUsePositionVisibilityCheck.mockReturnValue(({ isFlaggedSpam }: { isFlaggedSpam?: boolean }) => !isFlaggedSpam)
+    it('collapses positions that share a composite key', () => {
+      const duplicate = positionInfo('shared')
+      mockPrimaryPositions([duplicate, positionInfo('shared'), positionInfo('other')])
 
       const { result } = renderHook(() => useWalletPositionsWeb(baseParams))
 
-      // The BE version (isHidden=false) won; partition placed it in visible.
-      expect(result.current.visiblePositions.map((p) => p.tokenId)).toEqual(['shared'])
-      expect(result.current.hiddenPositions).toHaveLength(0)
-    })
-
-    it('saved positions are added when no BE collision', () => {
-      mockUseWalletPositions.mockReturnValue(walletPositionsResultFor([positionInfo('be-only')]))
-      mockUseRequestPositionsForSavedPairs.mockReturnValue([savedEntry({ tokenId: 'saved-only' })])
-
-      const { result } = renderHook(() => useWalletPositionsWeb(baseParams))
-
-      const tokenIds = result.current.visiblePositions
-        .map((p) => p.tokenId)
-        .sort((a, b) => (a ?? '').localeCompare(b ?? ''))
-      expect(tokenIds).toEqual(['be-only', 'saved-only'])
+      expect(result.current.visiblePositions.map((p) => p.tokenId)).toEqual(['shared', 'other'])
     })
   })
 

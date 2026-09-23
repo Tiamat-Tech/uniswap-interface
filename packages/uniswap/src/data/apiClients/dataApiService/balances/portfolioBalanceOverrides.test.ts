@@ -2,6 +2,7 @@ import 'utilities/src/logger/mocks'
 import { configureStore } from '@reduxjs/toolkit'
 import { GetPortfolioResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { type Balance } from '@uniswap/client-data-api/dist/data/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import {
   cleanupCaughtUpOverrides,
   getBalanceOverrideStateForAddress,
@@ -9,7 +10,6 @@ import {
   initializePortfolioQueryOverrides,
   storeBalanceOverrideSnapshots,
 } from 'uniswap/src/data/apiClients/dataApiService/balances/portfolioBalanceOverrides'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import {
   addTokensToBalanceOverride,
   portfolioReducer,

@@ -10,6 +10,7 @@
  * exclusion list.
  */
 import type * as React from 'react'
+import type { GestureResponderEvent } from 'react-native'
 import type {
   CompatProps,
   CompatPseudoProps,
@@ -89,15 +90,40 @@ export type TouchableAreaCompatEvent = React.MouseEvent<HTMLElement>
  */
 type BivariantHandler<E> = { bivarianceHack(this: void, event: E): void }['bivarianceHack']
 
+/**
+ * The legacy Tamagui web TouchableArea types press events as the RN
+ * `GestureResponderEvent` (while delivering DOM events at runtime), and
+ * `GestureResponderEvent` shares no structure with the DOM event types — so
+ * bivariance alone does not admit legacy handlers. The union does: legacy
+ * RN-flavored handlers and DOM-typed handlers are both assignable, and the
+ * runtime always dispatches the DOM event.
+ */
+type LegacyPressEvent = GestureResponderEvent
+
+export type TouchableAreaEvent = GestureResponderEvent
+
 /** The press-family surface, nullable exactly like the legacy Tamagui typing. */
 export interface TouchableAreaPressProps {
-  onPress?: BivariantHandler<React.MouseEvent<HTMLElement>> | null
-  onPressIn?: BivariantHandler<React.PointerEvent<HTMLElement>> | null
-  onPressOut?: BivariantHandler<React.PointerEvent<HTMLElement>> | null
-  onLongPress?: BivariantHandler<React.MouseEvent<HTMLElement>> | null
+  onPress?: BivariantHandler<React.MouseEvent<HTMLElement> | LegacyPressEvent> | null
+  onPressIn?: BivariantHandler<React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElement> | LegacyPressEvent> | null
+  onPressOut?: BivariantHandler<React.MouseEvent<HTMLElement> | React.TouchEvent<HTMLElement> | LegacyPressEvent> | null
+  onLongPress?: BivariantHandler<React.MouseEvent<HTMLElement> | LegacyPressEvent> | null
 }
 
-export interface TouchableAreaSpecificProps extends TouchableAreaPressProps {
+/**
+ * The modifier-press escape hatch, under the same name the legacy `ui/src`
+ * barrel exports (`components/touchable/TouchableArea/types.ts`) so call
+ * sites extending it convert by swapping the import source (INFRA-3601).
+ * Web-only behavior on both systems: the native legs accept and ignore it.
+ */
+export interface ModifierPressProps {
+  /** Web only: renders an `<a href>` so modifier clicks (meta/ctrl/shift/middle) navigate natively. */
+  modifierPressHref?: string
+  /** Called for modifier clicks when `modifierPressHref` is set. */
+  onModifierPress?: BivariantHandler<React.MouseEvent<HTMLElement> | LegacyPressEvent>
+}
+
+export interface TouchableAreaSpecificProps extends TouchableAreaPressProps, ModifierPressProps {
   /** Frame variant, `unstyled` by default (the legacy component's default). */
   variant?: TouchableAreaVariant
   /** When false, the variant's hover styles are dropped (a user `hoverStyle` still applies). */
@@ -124,15 +150,22 @@ export interface TouchableAreaSpecificProps extends TouchableAreaPressProps {
    * `$group-hover` hovered-token counterparts; disabled swaps the palette.
    */
   shouldAutomaticallyInjectColors?: boolean
-  /** Web only: renders an `<a href>` so modifier clicks (meta/ctrl/shift/middle) navigate natively. */
-  modifierPressHref?: string
-  /** Called for modifier clicks when `modifierPressHref` is set. */
-  onModifierPress?: BivariantHandler<React.MouseEvent<HTMLElement>>
 }
 
 /**
  * The full TouchableArea prop contract: TouchableArea styles + every shared
  * compat surface, with the press family widened to the legacy nullable typing.
+ *
+ * `title` is omitted for the same reason `FlexCompatProps` omits it (#40656):
+ * real call sites intersect this prop bag with their own `title?: ReactNode`,
+ * and `string & ReactNode` collapses to a type no element satisfies — measured
+ * at `packages/uniswap/src/components/BaseCard/BaseCard.test.tsx:37`, where a
+ * `<Flex/>` passed as `BaseCard.Header`'s `title` stopped type-checking. A
+ * TouchableArea is an interaction wrapper, never itself the thing with an HTML
+ * tooltip; a call site that wants one puts it on the child.
  */
-export type TouchableAreaCompatProps = Omit<CompatProps<TouchableAreaCompatStyleProps>, keyof TouchableAreaPressProps> &
+export type TouchableAreaCompatProps = Omit<
+  CompatProps<TouchableAreaCompatStyleProps>,
+  keyof TouchableAreaPressProps | 'title'
+> &
   TouchableAreaSpecificProps

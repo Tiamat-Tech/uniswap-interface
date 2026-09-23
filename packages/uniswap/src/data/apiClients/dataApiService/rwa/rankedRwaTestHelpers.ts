@@ -1,6 +1,6 @@
 import { PartialMessage } from '@bufbuild/protobuf'
 import { RankedRwa } from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 
 export function makeRankedRwa(overrides?: PartialMessage<RankedRwa>): RankedRwa {
   return new RankedRwa({

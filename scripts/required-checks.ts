@@ -9,7 +9,8 @@
  *   bun scripts/required-checks.ts <target-branch>
  *
  * Prints one JSON object to stdout:
- *   {"matched": "<branch pattern>" | null, "requiredChecks": ["job-id", ...]}
+ *   {"matched": "<branch pattern>" | null, "requiredChecks": ["job-id", ...],
+ *    "usedDefault": true | false}
  *
  * Matching semantics (against the keys of `branches` in ci-checks.json):
  *   1. An exact (literal) key match always wins — e.g. `releases/mobile/dev`
@@ -18,7 +19,12 @@
  *      `**` matches across segments, `?` matches a single character. The
  *      matching pattern with the longest literal prefix (most specific) wins;
  *      ties break in file order.
- *   3. No match → `matched: null` (callers fall back to requiring everything).
+ *   3. No match, and the config sets `defaultTarget` → that entry's rule, with
+ *      `matched` naming the entry it resolved to and `usedDefault: true`. This
+ *      is how Graphite stack parents and `gtmq_*` merge-queue branches inherit
+ *      the trunk rule instead of being gated more harshly than trunk PRs.
+ *   4. No match and no `defaultTarget` → `matched: null` (callers fall back to
+ *      requiring everything).
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -30,9 +36,17 @@ interface BranchRule {
   requiredChecks: string[]
 }
 
+export interface CiChecksConfig {
+  branches: Record<string, BranchRule>
+  /** Entry an unmatched target inherits. Absent → unmatched targets stay fail-closed. */
+  defaultTarget?: string
+}
+
 export interface MatchResult {
   matched: string | null
   requiredChecks: string[]
+  /** True when `matched` came from `defaultTarget` rather than from the target itself. */
+  usedDefault: boolean
 }
 
 /** Converts a ci-checks.json branch pattern to an anchored RegExp. */
@@ -62,9 +76,16 @@ function literalPrefixLength(pattern: string): number {
   return firstWildcard === -1 ? pattern.length : firstWildcard
 }
 
-export function matchBranch(branch: string, branches: Record<string, BranchRule>): MatchResult {
+export function matchBranch(branch: string, branches: Record<string, BranchRule>, defaultTarget?: string): MatchResult {
+  // Validated on every call, not just the fallback path, so a typo surfaces on
+  // the first PR rather than only once some stacked branch happens to miss.
+  if (defaultTarget !== undefined && !Object.hasOwn(branches, defaultTarget)) {
+    throw new Error(
+      `ci-checks.json: defaultTarget '${defaultTarget}' is not a key of 'branches' (have: ${Object.keys(branches).join(', ')})`,
+    )
+  }
   if (Object.hasOwn(branches, branch)) {
-    return { matched: branch, requiredChecks: branches[branch].requiredChecks }
+    return { matched: branch, requiredChecks: branches[branch].requiredChecks, usedDefault: false }
   }
   let best: string | null = null
   for (const pattern of Object.keys(branches)) {
@@ -78,15 +99,17 @@ export function matchBranch(branch: string, branches: Record<string, BranchRule>
       best = pattern
     }
   }
-  if (best === null) {
-    return { matched: null, requiredChecks: [] }
+  if (best !== null) {
+    return { matched: best, requiredChecks: branches[best].requiredChecks, usedDefault: false }
   }
-  return { matched: best, requiredChecks: branches[best].requiredChecks }
+  if (defaultTarget !== undefined) {
+    return { matched: defaultTarget, requiredChecks: branches[defaultTarget].requiredChecks, usedDefault: true }
+  }
+  return { matched: null, requiredChecks: [], usedDefault: false }
 }
 
-export function loadBranches(file: string = CHECKS_FILE): Record<string, BranchRule> {
-  const parsed = JSON.parse(readFileSync(file, 'utf8')) as { branches: Record<string, BranchRule> }
-  return parsed.branches
+export function loadConfig(file: string = CHECKS_FILE): CiChecksConfig {
+  return JSON.parse(readFileSync(file, 'utf8')) as CiChecksConfig
 }
 
 if (import.meta.main) {
@@ -95,5 +118,6 @@ if (import.meta.main) {
     console.error('Usage: bun scripts/required-checks.ts <target-branch>')
     process.exit(2)
   }
-  console.log(JSON.stringify(matchBranch(branch, loadBranches())))
+  const config = loadConfig()
+  console.log(JSON.stringify(matchBranch(branch, config.branches, config.defaultTarget)))
 }

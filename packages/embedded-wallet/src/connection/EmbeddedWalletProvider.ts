@@ -1,4 +1,4 @@
-import type { Hash, SignableMessage } from '@universe/chains'
+import { type Hash, type SignableMessage, UniverseChainId, Platform, getValidAddress } from '@universe/chains'
 import { assume0xAddress } from '@universe/chains'
 import {
   type EmbeddedWalletCallsStatus,
@@ -35,10 +35,7 @@ import {
 import { getEmbeddedWalletState, setChainId } from '@universe/embedded-wallet/src/state/embeddedWalletStore'
 import { HexString, isValidHexString } from '@universe/encoding'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { applyGasBuffer } from 'uniswap/src/features/gas/utils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { getValidAddress } from 'uniswap/src/utils/addresses'
 import { logger } from 'utilities/src/logger/logger'
 import type { Account } from 'viem'
 import type { RpcUserOperation } from 'viem/account-abstraction'

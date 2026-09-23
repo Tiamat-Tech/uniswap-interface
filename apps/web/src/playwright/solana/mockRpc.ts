@@ -1,7 +1,7 @@
 // oxlint-disable-next-line no-restricted-imports -- Playwright mock helpers need Playwright's Page type
 import type { Page } from '@playwright/test'
+import { UniverseChainId } from '@universe/chains'
 import { getQuicknodeEndpointUrl } from 'uniswap/src/features/chains/evm/rpc'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 /**
  * Mock Solana JSON-RPC node for e2e tests.

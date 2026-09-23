@@ -29,6 +29,7 @@ export const Switch = memo(function Switch({
   defaultChecked = false,
   onCheckedChange,
   disabled,
+  // oxlint-disable-next-line typescript/no-useless-default-assignment -- defensive default
   variant = 'default',
   style,
   testID,

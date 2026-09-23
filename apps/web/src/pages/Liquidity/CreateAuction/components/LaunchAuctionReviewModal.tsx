@@ -1,8 +1,9 @@
+import { Button, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { CheckboxCompat as Checkbox } from '@universe/mycelium/checkbox-compat'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
+import { X } from '@universe/mycelium/icons/X'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Checkbox, Flex, Text, TouchableArea } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
-import { X } from 'ui/src/components/icons/X'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
@@ -111,7 +112,7 @@ export function LaunchAuctionReviewModal({
       onClose={onClose}
       maxWidth={420}
       borderRadius="$rounded24"
-      padding="$spacing0"
+      padding="$none"
       pt="$spacing12"
       pb="$spacing8"
       paddingX="$spacing8"

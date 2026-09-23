@@ -1,7 +1,7 @@
+import { Flex } from '@universe/mycelium'
 import { forwardRef } from 'react'
 import { IconProps } from 'ui/src/components/factories/createIcon'
 import { RotateRight } from 'ui/src/components/icons/RotateRight'
-import { Flex } from 'ui/src/components/layout'
 import { useInjectSingleStylesheet } from 'utilities/src/react/useInjectSingleStylesheet'
 
 const CSS_RULE_ID = '__refresh_icon_styles__'

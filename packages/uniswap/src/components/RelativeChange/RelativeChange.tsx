@@ -1,6 +1,5 @@
-import { ColorTokens, Flex, Text } from 'ui/src'
+import { ColorTokens, Flex, type FontVariantToken, fonts, IconSizeTokens, Text } from '@universe/mycelium'
 import { Caret } from 'ui/src/components/icons/Caret'
-import { type FontVariantToken, fonts, IconSizeTokens } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'

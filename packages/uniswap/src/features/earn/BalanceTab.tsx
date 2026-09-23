@@ -1,8 +1,12 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
+import { Button } from 'ui/src'
+import { getProjectedAnnualEarnings } from 'uniswap/src/features/earn/amount'
+import { LiveEarnRewardsAmount } from 'uniswap/src/features/earn/LiveEarnRewardsAmount'
 import { RewardsUnavailableIndicator } from 'uniswap/src/features/earn/RewardsUnavailableIndicator'
 import type { EarnPositionInfo } from 'uniswap/src/features/earn/types'
+import { getDisplayLifetimeEarningsUsd } from 'uniswap/src/features/earn/utils'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 
@@ -34,6 +38,11 @@ export function BalanceTab({
   // Position values are USD-denominated; convert before formatting in the selected fiat.
   const formatFiat = (value: number): string => convertFiatAmountFormatted(value, NumberType.FiatStandard)
   const resolvedLifetimeEarnings = lifetimeEarningsUsd ?? position.lifetimePnlUsd
+  const displayLifetimeEarnings = getDisplayLifetimeEarningsUsd(resolvedLifetimeEarnings)
+  const annualRewardsRateUsd = getProjectedAnnualEarnings({
+    balance: position.depositedUsd,
+    apyPercent: position.apyPercent,
+  })
 
   return (
     <Flex gap="$spacing16">
@@ -62,11 +71,19 @@ export function BalanceTab({
             lifetimeEarningsError ? (
               <RewardsUnavailableIndicator />
             ) : (
-              // Show '-' rather than coercing undefined to 0 (would read as a real zero).
-              // Earnings are always framed as positive gains, so never render a minus sign.
-              <Text variant="body2" color="$statusSuccess">
-                {resolvedLifetimeEarnings === undefined ? '-' : formatFiat(Math.abs(resolvedLifetimeEarnings))}
-              </Text>
+              <LiveEarnRewardsAmount
+                // Remount on vault switch so a prior position's extrapolation never carries over.
+                key={position.vaultId}
+                lifetimeEarningsUsd={resolvedLifetimeEarnings}
+                annualRewardsRateUsd={annualRewardsRateUsd}
+                textVariant="$body2"
+                fallback={
+                  // Show '-' rather than coercing undefined to 0 (would read as a real zero).
+                  <Text variant="body2" color="$statusSuccess">
+                    {displayLifetimeEarnings === undefined ? '-' : formatFiat(displayLifetimeEarnings)}
+                  </Text>
+                }
+              />
             )
           }
         />

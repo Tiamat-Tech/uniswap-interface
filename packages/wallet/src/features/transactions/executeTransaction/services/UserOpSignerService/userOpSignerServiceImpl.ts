@@ -31,12 +31,20 @@ export function createBundledDelegationUserOpSignerService(ctx: {
     return signer.connect(await ctx.getProvider())
   }
 
-  const signUserOp: UserOpSigner['signUserOp'] = async (
-    rpcUserOp: RpcUserOperation<'0.8'>,
-  ): Promise<RpcUserOperation<'0.8'>> => {
+  const signUserOp: UserOpSigner['signUserOp'] = async ({
+    userOp: rpcUserOp,
+    chainId,
+  }): Promise<RpcUserOperation<'0.8'>> => {
     const signer = await getSigner()
     const viemClient = await ctx.getViemClient()
-    const chainId = await viemClient.getChainId()
+
+    // The domain chain comes from the caller, not the RPC. `getChainId` is an eth_chainId round
+    // trip, so a misrouted client would otherwise move the signature onto a chain the userOp was
+    // never prepared for.
+    const clientChainId = await viemClient.getChainId()
+    if (clientChainId !== chainId) {
+      throw new Error(`UserOp was prepared for chain ${chainId} but the signing client is on chain ${clientChainId}`)
+    }
 
     // Step 1: EIP-712 typed data signing over the PackedUserOperation.
     const { domain, packedUserOperationFields, message } = buildPackedUserOpTypedData(rpcUserOp, chainId)

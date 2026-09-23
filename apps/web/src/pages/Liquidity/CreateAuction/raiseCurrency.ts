@@ -1,7 +1,7 @@
 import { type Currency, type Token } from '@uniswap/sdk-core'
+import { type UniverseChainId, areAddressesEqual } from '@universe/chains'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { zeroAddress } from '~/chains'
 import { RaiseCurrency } from '~/pages/Liquidity/CreateAuction/types'
 
@@ -44,9 +44,44 @@ export function getRaiseCurrencyAddress(raiseCurrency: RaiseCurrency, chainId: U
 }
 
 /**
+ * Whether a chain declares its native asset's ERC-20 representation to be its primary stablecoin,
+ * so the picker would offer the same token twice (Arc, where USDC is both the native gas token and
+ * an ERC-20 over the same balance). This compares addresses only — the ERC-20 form
+ * named by `nativeTokenBackendAddress` carries the stablecoin's decimals, while the native option
+ * is still raised in the native currency's own decimals. A chain that declares no
+ * `nativeTokenBackendAddress` can never collide with its stablecoin.
+ */
+export function areRaiseCurrencyOptionsSameToken(chainId: UniverseChainId): boolean {
+  const nativeTokenAddress = getChainInfo(chainId).backendChain.nativeTokenBackendAddress
+  if (nativeTokenAddress === undefined) {
+    return false
+  }
+  return areAddressesEqual({
+    addressInput1: { address: nativeTokenAddress, chainId },
+    addressInput2: { address: getPrimaryStablecoin(chainId).address, chainId },
+  })
+}
+
+/**
+ * The raise currency an auction is actually created with: the native option on a chain whose two
+ * raise options are the same asset, whatever was selected, and the selection everywhere else.
+ * This rewrites the selection rather than preserving it — a STABLECOIN pick becomes NATIVE, which
+ * changes the submitted currency address to the zero address and with it the v4 pool key, so it is
+ * not a no-op for someone who picked the stablecoin card before the picker was hidden.
+ */
+export function getEffectiveRaiseCurrency(raiseCurrency: RaiseCurrency, chainId: UniverseChainId): RaiseCurrency {
+  return areRaiseCurrencyOptionsSameToken(chainId) ? RaiseCurrency.NATIVE : raiseCurrency
+}
+
+/**
  * Every on-chain currency address an auction can be denominated in on a chain — the single source
  * of truth the bid form shares with creation so the two can't accept different currency sets.
  * Native is the zero address.
+ *
+ * Deliberately not routed through `getEffectiveRaiseCurrency`: on a chain whose two options are the
+ * same asset this still lists the stablecoin address, which creation no longer submits, because
+ * auctions created before that resolution existed are denominated in it and bidding on them has to
+ * keep working.
  */
 export function getSupportedAuctionCurrencyAddresses(chainId: UniverseChainId): string[] {
   return Object.values(RaiseCurrency).map((raiseCurrency) => getRaiseCurrencyAddress(raiseCurrency, chainId))

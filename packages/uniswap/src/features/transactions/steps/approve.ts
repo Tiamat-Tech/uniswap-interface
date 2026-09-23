@@ -1,6 +1,6 @@
 import { Currency } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
+import type { UniverseChainId } from '@universe/chains'
 import {
   OnChainTransactionFieldsWalletCall,
   RevokeApproveFields,

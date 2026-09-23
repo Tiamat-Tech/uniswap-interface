@@ -1,11 +1,12 @@
 import type { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import type { Currency } from '@uniswap/sdk-core'
+import { Flex } from '@universe/mycelium'
+import { ENTER_PRESET_CLASSES } from '@universe/mycelium/compat'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import * as d3 from 'd3'
 import { useEffect, useId, useMemo, useRef } from 'react'
-import { Flex, useSporeColors } from 'ui/src'
 import type { PriceChartData } from '~/components/Charts/PriceChart'
 import type { ChartQueryResult, ChartType } from '~/components/Charts/utils'
-import type { TickData } from '~/data/AllV3TicksQuery'
 import { CHART_DIMENSIONS } from '~/features/Liquidity/charts/D3LiquidityChartShared/constants'
 import { createTickScale } from '~/features/Liquidity/charts/D3LiquidityChartShared/utils/createTickScale'
 import { LiquidityActiveTooltips } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/components/LiquidityActiveTooltips'
@@ -24,6 +25,7 @@ import { yToTick } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3Liq
 import type { ChartEntry } from '~/features/Liquidity/charts/LiquidityRangeInput/types'
 import { useLiquidityUrlState } from '~/features/Liquidity/Create/hooks/useLiquidityUrlState'
 import type { MigratingPosition } from '~/features/Liquidity/Create/types'
+import type { TickData } from '~/features/Liquidity/types/ticks'
 
 export const D3LiquidityRangeChart = ({
   priceData,
@@ -85,14 +87,12 @@ export const D3LiquidityRangeChart = ({
   const totalHeight = CHART_DIMENSIONS.LIQUIDITY_CHART_HEIGHT
 
   // Create linear tick scale for continuous tick-to-Y mapping
-  // Uses FULL pool tick range (MIN_TICK to MAX_TICK) aligned to tickSpacing
-  const tickScale = useMemo(() => {
-    if (liquidityData.length === 0) {
-      return createTickScale({ tickSpacing, size: 0, zoomLevel: 1, pan: 0 })
-    }
-
-    return createTickScale({ tickSpacing, size: totalHeight, zoomLevel, pan: panY, invert: true })
-  }, [liquidityData.length, tickSpacing, totalHeight, zoomLevel, panY])
+  // Uses FULL pool tick range (MIN_TICK to MAX_TICK) aligned to tickSpacing. Independent of the
+  // liquidity data: a pool being created has none, and its ticks still need a scale to drag on.
+  const tickScale = useMemo(
+    () => createTickScale({ tickSpacing, size: totalHeight, zoomLevel, pan: panY, invert: true }),
+    [tickSpacing, totalHeight, zoomLevel, panY],
+  )
 
   // Initialize renderers when component mounts or data changes
   useEffect(() => {
@@ -122,7 +122,7 @@ export const D3LiquidityRangeChart = ({
       token0Color,
       token1Color,
       priceToY: ({ price, tickAlignment }: { price: number; tickAlignment?: TickAlignment }) =>
-        priceToY({ price, liquidityData, tickScale, tickAlignment }),
+        priceToY({ price, liquidityData, tickScale, baseCurrency, quoteCurrency, tickAlignment }),
       tickToY: ({ tick, tickAlignment }: { tick: number; tickAlignment?: TickAlignment }) =>
         tickToY({ tick, tickScale, tickSpacing, tickAlignment }),
       yToTick: (y: number) => yToTick({ y, tickScale }),
@@ -148,6 +148,8 @@ export const D3LiquidityRangeChart = ({
     tickSpacing,
     token0Color,
     token1Color,
+    baseCurrency,
+    quoteCurrency,
   ])
 
   // Update renderers when state changes
@@ -196,12 +198,12 @@ export const D3LiquidityRangeChart = ({
   }, [priceData.dataHash])
 
   return (
-    <Flex opacity={dimensions.isInitialized ? 1 : 0} animation="fast" flexDirection="column">
+    <Flex className={dimensions.isInitialized ? ENTER_PRESET_CLASSES.fadeIn : 'opacity-0'} flexDirection="column">
       <Flex
         py="$spacing12"
         borderTopWidth="$spacing1"
         borderBottomWidth="$spacing1"
-        borderColor="surface3"
+        borderColor="$surface3"
         position="relative"
         overflow="hidden"
         $sm={{

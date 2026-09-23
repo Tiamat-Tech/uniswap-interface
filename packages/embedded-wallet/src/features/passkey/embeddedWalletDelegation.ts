@@ -1,4 +1,5 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { InvalidDelegatedCallValueError } from '@universe/embedded-wallet/src/features/passkey/errors'
 import {
   sign7702AuthorizationWithPasskey,
@@ -8,7 +9,6 @@ import { HexString, isValidHexString } from '@universe/encoding'
 import { fetchGasFeeQuery } from 'uniswap/src/data/apiClients/gasService/useGasFeeQuery'
 import { checkWalletDelegation, TradingApiClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { applyGasBuffer, getIsStatsigReady } from 'uniswap/src/features/gas/utils'
 import { logger } from 'utilities/src/logger/logger'
 import { Account, Address, type Hash, getAddress } from 'viem'

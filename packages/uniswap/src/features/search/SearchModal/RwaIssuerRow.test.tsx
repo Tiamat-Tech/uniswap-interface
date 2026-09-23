@@ -1,5 +1,5 @@
 import { fireEvent as rtlFireEvent } from '@testing-library/react'
-import { Text } from 'ui/src'
+import { Text } from '@universe/mycelium'
 import { buildCurrencyInfo } from 'uniswap/src/features/dataApi/utils/buildCurrency'
 import { RwaIssuerRow } from 'uniswap/src/features/search/SearchModal/RwaIssuerRow'
 import { WETH } from 'uniswap/src/test/fixtures/lib/sdk' // real ERC-20 SDK Token (isNative === false)

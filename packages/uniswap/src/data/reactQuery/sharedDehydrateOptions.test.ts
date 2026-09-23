@@ -1,7 +1,7 @@
 import { proto3 } from '@bufbuild/protobuf'
 import { toPlainMessage } from '@bufbuild/protobuf'
 import type { Query } from '@tanstack/react-query'
-import { ListPositionsResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { ListTransactionsResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { sharedDehydrateOptions } from 'uniswap/src/data/reactQuery/sharedDehydrateOptions'
 
 // Mock isDevEnv/isTestEnv so we can toggle the runtime guards per-case.
@@ -201,21 +201,21 @@ describe('sharedDehydrateOptions.shouldDehydrateQuery', () => {
     })
 
     it('EXCLUDES queries whose data is a raw protobuf Message and logs an error naming the typeName', () => {
-      const message = new ListPositionsResponse({})
+      const message = new ListTransactionsResponse({})
       expect(shouldDehydrate(buildQuery({ data: message, meta: { persist: true } }))).toBe(false)
       expect(loggerErrorMock).toHaveBeenCalledOnce()
       const [error] = loggerErrorMock.mock.calls[0] as [Error]
-      expect(error.message).toContain(ListPositionsResponse.typeName)
+      expect(error.message).toContain(ListTransactionsResponse.typeName)
     })
 
     it('EXCLUDES queries with a raw Message nested in an array (infinite-query pages shape)', () => {
-      const data = { pages: [new ListPositionsResponse({})], pageParams: [undefined] }
+      const data = { pages: [new ListTransactionsResponse({})], pageParams: [undefined] }
       expect(shouldDehydrate(buildQuery({ data, meta: { persist: true } }))).toBe(false)
       expect(loggerErrorMock).toHaveBeenCalledOnce()
     })
 
     it('INCLUDES queries whose Message has been converted via toPlainMessage', () => {
-      const plain = toPlainMessage(new ListPositionsResponse({}))
+      const plain = toPlainMessage(new ListTransactionsResponse({}))
       expect(shouldDehydrate(buildQuery({ data: plain, meta: { persist: true } }))).toBe(true)
       expect(loggerErrorMock).not.toHaveBeenCalled()
     })
@@ -223,7 +223,9 @@ describe('sharedDehydrateOptions.shouldDehydrateQuery', () => {
     it('runs the tripwire in test env even when not dev env', () => {
       isDevEnvMock.mockReturnValue(false)
       isTestEnvMock.mockReturnValue(true)
-      expect(shouldDehydrate(buildQuery({ data: new ListPositionsResponse({}), meta: { persist: true } }))).toBe(false)
+      expect(shouldDehydrate(buildQuery({ data: new ListTransactionsResponse({}), meta: { persist: true } }))).toBe(
+        false,
+      )
       expect(loggerErrorMock).toHaveBeenCalledOnce()
     })
   })

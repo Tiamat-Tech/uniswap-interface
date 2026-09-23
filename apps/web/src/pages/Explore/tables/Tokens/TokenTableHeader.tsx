@@ -1,6 +1,6 @@
+import { Flex } from '@universe/mycelium'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -83,6 +83,7 @@ export function TokenTableHeader({
       <MouseoverTooltip
         disabled={!tooltipContent}
         size={TooltipSize.Small}
+        fitContent
         text={tooltipContent}
         placement="top"
         onClick={(e) => e.stopPropagation()}

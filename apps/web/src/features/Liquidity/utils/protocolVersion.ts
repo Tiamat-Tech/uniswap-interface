@@ -1,20 +1,4 @@
-import { PositionStatus, ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { Protocols } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
-import { GraphQLApi } from '@universe/api'
-import { AppTFunction } from 'ui/src/i18n/types'
-
-export function getProtocolVersionLabel(version: ProtocolVersion): string | undefined {
-  switch (version) {
-    case ProtocolVersion.V2:
-      return 'v2'
-    case ProtocolVersion.V3:
-      return 'v3'
-    case ProtocolVersion.V4:
-      return 'v4'
-    default:
-      return undefined
-  }
-}
+import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 
 export function getProtocolVersionFromLabel(label: string | null | undefined): ProtocolVersion | undefined {
   switch (label) {
@@ -29,58 +13,34 @@ export function getProtocolVersionFromLabel(label: string | null | undefined): P
   }
 }
 
-export function getProtocols(version: ProtocolVersion | undefined): Protocols | undefined {
-  switch (version) {
-    case ProtocolVersion.V2:
-      return Protocols.V2
-    case ProtocolVersion.V3:
-      return Protocols.V3
-    case ProtocolVersion.V4:
-      return Protocols.V4
-    default:
-      return undefined
+/** Normalizes a wire `ProtocolVersion` that may have rehydrated from disk as its enum key string (e.g. "V4") back to the numeric enum. */
+export function toProtocolVersion(version: ProtocolVersion | string): ProtocolVersion {
+  if (typeof version !== 'string') {
+    return version
   }
-}
-
-export function protocolsToProtocolVersion(version: Protocols | string | undefined): ProtocolVersion {
-  // Persisted ListPools data rehydrates protobuf enums as their name ("V2"/"V3"/"V4"); normalize to the numeric enum.
-  const normalized = typeof version === 'string' ? Protocols[version as keyof typeof Protocols] : version
-  switch (normalized) {
-    case Protocols.V2:
+  // Explicit switch (not a bracket-indexed reverse lookup): a numeric enum's reverse mapping
+  // means `ProtocolVersion['1']` returns the string "V2", so indexing on an unvalidated string
+  // can silently return a mistyped value instead of UNSPECIFIED.
+  switch (version) {
+    case 'V2':
       return ProtocolVersion.V2
-    case Protocols.V3:
+    case 'V3':
       return ProtocolVersion.V3
-    case Protocols.V4:
+    case 'V4':
       return ProtocolVersion.V4
     default:
       return ProtocolVersion.UNSPECIFIED
   }
 }
 
-export function getProtocolStatusLabel(status: PositionStatus, t: AppTFunction): string | undefined {
-  switch (status) {
-    case PositionStatus.IN_RANGE:
-      return t('common.withinRange')
-    case PositionStatus.OUT_OF_RANGE:
-      return t('common.outOfRange')
-    case PositionStatus.CLOSED:
-      return t('common.closed')
-  }
-  return undefined
-}
-
-export function gqlToRestProtocolVersion(version: GraphQLApi.ProtocolVersion | undefined): ProtocolVersion | undefined {
-  switch (version) {
-    case GraphQLApi.ProtocolVersion.V2:
-      return ProtocolVersion.V2
-    case GraphQLApi.ProtocolVersion.V3:
-      return ProtocolVersion.V3
-    case GraphQLApi.ProtocolVersion.V4:
-      return ProtocolVersion.V4
-    default:
-      return undefined
-  }
-}
+/**
+ * The protocol mappers live in `packages/uniswap` beside the parsers that need them, and are
+ * re-exported here under the names this app's call sites already use.
+ */
+export {
+  getProtocolVersionLabel,
+  protocolVersionToLiquidityServiceProtocols as getProtocols,
+} from 'uniswap/src/features/positions/utils'
 
 export function poolEnabledProtocolVersion(
   protocolVersion: ProtocolVersion,

@@ -1,5 +1,6 @@
-import { ColorTokens, Flex, Text, Tooltip } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
+import { ColorTokens, Flex, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 
 interface WarningMessageProps {
   warningMessage: string

@@ -1,6 +1,5 @@
+import { Flex, SpinningLoader, Text, TouchableArea } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { SpinningLoader } from 'ui/src/loading/SpinningLoader'
 import type { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 

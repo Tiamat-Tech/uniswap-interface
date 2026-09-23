@@ -83,6 +83,26 @@ describe('createUniRpcTransportFactory — headers session', () => {
     expect(headers.get('x-session-id')).toBe('sess-1')
   })
 
+  test('swap-protection header survives the per-request session-header merge', async () => {
+    // The protection header rides in the static config headers; session headers are
+    // merged over them per request. If that merge ever clobbered it, a protected
+    // eth_sendRawTransaction would silently go out unprotected.
+    const getSessionHeaders = vi.fn().mockResolvedValue({ 'x-session-id': 'sess-1', 'x-device-id': 'dev-1' })
+    const buildTransport = createUniRpcTransportFactory({
+      session: { type: 'headers', getSessionHeaders },
+    })
+
+    await sendRequest(buildTransport, {
+      rpcUrl: RPC_URL,
+      headers: { ...STATIC_HEADERS, 'x-uni-swap-protection': 'true' },
+    })
+
+    const headers = new Headers(lastInit?.headers as HeadersInit)
+    expect(headers.get('x-uni-swap-protection')).toBe('true')
+    expect(headers.get('x-session-id')).toBe('sess-1')
+    expect(headers.get('x-device-id')).toBe('dev-1')
+  })
+
   test('does NOT set credentials:include when using headers session', async () => {
     const getSessionHeaders = vi.fn().mockResolvedValue({})
     const buildTransport = createUniRpcTransportFactory({

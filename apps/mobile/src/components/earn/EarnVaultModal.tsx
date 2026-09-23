@@ -1,9 +1,8 @@
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
-import { useCallback, useMemo, useState } from 'react'
+import { Flex, spacing } from '@universe/mycelium'
+import { useCallback, useState } from 'react'
 import { useAppStackNavigation } from 'src/app/navigation/types'
 import type { EarnVaultModalProps } from 'src/components/earn/EarnVaultModalState'
-import { Flex } from 'ui/src'
-import { spacing } from 'ui/src/theme'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import type { BaseModalProps } from 'uniswap/src/components/modals/ModalProps'
 import { EarnAnalyticsSurface, EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
@@ -17,7 +16,7 @@ import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { useAppInsets } from 'uniswap/src/hooks/useAppInsets'
 import { noop } from 'utilities/src/react/noop'
-import { useActiveAccountAddress } from 'wallet/src/features/wallet/hooks'
+import { useActiveAccount, useIsViewOnlyWallet } from 'wallet/src/features/wallet/hooks'
 
 export function EarnVaultModal({
   analyticsEntryPoint,
@@ -31,22 +30,16 @@ export function EarnVaultModal({
   const navigation = useAppStackNavigation()
   const insets = useAppInsets()
   const currencyInfo = useCurrencyInfo(vault?.displayCurrencyId)
-  const contentContainerStyle = useMemo(
-    () => ({
-      paddingHorizontal: spacing.spacing16,
-      paddingBottom: insets.bottom + spacing.spacing16,
-    }),
-    [insets.bottom],
-  )
 
-  const walletAddress = useActiveAccountAddress()
+  const activeAccount = useActiveAccount()
+  const isViewOnlyWallet = useIsViewOnlyWallet()
   const {
     position,
     isError: positionIsError,
     refetch: refetchPosition,
   } = useEarnPosition({
     vault,
-    walletAddress: walletAddress ?? undefined,
+    walletAddress: activeAccount?.address,
     isConnected: true,
     enabled: isOpen,
     prefetchedPosition,
@@ -66,15 +59,27 @@ export function EarnVaultModal({
   const { balanceLookupErrored, balanceLookupHasData, balanceLookupSettled, hasSupportedBalanceForUnderlying } =
     useEarnDepositSources({
       vault,
-      walletAddress: walletAddress ?? undefined,
-      isOpen,
+      walletAddress: activeAccount?.address,
+      // View-only wallets never reach the deposit sheet, so skip the sources lookup.
+      isOpen: isOpen && !isViewOnlyWallet,
     })
   const isBalanceLookupPending = !balanceLookupSettled && !balanceLookupErrored
 
   const handleDeposit = useCallback(() => {
+    if (!vault) {
+      return
+    }
+
+    // View-only wallets can browse the overview but can't transact — surface the
+    // explainer sheet on top instead of progressing to the deposit flow.
+    if (isViewOnlyWallet) {
+      navigation.navigate(ModalName.ViewOnlyExplainer)
+      return
+    }
+
     // Wait for the balance lookup to settle — without this, a tap during the loading window
     // would silently fall through to the deposit sheet for a user who actually has no balance.
-    if (!vault || isBalanceLookupPending) {
+    if (isBalanceLookupPending) {
       return
     }
     // Use `replace` (not `navigate` + onClose) so the vault sheet is atomically swapped for
@@ -101,6 +106,7 @@ export function EarnVaultModal({
     displayPosition,
     hasSupportedBalanceForUnderlying,
     isBalanceLookupPending,
+    isViewOnlyWallet,
     navigation,
     vault,
   ])
@@ -109,13 +115,17 @@ export function EarnVaultModal({
     if (!vault || !canWithdraw) {
       return
     }
+    if (isViewOnlyWallet) {
+      navigation.navigate(ModalName.ViewOnlyExplainer)
+      return
+    }
     navigation.replace(ModalName.EarnDepositAmount, {
       analyticsEntryPoint,
       vault,
       position: displayPosition,
       initialAction: EarnAction.Withdraw,
     })
-  }, [analyticsEntryPoint, canWithdraw, displayPosition, navigation, vault])
+  }, [analyticsEntryPoint, canWithdraw, displayPosition, isViewOnlyWallet, navigation, vault])
 
   if (!vault) {
     return null
@@ -123,18 +133,24 @@ export function EarnVaultModal({
 
   return (
     <Modal
-      // The expanded overview can exceed the screen-height cap; render it in a scroll view (with
-      // overrideInnerContainer so the shared static BottomSheetView doesn't clip it) and stop content
-      // drags from dismissing so upward swipes scroll to the full disclaimer and footer.
+      // The expanded overview can exceed the screen-height cap; render it in a scroll view, with
+      // overrideInnerContainer so the shared static BottomSheetView doesn't clip it.
       overrideInnerContainer
-      enableContentPanningGesture={false}
       name={ModalName.EarnVault}
       isModalOpen={isOpen}
       maxWidth={420}
       onClose={onClose}
     >
-      <BottomSheetScrollView contentContainerStyle={contentContainerStyle} showsVerticalScrollIndicator={false}>
-        <Flex gap="$spacing16">
+      <BottomSheetScrollView showsVerticalScrollIndicator={false}>
+        <Flex
+          gap="$spacing16"
+          px="$spacing16"
+          pb={insets.bottom + spacing.spacing16}
+          // Opaque $surface1 (matches the sheet surface) makes this an RNGH touch target on Android, so empty-space
+          // taps stop here instead of falling through to the dismiss backdrop (CONS-2919).
+          backgroundColor="$surface1"
+          testID="earn-vault-sheet-content"
+        >
           <EarnVaultOverview
             // Modal is only reachable from an active position, so a connected wallet is guaranteed.
             isConnected
@@ -144,7 +160,7 @@ export function EarnVaultModal({
             vault={vault}
             currencyInfo={currencyInfo}
             canWithdraw={canWithdraw}
-            depositLoading={isBalanceLookupPending}
+            depositLoading={!isViewOnlyWallet && isBalanceLookupPending}
             hasPosition={hasPosition}
             position={displayPosition}
             selectedTab={selectedTab}

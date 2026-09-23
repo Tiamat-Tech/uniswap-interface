@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { deleteRecoveryMethod, useEmbeddedWalletState } from '@universe/embedded-wallet'
+import { Button, Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import WarningIcon from 'uniswap/src/components/warnings/WarningIcon'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'

@@ -213,7 +213,7 @@ function useQuickPolling({
   }, [pendingOrders])
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout
+    let timeout: ReturnType<typeof setTimeout>
 
     async function poll() {
       const l2Orders = pendingOrders.filter((order) => isL2ChainId(order.chainId))
@@ -270,7 +270,7 @@ function useStandardPolling({
   }, [pendingOrders])
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout
+    let timeout: ReturnType<typeof setTimeout>
 
     async function poll() {
       const mainnetOrders = pendingOrders.filter((order) => !isL2ChainId(order.chainId))

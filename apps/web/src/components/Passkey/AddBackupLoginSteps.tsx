@@ -7,18 +7,19 @@ import {
   OptionRow,
   StepHeader,
 } from '@universe/embedded-wallet'
+import { Button, Flex, ModalCloseIcon, Text, TouchableArea } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
+import { Eye } from '@universe/mycelium/icons/Eye'
+import { EyeOff } from '@universe/mycelium/icons/EyeOff'
+import { GoogleLogoGradient } from '@universe/mycelium/icons/GoogleLogoGradient'
+import { LockViewfinder } from '@universe/mycelium/icons/LockViewfinder'
+import { Person } from '@universe/mycelium/icons/Person'
+import { Shield } from '@universe/mycelium/icons/Shield'
 import type { TFunction } from 'i18next'
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
-import { Button, Flex, Input, ModalCloseIcon, SpinningLoader, Text, TouchableArea } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
+import { Input, SpinningLoader } from 'ui/src'
 import { AppleLogo } from 'ui/src/components/icons/AppleLogo'
 import { Envelope } from 'ui/src/components/icons/Envelope'
-import { Eye } from 'ui/src/components/icons/Eye'
-import { EyeOff } from 'ui/src/components/icons/EyeOff'
-import { GoogleLogoGradient } from 'ui/src/components/icons/GoogleLogoGradient'
-import { LockViewfinder } from 'ui/src/components/icons/LockViewfinder'
-import { Person } from 'ui/src/components/icons/Person'
-import { Shield } from 'ui/src/components/icons/Shield'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { PrivyWatermark } from '~/components/Passkey/PrivyWatermark'
@@ -44,7 +45,7 @@ export function MethodSelectStep({
       <Flex width="100%" alignItems="flex-end">
         <ModalCloseIcon size="$icon.20" onClose={handleClose} />
       </Flex>
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         <IconBox>
           <Shield size="$icon.24" color="$neutral1" />
         </IconBox>
@@ -111,7 +112,7 @@ export function EmailEntryStep({
   return (
     <Trace logImpression modal={ModalName.AddBackupLogin}>
       <StepHeader onBack={handleBack} onClose={handleClose} />
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         <IconBox>
           <Person size="$icon.24" color="$neutral1" />
         </IconBox>
@@ -263,7 +264,7 @@ export function AlreadyInUseStep({
           <GetHelpButton t={t} />
           <ModalCloseIcon size="$icon.20" onClose={handleClose} />
         </Flex>
-        <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4" mt={0}>
+        <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4" mt={0}>
           <IconBox>
             <AlertTriangleFilled size="$icon.24" color="$neutral1" />
           </IconBox>
@@ -325,7 +326,7 @@ export function PasscodeIntroStep({
       <Flex width="100%" alignItems="flex-end">
         <ModalCloseIcon size="$icon.20" onClose={handleClose} />
       </Flex>
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         <IconBox>
           <Shield size="$icon.24" color="$neutral1" />
         </IconBox>
@@ -395,7 +396,7 @@ export function PasscodeStep({
   return (
     <Trace logImpression modal={modalName}>
       <StepHeader onBack={handleBack} onClose={handleClose} />
-      <Flex gap="$gap16" alignItems="center" width="100%" px="$padding4">
+      <Flex gap="$gap16" alignItems="center" width="100%" px="$spacing4">
         <IconBox>
           <LockViewfinder size="$icon.24" color="$neutral1" />
         </IconBox>

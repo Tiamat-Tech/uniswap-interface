@@ -1,12 +1,11 @@
-import type { GetProps } from 'tamagui'
-import { CustomButtonFrame } from 'ui/src/components/buttons/Button/components/CustomButtonFrame/CustomButtonFrame'
-import type { FlexProps } from 'ui/src/components/layout'
+import type { ButtonFrameCompatProps, ButtonFrameVariantProps } from '@universe/mycelium/button-frame-compat'
 
 export type ButtonVariant = 'default' | 'branded' | 'critical' | 'warning'
 export type ButtonEmphasis = 'primary' | 'secondary' | 'tertiary' | 'text-only'
 
 type ButtonSize = 'xxsmall' | 'xsmall' | 'small' | 'medium' | 'large'
-type CustomButtonFrameProps = GetProps<typeof CustomButtonFrame>
+
+type CustomButtonFrameProps = ButtonFrameCompatProps
 
 export type ButtonVariantProps = {
   size?: ButtonSize
@@ -14,14 +13,12 @@ export type ButtonVariantProps = {
   emphasis?: ButtonEmphasis
   // This prevents trimming the string, when the language has special characters (i.e. Vietnamese)
   lineHeightDisabled?: boolean
-  // Internal styling flag, threaded to the inner text/icon via `buttonStyledContext`.
-  // Intentionally named differently from Tamagui's built-in `disabled` prop: Tamagui derives its
-  // disabled state (which detaches hover/press/focus handling) from the raw `disabled` prop, so a
-  // styling variant with the same name can't represent a button that looks disabled but stays
-  // interactive (see `onDisabledPress`). Consumers use the public `disabled` prop on `ButtonProps`.
+  // Internal styling flag, deliberately not named `disabled`: that prop detaches interaction, so a
+  // same-named variant could not express a button that looks disabled but stays interactive
+  // (see `onDisabledPress`). Consumers use the public `disabled` prop on `ButtonProps`.
   isDisabled?: boolean
   // Used for automatically setting the text color to the color that most contrasts with the custom background color provided
-  'custom-background-color'?: FlexProps['backgroundColor']
+  'custom-background-color'?: ButtonFrameVariantProps['custom-background-color']
 }
 
 export type ButtonProps = Omit<CustomButtonFrameProps, 'variant' | 'disabled' | 'isDisabled'> &

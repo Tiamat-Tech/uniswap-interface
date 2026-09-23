@@ -1,8 +1,6 @@
 import { Currency, Token } from '@uniswap/sdk-core'
 import { Tags, TokenInfo, TokenList } from '@uniswap/token-lists'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual, getValidAddress } from 'uniswap/src/utils/addresses'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
+import { Platform, areAddressesEqual, getValidAddress, normalizeTokenAddressForCache } from '@universe/chains'
 
 type TagDetails = Tags[keyof Tags]
 interface TagInfo extends TagDetails {

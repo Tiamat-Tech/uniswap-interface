@@ -3,8 +3,10 @@ import {
   deriveConvexAuctionSteps,
   getBlockTimeSeconds,
   isLauncherSdkError,
+  timeToBlock,
 } from '@uniswap/liquidity-launcher-sdk'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { getAuctionOpenTime, isPreBidRangeValid } from '~/pages/Liquidity/CreateAuction/utils/duration'
 
 export enum EmissionScheduleError {
   WindowTooShort = 'window_too_short',
@@ -20,25 +22,48 @@ export enum EmissionScheduleError {
  *
  * Returns the rejection reason, or `undefined` when the window is valid (or inputs are incomplete,
  * which other validation already blocks). Pure — pass `nowMs` to keep callers deterministic.
+ *
+ * `preBidStartTime`, when set, is where the auction actually OPENS: the block span the backend
+ * derives runs from there, and the leading `preBidStartTime -> startTime` slice emits nothing.
+ * Passing it through keeps this a faithful mirror of the request that will be submitted rather
+ * than of a different auction.
+ *
+ * It does not, today, change the verdict: the wizard adds the pre-bid window in FRONT of the
+ * chosen dates, so the ramp still spans `startTime -> endTime` and the `startBlock` terms cancel
+ * out of the SDK's `endBlock - startBlock - prebidBlocks - 1`. That equivalence is a property of
+ * the current curve, not something the wizard should lean on — the backend derives the schedule
+ * from the full window, so this does too. `emissionSchedule.test.ts` pins the equivalence, so a
+ * future curve where the pre-bid length does bite turns into a failing test rather than a config
+ * that passes here and is rejected at submit.
  */
 export function getAuctionEmissionScheduleError({
   startTime,
   endTime,
+  preBidStartTime,
   chainId,
   nowMs = Date.now(),
 }: {
   startTime: Date | undefined
   endTime: Date | undefined
+  preBidStartTime?: Date | undefined
   chainId: UniverseChainId | undefined
   nowMs?: number
 }): EmissionScheduleError | undefined {
   if (!startTime || !endTime || chainId === undefined || endTime.getTime() <= startTime.getTime()) {
     return undefined
   }
+  // An out-of-order pre-bid start is its own validation error (surfaced next to the pickers),
+  // not a schedule problem — don't let it reach the SDK as a negative prebid window.
+  if (!isPreBidRangeValid({ startTime, preBidStartTime })) {
+    return undefined
+  }
 
   const blockTimeSeconds = getBlockTimeSeconds(chainId)
   const nowUnix = BigInt(Math.floor(nowMs / 1000))
-  const startTimeUnix = BigInt(Math.floor(startTime.getTime() / 1000))
+  // Mirrors the request the backend will receive: the auction opens at the pre-bid start when
+  // there is one, and `startTime` becomes the emission boundary inside that window.
+  const auctionStartTime = getAuctionOpenTime({ startTime, preBidStartTime })
+  const startTimeUnix = BigInt(Math.floor(auctionStartTime.getTime() / 1000))
   const endTimeUnix = BigInt(Math.floor(endTime.getTime() / 1000))
 
   try {
@@ -51,7 +76,12 @@ export function getAuctionEmissionScheduleError({
       nowUnix,
       blockTimeSeconds,
     })
-    deriveConvexAuctionSteps(startBlock, endBlock)
+    const emissionStartBlock = preBidStartTime
+      ? timeToBlock(BigInt(Math.floor(startTime.getTime() / 1000)), 0n, nowUnix, blockTimeSeconds)
+      : startBlock
+    deriveConvexAuctionSteps(startBlock, endBlock, {
+      prebidBlocks: emissionStartBlock > startBlock ? emissionStartBlock - startBlock : 0n,
+    })
     return undefined
   } catch (error) {
     if (isLauncherSdkError(error)) {

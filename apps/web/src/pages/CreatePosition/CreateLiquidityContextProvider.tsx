@@ -49,6 +49,8 @@ interface BaseCreateLiquidityState {
   // Protocol fee (integer pips) for the selected tier's pool, carried on the poolInfo response so every
   // create surface reads the same value; undefined for a not-yet-created pool.
   protocolFee?: number
+  // See `useDerivedPositionInfo`.
+  poolHasNoActiveLiquidity?: boolean
   poolOrPairLoading?: boolean
   poolOrPair: V4Pool | V3Pool | Pair | undefined
   price: Price<Currency, Currency> | undefined
@@ -300,6 +302,7 @@ export function CreateLiquidityContextProvider({
     ...protocolSpecificValues,
     poolId: derivedPositionInfo.poolId,
     protocolFee: derivedPositionInfo.protocolFee,
+    poolHasNoActiveLiquidity: derivedPositionInfo.poolHasNoActiveLiquidity,
     poolOrPairLoading: derivedPositionInfo.poolOrPairLoading,
     creatingPoolOrPair: derivedPositionInfo.creatingPoolOrPair,
     price: derivedPriceRangeInfo?.price,

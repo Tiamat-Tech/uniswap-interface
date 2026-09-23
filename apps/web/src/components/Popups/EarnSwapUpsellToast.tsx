@@ -1,10 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { Platform } from '@universe/chains'
+import { Flex, iconSizes, Text, TouchableArea, zIndexes } from '@universe/mycelium'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, useShadowPropsMedium } from 'ui/src'
+import { useShadowPropsMedium } from 'ui/src'
 import { EarnSparkle } from 'ui/src/components/icons/EarnSparkle'
 import { X } from 'ui/src/components/icons/X'
-import { iconSizes, zIndexes } from 'ui/src/theme'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import {
   EarnAnalyticsSurface,
@@ -19,7 +20,6 @@ import {
 import { useEarnSwapUpsellState } from 'uniswap/src/features/earn/hooks/useEarnSwapUpsellState'
 import { invalidateEarnPortfolioQuery } from 'uniswap/src/features/earn/portfolioInvalidation'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { POPUP_MAX_WIDTH } from '~/components/Popups/constants'
 import { useActiveAccount } from '~/features/accounts/store/hooks'
 import { useGlobalEarnVaultModalStore } from '~/features/earn/globalEarnVaultModalStore'
@@ -41,7 +41,8 @@ export function EarnSwapUpsellToast({
 }: EarnSwapUpsellToastProps): JSX.Element | null {
   const { t } = useTranslation()
   const { formatPercent } = useLocalizationContext()
-  const shadowProps = useShadowPropsMedium()
+  // On web the hook only ever returns a `$platform-web` boxShadow; unwrap it for the web-only compat Flex.
+  const { '$platform-web': shadowStyle } = useShadowPropsMedium()
   const shownAnalyticsKeys = useRef(new Set<string>())
   const queryClient = useQueryClient()
   const openDepositModal = useGlobalEarnVaultModalStore((s) => s.openDepositModal)
@@ -158,7 +159,8 @@ export function EarnSwapUpsellToast({
   return (
     <Flex
       row
-      animation="300ms"
+      // Scoped to opacity/transform (never color properties) so theme toggling doesn't animate token colors.
+      transition="opacity 300ms ease-in-out, transform 300ms ease-in-out"
       backgroundColor="$surface1"
       borderColor="$surface3"
       borderRadius="$rounded20"
@@ -168,7 +170,7 @@ export function EarnSwapUpsellToast({
       p="$spacing12"
       position="relative"
       width={POPUP_MAX_WIDTH}
-      {...shadowProps}
+      boxShadow={shadowStyle?.boxShadow}
       $sm={{
         maxWidth: '100%',
         mx: 'auto',

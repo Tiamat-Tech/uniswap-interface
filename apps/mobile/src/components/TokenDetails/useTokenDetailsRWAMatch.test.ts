@@ -1,18 +1,12 @@
 import { renderHook } from '@testing-library/react-native'
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
 import { GraphQLApi } from '@universe/api'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { UniverseChainId } from '@universe/chains'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
-import { useTokenDetailsPreferProjectMarketData } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { useTokenDetailsRWAMatch } from 'src/components/TokenDetails/useTokenDetailsRWAMatch'
 import { useRWAWhitelist } from 'uniswap/src/features/rwa/useRWAWhitelist'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import type { MockedFunction } from 'vitest'
-
-vi.mock('@universe/gating', async () => ({
-  ...(await vi.importActual('@universe/gating')),
-  useFeatureFlag: vi.fn(),
-}))
 
 vi.mock('@universe/api', async () => {
   const actual = await vi.importActual<typeof import('@universe/api')>('@universe/api')
@@ -36,18 +30,33 @@ vi.mock('uniswap/src/features/rwa/useRWAWhitelist', () => ({
 const TOKEN_ADDRESS = '0x1111111111111111111111111111111111111111'
 const SIBLING_TOKEN_ADDRESS = '0x2222222222222222222222222222222222222222'
 
-const mockUseFeatureFlag = useFeatureFlag as MockedFunction<typeof useFeatureFlag>
 const mockUseTokenDetailsContext = useTokenDetailsContext as MockedFunction<typeof useTokenDetailsContext>
 const mockUseRWAWhitelist = useRWAWhitelist as MockedFunction<typeof useRWAWhitelist>
 const mockUseTokenDetailsScreenQuery = GraphQLApi.useTokenDetailsScreenQuery as MockedFunction<
   typeof GraphQLApi.useTokenDetailsScreenQuery
 >
 
-describe(useTokenDetailsPreferProjectMarketData, () => {
+const SIBLING_RWA_TOKEN = {
+  chainId: UniverseChainId.Polygon,
+  address: SIBLING_TOKEN_ADDRESS,
+  issuer: 'issuer',
+  name: 'RWA Asset',
+  symbol: 'RWA',
+  logoUrl: 'https://example.com/rwa.png',
+}
+
+const RWA_ASSET = {
+  symbol: 'RWA',
+  name: 'RWA Asset',
+  icon: 'https://example.com/rwa.png',
+  category: RwaCategory.STOCKS,
+  tokens: [SIBLING_RWA_TOKEN],
+}
+
+describe(useTokenDetailsRWAMatch, () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    mockUseFeatureFlag.mockImplementation((flag) => flag === FeatureFlags.RWACoinGeckoData)
     mockUseTokenDetailsContext.mockReturnValue({
       address: TOKEN_ADDRESS,
       chainId: UniverseChainId.Mainnet,
@@ -65,47 +74,30 @@ describe(useTokenDetailsPreferProjectMarketData, () => {
         },
       },
     } as ReturnType<typeof GraphQLApi.useTokenDetailsScreenQuery>)
-    mockUseRWAWhitelist.mockReturnValue([
-      {
-        symbol: 'RWA',
-        name: 'RWA Asset',
-        icon: 'https://example.com/rwa.png',
-        category: RwaCategory.STOCKS,
-        tokens: [
-          {
-            chainId: UniverseChainId.Polygon,
-            address: SIBLING_TOKEN_ADDRESS,
-            issuer: 'issuer',
-            name: 'RWA Asset',
-            symbol: 'RWA',
-            logoUrl: 'https://example.com/rwa.png',
-          },
-        ],
-      },
-    ])
+    mockUseRWAWhitelist.mockReturnValue([RWA_ASSET])
   })
 
-  it('keeps project market data off when the RWA CoinGecko flag is off', () => {
-    mockUseFeatureFlag.mockReturnValue(false)
+  it('matches a project sibling contract against the RWA whitelist', () => {
+    const { result } = renderHook(() => useTokenDetailsRWAMatch())
 
-    const { result } = renderHook(() => useTokenDetailsPreferProjectMarketData())
-
-    expect(mockUseRWAWhitelist).toHaveBeenCalledWith(false)
-    expect(result.current).toBe(false)
+    expect(result.current).toEqual({ asset: RWA_ASSET, token: SIBLING_RWA_TOKEN })
   })
 
-  it('prefers project market data when a project sibling matches the RWA whitelist', () => {
-    const { result } = renderHook(() => useTokenDetailsPreferProjectMarketData())
+  it('matches the TDP token itself ahead of its project siblings', () => {
+    const mainnetToken = { ...SIBLING_RWA_TOKEN, chainId: UniverseChainId.Mainnet, address: TOKEN_ADDRESS }
+    const mainnetAsset = { ...RWA_ASSET, tokens: [mainnetToken, SIBLING_RWA_TOKEN] }
+    mockUseRWAWhitelist.mockReturnValue([mainnetAsset])
 
-    expect(mockUseRWAWhitelist).toHaveBeenCalledWith(true)
-    expect(result.current).toBe(true)
+    const { result } = renderHook(() => useTokenDetailsRWAMatch())
+
+    expect(result.current).toEqual({ asset: mainnetAsset, token: mainnetToken })
   })
 
-  it('keeps project market data off when no RWA candidate matches', () => {
+  it('returns undefined when no candidate matches the whitelist', () => {
     mockUseRWAWhitelist.mockReturnValue([])
 
-    const { result } = renderHook(() => useTokenDetailsPreferProjectMarketData())
+    const { result } = renderHook(() => useTokenDetailsRWAMatch())
 
-    expect(result.current).toBe(false)
+    expect(result.current).toBeUndefined()
   })
 })

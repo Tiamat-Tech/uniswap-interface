@@ -124,7 +124,8 @@ export class AmplitudeAnalyticsService<E extends string = string> implements Ana
   }
 
   async flush(): Promise<void> {
-    await amplitude.flush()
+    // flush() returns AmplitudeReturn<Result>; the actual Promise is `.promise`.
+    await amplitude.flush().promise
   }
 }
 

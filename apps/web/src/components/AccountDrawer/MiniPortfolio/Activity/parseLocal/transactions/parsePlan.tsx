@@ -1,6 +1,6 @@
 import { CurrencyAmount } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { getEarnPlanDisplayInfo } from 'uniswap/src/features/activity/utils/getEarnPlanDisplayInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getEarnPlanStatusTitleKeyFromTransactionStatus } from 'uniswap/src/features/earn/planActivityTitles'
 import {
   CrossChainCurrencyRow,
@@ -24,19 +24,17 @@ export async function parsePlan({
   formatNumber,
   chainId,
   status,
-  isEarnActivityDisplayEnabled = true,
 }: {
   plan: PlanTransactionInfo
   formatNumber: FormatNumberFunctionType
   chainId: UniverseChainId
   status: TransactionStatus
-  isEarnActivityDisplayEnabled?: boolean
 }): Promise<Partial<Activity>> {
   const [tokenIn, tokenOut] = await Promise.all([
     getCurrencyFromCurrencyId(plan.inputCurrencyId),
     getCurrencyFromCurrencyId(plan.outputCurrencyId),
   ])
-  const earnDisplayInfo = isEarnActivityDisplayEnabled ? getEarnPlanDisplayInfo(plan) : undefined
+  const earnDisplayInfo = getEarnPlanDisplayInfo(plan)
   const earnToken = earnDisplayInfo ? await getCurrencyFromCurrencyId(earnDisplayInfo.currencyId) : undefined
 
   const inputAmount = tokenIn
@@ -53,7 +51,7 @@ export async function parsePlan({
       })
     : i18n.t('common.unknown')
 
-  if (isEarnActivityDisplayEnabled && plan.earnAction && earnDisplayInfo) {
+  if (plan.earnAction && earnDisplayInfo) {
     const primaryAmount = earnToken
       ? formatNumber({
           value: parseFloat(CurrencyAmount.fromRawAmount(earnToken, earnDisplayInfo.amountRaw).toSignificant()),

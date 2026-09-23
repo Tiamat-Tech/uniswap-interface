@@ -1,6 +1,6 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useNativeCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { useFormattedGasFee } from '~/features/Toucan/Auction/hooks/useFormattedGasFee'
 import {

@@ -7,8 +7,8 @@ import {
   provideSessionService,
   SharedQueryClient,
 } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { isE2eTestEnv, REQUEST_SOURCE } from '@universe/environment'
-import { getIsSessionServiceEnabled } from '@universe/gating'
 import {
   createApiNotificationTracker,
   createBaseNotificationProcessor,
@@ -23,7 +23,6 @@ import ms from 'ms'
 import { useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { mapLocaleToBackendLocale } from 'uniswap/src/features/language/constants'
 import { getLocale } from 'uniswap/src/features/language/navigatorLocale'
 import { selectCurrentLanguage } from 'uniswap/src/features/settings/selectors'
@@ -72,8 +71,7 @@ function provideWebNotificationService(ctx: {
         'x-app-version': getConfig().appVersion,
       }
     },
-    getSessionService: () =>
-      provideSessionService({ getBaseUrl: () => getEntryGatewayUrl(), getIsSessionServiceEnabled }),
+    getSessionService: () => provideSessionService({ getBaseUrl: () => getEntryGatewayUrl() }),
     defaultOptions: {
       credentials: 'include',
     },

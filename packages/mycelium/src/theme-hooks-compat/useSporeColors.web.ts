@@ -13,7 +13,7 @@
 import { useSyncExternalStore } from 'react'
 import { type CompatThemeName, getRootThemeSnapshot, getServerThemeSnapshot, subscribeToRootTheme } from './theme-state'
 import { DARK_THEME_COLORS, LIGHT_THEME_COLORS, THEME_COLOR_NAMES } from './tokens'
-import type { SporeColor, SporeColorKey, UseSporeColorsReturn } from './useSporeColors'
+import type { SporeColorKey, UseSporeColorsReturn } from './useSporeColors'
 
 const colorMaps: Partial<Record<CompatThemeName, UseSporeColorsReturn>> = {}
 
@@ -23,14 +23,18 @@ function colorsForTheme(theme: CompatThemeName): UseSporeColorsReturn {
     return cached
   }
   const source = theme === 'dark' ? DARK_THEME_COLORS : LIGHT_THEME_COLORS
-  const map: Partial<Record<SporeColorKey, SporeColor>> = {}
+  // Entries are built with their honest runtime shape (`val` holds the
+  // resolved color string) and the finished map is cast once to the
+  // token-typed public contract — the same single-cast boundary the legacy
+  // builder uses (`ui/src/hooks/sporeColorMap.ts`). See `SporeThemeColorToken`.
+  const map: Partial<Record<SporeColorKey, { val: string; get: () => string; variable: string }>> = {}
   for (const name of THEME_COLOR_NAMES) {
     const variable = `var(--${name})`
-    const entry: SporeColor = { val: source[name], variable, get: () => variable }
+    const entry = { val: source[name] as string, variable, get: (): string => variable }
     map[name] = entry
     map[`$${name}`] = entry
   }
-  const built = map as UseSporeColorsReturn
+  const built = map as unknown as UseSporeColorsReturn
   colorMaps[theme] = built
   return built
 }

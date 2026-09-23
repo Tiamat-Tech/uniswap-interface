@@ -1,10 +1,8 @@
 import { type PlainMessage } from '@bufbuild/protobuf'
 import { Token as RestToken } from '@uniswap/client-data-api/dist/data/v1/types_pb'
 import { Currency } from '@uniswap/sdk-core'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { areAddressesEqual, chainIdToPlatform, UniverseChainId } from '@universe/chains'
 import { PortfolioBalance } from 'uniswap/src/features/dataApi/types'
-import { chainIdToPlatform } from 'uniswap/src/features/platforms/utils/chains'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 
 export function sortBalancesByName(unsortedBalances?: PortfolioBalance[]): PortfolioBalance[] {

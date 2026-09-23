@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { Platform } from '@universe/chains'
 import { useCallback } from 'react'
 import { useDispatch } from 'react-redux'
 import { useAppStackNavigation } from 'src/app/navigation/types'
@@ -15,7 +16,6 @@ import { applyEarnPositionChangeOptimistically } from 'uniswap/src/features/earn
 import { getValidEarnSwapUpsellCurrencyId } from 'uniswap/src/features/earn/swapUpsell'
 import { EarnAction } from 'uniswap/src/features/earn/types'
 import { useLocalFiatToUSDConverter } from 'uniswap/src/features/fiatCurrency/useLocalFiatToUSDConverter'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
 import { useActiveAddress } from 'wallet/src/features/accounts/store/hooks'

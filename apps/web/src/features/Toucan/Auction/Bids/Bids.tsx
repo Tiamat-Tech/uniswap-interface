@@ -1,7 +1,8 @@
+import { Flex, Text } from '@universe/mycelium'
+import { QuestionInCircleFilled } from '@universe/mycelium/icons/QuestionInCircleFilled'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useMedia } from 'ui/src'
-import { QuestionInCircleFilled } from 'ui/src/components/icons/QuestionInCircleFilled'
 import { InfoTooltip } from 'uniswap/src/components/tooltip/InfoTooltip'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { useEvent } from 'utilities/src/react/hooks'
@@ -12,12 +13,9 @@ import { WithdrawModal } from '~/features/Toucan/Auction/Bids/WithdrawModal/With
 import { useBidsListData } from '~/features/Toucan/Auction/hooks/useBidsListData'
 import { useBidTokenInfo } from '~/features/Toucan/Auction/hooks/useBidTokenInfo'
 import { useWithdrawButtonState } from '~/features/Toucan/Auction/hooks/useWithdrawButtonState'
-import { AuctionProgressState, type UserBid } from '~/features/Toucan/Auction/store/types'
-import {
-  useAuctionStore,
-  useAuctionStoreActions,
-  useIsAuctionFailed,
-} from '~/features/Toucan/Auction/store/useAuctionStore'
+import { AuctionOutcome, AuctionProgressState, type UserBid } from '~/features/Toucan/Auction/store/types'
+import { useAuctionStore, useAuctionStoreActions } from '~/features/Toucan/Auction/store/useAuctionStore'
+import { shouldUsePreClaimWindow } from '~/features/Toucan/Auction/utils/preClaimWindow'
 import { InlineAlertBanner } from '~/features/Toucan/Shared/InlineAlertBanner'
 import { ToucanActionButton } from '~/features/Toucan/Shared/ToucanActionButton'
 
@@ -25,11 +23,11 @@ export function Bids(): JSX.Element {
   const media = useMedia()
   const { t } = useTranslation()
 
-  const { auctionDetails, auctionProgress, isGraduated, currentBlockNumber, chartSelectedBid } = useAuctionStore(
+  const { auctionDetails, auctionProgress, outcome, currentBlockNumber, chartSelectedBid } = useAuctionStore(
     (state) => ({
       auctionDetails: state.auctionDetails,
       auctionProgress: state.progress.state,
-      isGraduated: state.progress.isGraduated,
+      outcome: state.progress.outcome,
       currentBlockNumber: state.currentBlockNumber,
       chartSelectedBid: state.chartSelectedBid,
     }),
@@ -40,9 +38,8 @@ export function Bids(): JSX.Element {
     chainId: auctionDetails?.chainId,
   })
 
-  const isAuctionEnded = auctionProgress === AuctionProgressState.ENDED
   const isAuctionInProgress = auctionProgress === AuctionProgressState.IN_PROGRESS
-  const isAuctionFailedToGraduate = useIsAuctionFailed()
+  const isAuctionFailedToGraduate = outcome === AuctionOutcome.FAILED
 
   const { bidItems, isLoading, hasErrors } = useBidsListData()
 
@@ -99,7 +96,7 @@ export function Bids(): JSX.Element {
     }) => {
       // Use the override if provided, otherwise use the calculated value
       // This allows the BidDetailsModal to pass the correct value based on its own state
-      const usePreClaimWindow = isPreClaimWindowOverride ?? (isAuctionEnded && isGraduated && isInPreClaimWindow)
+      const usePreClaimWindow = isPreClaimWindowOverride ?? shouldUsePreClaimWindow({ outcome, isInPreClaimWindow })
       setWithdrawModalState({
         isOpen: true,
         bidId,
@@ -127,7 +124,7 @@ export function Bids(): JSX.Element {
     disabledTooltip: withdrawDisabledTooltip,
     allBidsExited,
   } = useWithdrawButtonState({
-    isGraduated: Boolean(isGraduated),
+    outcome,
     claimBlock: auctionDetails?.claimBlock,
     currentBlockNumber,
     chainId: auctionDetails?.chainId,

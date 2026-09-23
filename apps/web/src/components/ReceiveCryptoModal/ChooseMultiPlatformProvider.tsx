@@ -1,25 +1,24 @@
+import { UniverseChainId, Platform } from '@universe/chains'
+import { Flex, Text, TouchableArea, useIsDarkMode, useSporeColors } from '@universe/mycelium'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { useMemo } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, useIsDarkMode, useSporeColors } from 'ui/src'
 import { iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { UNISWAP_WEB_URL, UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { MAINNET_CHAIN_INFO } from 'uniswap/src/features/chains/evm/info/mainnet'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { SOLANA_CHAIN_INFO } from 'uniswap/src/features/chains/svm/info/solana'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ServiceProviderLogoStyles } from 'uniswap/src/features/fiatOnRamp/constants'
 import { useFiatOnRampAggregatorTransferWidgetQuery } from 'uniswap/src/features/fiatOnRamp/hooks/useFiatOnRampQueries'
 import { FORServiceProvider } from 'uniswap/src/features/fiatOnRamp/types'
 import { getOptionalServiceProviderLogo } from 'uniswap/src/features/fiatOnRamp/utils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { FiatOnRampEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { shortenAddress } from 'utilities/src/addresses'
 import { uuid } from 'utilities/src/primitives/uuid'
 import { useEvent } from 'utilities/src/react/hooks'
 import { useActiveAddresses } from '~/features/accounts/store/hooks'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 import { getOnRampRedirectUrl } from '~/pages/Swap/Buy/onRampRedirectUrl'
 import { ProviderConnectedView } from '~/pages/Swap/Buy/ProviderConnectedView'
 import { ProviderConnectionError } from '~/pages/Swap/Buy/ProviderConnectionError'
@@ -27,11 +26,6 @@ import { ConnectingViewWrapper } from '~/pages/Swap/Buy/shared'
 import { addFiatOnRampTransaction } from '~/state/fiatOnRampTransactions/reducer'
 import { FiatOnRampTransactionStatus, FiatOnRampTransactionType } from '~/state/fiatOnRampTransactions/types'
 import { ExternalLink } from '~/theme/components/Links'
-
-const StyledLink = deprecatedStyled(ExternalLink)`
-  font-weight: 535;
-  color: ${({ theme }) => theme.neutral3};
-`
 
 interface ChooseMultiPlatformProviderProps {
   selectedServiceProvider: FORServiceProvider
@@ -104,7 +98,7 @@ function ProviderPlatform({
         cursor: 'wait',
       }}
       height="unset"
-      animation="200ms"
+      transition={`background-color ${SPORE_ANIMATION_CURVE_CSS['200ms']}`}
       position="relative"
       onPress={handleOpenWidget}
       hoverStyle={{ backgroundColor: '$surface1Hovered' }}
@@ -139,7 +133,7 @@ function ProviderPlatform({
             </Flex>
           )}
 
-          <Text animation="100ms" color="$neutral2" variant="body4">
+          <Text color="$neutral2" variant="body4">
             {shortenAddress({ address })}
           </Text>
         </Flex>
@@ -213,14 +207,14 @@ export function ChooseMultiPlatformProvider({
             }}
             components={{
               tosLink: (
-                <StyledLink color={colors.neutral3.val} href={UniswapStaticUrls.termsOfServiceUrl}>
+                <ExternalLink color={colors.neutral3.val} href={UniswapStaticUrls.termsOfServiceUrl}>
                   {t('common.termsOfService')}
-                </StyledLink>
+                </ExternalLink>
               ),
               privacyLink: (
-                <StyledLink color={colors.neutral3.val} href={UniswapStaticUrls.privacyPolicyUrl}>
+                <ExternalLink color={colors.neutral3.val} href={UniswapStaticUrls.privacyPolicyUrl}>
                   {t('common.privacyPolicy')}
-                </StyledLink>
+                </ExternalLink>
               ),
             }}
           />

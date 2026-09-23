@@ -1,3 +1,6 @@
+import { Flex, spacing, Text, TouchableArea } from '@universe/mycelium'
+import { Scan } from '@universe/mycelium/icons/Scan'
+import { useDeviceDimensions } from '@universe/mycelium/theme-hooks-compat'
 import { getSdkError, INTERNAL_ERRORS } from '@walletconnect/utils'
 import React, { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -14,10 +17,6 @@ import {
   removeSession,
   WalletConnectSession,
 } from 'src/features/walletConnect/walletConnectSlice'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { Scan } from 'ui/src/components/icons'
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
-import { spacing } from 'ui/src/theme'
 import { ScannerModalState } from 'uniswap/src/components/ReceiveQRCode/constants'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'

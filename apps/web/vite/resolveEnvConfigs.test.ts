@@ -98,6 +98,18 @@ describe('resolveEnvConfigs', () => {
     expect(env.FOO).toBe('base')
   })
 
+  // INFRA-3219: the .env pulled from the config service can carry an empty (or stale) VERSION.
+  // The CI value has to win, or the bundle reports a version the sourcemap upload never used.
+  it('keeps the CI-provided VERSION over an empty VERSION in .env', () => {
+    writeEnv(rootDir, '.env', { VERSION: '', FOO: 'base' })
+    const processEnv: NodeJS.ProcessEnv = { VERSION: '5.156.8' }
+
+    const env = resolveEnvConfigs({ rootDir, isE2eTest: false, processEnv, overrideProcessEnv: true })
+
+    expect(env.VERSION).toBe('5.156.8')
+    expect(processEnv.VERSION).toBe('5.156.8')
+  })
+
   it('ignores PROCESS_ENV_OVERRIDES keys that are undefined in processEnv', () => {
     const overrideKey = PROCESS_ENV_OVERRIDES[0]
     writeEnv(rootDir, '.env', { [overrideKey]: 'from-file' })

@@ -1,11 +1,12 @@
+import { Flex, Text } from '@universe/mycelium'
+import type { FlexCompatProps as FlexProps } from '@universe/mycelium'
+import { ArrowDownCircleFilled } from '@universe/mycelium/icons/ArrowDownCircleFilled'
+import { ChartBar } from '@universe/mycelium/icons/ChartBar'
+import { CoinConvert } from '@universe/mycelium/icons/CoinConvert'
+import { MoreHorizontal } from '@universe/mycelium/icons/MoreHorizontal'
+import { Plus } from '@universe/mycelium/icons/Plus'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, FlexProps, Text } from 'ui/src'
-import { ArrowDownCircleFilled } from 'ui/src/components/icons/ArrowDownCircleFilled'
-import { ChartBar } from 'ui/src/components/icons/ChartBar'
-import { CoinConvert } from 'ui/src/components/icons/CoinConvert'
-import { MoreHorizontal } from 'ui/src/components/icons/MoreHorizontal'
-import { Plus } from 'ui/src/components/icons/Plus'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -15,11 +16,13 @@ import { useBooleanState } from 'utilities/src/react/useBooleanState'
 import { ActionTileWithIconAnimation } from '~/components/ActionTiles/ActionTileWithIconAnimation'
 import { AdaptiveDropdown } from '~/components/Dropdowns/AdaptiveDropdown'
 import { InternalMenuItem } from '~/components/Dropdowns/Dropdown'
+import { buildCreatePositionHref } from '~/utils/createPositionRoute'
 
 export function MoreActionTile({ padding = '$spacing12' }: { padding?: FlexProps['p'] }) {
   const { t } = useTranslation()
   const { navigateToSwapFlow } = useUniswapContext()
   const navigate = useNavigate()
+  const newPositionHref = buildCreatePositionHref()
   const { value: isDropdownOpen, setFalse: closeDropdown, toggle: toggleDropdown } = useBooleanState(false)
 
   const onPressSwap = useEvent(() => {
@@ -38,7 +41,7 @@ export function MoreActionTile({ padding = '$spacing12' }: { padding?: FlexProps
   })
 
   const onPressCreatePool = useEvent(() => {
-    navigate('/positions/create')
+    navigate(newPositionHref)
     closeDropdown()
   })
 

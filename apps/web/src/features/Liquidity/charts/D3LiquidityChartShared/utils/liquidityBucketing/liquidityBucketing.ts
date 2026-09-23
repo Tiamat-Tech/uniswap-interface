@@ -2,8 +2,8 @@ import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes
 import { Currency } from '@uniswap/sdk-core'
 import { nearestUsableTick, TickMath } from '@uniswap/v3-sdk'
 import { logger } from 'utilities/src/logger/logger'
-import { TickData } from '~/data/AllV3TicksQuery'
 import { ChartEntry } from '~/features/Liquidity/charts/LiquidityRangeInput/types'
+import { TickData } from '~/features/Liquidity/types/ticks'
 import { getDisplayPriceFromTick } from '~/features/Liquidity/utils/getTickToPrice'
 
 /**
@@ -36,9 +36,9 @@ interface LiquidityBucket {
  * amount0Locked and amount1Locked are calculated from the underlying liquidity segment
  */
 export interface BucketChartEntry extends LiquidityBucket {
-  /** Locked amount of token0 in this bucket range */
+  /** Locked amount of token0 in the bucket's max-liquidity segment ([segmentStartTick, segmentEndTick)) */
   amount0Locked?: number
-  /** Locked amount of token1 in this bucket range */
+  /** Locked amount of token1 in the bucket's max-liquidity segment ([segmentStartTick, segmentEndTick)) */
   amount1Locked?: number
 }
 
@@ -52,8 +52,7 @@ export interface BucketChartEntry extends LiquidityBucket {
  *   - currentLiquidity += liquidityNet[i]
  *   - Create a segment: { startTick, endTick, liquidityActive }
  */
-export function buildSegmentsFromRawTicks(rawTicks: TickData[]): LiquiditySegment[] {
-  const ticks = rawTicks.filter((t) => t !== undefined)
+export function buildSegmentsFromRawTicks(ticks: TickData[]): LiquiditySegment[] {
   const segments: LiquiditySegment[] = []
 
   let currentLiquidity = 0n
@@ -247,8 +246,15 @@ export function buildBuckets({
 /**
  * Step 4: Create bucket chart entries with locked amounts
  *
- * - For each bucket, find the liquidity data entries that overlap with the bucket
- * - Sum the locked amounts from all entries within the bucket's tick range
+ * - For each bucket, find the liquidity data entries inside the bucket's max-liquidity segment
+ * - Sum the locked amounts from all entries within that segment's tick range
+ *
+ * Amounts are scoped to the segment — not the whole bucket — so every quantity a bar exposes
+ * describes the same tick range: the bar's height is the max-liquidity segment's L, and the
+ * tooltip shows that segment's price range and divides these amounts by that segment's bps
+ * width. A bucket that merges several segments (whenever more than DESIRED_BUCKETS segments
+ * are in view) would otherwise sum USD across all of them while the tooltip divides by one
+ * segment's width, inflating $/bps independently of bar height (LP-288).
  */
 export function buildBucketChartEntries({
   buckets,
@@ -266,13 +272,13 @@ export function buildBucketChartEntries({
   protocolVersion: ProtocolVersion
 }): BucketChartEntry[] {
   const bucketData: BucketChartEntry[] = buckets.map((b) => {
-    let entries = liquidityData.filter((e) => e.tick >= b.startTick && e.tick < b.endTick)
-    // Floor lookup: the active tick may be before the segment start but its
-    // liquidity still covers this bucket.
+    let entries = liquidityData.filter((e) => e.tick >= b.segmentStartTick && e.tick < b.segmentEndTick)
+    // Floor lookup: the segment's covering entry may start before segmentStartTick (e.g. the
+    // synthetic active-tick entry replaces the initialized tick at the segment start).
     if (entries.length === 0) {
       let floor: ChartEntry | undefined
       for (const e of liquidityData) {
-        if (e.tick <= b.startTick) {
+        if (e.tick <= b.segmentStartTick) {
           floor = e
         } else {
           break

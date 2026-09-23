@@ -1,5 +1,5 @@
-import type { TextProps } from 'ui/src'
-import { Flex, Text } from 'ui/src'
+import type { TextCompatProps as TextProps } from '@universe/mycelium'
+import { Flex, Text } from '@universe/mycelium'
 
 interface HeaderActionRowContentProps {
   title: string

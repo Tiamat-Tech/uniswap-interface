@@ -4,8 +4,8 @@ import {
   RankedMultichainToken,
   TokenRankStats,
 } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import { ALL_CHAIN_IDS } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { describe, expect, it } from 'vitest'
 import { TimePeriod } from '~/data/util'
 import {

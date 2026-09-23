@@ -1,6 +1,6 @@
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isBackendSupportedChainId, isTestnetChain } from 'uniswap/src/features/chains/utils'
 
 export function useFilteredChainIds(chains?: UniverseChainId[]): UniverseChainId[] {

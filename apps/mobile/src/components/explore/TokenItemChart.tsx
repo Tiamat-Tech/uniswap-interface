@@ -1,8 +1,9 @@
+import { useExtractedTokenColor } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
 import { SparklineChart } from 'src/components/charts/SparklineChart'
 import { TokenItemData } from 'src/components/explore/TokenItemData'
 import { useTokenPriceHistory } from 'src/components/PriceExplorer/usePriceHistory'
-import { useExtractedTokenColor, useSporeColors } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { buildCurrencyId, buildNativeCurrencyId } from 'uniswap/src/utils/currencyId'
 

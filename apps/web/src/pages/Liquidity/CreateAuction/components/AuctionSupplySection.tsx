@@ -1,6 +1,6 @@
 import { type Currency, type CurrencyAmount } from '@uniswap/sdk-core'
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { AuctionSupplySelector } from '~/pages/Liquidity/CreateAuction/components/AuctionSupplySelector'
 import { TotalSupplySelector } from '~/pages/Liquidity/CreateAuction/components/TotalSupplySelector'
 

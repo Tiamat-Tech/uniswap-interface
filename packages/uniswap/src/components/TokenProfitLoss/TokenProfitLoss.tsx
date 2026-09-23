@@ -1,5 +1,5 @@
+import { type ColorTokens, Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { type ColorTokens, Flex, Text } from 'ui/src'
 import { PnlInfoTrigger } from 'uniswap/src/components/ProfitLoss/PnlInfoTrigger'
 import { ProfitLossRow } from 'uniswap/src/components/ProfitLoss/ProfitLossRow'
 

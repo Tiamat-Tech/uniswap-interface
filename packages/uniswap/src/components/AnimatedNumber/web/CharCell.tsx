@@ -1,5 +1,4 @@
-import { Text } from 'ui/src'
-import type { ResolvedFontStyle, TextVariantKey } from 'ui/src/theme'
+import { type ResolvedFontStyle, Text, type TextVariantKey } from '@universe/mycelium'
 import { AnimatedNumberDirection } from 'uniswap/src/components/AnimatedNumber/types'
 import { isDigitChar } from 'uniswap/src/components/AnimatedNumber/utils/computeCharsSizes'
 import { getCharDisplayColor } from 'uniswap/src/components/AnimatedNumber/utils/getCharDisplayColor'

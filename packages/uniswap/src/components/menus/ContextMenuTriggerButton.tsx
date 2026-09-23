@@ -1,16 +1,16 @@
 import { isWebPlatform } from '@universe/environment'
-import { TouchableArea } from 'ui/src'
+import { TouchableArea } from '@universe/mycelium'
+import { iconSizes } from '@universe/mycelium/tokens'
 import { MoreHorizontal } from 'ui/src/components/icons/MoreHorizontal'
-import { iconSizes } from 'ui/src/theme'
 
+// Press feedback here is instant: the migrated TouchableArea exposes no animation knob and
+// emits no transition, so the pressed-opacity change it still applies cannot be eased.
 const triggerButtonProps = {
   centered: true,
   height: iconSizes.icon28,
   width: iconSizes.icon28,
   borderRadius: '$rounded12',
   hoverStyle: { backgroundColor: '$surface3' },
-  animation: 'fast',
-  animateOnly: ['transform', 'opacity'] as string[],
 } as const
 
 /**

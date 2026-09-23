@@ -5,23 +5,29 @@ import { mocked } from '~/test-utils/mocked'
 import { mockMediaSize } from '~/test-utils/mockMediaSize'
 import { render, screen } from '~/test-utils/render'
 
-vi.mock('tamagui', async () => {
-  const actual = await vi.importActual('tamagui')
+vi.mock('@universe/mycelium/theme-hooks-compat', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@universe/mycelium/theme-hooks-compat')>()
   return {
     ...actual,
     useMedia: vi.fn(),
   }
 })
 
-vi.mock('uniswap/src/components/modals/ScrollLock', () => ({
-  useUpdateScrollLock: vi.fn(),
+vi.mock('~/components/NavBar/SearchBar/SearchModal', () => ({
+  SearchModal: () => null,
 }))
+
+// Scoped queries instead of a blanket `matches: visible`: only the search-bar visibility
+// breakpoint should track `visible`, not every media query in the render tree.
+// The dark-scheme leg stays true because the committed snapshot was recorded under it.
+const SEARCH_BAR_VISIBLE_QUERY = '(min-width: 1560px)'
+const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)'
 
 function mockSearchBarVisible(visible: boolean) {
   vi.spyOn(window, 'matchMedia').mockImplementation(
     (query) =>
       ({
-        matches: visible,
+        matches: (query === SEARCH_BAR_VISIBLE_QUERY && visible) || query === DARK_SCHEME_QUERY,
         media: query,
         onchange: null,
         addListener: vi.fn(),
@@ -46,17 +52,11 @@ describe('disable nft on searchbar', () => {
     expect(input).toBeInTheDocument()
   })
 
-  it('includes auctions in the placeholder when auction search is enabled', () => {
-    mocked(useFeatureFlag).mockImplementation((flag) => flag === FeatureFlags.AuctionSearch)
+  it.each([true, false])('uses the Uniswap placeholder when auction search enabled is %s', (isEnabled) => {
+    mocked(useFeatureFlag).mockImplementation((flag) => flag === FeatureFlags.AuctionSearch && isEnabled)
 
     render(<SearchBar />)
 
-    expect(screen.getByText('Search tokens, pools, wallets and auctions')).toBeInTheDocument()
-  })
-
-  it('keeps the existing placeholder when auction search is disabled', () => {
-    render(<SearchBar />)
-
-    expect(screen.getByText('Search tokens, pools, and wallets')).toBeInTheDocument()
+    expect(screen.getByText('Search Uniswap')).toBeInTheDocument()
   })
 })

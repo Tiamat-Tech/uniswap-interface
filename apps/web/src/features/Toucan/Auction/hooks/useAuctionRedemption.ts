@@ -1,28 +1,19 @@
+import { EVMUniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
-import { EVMUniverseChainId } from 'uniswap/src/features/chains/types'
-import { useReadContract } from 'wagmi'
-import { assume0xAddress } from '~/chains'
+import { useAuctionTradingToken } from '~/features/Toucan/Auction/hooks/useAuctionTradingToken'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getAuctionRedemptionConfig } from '~/features/Toucan/Config/config'
-
-// Minimal IVirtualERC20 surface — just the underlying-token getter we need.
-// Mirrors ../liquidity-launcher/src/interfaces/external/IVirtualERC20.sol
-const virtualErc20Abi = [
-  {
-    type: 'function',
-    name: 'UNDERLYING_TOKEN_ADDRESS',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'address' }],
-  },
-] as const
 
 export interface AuctionRedemption {
   /** Whether the auctioned token is a virtual token now redeemable for a real, tradeable one. */
   isRedeemable: boolean
   /** External page to redeem on. Defined whenever `isRedeemable` is true. */
   redeemUrl: string | undefined
-  /** Real (underlying) token address, read on-chain. Undefined until the read resolves. */
+  /**
+   * Real (underlying) token address, read on-chain. Undefined while the read is in flight, but
+   * also — with `loading` already false — when the read failed or returned the zero address.
+   * Gate on this being set, not on `loading`.
+   */
   realTokenAddress: string | undefined
   /** Chain of the auction — and of the real token (the on-chain underlying). */
   chainId: EVMUniverseChainId | undefined
@@ -54,23 +45,19 @@ export function useAuctionRedemption(): AuctionRedemption {
   )
   const isRedeemable = Boolean(config)
 
-  const { data: underlyingAddress, isLoading } = useReadContract({
-    address: assume0xAddress(virtualTokenAddress),
+  const { tradingTokenAddress, loading } = useAuctionTradingToken({
+    tokenAddress: virtualTokenAddress,
     chainId,
-    abi: virtualErc20Abi,
-    functionName: 'UNDERLYING_TOKEN_ADDRESS',
-    // Underlying address is immutable; only read it for known-redeemable (virtual) tokens.
-    query: { enabled: isRedeemable && Boolean(virtualTokenAddress && chainId), staleTime: Infinity },
   })
 
   return useMemo(
     () => ({
       isRedeemable,
       redeemUrl: config?.redeemUrl,
-      realTokenAddress: underlyingAddress,
+      realTokenAddress: isRedeemable ? tradingTokenAddress : undefined,
       chainId,
-      loading: isRedeemable && isLoading,
+      loading,
     }),
-    [isRedeemable, config?.redeemUrl, underlyingAddress, chainId, isLoading],
+    [isRedeemable, config?.redeemUrl, tradingTokenAddress, chainId, loading],
   )
 }

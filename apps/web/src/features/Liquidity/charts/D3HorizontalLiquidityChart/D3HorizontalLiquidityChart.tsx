@@ -1,9 +1,9 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Currency } from '@uniswap/sdk-core'
+import { Flex } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import * as d3 from 'd3'
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Flex, useSporeColors } from 'ui/src'
-import { TickData } from '~/data/AllV3TicksQuery'
 import { TickTooltipContent } from '~/features/Liquidity/charts/ActiveLiquidityChart/TickTooltip'
 import { useHorizontalLiquidityChartInteractions } from '~/features/Liquidity/charts/D3HorizontalLiquidityChart/hooks/useHorizontalLiquidityChartInteractions'
 import type { HorizontalLiquidityScaleSmoothing } from '~/features/Liquidity/charts/D3HorizontalLiquidityChart/types'
@@ -17,6 +17,7 @@ import {
 } from '~/features/Liquidity/charts/D3LiquidityChartShared/utils/bucketUtils'
 import { createTickScale } from '~/features/Liquidity/charts/D3LiquidityChartShared/utils/createTickScale'
 import { ChartEntry } from '~/features/Liquidity/charts/LiquidityRangeInput/types'
+import { TickData } from '~/features/Liquidity/types/ticks'
 import { getDisplayPriceFromTick } from '~/features/Liquidity/utils/getTickToPrice'
 
 const DEFAULT_HEIGHT = 300
@@ -33,6 +34,7 @@ function D3HorizontalLiquidityChartInner({
   priceInverted,
   protocolVersion,
   height = DEFAULT_HEIGHT,
+  topInset = 0,
   onActionsReady,
 }: {
   liquidityData: ChartEntry[]
@@ -46,6 +48,8 @@ function D3HorizontalLiquidityChartInner({
   priceInverted: boolean
   protocolVersion: ProtocolVersion
   height?: number
+  /** Vertical space (px) kept clear at the top of the chart for an overlaid header; bars draw below it. */
+  topInset?: number
   onActionsReady?: (actions: { zoomIn: () => void; zoomOut: () => void; resetView: () => void }) => void
 }) {
   const colors = useSporeColors()
@@ -271,6 +275,7 @@ function D3HorizontalLiquidityChartInner({
       chartId,
       colors,
       dimensions: { width: chartWidth, height },
+      topInset,
       liquidityData,
       rawTicks,
       tickSpacing,
@@ -293,6 +298,7 @@ function D3HorizontalLiquidityChartInner({
     colors,
     chartWidth,
     height,
+    topInset,
     initializeRenderers,
     drawAll,
     currentTick,

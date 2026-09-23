@@ -1,9 +1,8 @@
-import { waitForFlashbotsProtectReceipt } from '@universe/chains'
+import { waitForFlashbotsProtectReceipt, Platform } from '@universe/chains'
 import { providers } from 'ethers'
 import { expectSaga } from 'redux-saga-test-plan'
 import * as matchers from 'redux-saga-test-plan/matchers'
 import { call } from 'redux-saga/effects'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { getEnabledChainIdsSaga } from 'uniswap/src/features/settings/saga'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -426,5 +425,44 @@ describe('waitForRemoteUpdate flashbots_unknown (SWAP-2471)', () => {
     expect(stuckCall).toBeDefined()
     const stuckPayload = stuckCall?.[1] as Record<string, unknown>
     expect('provider_knows_tx' in stuckPayload).toBe(false)
+  })
+
+  // Txs protected by UniRPC never reach the Flashbots Protect API, so polling it
+  // would only produce UNKNOWN noise — status resolves via the Trading-API poll instead.
+  it('skips the Flashbots Protect poll for a private tx submitted via UniRPC swap protection', async () => {
+    const uniRpcTx: TransactionDetails = {
+      ...txDetailsPending,
+      options: {
+        ...txDetailsPending.options,
+        submitViaPrivateRpc: true,
+        privateRpcProvider: 'unirpc',
+        appBackgroundedWhilePending: true,
+      },
+    }
+
+    const providerMock = {
+      getTransactionReceipt: vi.fn(),
+      getBlockNumber: vi.fn(),
+      waitForTransaction: vi.fn(),
+    } as unknown as providers.Provider
+
+    await expectSaga(watchTransaction, { transaction: uniRpcTx, apolloClient: mockApolloClient })
+      .withState({
+        wallet: { activeAccountAddress: ACTIVE_ACCOUNT_ADDRESS },
+        userSettings: { isTestnetModeEnabled: false },
+        transactions: buildTransactionsState(uniRpcTx),
+      })
+      .provide([
+        [call(getProvider, chainId), providerMock],
+        [matchers.call.fn(waitForTransactionStatus), { status: TransactionStatus.Success }],
+        [call(getEnabledChainIdsSaga, Platform.EVM), { chains: [] }],
+      ])
+      .not.call.fn(waitForFlashbotsProtectReceipt)
+      .silentRun()
+
+    expect(sendAnalyticsEvent).not.toHaveBeenCalledWith(
+      WalletEventName.PendingTransactionStuck,
+      expect.objectContaining({ reason: 'flashbots_unknown' }),
+    )
   })
 })

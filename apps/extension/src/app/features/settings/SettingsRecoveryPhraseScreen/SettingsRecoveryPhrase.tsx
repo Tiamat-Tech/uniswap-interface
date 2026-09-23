@@ -1,12 +1,12 @@
+import { Button, ButtonEmphasis, ButtonVariant, Flex, Text } from '@universe/mycelium'
 import { ComponentProps } from 'react'
-import { Button, ButtonEmphasis, ButtonVariant, Flex, Square, Text } from 'ui/src'
 
 type SettingsRecoveryPhraseProps = {
   title: string
   titleColor?: ComponentProps<typeof Text>['color']
   subtitle: React.ReactNode
   icon: React.ReactNode
-  iconBackgroundColor?: ComponentProps<typeof Square>['backgroundColor']
+  iconBackgroundColor?: ComponentProps<typeof Flex>['backgroundColor']
   nextButtonEnabled: boolean
   nextButtonText: string
   nextButtonVariant?: ButtonVariant
@@ -31,9 +31,15 @@ export function SettingsRecoveryPhrase({
   return (
     <Flex grow justifyContent="space-between" p="$spacing4" pt="$spacing24">
       <Flex alignItems="flex-start" gap="$spacing16">
-        <Square backgroundColor={iconBackgroundColor} borderRadius="$rounded8" p="$spacing8">
+        <Flex
+          alignItems="center"
+          justifyContent="center"
+          backgroundColor={iconBackgroundColor}
+          borderRadius="$rounded8"
+          p="$spacing8"
+        >
           {icon}
-        </Square>
+        </Flex>
         <Flex gap="$spacing4" mb="$spacing24">
           <Text color={titleColor} variant="subheading1">
             {title}
@@ -47,7 +53,6 @@ export function SettingsRecoveryPhrase({
       <Flex row mt="$spacing12">
         <Button
           disabled={!nextButtonEnabled}
-          flexGrow={1}
           variant={nextButtonVariant}
           emphasis={nextButtonEmphasis}
           onPress={onNextPressed}

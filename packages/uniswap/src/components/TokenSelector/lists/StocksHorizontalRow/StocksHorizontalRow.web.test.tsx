@@ -1,11 +1,11 @@
 import { act, fireEvent, waitFor } from '@testing-library/react-native'
 import { Token } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { Text } from 'react-native'
 import { OnchainItemListOptionType, type RwaTokenOption } from 'uniswap/src/components/lists/items/types'
 import { WarningSeverity } from 'uniswap/src/components/modals/WarningModal/types'
 import { StocksHorizontalRow } from 'uniswap/src/components/TokenSelector/lists/StocksHorizontalRow/StocksHorizontalRow.web'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { ProtectionResult } from 'uniswap/src/features/dataApi/safety'
 import { TokenList, type CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import { useCurrencyInfos, useCurrencyInfoWithLoading } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { getTokenWarningSeverity } from 'uniswap/src/features/tokens/warnings/safetyUtils'
@@ -85,7 +85,7 @@ function makeFetchedCurrencyInfo(tokenList: TokenList): CurrencyInfo {
     currency: new Token(warnableStock.chainId, warnableStock.address, 18, warnableStock.symbol, warnableStock.name),
     currencyId: `${warnableStock.chainId}-${warnableStock.address}`,
     logoUrl: null,
-    safetyInfo: { tokenList, protectionResult: GraphQLApi.ProtectionResult.Benign },
+    safetyInfo: { tokenList, protectionResult: ProtectionResult.Benign },
   }
 }
 

@@ -11,7 +11,7 @@ const HEX_REGEX = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/
  * Adds opacity to the input color.
  *
  * @param opacity Opacity value to apply from 0-100
- * @param color Hex or RGB to apply the opacity to. RGBA is intentionally not supported.
+ * @param color Hex or RGB(A) to apply the opacity to. An alpha already on the input is replaced, not multiplied.
  */
 export function opacify(opacity: number, color: string): string {
   try {
@@ -22,7 +22,7 @@ export function opacify(opacity: number, color: string): string {
     if (color.startsWith('#')) {
       return opacifyHex(opacity, color)
     }
-    if (color.startsWith('rgb(')) {
+    if (color.startsWith('rgb(') || color.startsWith('rgba(')) {
       return opacifyRgba(opacity, color)
     }
     throw new Error(`provided color ${color} is neither a hex nor an rgb color`)

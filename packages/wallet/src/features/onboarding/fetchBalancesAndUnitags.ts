@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { getWalletBalancesIncludeCategories } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletBalances/getWalletBalances'
 import {
   fetchWalletsBalances,
@@ -5,7 +6,6 @@ import {
   toEvmWallets,
 } from 'uniswap/src/data/apiClients/dataApiService/balances/getWalletsBalances/getWalletsBalances'
 import { unitagsApiClient } from 'uniswap/src/data/apiClients/unitagsApi/UnitagsApiClient'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 type UnitagByAddress = Awaited<ReturnType<typeof unitagsApiClient.fetchUnitagsByAddresses>>['usernames']
 

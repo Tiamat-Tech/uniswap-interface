@@ -1,6 +1,6 @@
+import { UseSporeColorsReturn } from '@universe/mycelium/theme-hooks-compat'
 import { IChartApi, UTCTimestamp } from 'lightweight-charts'
 import { useCallback } from 'react'
-import { UseSporeColorsReturn } from 'ui/src/hooks/useSporeColors'
 import { LABEL_CONFIG } from '~/features/Toucan/Auction/BidDistributionChart/constants'
 import { formatTokenPriceSubscript } from '~/features/Toucan/Auction/BidDistributionChart/utils/tokenFormatters'
 import { calculateDynamicLabelIncrement } from '~/features/Toucan/Auction/BidDistributionChart/utils/utils'

@@ -1,16 +1,19 @@
+import { UniverseChainId, Platform } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import React, { PropsWithChildren, useCallback, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router'
-import { type NavigateToEarnVaultArgs, UniswapProvider } from 'uniswap/src/contexts/UniswapContext'
+import {
+  type NavigateToCategoryDetailsArgs,
+  type NavigateToEarnVaultArgs,
+  UniswapProvider,
+} from 'uniswap/src/contexts/UniswapContext'
 import { useOnchainDisplayName } from 'uniswap/src/features/accounts/useOnchainDisplayName'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { FiatOnRampCurrency } from 'uniswap/src/features/fiatOnRamp/types'
 import { useNavigateToNftExplorerLink } from 'uniswap/src/features/nfts/hooks/useNavigateToNftExplorerLink'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useSetActiveChainId } from 'uniswap/src/features/smartWallet/delegation/hooks/useSetActiveChainId'
 import { DelegatedState } from 'uniswap/src/features/smartWallet/delegation/types'
 import {
@@ -43,6 +46,8 @@ import { useEthersSigner } from '~/hooks/useEthersSigner'
 import { useGetSwapDelegationInfo } from '~/hooks/useGetSwapDelegationInfo'
 import { PageType } from '~/hooks/useIsPage'
 import { useModalState } from '~/hooks/useModalState'
+import { useNavigateToAuctionDetails } from '~/hooks/useNavigateToAuctionDetails'
+import { getCategoryDetailsURL } from '~/pages/Explore/CategoryDetails/getCategoryDetailsURL'
 import { buildPortfolioUrl } from '~/pages/Portfolio/utils/portfolioUrls'
 import { useOneClickSwapSetting } from '~/pages/Swap/Swap/settings/OneClickSwap'
 import { serializeSwapAddressesToURLParameters } from '~/pages/Swap/Swap/state/tradeQueryParams'
@@ -76,6 +81,7 @@ function WebUniswapProviderInner({ children }: PropsWithChildren) {
   const location = useLocation()
   const accountDrawer = useAccountDrawer()
   const navigate = useNavigate()
+  const navigateToAuctionDetails = useNavigateToAuctionDetails()
   const { chainId } = useMultichainContext()
 
   const { closeModal: closeSendModal } = useModalState(ModalName.Send)
@@ -121,11 +127,25 @@ function WebUniswapProviderInner({ children }: PropsWithChildren) {
 
   const navigateToAuction = useCallback(
     ({ auctionAddress, chainId: auctionChainId }: { auctionAddress: string; chainId: UniverseChainId }) => {
-      const chainUrlParam = getChainInfo(auctionChainId).urlParam
-      navigate(`/explore/auctions/${chainUrlParam}/${auctionAddress}`)
+      navigateToAuctionDetails({
+        chainId: auctionChainId,
+        auctionAddress,
+      })
+      closeSearchModal()
+    },
+    [navigateToAuctionDetails, closeSearchModal],
+  )
+
+  const navigateToCategoryDetails = useCallback(
+    ({ categoryId }: NavigateToCategoryDetailsArgs) => {
+      navigate(getCategoryDetailsURL(categoryId))
       closeSearchModal()
     },
     [navigate, closeSearchModal],
+  )
+
+  const getCategoryDetailsUrl = useEvent(({ categoryId }: NavigateToCategoryDetailsArgs): string =>
+    getCategoryDetailsURL(categoryId),
   )
 
   const navigateToFiatOnRamp = useCallback(
@@ -351,6 +371,7 @@ function WebUniswapProviderInner({ children }: PropsWithChildren) {
       navigateToPoolDetails={navigateToPoolDetails}
       navigateToEarnVault={navigateToEarnVault}
       navigateToAuction={navigateToAuction}
+      navigateToCategoryDetails={navigateToCategoryDetails}
       handleShareToken={handleShareToken}
       navigateToAdvancedSettings={navigateToAdvancedSettings}
       onConnectWallet={onConnectWallet}
@@ -367,6 +388,7 @@ function WebUniswapProviderInner({ children }: PropsWithChildren) {
       getTokenDetailsUrl={getTokenDetailsUrl}
       getPoolDetailsUrl={getPoolDetailsUrl}
       getExternalProfileUrl={getExternalProfileUrl}
+      getCategoryDetailsUrl={getCategoryDetailsUrl}
     >
       {children}
     </UniswapProvider>

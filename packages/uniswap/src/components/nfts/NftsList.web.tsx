@@ -1,9 +1,10 @@
 import { useWindowVirtualizer, Virtualizer } from '@tanstack/react-virtual'
 import { isMobileWeb } from '@universe/environment'
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Flex, View } from '@universe/mycelium'
+import { NoNfts } from '@universe/mycelium/icons/NoNfts'
+import { Fragment, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Loader, styled, View } from 'ui/src'
-import { NoNfts } from 'ui/src/components/icons/NoNfts'
+import { Loader } from 'ui/src'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { ExpandoRow } from 'uniswap/src/components/ExpandoRow/ExpandoRow'
 import { useNftListRenderData } from 'uniswap/src/components/nfts/hooks/useNftListRenderData'
@@ -58,6 +59,7 @@ function renderGridRows({
         width="100%"
         gap="$spacing12"
         height={virtualRow.size}
+        // Inline style: column count and row offset are computed per render, so no static class exists for them.
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${numColumns}, minmax(0, 1fr))`,
@@ -91,7 +93,7 @@ function HiddenNftsGrid({
   const [sectionOffset, setSectionOffset] = useState(0)
 
   // The window virtualizer needs this section's document offset; getBoundingClientRect over offsetTop because
-  // Tamagui views are position: relative, making offsetTop parent-relative
+  // compat Flex views are position: relative, making offsetTop parent-relative
   useLayoutEffect(() => {
     if (sectionRef.current) {
       setSectionOffset(sectionRef.current.getBoundingClientRect().top + window.scrollY)
@@ -112,29 +114,36 @@ function HiddenNftsGrid({
   )
 }
 
-const AssetsContainer = styled(View, {
-  width: '100%',
-  gap: '$spacing2',
-  variants: {
-    useGrid: {
-      true: {
-        '$platform-web': {
-          display: 'grid',
-          // default to 2 columns
-          gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-          gridGap: '12px',
-        },
-      },
-    },
-    autoColumns: {
-      true: {
-        '$platform-web': {
-          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-        },
-      },
-    },
-  },
-})
+function AssetsContainer({
+  useGrid,
+  autoColumns,
+  children,
+}: {
+  useGrid?: boolean
+  autoColumns?: boolean
+  children: ReactNode
+}): JSX.Element {
+  return (
+    <View
+      width="100%"
+      gap="$spacing2"
+      style={
+        useGrid
+          ? {
+              display: 'grid',
+              // default to 2 columns
+              gridTemplateColumns: autoColumns
+                ? 'repeat(auto-fill, minmax(200px, 1fr))'
+                : 'minmax(0, 1fr) minmax(0, 1fr)',
+              gridGap: '12px',
+            }
+          : undefined
+      }
+    >
+      {children}
+    </View>
+  )
+}
 
 export function NftsList({
   owner,
@@ -332,6 +341,10 @@ export function NftsList({
     t,
   ])
 
+  // No header renders and no rows fill the grid, so the header gap and the loading footer's reserved
+  // height would both land as dead space above the hidden-NFTs expando row
+  const hasOnlyHiddenNfts = !showHeader && !nonNftContent
+
   const nftListContent = (
     <>
       <Flex position="relative">
@@ -344,7 +357,7 @@ export function NftsList({
             renderNFTItem,
           })}
         </Flex>
-        <NftsListLoadingFooter show={Boolean(search) && hasNextPage} />
+        {!hasOnlyHiddenNfts && <NftsListLoadingFooter show={Boolean(search) && hasNextPage} />}
       </Flex>
       {isFetchingMore && !search && skeletonContent}
       {numHidden > 0 && (
@@ -390,7 +403,7 @@ export function NftsList({
           onSearchValueChange={setSearch}
         />
       )}
-      <Flex mt="$spacing24">{nonNftContent ?? nftListContent}</Flex>
+      <Flex mt={hasOnlyHiddenNfts ? undefined : '$spacing24'}>{nonNftContent ?? nftListContent}</Flex>
     </Flex>
   )
 }

@@ -1,9 +1,9 @@
+import { Flex } from '@universe/mycelium'
 import type { ScrollView } from 'react-native'
 import type { AnimatedRef } from 'react-native-reanimated'
 import { useSelector } from 'react-redux'
 import { FavoriteTokensGrid } from 'src/components/explore/FavoriteTokensGrid'
 import { FavoriteWalletsGrid } from 'src/components/explore/FavoriteWalletsGrid'
-import { Flex } from 'ui/src'
 import { selectHasFavoriteTokens, selectHasWatchedWallets } from 'uniswap/src/features/favorites/selectors'
 
 type FavoritesSectionProps = {

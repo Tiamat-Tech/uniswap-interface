@@ -19,7 +19,8 @@ import { DROPDOWN_MENU_RECIPE_CLASS_NAMES } from '../../../mycelium/src/shadcn/d
 import { POPOVER_RECIPE_CLASS_NAMES } from '../../../mycelium/src/shadcn/popover'
 // nx-ignore-next-line
 import { SELECT_RECIPE_CLASS_NAMES } from '../../../mycelium/src/shadcn/select'
-import { compileTailwindClasses } from '../parity/core/tailwind-compile'
+import { BASE_SCOPE } from '../tailwind-compile/scope'
+import { compileTailwindClasses } from '../tailwind-compile/tailwind-compile'
 
 const SHADCN_SRC = join(dirname(fileURLToPath(import.meta.url)), '../../../mycelium/src/shadcn')
 
@@ -67,5 +68,24 @@ describe('shadcn recipe class constants — Tailwind CSS existence', () => {
       // present (escaped) selector proves the CSS exists.
       expect(compiled.css, `no CSS emitted for class "${cls}"`).toContain(`.${escapeForSelector(cls)}`)
     }
+  }, 120_000)
+
+  it('the content transitions watch the split `scale` property the scale-* utilities set', async () => {
+    // Existence isn't enough here: `transition-[transform,opacity]` also
+    // compiles to valid CSS, but v4 `scale-*` sets the separate `scale`
+    // property and the popover zoom snaps — pin the compiled
+    // transition-property value itself.
+    const contents: Record<string, string> = {
+      popover: POPOVER_RECIPE_CLASS_NAMES.content,
+      dropdownMenu: DROPDOWN_MENU_RECIPE_CLASS_NAMES.content,
+      select: SELECT_RECIPE_CLASS_NAMES.content,
+    }
+    for (const [recipe, className] of Object.entries(contents)) {
+      const transitionClasses = splitClasses(className).filter((cls) => cls.startsWith('transition-'))
+      expect(transitionClasses, `${recipe} content transition class`).toEqual(['transition-[scale,opacity]'])
+    }
+    const compiled = await compileTailwindClasses(['transition-[scale,opacity]'])
+    const declarations = compiled.classScopes.get('transition-[scale,opacity]')?.get(BASE_SCOPE)
+    expect(declarations?.['transition-property']).toBe('scale,opacity')
   }, 120_000)
 })

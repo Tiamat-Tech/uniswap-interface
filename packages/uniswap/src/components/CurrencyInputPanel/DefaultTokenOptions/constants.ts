@@ -1,5 +1,5 @@
 import { isHoverable, isWebAppDesktop } from '@universe/environment'
-import { iconSizes, spacing } from 'ui/src/theme'
+import { iconSizes, spacing } from '@universe/mycelium'
 
 /**
  * If we show more than 6 tokens, we may need to add more animation delays

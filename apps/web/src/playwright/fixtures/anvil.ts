@@ -3,11 +3,10 @@
 import { test as base } from '@playwright/test'
 import { MaxUint160, MaxUint256, permit2Address } from '@uniswap/permit2-sdk'
 import { WETH_ADDRESS } from '@uniswap/universal-router-sdk'
+import { UniverseChainId, normalizeTokenAddressForCache } from '@universe/chains'
 import PERMIT2_ABI from 'uniswap/src/abis/permit2'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { DAI, USDC, USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { normalizeTokenAddressForCache } from 'uniswap/src/utils/currencyId'
 import { mainnet } from 'viem/chains'
 import { type Address, assume0xAddress, erc20Abi } from '~/chains'
 import { resolvePinnedForkBlock } from '~/playwright/anvil/anvil-args'
@@ -311,10 +310,19 @@ export const test = base.extend<{ anvil: AnvilClient; delegateToZeroAddress?: vo
     if (!isHealthy) {
       console.error('Anvil is not healthy after test, stopping...')
       // Don't restart here - let the next test's ensureHealthy() relaunch it at the
-      // pinned fork state. This avoids race conditions between parallel tests.
+      // pinned fork state (a fresh anvil auto-mines by default). This avoids race
+      // conditions between parallel tests.
       await getAnvilManager().stop()
       return
     }
+
+    // Auto-mining re-enable BEFORE the revert, still inside the test that opted out: auto-mining is
+    // node config that evm_revert (and anvil_reset) do NOT restore, so a test that turned it off to
+    // observe a pending tx (the LP claim/migrate flows asserting "Collecting fees"/"Migrating
+    // liquidity") would otherwise leak the off state into later tests. Restoring here — rather than
+    // at the next test's setup — also mines any tx a *failed* automine-off test left in the pool,
+    // so the immediately-following restore drops it instead of it surviving into the next snapshot.
+    await testAnvil.setAutomine(true)
 
     // Restore pre-test state, verifying the revert actually happened; a failed
     // revert falls back to a full pinned re-fork so the next test starts clean.

@@ -36,6 +36,7 @@ export const padding = {
 }
 
 export const gap = {
+  gap2: spacing.spacing2,
   gap4: spacing.spacing4,
   gap8: spacing.spacing8,
   gap12: spacing.spacing12,

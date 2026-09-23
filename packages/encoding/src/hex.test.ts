@@ -87,6 +87,18 @@ describe('ensure0xHex', () => {
   it('adds 0x to an arbitrary non-hex string', () => {
     expect(ensure0xHex('yz')).toBe('0xyz')
   })
+
+  it('normalizes a leading uppercase 0X prefix to lowercase 0x', () => {
+    expect(ensure0xHex('0Xabc')).toBe('0xabc')
+  })
+
+  it('normalizes the 0X prefix while preserving the body casing', () => {
+    expect(ensure0xHex('0XAbC12')).toBe('0xAbC12')
+  })
+
+  it('does not double-prefix an uppercase 0X string', () => {
+    expect(ensure0xHex('0X1234')).toBe('0x1234')
+  })
 })
 
 describe('isValidHexString', () => {

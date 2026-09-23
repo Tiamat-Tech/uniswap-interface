@@ -1,7 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
+import { ArrowUpCircle } from '@universe/mycelium/icons/ArrowUpCircle'
+import { CheckCircleFilled } from '@universe/mycelium/icons/CheckCircleFilled'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { ArrowUpCircle } from 'ui/src/components/icons/ArrowUpCircle'
-import { CheckCircleFilled } from 'ui/src/components/icons/CheckCircleFilled'
 import { useBidStatusColors } from '~/features/Toucan/Auction/hooks/useBidStatusColors'
 import { type BidDisplayState } from '~/features/Toucan/Auction/utils/bidDetails'
 

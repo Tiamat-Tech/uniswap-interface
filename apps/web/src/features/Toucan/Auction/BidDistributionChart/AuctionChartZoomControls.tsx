@@ -1,7 +1,7 @@
-import { Flex, TouchableArea, type TouchableAreaProps } from 'ui/src'
-import { Expand } from 'ui/src/components/icons/Expand'
-import { SearchMinus } from 'ui/src/components/icons/SearchMinus'
-import { SearchPlus } from 'ui/src/components/icons/SearchPlus'
+import { Flex, TouchableArea, type TouchableAreaCompatProps as TouchableAreaProps } from '@universe/mycelium'
+import { Expand } from '@universe/mycelium/icons/Expand'
+import { SearchMinus } from '@universe/mycelium/icons/SearchMinus'
+import { SearchPlus } from '@universe/mycelium/icons/SearchPlus'
 
 interface AuctionChartZoomControlsProps {
   onZoomIn: () => void
@@ -14,7 +14,7 @@ interface AuctionChartZoomControlsProps {
 const ZoomOptionButton = ({ children, ...props }: TouchableAreaProps) => {
   return (
     <TouchableArea
-      animation="100ms"
+      className="transition-opacity duration-100"
       backgroundColor="$transparent"
       hoverStyle={{ backgroundColor: '$transparent', opacity: 0.8 }}
       pressStyle={{ backgroundColor: '$surface3', opacity: 0.8 }}

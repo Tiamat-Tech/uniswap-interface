@@ -1,7 +1,7 @@
 import { TradingApi } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
 import { TradingApiClient } from 'uniswap/src/data/apiClients/tradingApi/TradingApiClient'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type {
   SignDelegationAuthorizationFn,
   SwapDelegationInfo,

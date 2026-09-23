@@ -1,5 +1,5 @@
-import { Flex } from 'ui/src'
-import { UniswapLogo } from 'ui/src/components/icons/UniswapLogo'
+import { Flex } from '@universe/mycelium'
+import { UniswapLogo } from '@universe/mycelium/icons/UniswapLogo'
 import { GoogleChromeLogo } from 'ui/src/components/logos/GoogleChromeLogo'
 
 interface UniswapBrandedIconProps {

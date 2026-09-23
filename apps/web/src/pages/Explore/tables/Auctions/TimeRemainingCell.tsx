@@ -1,7 +1,7 @@
+import type { UniverseChainId } from '@universe/chains'
+import { Button, Flex, Text, type WebButtonPressEvent } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Button, Flex, Text } from 'ui/src'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
@@ -9,6 +9,7 @@ import { useEvent } from 'utilities/src/react/hooks'
 import { TableText } from '~/components/Table/shared/TableText'
 import { getTokenDetailsURL } from '~/data/util'
 import { useAuctionTimeRemaining } from '~/features/Toucan/Auction/hooks/useAuctionTimeRemaining'
+import { useAuctionTradingToken } from '~/features/Toucan/Auction/hooks/useAuctionTradingToken'
 import { isAuctionFailed } from '~/features/Toucan/Auction/utils/isAuctionFailed'
 import { LiquidityLockedBadge } from '~/features/Toucan/Shared/LiquidityLockedBadge'
 
@@ -55,16 +56,17 @@ export function TimeRemainingCell({
     preBidEndBlockTimestamp,
   })
 
-  const canSwap = Boolean(tokenAddress && chainId)
+  const { tradingTokenAddress } = useAuctionTradingToken({ tokenAddress, chainId })
+  const canSwap = Boolean(tradingTokenAddress && chainId)
 
-  const handleSwapPress = useEvent((e: { preventDefault: () => void; stopPropagation: () => void }) => {
+  const handleSwapPress = useEvent((e: WebButtonPressEvent) => {
     // The whole row is a link to the auction page — keep this press from triggering it.
     e.preventDefault()
     e.stopPropagation()
-    if (!tokenAddress || !chainId) {
+    if (!tradingTokenAddress || !chainId) {
       return
     }
-    navigate(getTokenDetailsURL({ address: tokenAddress, chain: toGraphQLChain(chainId) }))
+    navigate(getTokenDetailsURL({ address: tradingTokenAddress, chain: toGraphQLChain(chainId) }))
   })
 
   if (!phase) {

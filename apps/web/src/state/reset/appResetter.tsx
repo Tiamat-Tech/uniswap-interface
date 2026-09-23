@@ -8,7 +8,6 @@ import { createLogger } from 'utilities/src/logger/logger'
 import { resetApplication } from '~/state/application/reducer'
 import { resetFiatOnRamp } from '~/state/fiatOnRampTransactions/reducer'
 import { resetLists } from '~/state/lists/actions'
-import { resetRoutingApi } from '~/state/routing/slice'
 import { resetUser } from '~/state/user/reducer'
 
 /**
@@ -40,7 +39,6 @@ export function createWebAppStateResetter({
     },
 
     onResetQueryCaches: async () => {
-      dispatch(resetRoutingApi())
       await Promise.all([
         apolloClient.resetStore().then(() => logger.info('Apollo cache cleared successfully')),
         queryClient.resetQueries().then(() => logger.info('React Query cache cleared successfully')),

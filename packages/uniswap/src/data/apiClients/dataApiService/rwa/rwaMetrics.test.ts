@@ -1,4 +1,5 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { mapRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/mapRankedRwa'
 import { makeRankedRwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/rankedRwaTestHelpers'
 import {
@@ -9,7 +10,6 @@ import {
   getRwaPriceDisplay,
   getRwaPriceSortValue,
 } from 'uniswap/src/data/apiClients/dataApiService/rwa/rwaMetrics'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 function makeMappedRwa() {
   const rwa = mapRankedRwa({
@@ -82,9 +82,15 @@ describe('getIssuerCount', () => {
 })
 
 describe('getNetworkCount', () => {
-  it('returns chain token count', () => {
+  it('returns chain token count within enabled chains', () => {
     const ondo = makeMappedRwa().issuerTokens.find((issuer) => issuer.issuer === 'ondo')!
-    expect(getNetworkCount(ondo)).toBe(2)
+    expect(getNetworkCount(ondo, [UniverseChainId.Mainnet, UniverseChainId.Base])).toBe(2)
+  })
+
+  it('excludes chain tokens outside the enabled chain set', () => {
+    const ondo = makeMappedRwa().issuerTokens.find((issuer) => issuer.issuer === 'ondo')!
+    expect(getNetworkCount(ondo, [UniverseChainId.Base])).toBe(1)
+    expect(getNetworkCount(ondo, [])).toBe(0)
   })
 })
 

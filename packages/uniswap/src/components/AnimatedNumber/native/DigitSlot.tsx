@@ -1,5 +1,5 @@
+import type { ResolvedFontStyle } from '@universe/mycelium'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated'
-import type { ResolvedFontStyle } from 'ui/src/theme'
 import { ROLL_TRANSITION_MS, SLIDE_PERCENT } from 'uniswap/src/components/AnimatedNumber/animationConfig'
 import { startFlashSequence } from 'uniswap/src/components/AnimatedNumber/native/startFlashSequence'
 import { useDigitTextStyle } from 'uniswap/src/components/AnimatedNumber/native/useDigitTextStyle'

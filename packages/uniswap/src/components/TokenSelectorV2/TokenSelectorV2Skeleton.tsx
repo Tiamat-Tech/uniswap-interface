@@ -1,4 +1,5 @@
-import { Flex, Loader } from 'ui/src'
+import { Flex } from '@universe/mycelium'
+import { Loader } from 'ui/src'
 
 // Enough rows to cover the V2 pane height (520px) — excess is clipped by overflow.
 const SKELETON_ROW_COUNT = 8

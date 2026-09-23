@@ -1,4 +1,4 @@
-import type { TextVariantKey } from 'ui/src/theme'
+import type { TextVariantKey } from '@universe/mycelium'
 
 export const DIGIT_HEIGHT = 40
 export const DIGIT_MAX_WIDTH = 29

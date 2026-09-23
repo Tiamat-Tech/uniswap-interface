@@ -1,6 +1,10 @@
 /* Base Layer Styles */
 
 @custom-variant dark (&:is(.dark *));
+/* The `light` twin ($theme-light pools) is declared at the END of compat.css,
+   not here: it must be the last user @custom-variant so its rules keep the
+   legacy `not-dark:` cascade slot — see the comment there for the full
+   web-vs-native semantics. */
 
 /* Height breakpoints (packages/ui/src/theme/breakpoints.ts heightBreakpoints) */
 @custom-variant h-short (@media (max-height: 736px));

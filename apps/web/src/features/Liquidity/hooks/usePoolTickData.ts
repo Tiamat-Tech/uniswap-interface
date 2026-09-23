@@ -2,20 +2,20 @@ import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes
 import { Currency, Token, V3_CORE_FACTORY_ADDRESSES } from '@uniswap/sdk-core'
 import { FeeAmount, TICK_SPACINGS, tickToPrice as tickToPriceV3, Pool as V3Pool } from '@uniswap/v3-sdk'
 import { tickToPrice as tickToPriceV4, Pool as V4Pool } from '@uniswap/v4-sdk'
-import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import JSBI from 'jsbi'
-import ms from 'ms'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
-import { useGetPool, useGetPoolsByTokens } from 'uniswap/src/data/apiClients/dataApiService/pools/getPools'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
-import { AddressStringFormat, normalizeAddress } from 'uniswap/src/utils/addresses'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import { logger } from 'utilities/src/logger/logger'
-import { TickData, Ticks } from '~/data/AllV3TicksQuery'
+import { useLiquidityServiceGetPool } from '~/features/Liquidity/hooks/useLiquidityServiceGetPool'
+import { useLiquidityServicePoolTicks } from '~/features/Liquidity/hooks/useLiquidityServicePoolTicks'
+import { useV2SyntheticActiveLiquidity, useV2SyntheticPool } from '~/features/Liquidity/hooks/useV2SyntheticPool'
+import { TickData } from '~/features/Liquidity/types/ticks'
 import { computeSurroundingTicks, TickProcessed } from '~/features/Liquidity/utils/computeSurroundingTicks'
-import { getTokenOrZeroAddress } from '~/features/Liquidity/utils/currency'
+import { normalizePoolSummary } from '~/features/Liquidity/utils/normalizePoolSummary'
 import { poolEnabledProtocolVersion } from '~/features/Liquidity/utils/protocolVersion'
+import { V2Reserves } from '~/features/Liquidity/utils/v2SyntheticTicks'
 import { useMultichainContext } from '~/state/multichain/useMultichainContext'
 import { PositionField } from '~/types/position'
 
@@ -40,52 +40,35 @@ function getActiveTick({
     : undefined
 }
 
-const MAX_TICK_FETCH_VALUE = 1000
-function usePaginatedTickQuery({
-  poolId,
+/** Derives the SDK pool id (v3 pool address / v4 pool id hash) for a pair + fee (+ tickSpacing + hooks on v4). */
+function computePoolId({
+  sdkCurrencies,
+  feeAmount,
+  tickSpacing,
+  hooks,
   version,
-  skip,
   chainId,
 }: {
-  poolId?: string
+  sdkCurrencies: { [field in PositionField]: Maybe<Currency> }
+  feeAmount?: FeeAmount
+  tickSpacing?: number
+  hooks?: string
   version: ProtocolVersion
-  skip?: number
   chainId: UniverseChainId
-}) {
-  const v3Result = GraphQLApi.useAllV3TicksQuery({
-    variables: {
-      address: normalizeAddress(poolId ?? '', AddressStringFormat.Lowercase),
-      chain: toGraphQLChain(chainId),
-      skip,
-      first: MAX_TICK_FETCH_VALUE,
-    },
-    skip: !poolId || version !== ProtocolVersion.V3,
-    pollInterval: ms(`30s`),
-  })
+}): string | undefined {
+  const { TOKEN0, TOKEN1 } = sdkCurrencies
+  const wrappedToken0 = getWrappedTokenIfExists(TOKEN0)
+  const wrappedToken1 = getWrappedTokenIfExists(TOKEN1)
+  const v3PoolAddress =
+    wrappedToken0 && wrappedToken1 && feeAmount && version === ProtocolVersion.V3
+      ? V3Pool.getAddress(wrappedToken0, wrappedToken1, feeAmount, undefined, V3_CORE_FACTORY_ADDRESSES[chainId])
+      : undefined
 
-  const v4Result = GraphQLApi.useAllV4TicksQuery({
-    variables: {
-      poolId: poolId ?? '',
-      chain: toGraphQLChain(chainId),
-      skip,
-      first: MAX_TICK_FETCH_VALUE,
-    },
-    skip: !poolId || version !== ProtocolVersion.V4,
-    pollInterval: ms(`30s`),
-  })
-
-  return useMemo(() => {
-    if (version === ProtocolVersion.V3) {
-      return v3Result
-    } else if (version === ProtocolVersion.V4) {
-      return v4Result
-    }
-    return {
-      data: undefined,
-      error: new Error('Invalid version'),
-      loading: false,
-    }
-  }, [v3Result, v4Result, version])
+  const v4PoolId =
+    version === ProtocolVersion.V4 && TOKEN0 && TOKEN1 && feeAmount && tickSpacing && hooks
+      ? V4Pool.getPoolId(TOKEN0, TOKEN1, feeAmount, tickSpacing, hooks)
+      : undefined
+  return version === ProtocolVersion.V3 ? v3PoolAddress : v4PoolId
 }
 
 // Fetches all ticks for a given pool
@@ -97,6 +80,8 @@ export function useAllPoolTicks({
   tickSpacing,
   hooks,
   precalculatedPoolId,
+  v2Reserves,
+  skip,
 }: {
   sdkCurrencies: { [field in PositionField]: Maybe<Currency> }
   feeAmount?: FeeAmount
@@ -105,68 +90,31 @@ export function useAllPoolTicks({
   tickSpacing?: number
   hooks?: string
   precalculatedPoolId?: string
+  /** v2 only: reserves to synthesize a full-range distribution from. See `buildV2SyntheticPool`. */
+  v2Reserves?: V2Reserves
+  /** Leaves the ticks unfetched, e.g. for a pool that doesn't exist yet. */
+  skip?: boolean
 }): {
   isLoading: boolean
   error: unknown
   ticks?: TickData[]
 } {
-  const [skipNumber, setSkipNumber] = useState(0)
+  const poolId = useMemo(
+    () => precalculatedPoolId ?? computePoolId({ sdkCurrencies, feeAmount, tickSpacing, hooks, version, chainId }),
+    [chainId, sdkCurrencies, feeAmount, hooks, precalculatedPoolId, tickSpacing, version],
+  )
 
-  const [pagesBySkip, setPagesBySkip] = useState<Record<number, Ticks>>({})
+  // The liquidity-service GetPoolTicks endpoint returns the full V3/V4 distribution in one RPC.
+  const liquidityServiceResult = useLiquidityServicePoolTicks({ poolId, version, chainId, disabled: skip })
 
-  const poolId = useMemo(() => {
-    if (precalculatedPoolId) {
-      return precalculatedPoolId
-    }
-    const { TOKEN0, TOKEN1 } = sdkCurrencies
-    const v3PoolAddress =
-      TOKEN0 && TOKEN1 && feeAmount && version === ProtocolVersion.V3
-        ? V3Pool.getAddress(TOKEN0.wrapped, TOKEN1.wrapped, feeAmount, undefined, V3_CORE_FACTORY_ADDRESSES[chainId])
-        : undefined
+  // v2 has no real ticks; synthesize a full-range distribution from the pair's reserves instead.
+  const v2SyntheticTicks = useV2SyntheticPool({ version, sdkCurrencies, v2Reserves, tickSpacing })?.rawTicks
 
-    const v4PoolId =
-      version === ProtocolVersion.V4 && TOKEN0 && TOKEN1 && feeAmount && tickSpacing && hooks
-        ? V4Pool.getPoolId(TOKEN0, TOKEN1, feeAmount, tickSpacing, hooks)
-        : undefined
-    return version === ProtocolVersion.V3 ? v3PoolAddress : v4PoolId
-  }, [chainId, sdkCurrencies, feeAmount, hooks, precalculatedPoolId, tickSpacing, version])
-
-  const {
-    data,
-    error,
-    loading: isLoading,
-  } = usePaginatedTickQuery({
-    poolId,
-    version,
-    skip: skipNumber,
-    chainId,
-  })
-  // TODO: fix typing on usePaginatedTickQuery function to avoid casting to any
-  const ticks: Ticks | undefined =
-    ((data as any)?.v3Pool?.ticks as Ticks | undefined) ?? ((data as any)?.v4Pool?.ticks as Ticks | undefined)
-
-  useEffect(() => {
-    if (ticks?.length) {
-      setPagesBySkip((prev) => (prev[skipNumber] === ticks ? prev : { ...prev, [skipNumber]: ticks }))
-      if (ticks.length === MAX_TICK_FETCH_VALUE) {
-        // oxlint-disable-next-line no-shadow
-        setSkipNumber((skipNumber) => skipNumber + MAX_TICK_FETCH_VALUE)
-      }
-    }
-  }, [ticks, skipNumber])
-
-  const tickData = useMemo<Ticks>(() => {
-    const sortedSkips = Object.keys(pagesBySkip)
-      .map(Number)
-      .sort((a, b) => a - b)
-    return sortedSkips.flatMap((s) => pagesBySkip[s])
-  }, [pagesBySkip])
-
-  return {
-    isLoading: isLoading || ticks?.length === MAX_TICK_FETCH_VALUE,
-    error,
-    ticks: tickData,
+  if (version === ProtocolVersion.V2) {
+    return { isLoading: false, error: undefined, ticks: v2SyntheticTicks }
   }
+
+  return liquidityServiceResult
 }
 
 export function usePoolActiveLiquidity({
@@ -178,6 +126,7 @@ export function usePoolActiveLiquidity({
   hooks,
   poolId,
   skip,
+  v2Reserves,
 }: {
   poolId?: string
   sdkCurrencies: { [field in PositionField]: Maybe<Currency> }
@@ -187,6 +136,8 @@ export function usePoolActiveLiquidity({
   tickSpacing?: number
   hooks?: string
   skip?: boolean
+  /** v2 only: reserves to synthesize a full-range distribution from. See `buildV2SyntheticPool`. */
+  v2Reserves?: V2Reserves
 }): {
   isLoading: boolean
   error: any
@@ -202,45 +153,55 @@ export function usePoolActiveLiquidity({
   const poolsQueryEnabled = Boolean(
     poolEnabledProtocolVersion(version) && sdkCurrencies.TOKEN0 && sdkCurrencies.TOKEN1 && !skip,
   )
-  // Prefer the pool-id keyed read; a fee-filtered list lookup misses pools whose live fee differs
-  // from the static fee tier. Only the create flow lacks a poolId, so it keeps the list fallback.
-  const { data: singlePoolData, isLoading: singlePoolIsLoading } = useGetPool(
-    {
-      chainId: chainId ?? defaultChainId,
-      poolId,
-      protocolVersion: version,
-    },
-    poolsQueryEnabled && Boolean(poolId),
+
+  // GetPool is keyed by pool id; derive it like useAllPoolTicks does (caller-provided id wins).
+  // v4 hookless derivation uses the zero address, matching the v1 request's `hooks ?? ZERO_ADDRESS`.
+  // Backfill tickSpacing from the fee tier so a v4 lookup with hooks + fee but no caller-supplied
+  // tickSpacing (the create flow) still derives an id — useAllPoolTicks backfills the same way via
+  // tickSpacingWithFallback below, so without this the ticks resolve while pool never does.
+  const resolvedPoolId = useMemo(
+    () =>
+      poolId ??
+      computePoolId({
+        sdkCurrencies,
+        feeAmount,
+        // Fee-tier backfill is V3/V4-only, matching tickSpacingWithFallback: v2's 0.30% fee would
+        // resolve TICK_SPACINGS[3000] = 60 and pin this path to it, while the charts follow the
+        // V2_SYNTHETIC_TICK_SPACING default. Both are 60 today, so they would agree by coincidence.
+        tickSpacing:
+          normalizeTickSpacing(tickSpacing) ??
+          (feeAmount && version !== ProtocolVersion.V2 ? TICK_SPACINGS[feeAmount as FeeAmount] : undefined),
+        hooks: hooks ?? ZERO_ADDRESS,
+        version,
+        chainId: chainId ?? defaultChainId,
+      }),
+    [poolId, sdkCurrencies, feeAmount, tickSpacing, hooks, version, chainId, defaultChainId],
   )
 
-  const { data: poolListData, isLoading: poolListIsLoading } = useGetPoolsByTokens(
-    {
-      fee: feeAmount,
-      tickSpacing,
-      chainId: chainId ?? defaultChainId,
-      protocolVersions: [version],
-      token0: getTokenOrZeroAddress(sdkCurrencies.TOKEN0),
-      token1: getTokenOrZeroAddress(sdkCurrencies.TOKEN1),
-      hooks: hooks ?? ZERO_ADDRESS,
-    },
-    poolsQueryEnabled && !poolId,
-  )
+  const { data: v2PoolData, isLoading: isV2PoolLoading } = useLiquidityServiceGetPool({
+    chainId: chainId ?? defaultChainId,
+    poolId: resolvedPoolId,
+    enabled: poolsQueryEnabled,
+  })
 
-  const poolIsLoading = poolId ? singlePoolIsLoading : poolListIsLoading
+  // The liquidity-service GetPool response, normalized to the canonical v2 Pool shape.
+  const pool = useMemo(() => (v2PoolData?.pool ? normalizePoolSummary(v2PoolData.pool) : undefined), [v2PoolData])
 
-  const pool = useMemo(() => {
-    return poolId ? singlePoolData?.pool : poolListData?.pools[0]
-  }, [poolId, singlePoolData, poolListData])
-
+  // The fee-tier fallback is a V3/V4 notion and must not apply to v2: v2's fixed 0.30% fee would
+  // resolve TICK_SPACINGS[3000] = 60 and get passed down explicitly, overriding the
+  // V2_SYNTHETIC_TICK_SPACING default. That happens to be 60 too, so the two agree today by
+  // coincidence — but it would leave this path (and the Depth chart) pinned at 60 while
+  // D3LiquidityPoolChart, which builds its pool without a tickSpacing, followed the constant.
+  // Leaving it undefined for v2 lets the single default in `buildV2SyntheticPool` govern both.
   const tickSpacingWithFallback =
     normalizeTickSpacing(tickSpacing) ??
     normalizeTickSpacing(pool?.tickSpacing) ??
-    (feeAmount ? TICK_SPACINGS[feeAmount as FeeAmount] : undefined)
+    (feeAmount && version !== ProtocolVersion.V2 ? TICK_SPACINGS[feeAmount as FeeAmount] : undefined)
 
   const liquidity = pool?.liquidity
   const sqrtPriceX96 = pool?.sqrtPriceX96
 
-  const currentTick = pool?.tick
+  const currentTick = pool?.currentTick
   // Find nearest valid tick for pool in case tick is not initialized.
   const activeTick = useMemo(
     () =>
@@ -252,23 +213,37 @@ export function usePoolActiveLiquidity({
     [currentTick, feeAmount, tickSpacingWithFallback],
   )
 
+  // useAllPoolTicks keys its GetPoolTicks read off this id: the caller-provided poolId wins,
+  // otherwise the derived resolvedPoolId (which the create flow, lacking a poolId, relies on).
   const { isLoading, error, ticks } = useAllPoolTicks({
     sdkCurrencies,
     feeAmount,
-    precalculatedPoolId: poolId,
+    precalculatedPoolId: poolId ?? resolvedPoolId,
     chainId: chainId ?? defaultChainId,
     version,
     tickSpacing: tickSpacingWithFallback,
     hooks,
+    v2Reserves,
+    skip,
   })
 
-  return useMemo(() => {
+  // Same inputs as the build inside `useAllPoolTicks` above, so both halves describe one pool.
+  const syntheticPool = useV2SyntheticPool({
+    version,
+    sdkCurrencies,
+    v2Reserves,
+    tickSpacing: tickSpacingWithFallback,
+  })
+
+  const v2SyntheticResult = useV2SyntheticActiveLiquidity({ version, sdkCurrencies, syntheticPool })
+
+  const v3v4Result = useMemo(() => {
     const token0 = sdkCurrencies.TOKEN0
     const token1 = sdkCurrencies.TOKEN1
 
     if (!token0 || !token1 || activeTick === undefined || !pool || !ticks || ticks.length === 0 || isLoading) {
       return {
-        isLoading: isLoading || poolIsLoading,
+        isLoading: isLoading || isV2PoolLoading,
         error,
         activeTick,
         tickSpacing: tickSpacingWithFallback,
@@ -279,7 +254,7 @@ export function usePoolActiveLiquidity({
     // find where the active tick would be to partition the array
     // if the active tick is initialized, the pivot will be an element
     // if not, take the previous tick as pivot
-    const pivot = ticks.findIndex((tickData) => tickData?.tick && tickData.tick > activeTick) - 1
+    const pivot = ticks.findIndex((tickData) => tickData.tick && tickData.tick > activeTick) - 1
 
     if (pivot < 0) {
       // consider setting a local error
@@ -321,7 +296,7 @@ export function usePoolActiveLiquidity({
     }
 
     const activeTickProcessed: TickProcessed = {
-      liquidityActive: JSBI.BigInt(pool.liquidity),
+      liquidityActive: JSBI.BigInt(pool.liquidity.toString()),
       tick: activeTick,
       liquidityNet: JSBI.BigInt(ticks[pivot]?.liquidityNet ?? 0),
       price0: sdkPrice.toFixed(PRICE_FIXED_DIGITS),
@@ -355,7 +330,7 @@ export function usePoolActiveLiquidity({
       error,
       currentTick,
       activeTick,
-      liquidity: JSBI.BigInt(liquidity ?? 0),
+      liquidity: JSBI.BigInt((liquidity ?? 0n).toString()),
       sqrtPriceX96: JSBI.BigInt(sqrtPriceX96 ?? 0),
       tickSpacing: tickSpacingWithFallback,
       data: ticksProcessed,
@@ -372,6 +347,8 @@ export function usePoolActiveLiquidity({
     liquidity,
     sqrtPriceX96,
     tickSpacingWithFallback,
-    poolIsLoading,
+    isV2PoolLoading,
   ])
+
+  return v2SyntheticResult ?? v3v4Result
 }

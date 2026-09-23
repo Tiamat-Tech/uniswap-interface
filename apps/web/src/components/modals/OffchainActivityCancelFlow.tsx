@@ -1,8 +1,9 @@
 import { TradingApi } from '@universe/api'
 import { FeatureFlags, getFeatureFlag } from '@universe/gating'
+import { Button, Flex, type FlexCompatProps, Text } from '@universe/mycelium'
 import { TFunction } from 'i18next'
+import { forwardRef, type ForwardRefExoticComponent, type RefAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, styled, Text } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { isCancelTimedOut } from 'uniswap/src/features/transactions/cancel/cancelTimeoutStateMachine'
 import { CancelOrderPreCheckResult } from 'uniswap/src/features/transactions/cancel/getCancelOrderTxRequest'
@@ -11,28 +12,43 @@ import i18n from 'uniswap/src/i18n'
 import { popupRegistry } from '~/state/popups/registry'
 import { PopupType } from '~/state/popups/types'
 
-export const OrderAlertContainer = styled(Flex, {
-  row: true,
-  mt: '$spacing16',
-  p: '$spacing12',
-  borderWidth: 1.3,
-  borderStyle: 'solid',
-  borderColor: '$surface3',
-  borderRadius: '$rounded20',
-  gap: '$gap12',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-})
+// Explicit return types: forwardRef's inferred type isn't nameable under declaration emit (TS2883).
+export const OrderAlertContainer: ForwardRefExoticComponent<FlexCompatProps & RefAttributes<HTMLDivElement>> =
+  forwardRef<HTMLDivElement, FlexCompatProps>(function OrderAlertContainer(props, ref) {
+    return (
+      <Flex
+        ref={ref}
+        row
+        mt="$spacing16"
+        p="$spacing12"
+        borderWidth={1.3}
+        borderStyle="solid"
+        borderColor="$surface3"
+        borderRadius="$rounded20"
+        gap="$gap12"
+        justifyContent="space-between"
+        alignItems="flex-start"
+        {...props}
+      />
+    )
+  })
 
-export const AlertIconContainer = styled(Flex, {
-  flexShrink: 0,
-  backgroundColor: '$statusWarning',
-  width: 40,
-  height: 40,
-  justifyContent: 'center',
-  alignItems: 'center',
-  borderRadius: '$rounded12',
-})
+export const AlertIconContainer: ForwardRefExoticComponent<FlexCompatProps & RefAttributes<HTMLDivElement>> =
+  forwardRef<HTMLDivElement, FlexCompatProps>(function AlertIconContainer(props, ref) {
+    return (
+      <Flex
+        ref={ref}
+        flexShrink={0}
+        backgroundColor="$statusWarning"
+        width={40}
+        height={40}
+        justifyContent="center"
+        alignItems="center"
+        borderRadius="$rounded12"
+        {...props}
+      />
+    )
+  })
 
 // Exported for the never-empty-title tripwire test
 export function getOrderTitle({ order, t }: { order: UniswapXOrderDetails; t: TFunction }): string {

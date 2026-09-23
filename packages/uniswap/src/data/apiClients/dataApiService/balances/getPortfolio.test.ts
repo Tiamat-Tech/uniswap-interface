@@ -1,6 +1,6 @@
+import { Platform } from '@universe/chains'
 import { getPortfolioQuery } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolio'
 import { doesGetPortfolioQueryMatchAddress } from 'uniswap/src/data/apiClients/dataApiService/balances/getPortfolioQueryUtils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
 const TEST_EVM_ADDRESS_1 = '0x1234567890123456789012345678901234567890'

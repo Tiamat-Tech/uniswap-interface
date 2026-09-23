@@ -74,6 +74,8 @@ export enum DynamicConfigs {
   Permit2MismatchDelegates = 'permit2_mismatch_delegates',
   Swap = 'swap_config',
   SyncTransactionSubmissionChainIds = 'sync_transaction_submission_chain_ids',
+  TokenCategoriesOrder = 'token_categories_order',
+  TokenCategoriesSearchSpotlight = 'token_categories_search_spotlight',
 
   // Wallet
   DatadogIgnoredErrors = 'datadog_ignored_errors',
@@ -95,9 +97,10 @@ export enum DynamicConfigs {
   LiquidityApprovalSimulation = 'liquidity_approval_simulation',
   LiquidityGasPreEstimation = 'liquidity_gas_pre_estimation',
   LPConfig = 'lp_config',
-  OutageBannerChainId = 'outage_banner_chain_id',
+  LpIncentivesChainIds = 'lp_incentives_chain_ids',
   RWAIssuerLogos = 'rwa_issuer_logos',
   SynchronizedHeartbeats = 'synchronized_heartbeats',
+  UniswapBuiltHookAddresses = 'uniswap_built_hook_addresses',
   VerifiedAuctions = 'verified_auctions',
   AuctionFdvWarning = 'auction_fdv_warning',
 }
@@ -152,6 +155,15 @@ export enum DisableWalletSearchTermsConfigKey {
 export enum EarnConfigKey {
   MinDepositUsd = 'minDepositUsd',
   SwapToggleMonthlyEarningsThresholdUsd = 'swapToggleMonthlyEarningsThresholdUsd',
+}
+
+export enum TokenCategoriesOrderConfigKey {
+  OrderedCategoryIds = 'orderedCategoryIds',
+}
+
+/** Category ids spotlit in search's resting state, in display order. */
+export enum TokenCategoriesSearchSpotlightConfigKey {
+  SpotlitCategoryIds = 'spotlitCategoryIds',
 }
 
 // Wallet
@@ -255,6 +267,21 @@ export enum AllowedV4WethHookAddressesConfigKey {
   HookAddresses = 'hookAddresses',
 }
 
+export enum UniswapBuiltHookAddressesConfigKey {
+  // Each list is a `{ chainId: number; address: string }[]`, NOT a `string[]` — a plain address list
+  // matches nothing (chain + address are compared together) and every Uniswap provenance badge
+  // silently disappears, indistinguishable from an unpopulated config. A hook Uniswap both built and
+  // configured belongs under `both`; the web client also treats one listed under `built` and
+  // `configured` separately as both.
+  Built = 'built',
+  Configured = 'configured',
+  Both = 'both',
+}
+
+export enum LpIncentivesChainIdsConfigKey {
+  ChainIds = 'chainIds',
+}
+
 export enum VerifiedAuctionsConfigKey {
   VerifiedAuctionIds = 'verifiedAuctionIds',
 }
@@ -263,10 +290,6 @@ export enum AuctionFdvWarningConfigKey {
   CommittedVolumeUsdThreshold = 'committedVolumeUsdThreshold',
   BidCountThreshold = 'bidCountThreshold',
   FdvUsdThreshold = 'fdvUsdThreshold',
-}
-
-export enum OutageBannerChainIdConfigKey {
-  ChainId = 'chainId',
 }
 
 export enum LaunchesNetworkFilterChainIdsConfigKey {
@@ -310,6 +333,8 @@ export type DynamicConfigKeys = {
   [DynamicConfigs.Permit2MismatchDelegates]: Permit2MismatchDelegatesConfigKey
   [DynamicConfigs.Swap]: SwapConfigKey
   [DynamicConfigs.SyncTransactionSubmissionChainIds]: SyncTransactionSubmissionChainIdsConfigKey
+  [DynamicConfigs.TokenCategoriesOrder]: TokenCategoriesOrderConfigKey
+  [DynamicConfigs.TokenCategoriesSearchSpotlight]: TokenCategoriesSearchSpotlightConfigKey
 
   // Wallet
   [DynamicConfigs.DatadogIgnoredErrors]: DatadogIgnoredErrorsConfigKey
@@ -331,9 +356,10 @@ export type DynamicConfigKeys = {
   [DynamicConfigs.LiquidityApprovalSimulation]: LiquidityApprovalSimulationConfigKey
   [DynamicConfigs.LiquidityGasPreEstimation]: LiquidityGasPreEstimationConfigKey
   [DynamicConfigs.LPConfig]: LPConfigKey
-  [DynamicConfigs.OutageBannerChainId]: OutageBannerChainIdConfigKey
+  [DynamicConfigs.LpIncentivesChainIds]: LpIncentivesChainIdsConfigKey
   [DynamicConfigs.RWAIssuerLogos]: RWAIssuerLogosConfigKey
   [DynamicConfigs.SynchronizedHeartbeats]: SynchronizedHeartbeatsConfigKey
+  [DynamicConfigs.UniswapBuiltHookAddresses]: UniswapBuiltHookAddressesConfigKey
   [DynamicConfigs.VerifiedAuctions]: VerifiedAuctionsConfigKey
 }
 

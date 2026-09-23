@@ -1,6 +1,7 @@
 import { StatsigClient, type StatsigOptions, type StatsigUser } from '@statsig/react-bindings'
 import { getConfig } from '@universe/config'
 import { isTestEnv } from '@universe/environment'
+import { TEST_STATSIG_SDK_KEY } from '@universe/gating/src/constants'
 import { LocalOverrideAdapterWrapper } from '@universe/gating/src/LocalOverrideAdapterWrapper'
 
 export {
@@ -26,7 +27,7 @@ let localOverrideAdapter: LocalOverrideAdapterWrapper | undefined
 
 function getStatsigApiKeyOrThrow(): string {
   // A dummy key is used in test env b/c the wallet/mobile tests use this file instead of the statsig.native file
-  const statsigApiKey = isTestEnv() ? 'dummy-test-key' : getConfig().statsigApiKey
+  const statsigApiKey = isTestEnv() ? TEST_STATSIG_SDK_KEY : getConfig().statsigApiKey
 
   if (!statsigApiKey) {
     throw new Error('STATSIG_API_KEY is not set')

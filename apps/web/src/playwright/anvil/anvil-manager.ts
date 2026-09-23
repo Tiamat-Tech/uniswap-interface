@@ -18,7 +18,12 @@ import {
 import { killExistingProcess, removeAnvilPidFile, writeAnvilPidFile } from '~/playwright/anvil/anvil-process'
 import { clockSyncRpcFromClient, syncClockToWallClock } from '~/playwright/anvil/clock-sync'
 import type { AnvilForkSource, ForkSourceProvider } from '~/playwright/anvil/unirpc-fork'
-import { probeForkAuth, resolveForkSourceProvider, shouldRelaunchForAuth } from '~/playwright/anvil/unirpc-fork'
+import {
+  probeForkAuth,
+  redactForkUrlForLog,
+  resolveForkSourceProvider,
+  shouldRelaunchForAuth,
+} from '~/playwright/anvil/unirpc-fork'
 
 loadTestRunnerEnv(process.cwd())
 
@@ -233,6 +238,12 @@ function createAnvilManager(configOverrides?: Partial<AnvilConfig>): AnvilManage
       // bootstraps (or reuses) a session and yields the auth fork-headers.
       const forkSource = await cfg.forkSource.getForkSource()
       activeForkSource = forkSource
+      // Surface the effective upstream in CI logs: a mistyped ANVIL_FORK_URL* env var
+      // silently falls back to the PublicNode default (anvil-args.ts), so the resolved
+      // URL is the only signal of which upstream this run actually forks. Redacted —
+      // provider API keys ride in fork URL paths — and never log forkHeaders, which
+      // carry session credentials.
+      console.log(`Anvil fork source (${cfg.forkSource.kind}): ${redactForkUrlForLog(forkSource.forkUrl)}`)
 
       // Kill any existing process on the port
       killExistingProcess(cfg.port)
@@ -403,6 +414,9 @@ function createAnvilManager(configOverrides?: Partial<AnvilConfig>): AnvilManage
       // anvil_reset rewinds node time to the pinned block's timestamp (and drops any
       // --load-state overlay); re-anchor the clock to wall time like at launch.
       await syncClockToWallClock(clockSyncRpcFromClient(manager.getClient()))
+      // anvil_reset does NOT restore auto-mining, so an adopted anvil a prior worker left with
+      // auto-mining off would keep it off. A fresh launch defaults it on; make reset match.
+      await manager.getClient().setAutomine(true)
     },
 
     checkHealth,

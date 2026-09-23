@@ -1,5 +1,5 @@
+import { Flex, Text, type FlexCompatProps as FlexProps } from '@universe/mycelium'
 import { memo, PropsWithChildren } from 'react'
-import { Flex, Text, type FlexProps } from 'ui/src'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { PoolsUnavailableIndicator } from 'uniswap/src/features/portfolio/PortfolioBalance/PoolsUnavailableIndicator'
 
@@ -30,7 +30,7 @@ export const TableSectionHeader = memo(function TableSectionHeader({
   const showTotalValue = totalValueLoading || totalValueFormatted !== undefined
 
   return (
-    <Flex gap={contentGap} data-testid={testId}>
+    <Flex gap={contentGap} testID={testId}>
       <Flex gap="$gap4" pl="$spacing8">
         <Flex row alignItems="center" gap="$spacing6">
           <Text variant="subheading1" color="$neutral1">

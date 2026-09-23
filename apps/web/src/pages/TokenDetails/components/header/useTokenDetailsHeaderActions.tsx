@@ -1,10 +1,10 @@
 import { Currency } from '@uniswap/sdk-core'
+import { ChartBarCrossed } from '@universe/mycelium/icons/ChartBarCrossed'
+import { Ellipsis } from '@universe/mycelium/icons/Ellipsis'
+import { Flag } from '@universe/mycelium/icons/Flag'
+import { XTwitter } from '@universe/mycelium/icons/XTwitter'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChartBarCrossed } from 'ui/src/components/icons/ChartBarCrossed'
-import { Ellipsis } from 'ui/src/components/icons/Ellipsis'
-import { Flag } from 'ui/src/components/icons/Flag'
-import { XTwitter } from 'ui/src/components/icons/XTwitter'
 import { deriveFromSections } from '~/components/StickyCollapsibleHeader/HeaderActions/deriveHeaderActions'
 import {
   type HeaderAction,

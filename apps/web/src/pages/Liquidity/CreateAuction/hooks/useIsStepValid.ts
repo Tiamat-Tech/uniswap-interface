@@ -6,7 +6,7 @@ import {
 } from '~/pages/Liquidity/CreateAuction/store/postAuctionLiquidityAllocationState'
 import { CreateAuctionStep, PriceRangeStrategy, TokenMode } from '~/pages/Liquidity/CreateAuction/types'
 import { isCustomPriceRangeAllocationValid } from '~/pages/Liquidity/CreateAuction/utils'
-import { getMinAuctionStartTimeToProceed } from '~/pages/Liquidity/CreateAuction/utils/duration'
+import { getDurationInvalidReason } from '~/pages/Liquidity/CreateAuction/utils/duration'
 
 export function useIsStepValid(step: CreateAuctionStep): boolean {
   return useCreateAuctionStore((state) => {
@@ -20,12 +20,12 @@ export function useIsStepValid(step: CreateAuctionStep): boolean {
         return tokenForm.existingTokenCurrencyInfo !== undefined && tokenForm.totalSupply !== undefined
 
       case CreateAuctionStep.CONFIGURE_AUCTION: {
-        const { committed, floorPrice, postAuctionLiquidityAllocation, startTime, endTime } = configureAuction
+        const { committed, floorPrice, postAuctionLiquidityAllocation, startTime, endTime, preBidStartTime } =
+          configureAuction
         if (!committed) {
           return false
         }
-        const isStartTimeValid = !!startTime && startTime.getTime() >= getMinAuctionStartTimeToProceed().getTime()
-        const isEndTimeValid = !!endTime && !!startTime && endTime.getTime() > startTime.getTime()
+        const durationInvalidReason = getDurationInvalidReason({ startTime, endTime, preBidStartTime })
         // Deposit must clear the minimum where the sold/LP split keeps both legs >= 1 base unit
         // (also covers the > 0 check, since the minimum is always >= 1 base unit).
         const minDeposit = minimumAuctionSupplyDeposit(
@@ -33,8 +33,7 @@ export function useIsStepValid(step: CreateAuctionStep): boolean {
           postAuctionLiquidityAllocation,
         )
         return (
-          isStartTimeValid &&
-          isEndTimeValid &&
+          durationInvalidReason === undefined &&
           !committed.auctionSupplyAmount.lessThan(minDeposit) &&
           !!floorPrice &&
           isPostAuctionLiquidityAllocationValid(postAuctionLiquidityAllocation)

@@ -1,5 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
+import type { TextCompatProps as TextProps } from '@universe/mycelium'
 import { useMemo } from 'react'
-import { Flex, Text, TextProps } from 'ui/src'
 import { parseForSubscriptNotation, trimFractionalTrailingZeros } from 'utilities/src/format/parseForSubscriptNotation'
 import { MouseoverTooltip, TooltipSize } from '~/components/Tooltip'
 

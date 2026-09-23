@@ -1,5 +1,5 @@
 import { RewardBalance, Token } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { type FiatNumberType, NumberType } from 'utilities/src/format/types'
 import { LP_INCENTIVES_USD_DUST_THRESHOLD } from '~/features/Liquidity/LPIncentives/constants'
 
@@ -20,6 +20,8 @@ export interface LpIncentiveRewardChainGroup {
 export interface RewardTokenRef {
   chainId: number
   address: string
+  /** Carried so `rewardCurrencyId` can resolve a native reward token, which arrives at the zero address. */
+  isNative: boolean
 }
 
 export interface LpIncentiveRewards {
@@ -91,7 +93,11 @@ export function buildLpIncentiveRewards({
 
   const totalUsd = groups.reduce((sum, group) => sum + group.subtotalUsd, 0)
   const rewardTokens = groups.flatMap((group) =>
-    group.rows.map((row) => ({ chainId: row.token.chainId, address: row.token.address })),
+    group.rows.map((row) => ({
+      chainId: row.token.chainId,
+      address: row.token.address,
+      isNative: row.token.isNative,
+    })),
   )
 
   return {

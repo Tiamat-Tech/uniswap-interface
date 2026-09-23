@@ -178,7 +178,6 @@ function createHeadlessSessionClient(ctx?: CreateHeadlessSessionClientContext): 
     getSessionService: () => sessionService,
     challengeSolverService: createChallengeSolverService({ solvers }),
     performanceTracker,
-    getIsSessionUpgradeAutoEnabled: () => true,
     getLogger: ctx?.getLogger,
   })
 

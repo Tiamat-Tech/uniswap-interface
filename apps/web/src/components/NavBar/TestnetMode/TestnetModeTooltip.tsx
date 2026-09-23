@@ -1,6 +1,7 @@
+import { Flex, Text } from '@universe/mycelium'
+import { Wrench } from '@universe/mycelium/icons/Wrench'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, Tooltip } from 'ui/src'
-import { Wrench } from 'ui/src/components/icons/Wrench'
 import { MenuStateVariant, useSetMenu } from '~/components/AccountDrawer/menuState'
 import { useAccountDrawer } from '~/components/AccountDrawer/MiniPortfolio/hooks'
 
@@ -14,7 +15,7 @@ export function TestnetModeTooltip() {
       <Tooltip.Trigger>
         <Flex
           p="$spacing4"
-          background="$statusSuccess2"
+          backgroundColor="$statusSuccess2"
           borderWidth="$spacing1"
           borderStyle="dashed"
           borderColor="$statusSuccess"

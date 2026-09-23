@@ -1,14 +1,13 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import { GetWalletTokensProfitLossResponse } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import { DEFAULT_NATIVE_ADDRESS } from 'uniswap/src/features/chains/evm/rpc'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isStablecoinAddress } from 'uniswap/src/features/chains/utils'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 import type { PortfolioChainBalance, PortfolioMultichainBalance } from 'uniswap/src/features/dataApi/types'
 import { useEarnVaults } from 'uniswap/src/features/earn/hooks/useEarnVaults'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import {
   flattenPortfolioMultichainBalanceToSingleChainRows,
   partitionMultichainBalancesByPerChainVisibility,
@@ -103,8 +102,7 @@ export function useTransformTokenTableData({
   )
   const currencyIdToTokenVisibility = useCurrencyIdToVisibility(ownerAddresses)
   const { isTestnetModeEnabled } = useEnabledChains()
-  const isEarnEnabled = useIsEarnEnabled()
-  const { isLoadingVaults, vaults } = useEarnVaults({ enabled: isEarnEnabled })
+  const { isLoadingVaults, vaults } = useEarnVaults()
   const vaultShareCurrencyIds = useMemo(
     () =>
       new Set(

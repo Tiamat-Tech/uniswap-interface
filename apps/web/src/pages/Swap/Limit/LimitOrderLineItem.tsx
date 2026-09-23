@@ -1,7 +1,8 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { Flex, Text } from '@universe/mycelium'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import {
   FORMAT_DATE_TIME_MEDIUM,
@@ -126,11 +127,10 @@ function LimitOrderLineItemInner(props: LimitOrderLineItemProps) {
   return (
     <Flex
       opacity={visible ? 1 : 0}
-      animation={{
-        opacity: {
-          type: 'quick',
-          delay: animationDelay,
-        },
+      // Scoped to opacity (matches the legacy 'quick' curve); `transition: all` would animate theme-token colors.
+      style={{
+        transition: `opacity ${SPORE_ANIMATION_CURVE_CSS.quick}`,
+        transitionDelay: animationDelay !== undefined ? `${animationDelay}ms` : undefined,
       }}
     >
       <DetailLineItem LineItem={LineItem} syncing={syncing} />

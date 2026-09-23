@@ -1,7 +1,7 @@
 import { TradingApi } from '@universe/api'
+import { Flex } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { ArrowDownToLine } from 'ui/src/components/icons/ArrowDownToLine'
 import { ArrowUpToLine } from 'ui/src/components/icons/ArrowUpToLine'
 import {

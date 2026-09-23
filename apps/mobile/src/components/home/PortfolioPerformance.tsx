@@ -1,7 +1,6 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text } from '@universe/mycelium'
 import { memo, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { ActionSheetDropdown } from 'uniswap/src/components/dropdowns/ActionSheetDropdown'
 import type { MenuItemProp } from 'uniswap/src/components/modals/ActionSheetModal'
 import {
@@ -11,7 +10,6 @@ import {
   ProfitLossPeriod,
 } from 'uniswap/src/components/WalletProfitLoss/utils'
 import { WalletProfitLoss } from 'uniswap/src/components/WalletProfitLoss/WalletProfitLoss'
-import { PollingInterval } from 'uniswap/src/constants/misc'
 import { useGetWalletProfitLossQuery } from 'uniswap/src/data/apiClients/dataApiService/performance/getWalletProfitLoss'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { useRestPortfolioValueModifier } from 'uniswap/src/features/dataApi/balances/balancesRest'
@@ -32,10 +30,6 @@ export const PortfolioPerformance = memo(function PortfolioPerformance({
   const { isTestnetModeEnabled } = useEnabledChains()
   const [selectedPeriod, setSelectedPeriod] = useState<ProfitLossPeriod>(ProfitLossPeriod.ALL)
   const modifier = useRestPortfolioValueModifier(evmAddress)
-  // The PortfolioChartDetails heartbeat coordinator only refreshes PnL when this flag is on —
-  // otherwise this query must keep its own poll running, or PnL would never refresh.
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-
   const since = useMemo(() => getProfitLossSince(selectedPeriod), [selectedPeriod])
 
   const { data, isPending, isError } = useGetWalletProfitLossQuery({
@@ -45,7 +39,8 @@ export const PortfolioPerformance = memo(function PortfolioPerformance({
       since,
       modifier,
     },
-    refetchInterval: isDataLivelinessEnabled ? undefined : PollingInterval.Normal,
+    // No refetchInterval — the PortfolioChartDetails heartbeat coordinator refreshes PnL on its
+    // 60s full tick.
   })
 
   const profitLoss = data?.profitLoss

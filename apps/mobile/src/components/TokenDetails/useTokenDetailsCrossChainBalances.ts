@@ -1,9 +1,8 @@
 import { GraphQLApi } from '@universe/api'
 import { useMemo } from 'react'
 import { useTokenDetailsContext } from 'src/components/TokenDetails/TokenDetailsContext'
-import { useFeatureFlaggedProjectTokens } from 'src/components/TokenDetails/useFeatureFlaggedProjectTokens'
 import { useCrossChainBalances } from 'uniswap/src/data/apiClients/dataApiService/balances/hooks/useCrossChainBalances'
-import { useTokenBasicProjectPartsFragment } from 'uniswap/src/data/graphql/fragments'
+import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import type { DataApiOutageState, PortfolioBalance } from 'uniswap/src/features/dataApi/types'
 
 type CrossChainToken = { address: string | null; chain: GraphQLApi.Chain }
@@ -13,20 +12,13 @@ export function useTokenDetailsCrossChainBalances({ evmAddress }: { evmAddress: 
   currentChainBalance: PortfolioBalance | null
   otherChainBalances: PortfolioBalance[] | null
 } & DataApiOutageState {
-  const { currencyId } = useTokenDetailsContext()
-  // Gate out unlaunched chains (e.g. Arc/Robinhood) so they don't surface as cross-chain balances.
-  const projectTokens = useFeatureFlaggedProjectTokens(
-    useTokenBasicProjectPartsFragment({ currencyId }).data.project?.tokens,
-  )
+  const { currencyId, multichainTokens } = useTokenDetailsContext()
 
   const crossChainTokens = useMemo<CrossChainToken[]>(() => {
-    return projectTokens.flatMap((token) => {
-      if (!token.chain || token.address === undefined) {
-        return []
-      }
-      return [{ address: token.address, chain: token.chain }]
+    return multichainTokens.map(({ chainId, address }) => {
+      return { address, chain: toGraphQLChain(chainId) }
     })
-  }, [projectTokens])
+  }, [multichainTokens])
 
   const { currentChainBalance, otherChainBalances, error, dataUpdatedAt } = useCrossChainBalances({
     evmAddress,

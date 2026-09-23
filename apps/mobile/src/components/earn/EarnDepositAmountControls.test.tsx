@@ -1,4 +1,5 @@
 import { Token } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
 import {
   AmountEntrySection,
   DepositSourceMenuItem,
@@ -7,7 +8,6 @@ import {
   getFormattedAlternateAmount,
 } from 'src/components/earn/EarnDepositAmountControls'
 import { fireEvent, render, screen } from 'src/test/test-utils'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { EarnDepositSourceOption } from 'uniswap/src/features/earn/types'
 import type { FiatCurrencyInfo } from 'uniswap/src/features/fiatOnRamp/types'
 import { ON_PRESS_EVENT_PAYLOAD } from 'uniswap/src/test/fixtures'

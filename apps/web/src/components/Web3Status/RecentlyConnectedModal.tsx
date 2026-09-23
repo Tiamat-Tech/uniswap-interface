@@ -1,25 +1,19 @@
+import { Platform } from '@universe/chains'
 import { useEmbeddedWalletState } from '@universe/embedded-wallet'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Button, Flex, Text, TouchableArea, useMedia } from '@universe/mycelium'
+import { AdaptiveWebPopoverContentCompat } from '@universe/mycelium/popover-compat'
+import { Portal } from '@universe/mycelium/portal'
+import { useShadowPropsShort } from '@universe/mycelium/theme-hooks-compat'
+import { SPORE_ANIMATION_CURVE_CSS } from '@universe/tailwind/animations'
 import { MutableRefObject, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  AdaptiveWebPopoverContent,
-  Button,
-  Flex,
-  Portal,
-  TamaguiElement,
-  Text,
-  TouchableArea,
-  useMedia,
-  useShadowPropsShort,
-} from 'ui/src'
 import { Unitag } from 'ui/src/components/icons/Unitag'
 import { X } from 'ui/src/components/icons/X'
 import { zIndexes } from 'ui/src/theme'
 import { CONNECTION_PROVIDER_IDS } from 'uniswap/src/constants/web3'
 import { DisplayNameType } from 'uniswap/src/features/accounts/types'
 import { useOnchainDisplayName } from 'uniswap/src/features/accounts/useOnchainDisplayName'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { shortenAddress } from 'utilities/src/addresses'
 import { useEvent, useOnClickOutside } from 'utilities/src/react/hooks'
@@ -70,7 +64,7 @@ function RecentlyConnectedModalUI({
   const { t } = useTranslation()
   const shadowProps = useShadowPropsShort()
   const modalRef = useRef<HTMLDivElement>(null)
-  const loginButtonRef = useRef<TamaguiElement>(null)
+  const loginButtonRef = useRef<HTMLAnchorElement | HTMLButtonElement>(null)
   useOnClickOutside({
     node: modalRef,
     handler: onClose,
@@ -122,16 +116,7 @@ function RecentlyConnectedModalUI({
             borderWidth="$spacing1"
             borderColor="$surface3"
             enterStyle={{ y: 24, opacity: 0 }}
-            exitStyle={{ y: 24, opacity: 0 }}
-            animation={[
-              'quick',
-              {
-                opacity: {
-                  overshootClamping: true,
-                },
-              },
-            ]}
-            animateOnly={['transform', 'opacity']}
+            transition={`transform ${SPORE_ANIMATION_CURVE_CSS.quick}, opacity ${SPORE_ANIMATION_CURVE_CSS.quick}`}
             $platform-web={shadowProps['$platform-web']}
           >
             <Flex flexShrink={0}>
@@ -180,7 +165,7 @@ function RecentlyConnectedModalUI({
   }
 
   return (
-    <AdaptiveWebPopoverContent
+    <AdaptiveWebPopoverContentCompat
       isOpen={isOpen}
       id="recently-connected-modal"
       backgroundColor="transparent"
@@ -196,18 +181,7 @@ function RecentlyConnectedModalUI({
           x: 24,
           opacity: 0,
         }}
-        exitStyle={{
-          x: 24,
-          opacity: 0,
-        }}
-        animation={[
-          'quick',
-          {
-            opacity: {
-              overshootClamping: true,
-            },
-          },
-        ]}
+        transition={`transform ${SPORE_ANIMATION_CURVE_CSS.quick}, opacity ${SPORE_ANIMATION_CURVE_CSS.quick}`}
         borderWidth="$spacing1"
         borderColor="$surface3"
         borderRadius="$rounded20"
@@ -244,7 +218,7 @@ function RecentlyConnectedModalUI({
           </Button>
         </Flex>
       </Flex>
-    </AdaptiveWebPopoverContent>
+    </AdaptiveWebPopoverContentCompat>
   )
 }
 

@@ -1,15 +1,31 @@
 import { EventConsumer, EventMapBase } from '@react-navigation/core'
 import { isChrome, isMobileApp, isMobileWeb, isWebPlatform } from '@universe/environment'
+import {
+  type FlexCompatProps as FlexProps,
+  Flex,
+  Input,
+  InputProps,
+  Text,
+  type TextCompatProps as TextProps,
+  TouchableArea,
+} from '@universe/mycelium'
+import { AnimatedFlexCompat } from '@universe/mycelium/animated-flex-compat'
+import { Presence } from '@universe/mycelium/presence'
+import { fonts, spacing } from '@universe/mycelium/tokens'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { LayoutChangeEvent } from 'react-native'
 import { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated'
-import { AnimatePresence, Button, Flex, FlexProps, Input, InputProps, Text, TextProps, TouchableArea } from 'ui/src'
+import { Button } from 'ui/src'
 import { CheckmarkCircle } from 'ui/src/components/icons/CheckmarkCircle'
 import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { useDynamicFontSizing } from 'ui/src/hooks/useDynamicFontSizing'
-import { fonts, imageSizes, spacing } from 'ui/src/theme'
+import { imageSizes } from 'ui/src/theme'
+import {
+  slideFadePresenceChildProps,
+  slideFadePresenceDescendantProps,
+} from 'uniswap/src/components/animations/slideFadePresenceChildProps'
 import { TextInput } from 'uniswap/src/components/input/TextInput'
 import { UnitagEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
@@ -66,6 +82,13 @@ const SUFFIX_STYLING: TextProps & InputProps = !isWebPlatform
       value: UNITAG_SUFFIX,
     }
   : { children: UNITAG_SUFFIX }
+
+// input-container + suffix (opacity 0, x SLIDE_IN_AMOUNT); availability swap (opacity 0, y 12).
+const SLIDE_X_CONFIG = { axis: 'translateX' as const, offset: SLIDE_IN_AMOUNT }
+const AVAILABILITY_CONFIG = { axis: 'translateY' as const, offset: 12 }
+const inputContainerPresenceProps = slideFadePresenceChildProps('quick', SLIDE_X_CONFIG)
+const suffixPresenceProps = slideFadePresenceDescendantProps('lazy', SLIDE_X_CONFIG)
+const availabilityPresenceProps = slideFadePresenceChildProps('200ms', AVAILABILITY_CONFIG)
 
 // This is a workaround for aligning a unitag suffix with a unitag name.
 // Some devices render text inside text input and text component vertically shifted.
@@ -305,7 +328,8 @@ export function ClaimUnitagContent({
         gap="$spacing12"
         mt="$spacing24"
         onLayout={(event): void => {
-          onLayout(event)
+          // Safe: mycelium's onLayout event is a subset of LayoutChangeEvent (nativeEvent.layout only).
+          onLayout(event as LayoutChangeEvent)
         }}
       >
         {/* Fixed text that animates in when TextInput is animated out */}
@@ -320,16 +344,14 @@ export function ClaimUnitagContent({
               <UnitagName animateText animateIcon textProps={{ fontSize }} name={unitagInputValue} opacity={1} />
             </Flex>
           )}
-          <AnimatePresence>
+          <Presence childOwnsNativeAnimation>
             {showTextInputView && (
-              <Flex
+              <AnimatedFlexCompat
                 key="input-container"
                 row
-                animation="quick"
-                enterStyle={{ opacity: 0, x: SLIDE_IN_AMOUNT }}
-                exitStyle={{ opacity: 0, x: SLIDE_IN_AMOUNT }}
                 gap="$none"
                 {...WEB_STYLING}
+                {...inputContainerPresenceProps}
               >
                 <TextInput
                   ref={textInputRef}
@@ -354,12 +376,12 @@ export function ClaimUnitagContent({
                   returnKeyType="done"
                   enterKeyHint="done"
                   testID={TestID.WalletNameInput}
-                  textAlign="left"
+                  textAlign={isWebPlatform ? 'left' : 'right'}
                   maxLength={MAX_UNITAG_CHAR_LENGTH}
                   value={unitagInputValue}
                   allowFontScaling={false}
                   maxFontSizeMultiplier={1}
-                  minWidth={!isWebPlatform ? unitagNameinputMinWidth : undefined}
+                  minWidth={!isWebPlatform && !unitagInputValue ? unitagNameinputMinWidth : undefined}
                   onChangeText={onChangeTextInput}
                   onSubmitEditing={onPressContinue}
                   onLayout={getInitialUnitagNameInputWidth}
@@ -367,11 +389,7 @@ export function ClaimUnitagContent({
                   // field-sizing: content still controls min-width on Chrome.
                   {...(isWebPlatform && { flexGrow: 1 })}
                 />
-                <Flex
-                  animation="lazy"
-                  enterStyle={{ opacity: 0, x: SLIDE_IN_AMOUNT }}
-                  exitStyle={{ opacity: 0, x: SLIDE_IN_AMOUNT }}
-                >
+                <AnimatedFlexCompat {...suffixPresenceProps}>
                   <SuffixComponent
                     // Value of the suffix is provided in the suffixStyling object.
                     {...SUFFIX_STYLING}
@@ -386,10 +404,10 @@ export function ClaimUnitagContent({
                     allowFontScaling={false}
                     maxFontSizeMultiplier={1}
                   />
-                </Flex>
-              </Flex>
+                </AnimatedFlexCompat>
+              </AnimatedFlexCompat>
             )}
-          </AnimatePresence>
+          </Presence>
         </AnimatedFlex>
         {unitagAddress && (
           <AnimatedFlex
@@ -439,12 +457,6 @@ export function ClaimUnitagContent({
   )
 }
 
-const animationProps: FlexProps = {
-  animation: '200ms',
-  enterStyle: { opacity: 0, y: 12 },
-  exitStyle: { opacity: 0, y: 12 },
-}
-
 function AvailabilityStatus({
   unitagAvailableError,
   addressError,
@@ -460,22 +472,22 @@ function AvailabilityStatus({
   const { t } = useTranslation()
   return (
     <Flex row gap="$spacing8" minHeight={fonts.body2.lineHeight} {...rest}>
-      <AnimatePresence>
+      <Presence childOwnsNativeAnimation>
         {unitagAvailableError || addressError ? (
-          <Flex key="error" {...animationProps}>
-            <Text key="error" color="$statusCritical" textAlign="center" variant="body2">
+          <AnimatedFlexCompat key="error" {...availabilityPresenceProps}>
+            <Text color="$statusCritical" textAlign="center" variant="body2">
               {unitagAvailableError || addressError}
             </Text>
-          </Flex>
+          </AnimatedFlexCompat>
         ) : isUnitagAvailable && showTextInputView ? (
-          <Flex key="available" row alignItems="center" gap="$spacing4" {...animationProps}>
+          <AnimatedFlexCompat key="available" row alignItems="center" gap="$spacing4" {...availabilityPresenceProps}>
             <CheckmarkCircle color="$accent1" size="$icon.16" />
             <Text textAlign="center" variant="body2">
               {t('unitags.claim.available')}
             </Text>
-          </Flex>
+          </AnimatedFlexCompat>
         ) : null}
-      </AnimatePresence>
+      </Presence>
     </Flex>
   )
 }

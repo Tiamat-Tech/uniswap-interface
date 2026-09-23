@@ -1,7 +1,6 @@
 import 'utilities/src/logger/mocks'
 import { TradingApi } from '@universe/api'
 import { ContractTransaction, providers } from 'ethers/lib/ethers'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { InterfaceEventName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import {
@@ -26,6 +25,7 @@ vi.mock('uniswap/src/features/transactions/swap/orders', () => ({
   getOrders: vi.fn(),
 }))
 
+import { UniverseChainId } from '@universe/chains'
 import { getOrders } from 'uniswap/src/features/transactions/swap/orders'
 
 const mockGetOrders = getOrders as Mock

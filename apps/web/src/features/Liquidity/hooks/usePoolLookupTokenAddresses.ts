@@ -1,6 +1,6 @@
 import type { Currency } from '@uniswap/sdk-core'
+import { Platform } from '@universe/chains'
 import { usePermissionedSwapPair } from 'uniswap/src/features/permissionedTokens/usePermissionedSwapPair'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useActiveAddress } from '~/features/accounts/store/hooks'
 import { getTokenOrZeroAddress } from '~/features/Liquidity/utils/currency'
 

@@ -1,5 +1,5 @@
-import type { SegmentedControlOption } from 'ui/src'
-import { Text } from 'ui/src'
+import { Text } from '@universe/mycelium'
+import type { SegmentedControlOption } from '@universe/mycelium/segmented-control-compat'
 import { SwapTab } from 'uniswap/src/types/screens/interface'
 
 type PermissionedTabBlocks = {

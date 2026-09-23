@@ -1,7 +1,7 @@
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { computeStepStatus, ProgressIndicator } from 'uniswap/src/components/ConfirmSwapModal/ProgressIndicator'
 import { StepStatus } from 'uniswap/src/components/ConfirmSwapModal/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TransactionStep, TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
 import { getPlanStepsForDisplay } from 'uniswap/src/features/transactions/swap/plan/collapseRetrySteps'
 import type { TransactionAndPlanStep } from 'uniswap/src/features/transactions/swap/plan/planStepTransformer'

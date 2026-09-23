@@ -1,11 +1,12 @@
+import { isEVMChain } from '@universe/chains'
+import { Button, Flex } from '@universe/mycelium'
+import { ArrowDownCircle } from '@universe/mycelium/icons/ArrowDownCircle'
+import { ArrowUpCircle } from '@universe/mycelium/icons/ArrowUpCircle'
+import { UserCheck } from '@universe/mycelium/icons/UserCheck'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Button, Flex, useMedia } from 'ui/src'
-import { ArrowDownCircle } from 'ui/src/components/icons/ArrowDownCircle'
-import { ArrowUpCircle } from 'ui/src/components/icons/ArrowUpCircle'
-import { UserCheck } from 'ui/src/components/icons/UserCheck'
-import { isEVMChain } from 'uniswap/src/features/platforms/utils/chains'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { useActiveAccount } from '~/features/accounts/store/hooks'
@@ -46,8 +47,9 @@ export function TDPActionTabs() {
   })
   const { openModal: openVerifyIdentityModal } = useModalState(ModalName.VerifyIdentity)
 
-  const hasBalance = Boolean(multiChainMap[currencyChain]?.balance)
+  const hasBalance = Boolean(multiChainMap[currencyChainId]?.balance)
 
+  // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- chain name URL slug, not an address
   const chainUrlParam = currencyChain.toLowerCase()
   const addressUrlParam = address === NATIVE_CHAIN_ID ? 'ETH' : address
   const media = useMedia()

@@ -1,6 +1,7 @@
+import { UniverseChainId } from '@universe/chains'
+import { Flex } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { BaseCard } from 'uniswap/src/components/BaseCard/BaseCard'
 import { OnchainItemSectionName } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { type PortfolioBalancesResult } from 'uniswap/src/components/TokenSelector/hooks/usePortfolioBalancesForAddressById'
@@ -9,7 +10,6 @@ import { getSuggestedTilesMaxCount } from 'uniswap/src/components/TokenSelectorV
 import { useTokenSectionsForSendV2 } from 'uniswap/src/components/TokenSelectorV2/hooks/useTokenSectionsForSendV2'
 import { TokenSelectorV2List } from 'uniswap/src/components/TokenSelectorV2/TokenSelectorV2List'
 import { TokenSelectorV2SectionHeader } from 'uniswap/src/components/TokenSelectorV2/TokenSelectorV2SectionHeader'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 function SendEmptyList({ onEmptyActionPress }: { onEmptyActionPress?: () => void }): JSX.Element {
   const { t } = useTranslation()

@@ -8,7 +8,8 @@ import {
   useGatedFeatureSet,
   useOverriddenTokenReasons,
 } from '@universe/compliance'
-import { Flex, LabeledCheckbox, Switch, Text } from 'ui/src'
+import { Flex, Switch, Text } from '@universe/mycelium'
+import { LabeledCheckboxCompat as LabeledCheckbox } from '@universe/mycelium/checkbox-compat'
 
 /**
  * Dev-only control to override the compliance read hooks (see `@universe/compliance`).

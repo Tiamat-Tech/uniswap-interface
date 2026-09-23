@@ -1,6 +1,9 @@
+import { isTouchable } from '@universe/environment'
+import { Flex, Text, useMedia } from '@universe/mycelium'
+import { Presence } from '@universe/mycelium/presence'
 import { memo, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, Flex, isTouchable, Popover, Text, useMedia, useShadowPropsMedium } from 'ui/src'
+import { Popover, useShadowPropsMedium } from 'ui/src'
 import { zIndexes } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
@@ -81,16 +84,13 @@ export const ExploreStatsSection = ({ shouldHideStats = false }: { shouldHideSta
   const visibleStats = media.md ? exploreStatsSectionData.slice(0, 2) : exploreStatsSectionData
 
   return (
-    <AnimatePresence>
+    <Presence>
       {!shouldHideStats && (
         <Flex
           row
           width="100%"
           key="explore-stats"
-          animation="300ms"
-          enterStyle={{ opacity: 0, y: -10 }}
-          exitStyle={{ opacity: 0, y: -10 }}
-          transition="opacity 0.3s ease, transform 0.3s ease"
+          className="animate-spore-enter-fade-in-down data-exiting:animate-spore-exit-fade-out-up opacity-[1]"
         >
           {visibleStats.map((data, index) => (
             <Flex
@@ -111,7 +111,7 @@ export const ExploreStatsSection = ({ shouldHideStats = false }: { shouldHideSta
           ))}
         </Flex>
       )}
-    </AnimatePresence>
+    </Presence>
   )
 }
 
@@ -123,7 +123,7 @@ interface StatDisplayProps {
 
 const StatDisplay = memo(({ data, isLoading, isHoverable }: StatDisplayProps) => {
   return (
-    <Flex transition="all 0.1s ease-in-out" group gap="$spacing4" minHeight="$spacing44">
+    <Flex transition="all 0.1s ease-in-out" group gap="$spacing4" minHeight={44}>
       <Text variant="body4" color="$neutral2" $group-hover={{ color: isHoverable ? '$neutral2Hovered' : '$neutral2' }}>
         {data.label}
       </Text>
@@ -157,7 +157,7 @@ const StatDisplayWithPopover = memo(({ data, isLoading }: StatDisplayProps) => {
           {data.protocolPopoverFormattedData?.map((item) => {
             return (
               <Flex key={item.label} row justifyContent="space-between">
-                <Text variant="body4" color="neutral2">
+                <Text variant="body4" color="$neutral2">
                   {item.label}
                 </Text>
                 <Text variant="body4">{convertFiatAmountFormatted(item.value ?? 0, NumberType.FiatTokenPrice)}</Text>

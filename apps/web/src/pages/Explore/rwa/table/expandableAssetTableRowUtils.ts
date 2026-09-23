@@ -1,4 +1,5 @@
-import { pickPrimaryChainToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/pickPrimaryChainToken'
+import { normalizeTokenAddressForCache, UniverseChainId } from '@universe/chains'
+import { pickDisplayChainToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/pickPrimaryChainToken'
 import {
   deriveRwaAggregates,
   getIssuerPriceDisplay,
@@ -6,14 +7,14 @@ import {
   type RwaPriceDisplay,
 } from 'uniswap/src/data/apiClients/dataApiService/rwa/rwaMetrics'
 import type { IssuerToken, Rwa } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toGraphQLChain } from 'uniswap/src/features/chains/utils'
 import { getTokenDetailsURL } from '~/data/util'
 import { TDP_MULTICHAIN_CHAIN_QUERY_VALUE } from '~/utils/params/chainQueryParam'
 
+/** `rank` is the 1-based Explore position; only top-level rows carry it, issuer sub-rows stay unranked. */
 export type ExpandableAssetTableRow =
-  | { type: 'parent'; asset: Rwa; subRows?: ExpandableAssetTableRow[]; link?: string }
-  | { type: 'issuer'; asset: Rwa; issuer: IssuerToken; link?: string }
+  | { type: 'parent'; asset: Rwa; subRows?: ExpandableAssetTableRow[]; link?: string; rank?: number }
+  | { type: 'issuer'; asset: Rwa; issuer: IssuerToken; link?: string; rank?: number }
 
 /**
  * @param chainFilter the active Explore network filter (e.g. `/explore/tokens/arbitrum`), if any. When present the
@@ -29,7 +30,7 @@ export function linkForIssuer({
   enabledChainIds: readonly UniverseChainId[]
   chainFilter?: UniverseChainId
 }): string | undefined {
-  const primary = pickPrimaryChainToken(issuer.chainTokens, enabledChainIds)
+  const primary = pickDisplayChainToken({ chainTokens: issuer.chainTokens, enabledChainIds, chainFilter })
   if (!primary?.address) {
     return undefined
   }
@@ -44,12 +45,15 @@ export function buildExpandableAssetTableRows({
   assets,
   enabledChainIds,
   chainFilter,
+  rankByAsset,
 }: {
   assets: Rwa[]
   enabledChainIds: readonly UniverseChainId[]
   chainFilter?: UniverseChainId
+  rankByAsset?: ReadonlyMap<Rwa, number>
 }): ExpandableAssetTableRow[] {
   return assets.flatMap((asset): ExpandableAssetTableRow[] => {
+    const rank = rankByAsset?.get(asset)
     const soleIssuer = asset.issuerTokens.length === 1 ? asset.issuerTokens[0] : undefined
     if (soleIssuer) {
       return [
@@ -58,6 +62,7 @@ export function buildExpandableAssetTableRows({
           asset,
           issuer: soleIssuer,
           link: linkForIssuer({ issuer: soleIssuer, enabledChainIds, chainFilter }),
+          rank,
         },
       ]
     }
@@ -74,6 +79,7 @@ export function buildExpandableAssetTableRows({
         type: 'parent',
         asset,
         subRows,
+        rank,
       },
     ]
   })
@@ -83,11 +89,11 @@ export function getExpandableAssetTableRowId(row: ExpandableAssetTableRow): stri
   if (row.type === 'parent') {
     const primary = row.asset.issuerTokens[0]
     const chain = primary.chainTokens[0]
-    const chainKey = `${chain.chainId}-${chain.address.toLowerCase()}`
+    const chainKey = `${chain.chainId}-${normalizeTokenAddressForCache(chain.address)}`
     return `asset-${row.asset.symbol}-${chainKey}`
   }
   const chain = row.issuer.chainTokens[0]
-  const chainKey = `${chain.chainId}-${chain.address.toLowerCase()}`
+  const chainKey = `${chain.chainId}-${normalizeTokenAddressForCache(chain.address)}`
   return `asset-${row.asset.symbol}-issuer-${row.issuer.issuer}-${chainKey}`
 }
 

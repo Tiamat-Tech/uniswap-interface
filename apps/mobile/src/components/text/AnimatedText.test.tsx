@@ -4,6 +4,22 @@ import { act } from 'react-test-renderer'
 import { AnimatedText } from 'src/components/text/AnimatedText'
 import { renderWithProviders } from 'src/test/render'
 
+// jsdom has no ResizeObserver, which react-native-web's onLayout needs; firing once per
+// observe is enough for the mycelium Shimmer to receive its mount layout event.
+beforeAll(() => {
+  window.ResizeObserver = class {
+    private readonly cb: ResizeObserverCallback
+    constructor(cb: ResizeObserverCallback) {
+      this.cb = cb
+    }
+    observe(target: Element): void {
+      setTimeout(() => this.cb([{ target } as ResizeObserverEntry], this), 0)
+    }
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+})
+
 describe(AnimatedText, () => {
   it('renders without error', () => {
     const tree = renderWithProviders(<AnimatedText text={makeMutable('Rendered')} />)
@@ -15,7 +31,7 @@ describe(AnimatedText, () => {
     it('displays text placeholder with loading shimmer when the loading property is true', async () => {
       const tree = renderWithProviders(<AnimatedText loading={true} />)
 
-      // in jsdom the mount-time layout event has already swapped the placeholder for the shimmer
+      // the shimmer glare mounts once the wrapper's layout event fires
       const textPlaceholder = tree.queryByTestId('text-placeholder')
       const shimmer = await tree.findByTestId('shimmer')
 
@@ -25,9 +41,6 @@ describe(AnimatedText, () => {
 
     it('displays the loading placeholder without shimmer when the loading property has "no-shimmer" value', () => {
       const tree = renderWithProviders(<AnimatedText loading="no-shimmer" />)
-
-      const shimmerPlaceholder = tree.queryByTestId('shimmer')
-      expect(shimmerPlaceholder).toBeFalsy()
 
       const textPlaceholder = tree.queryByTestId('text-placeholder')
       const shimmer = tree.queryByTestId('shimmer')

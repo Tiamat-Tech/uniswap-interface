@@ -1,8 +1,9 @@
+import { Flex, type FlexCompatProps as FlexProps, Text } from '@universe/mycelium'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { lighten } from 'polished'
 import { PropsWithChildren, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Shine, Text, useSporeColors, WaveLoader, type FlexProps } from 'ui/src'
-import { opacify } from 'ui/src/theme'
+import { Shine, WaveLoader } from 'ui/src'
 import { ChartType } from '~/components/Charts/utils'
 import { ChartBarCrossedWithBackground } from '~/components/Table/ErrorBox'
 
@@ -31,7 +32,7 @@ function ChartErrorView({
   const { t } = useTranslation()
   return (
     <Flex
-      data-cy="chart-error-view"
+      testID="chart-error-view"
       row
       alignItems="flex-start"
       justifyContent="flex-start"
@@ -49,9 +50,7 @@ function ChartErrorView({
       pr="$spacing20"
       gap="$gap12"
       zIndex={1}
-      animation="125ms"
-      animateOnly={['opacity']}
-      enterStyle={{ opacity: 0 }}
+      className="animate-spore-enter-fade-in opacity-[1]"
     >
       <ChartBarCrossedWithBackground />
       <Flex shrink gap="$gap4">

@@ -1,26 +1,17 @@
-import { type ElementRef, MouseEvent, useCallback, useRef, useState } from 'react'
+import { Platform, areAddressesEqual } from '@universe/chains'
+import { Flex, type FlexCompatProps, Text, TouchableArea, type TouchableAreaCompatProps } from '@universe/mycelium'
+import { Unitag } from '@universe/mycelium/icons/Unitag'
+import { X } from '@universe/mycelium/icons/X'
+import { useShadowPropsMedium } from '@universe/mycelium/theme-hooks-compat'
+import { type TouchableAreaCompatEvent } from '@universe/mycelium/touchable-area'
+import { type ElementRef, forwardRef, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { capitalize } from 'tsafe'
-import {
-  AdaptiveWebPopoverContent,
-  Flex,
-  Input,
-  Popover,
-  Text,
-  Tooltip,
-  TouchableArea,
-  TouchableAreaEvent,
-  styled,
-  useShadowPropsMedium,
-} from 'ui/src'
-import { Unitag } from 'ui/src/components/icons/Unitag'
-import { X } from 'ui/src/components/icons/X'
+import { AdaptiveWebPopoverContent, Input, type InputProps, Popover, Tooltip } from 'ui/src'
 import { useUnitagsAddressQuery } from 'uniswap/src/data/apiClients/unitagsApi/useUnitagsAddressQuery'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
 import { useENSName } from 'uniswap/src/features/ens/api'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useRecentTransfersByAddress, TransferCount } from 'uniswap/src/features/send/useRecentTransfersByAddress'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { shortenAddress } from 'utilities/src/addresses'
 import { useAccount } from '~/hooks/useAccount'
 import { useOnClickOutside } from '~/hooks/useOnClickOutside'
@@ -29,73 +20,62 @@ import { useSendContext } from '~/pages/Swap/Send/state/SendContext'
 
 const SEND_RECIPIENT_INPUT_PADDING = 16
 
-const RecipientWrapper = styled(TouchableArea, {
-  backgroundColor: '$surface2',
-  borderRadius: '$rounded16',
-  padding: SEND_RECIPIENT_INPUT_PADDING,
-  gap: '$spacing4',
-  opacity: 1,
-  borderColor: '$transparent',
-  borderWidth: '$spacing1',
+const RecipientWrapper = ({
+  isDisabled,
+  isFocused,
+  ...props
+}: TouchableAreaCompatProps & { isDisabled?: boolean; isFocused?: boolean }): JSX.Element => (
+  <TouchableArea
+    backgroundColor={isFocused ? '$surface1' : '$surface2'}
+    borderRadius="$rounded16"
+    padding={SEND_RECIPIENT_INPUT_PADDING}
+    gap="$spacing4"
+    opacity={isDisabled ? 0.4 : 1}
+    pointerEvents={isDisabled ? 'none' : undefined}
+    borderColor={isFocused ? '$surface3' : '$transparent'}
+    borderWidth="$spacing1"
+    {...props}
+  />
+)
 
-  variants: {
-    isDisabled: {
-      true: {
-        opacity: 0.4,
-        pointerEvents: 'none',
-      },
-    },
-    isFocused: {
-      true: {
-        borderColor: '$surface3',
-        backgroundColor: '$surface1',
-      },
-    },
-  } as const,
-})
-
-const SendRecipientInput = styled(Input, {
-  unstyled: true,
-  width: '100%',
-  backgroundColor: 'transparent',
-  borderWidth: 0,
-  outlineWidth: 0,
-  padding: 0,
-  fontSize: 16,
-  fontWeight: '500',
-  lineHeight: 24,
-  color: '$neutral1',
-  placeholderTextColor: '$neutral3',
-  focusStyle: {
-    outlineWidth: 0,
-    outlineStyle: 'none',
-    borderWidth: 0,
-    boxShadow: 'none',
-  },
-  focusVisibleStyle: {
-    outlineWidth: 0,
-    outlineStyle: 'none',
-    borderWidth: 0,
-    boxShadow: 'none',
-  },
-  '$platform-web': {
-    outlineStyle: 'none',
-    outlineWidth: 0,
-  },
+const SendRecipientInput = forwardRef<ElementRef<typeof Input>, InputProps>(function SendRecipientInput(props, ref) {
+  return (
+    <Input
+      ref={ref}
+      unstyled
+      width="100%"
+      backgroundColor="transparent"
+      borderWidth={0}
+      outlineWidth={0}
+      padding={0}
+      fontSize={16}
+      fontWeight="500"
+      lineHeight={24}
+      color="$neutral1"
+      placeholderTextColor="$neutral3"
+      focusStyle={{ outlineWidth: 0, outlineStyle: 'none', borderWidth: 0 }}
+      focusVisibleStyle={{ outlineWidth: 0, outlineStyle: 'none', borderWidth: 0 }}
+      $platform-web={{ outlineStyle: 'none', outlineWidth: 0 }}
+      {...props}
+    />
+  )
 })
 
 type SendRecipientInputRef = ElementRef<typeof SendRecipientInput>
 
-const AutocompletePanel = styled(Flex, {
-  width: '100%',
-  backgroundColor: '$surface1',
-  borderWidth: 1,
-  borderColor: '$surface3',
-  borderRadius: '$rounded12',
-  padding: '$spacing16',
-  flexDirection: 'column',
-  gap: '$spacing4',
-})
+const AutocompletePanel = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    width="100%"
+    backgroundColor="$surface1"
+    borderWidth={1}
+    borderColor="$surface3"
+    borderRadius="$rounded12"
+    padding="$spacing16"
+    flexDirection="column"
+    gap="$spacing4"
+    {...props}
+  />
+)
 
 const AutocompleteRow = ({
   address,
@@ -137,7 +117,7 @@ const AutocompleteRow = ({
         justifyContent="space-between"
         p="$spacing8"
         hoverStyle={{ backgroundColor: '$surface1Hovered' }}
-        onMouseDown={(e: MouseEvent) => e.preventDefault()}
+        onMouseDown={(e) => e.preventDefault()}
         onPress={boundSelectRecipient}
       >
         <Flex row gap="$gap8" alignItems="center">
@@ -308,7 +288,7 @@ export function SendRecipientForm({ disabled }: { disabled?: boolean }) {
   )
 
   const clearValidatedRecipient = useCallback(
-    (e: TouchableAreaEvent) => {
+    (e: TouchableAreaCompatEvent) => {
       e.preventDefault()
       e.stopPropagation()
       handleForceFocus(true)

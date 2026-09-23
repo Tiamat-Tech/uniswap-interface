@@ -6,9 +6,8 @@ import {
   EarnVault as DataApiEarnVault,
 } from '@uniswap/client-data-api/dist/data/v2/earn_pb'
 import { Token as SdkToken } from '@uniswap/sdk-core'
-import { GraphQLApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { PortfolioBalance } from 'uniswap/src/features/dataApi/types'
 import {
   areCurrencyIdsEqual,
@@ -101,8 +100,8 @@ const VAULT_ADDRESS = '0x8c106EEDAd96553e64287A5A6839c3Cc78afA3D0'
 const WETH_VAULT_ADDRESS = '0x1111111111111111111111111111111111111111'
 
 const DEFAULT_MULTICHAIN_MAP: MultiChainMap = {
-  [GraphQLApi.Chain.Ethereum]: { address: USDC_ADDRESS },
-  [GraphQLApi.Chain.Base]: { address: BASE_USDC_ADDRESS },
+  [UniverseChainId.Mainnet]: { address: USDC_ADDRESS },
+  [UniverseChainId.Base]: { address: BASE_USDC_ADDRESS },
 }
 
 const DEFAULT_V2_TOKEN = { symbol: 'USDC', price: { spotUsd: 1 } } as TDPState['token']
@@ -248,11 +247,11 @@ describe(useTokenDetailsEarnData, () => {
   it('aggregates token balances and detects an existing earn position', () => {
     mockTDPStore({
       multiChainMap: {
-        [GraphQLApi.Chain.Ethereum]: {
+        [UniverseChainId.Mainnet]: {
           address: USDC_ADDRESS,
           balance: createBalance({ quantity: 100, balanceUSD: 100 }),
         },
-        [GraphQLApi.Chain.Base]: {
+        [UniverseChainId.Base]: {
           address: BASE_USDC_ADDRESS,
           balance: createBalance({ quantity: 500, balanceUSD: 500 }),
         },
@@ -277,7 +276,7 @@ describe(useTokenDetailsEarnData, () => {
     mockEarnQueries({ vaults: [wethVault] })
     mockTDPStore({
       currency: new SdkToken(UniverseChainId.Mainnet, WETH_ADDRESS, 18, 'WETH', 'Wrapped Ether'),
-      multiChainMap: { [GraphQLApi.Chain.Ethereum]: { address: WETH_ADDRESS } },
+      multiChainMap: { [UniverseChainId.Mainnet]: { address: WETH_ADDRESS } },
       token: { symbol: 'WETH' } as TDPState['token'],
     })
 

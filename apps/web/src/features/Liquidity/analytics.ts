@@ -3,6 +3,7 @@ import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
 import { FeeAmount } from '@uniswap/v3-sdk'
 import { SharedQueryClient } from '@universe/api'
+import { getIsPermissionedForAnalytics } from 'uniswap/src/features/permissionedTokens/getIsPermissionedForAnalytics'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { getDisplayedPriceSource } from 'uniswap/src/features/prices/getDisplayedPriceSource'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
@@ -10,15 +11,6 @@ import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { LiquidityAnalyticsProperties } from 'uniswap/src/features/telemetry/types'
 import { currencyId, currencyIdToAddress, getCurrencyAddressForAnalytics } from 'uniswap/src/utils/currencyId'
 import { ITraceContext } from 'utilities/src/telemetry/trace/TraceContext'
-
-export function logPositionCardClick(position: PositionInfo, trace: ITraceContext): void {
-  sendAnalyticsEvent(SharedEventName.ELEMENT_CLICKED, {
-    element: ElementName.LiquidityPositionCard,
-    pool_address: position.poolId,
-    chain_id: position.chainId,
-    ...trace,
-  })
-}
 
 export function logCollectFeesClick(position: PositionInfo, trace: ITraceContext): void {
   sendAnalyticsEvent(SharedEventName.ELEMENT_CLICKED, {
@@ -43,7 +35,6 @@ export function getLPBaseAnalyticsProperties({
   currency1AmountUsd,
   version,
   poolId,
-  isCentralizedPricesEnabled,
 }: {
   trace: ITraceContext
   fee?: number | string // denominated in hundredths of bips
@@ -57,7 +48,6 @@ export function getLPBaseAnalyticsProperties({
   currency1AmountUsd: Maybe<CurrencyAmount<Currency>>
   version: ProtocolVersion
   poolId?: string
-  isCentralizedPricesEnabled: boolean
 }): Omit<LiquidityAnalyticsProperties, 'transaction_hash'> {
   return {
     ...trace,
@@ -77,9 +67,11 @@ export function getLPBaseAnalyticsProperties({
     token1AmountUSD: currency1AmountUsd ? parseFloat(currency1AmountUsd.toExact()) : undefined,
     currencyInfo0Decimals: currency0.decimals,
     currencyInfo1Decimals: currency1.decimals,
+    // LP flows only warm the `/permissions` cache when a gated flow forces the check, so on
+    // non-permissioned pools this is usually omitted (cold cache) rather than `false`. Sparse
+    // `false`-coverage on LP events is expected; permissioned positives still resolve.
+    is_permissioned: getIsPermissionedForAnalytics([currency0, currency1]),
     price_source: getDisplayedPriceSource({
-      isCentralizedPricesEnabled,
-      surface: 'usdc',
       chainId: currency0.chainId,
       address: getCurrencyAddressForAnalytics(currency0),
       queryClient: SharedQueryClient,

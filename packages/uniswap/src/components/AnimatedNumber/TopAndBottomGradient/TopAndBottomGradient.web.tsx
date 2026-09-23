@@ -1,5 +1,5 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useId } from 'react'
-import { useSporeColors } from 'ui/src/hooks/useSporeColors'
 
 /** Default digit rail height; matches native DIGIT_HEIGHT / heading2 lineHeight. */
 const DEFAULT_DIGIT_HEIGHT = 40

@@ -1,12 +1,12 @@
 import { type PlainMessage } from '@bufbuild/protobuf'
 import { useQuery } from '@tanstack/react-query'
 import type { ListEarnPositionsResponse, ListEarnVaultsResponse } from '@uniswap/client-data-api/dist/data/v2/api_pb'
+import type { UniverseChainId } from '@universe/chains'
 import { useMemo } from 'react'
 import {
   getListEarnPositionsQueryOptions,
   getListEarnVaultsQueryOptions,
 } from 'uniswap/src/data/apiClients/dataApiService/earn/queries'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { EARN_SUPPORTED_CHAIN_IDS } from 'uniswap/src/features/earn/constants'
 import {
   applyOptimisticEarnPositionUpdates,

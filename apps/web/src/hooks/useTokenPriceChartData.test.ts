@@ -1,5 +1,6 @@
 import { GraphQLApi } from '@universe/api'
-import { PollingInterval } from 'uniswap/src/constants/misc'
+import { useTokenSpotPrice } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
+import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import type { PriceChartData } from '~/components/Charts/PriceChart'
 import { ChartType, DataQuality, PriceChartType } from '~/components/Charts/utils'
 import { TimePeriod } from '~/data/util'
@@ -9,63 +10,29 @@ import {
   toStrictlyAscendingByTime,
   useTokenPriceChartData,
 } from '~/hooks/useTokenPriceChartData'
-import { act, renderHook } from '~/test-utils/render'
+import { renderHook, waitFor } from '~/test-utils/render'
 
-const { mockUseTokenPriceQuery, mockUseTokenPriceHistoryQuery } = vi.hoisted(() => {
-  const mockUseTokenPriceQuery = vi.fn()
-  const mockUseTokenPriceHistoryQuery = vi.fn()
-  return { mockUseTokenPriceQuery, mockUseTokenPriceHistoryQuery }
-})
+const { mockGetOhlcQueryOptions, mockGetPriceHistoryQueryOptions } = vi.hoisted(() => ({
+  mockGetOhlcQueryOptions: vi.fn(),
+  mockGetPriceHistoryQueryOptions: vi.fn(),
+}))
 
-vi.mock('@universe/api', async () => {
-  const actual = await vi.importActual('@universe/api')
-  return {
-    ...actual,
-    GraphQLApi: {
-      ...(actual.GraphQLApi as Record<string, unknown>),
-      useTokenPriceQuery: mockUseTokenPriceQuery,
-      useTokenPriceHistoryQuery: mockUseTokenPriceHistoryQuery,
-    },
-  }
-})
+vi.mock('uniswap/src/data/apiClients/dataApiService/tokens/queries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('uniswap/src/data/apiClients/dataApiService/tokens/queries')>()),
+  getGetTokenHistoryOHLCQueryOptions: mockGetOhlcQueryOptions,
+}))
 
-function priceHistoryEntry(timestamp: number, value: number) {
-  return { timestamp, value }
-}
+vi.mock('~/pages/TokenDetails/tdpTokenQueryOptions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('~/pages/TokenDetails/tdpTokenQueryOptions')>()),
+  getTdpTokenPriceHistoryQueryOptions: mockGetPriceHistoryQueryOptions,
+}))
 
-const SUBGRAPH_PRICE_HISTORY = [priceHistoryEntry(1000, 10), priceHistoryEntry(2000, 11), priceHistoryEntry(3000, 12)]
+vi.mock('uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData')>()),
+  useTokenSpotPrice: vi.fn(),
+}))
 
-const COINGECKO_PRICE_HISTORY = [priceHistoryEntry(1000, 20), priceHistoryEntry(2000, 21), priceHistoryEntry(3000, 22)]
-
-const COINGECKO_PROJECT_PRICE_HISTORY = [
-  priceHistoryEntry(1000, 30),
-  priceHistoryEntry(2000, 31),
-  priceHistoryEntry(3000, 32),
-]
-
-const SUBGRAPH_OHLC = [
-  {
-    timestamp: 1000,
-    open: { value: 10 },
-    high: { value: 11 },
-    low: { value: 9 },
-    close: { value: 10 },
-  },
-  {
-    timestamp: 2000,
-    open: { value: 10 },
-    high: { value: 12 },
-    low: { value: 10 },
-    close: { value: 11 },
-  },
-  {
-    timestamp: 3000,
-    open: { value: 11 },
-    high: { value: 13 },
-    low: { value: 11 },
-    close: { value: 12 },
-  },
-]
+const mockUseTokenSpotPrice = vi.mocked(useTokenSpotPrice)
 
 const BASE_VARIABLES = {
   chain: GraphQLApi.Chain.Ethereum,
@@ -74,256 +41,171 @@ const BASE_VARIABLES = {
   multichain: false,
 }
 
-function makeSubgraphResult(priceHistory: typeof SUBGRAPH_PRICE_HISTORY, ohlc: typeof SUBGRAPH_OHLC | null = null) {
-  return {
-    data: { token: { market: { priceHistory, ohlc, price: { value: 12 } } } },
-    loading: false,
-    refetch: vi.fn().mockResolvedValue(undefined),
-  }
+const SPOT_PRICE = 42
+
+/** Recent timestamps (unix seconds) so `checkDataQuality` doesn't read the fixtures as stale. */
+const NOW_SECONDS = Math.floor(Date.now() / 1000)
+const T = [NOW_SECONDS - 3000, NOW_SECONDS - 2000, NOW_SECONDS - 1000]
+
+const PRICE_POINTS = [
+  { timestamp: T[0], priceUsd: 10 },
+  { timestamp: T[1], priceUsd: 11 },
+  { timestamp: T[2], priceUsd: 12 },
+]
+
+const candle = (timestamp: number, close: number) => ({
+  timestamp,
+  openUsd: close,
+  highUsd: close,
+  lowUsd: close,
+  closeUsd: close,
+})
+
+const OHLC_CANDLES = [candle(T[0], 20), candle(T[1], 21), candle(T[2], 22)]
+const ZERO_OHLC_CANDLES = [candle(T[0], 0), candle(T[1], 0), candle(T[2], 0)]
+
+// The web test render helper shares one module-level QueryClient, so each test salts its query keys
+// to keep the previous test's REST responses out of its own cache.
+let querySalt = 0
+
+/**
+ * Mirrors the real query-options builders' contract: `queryFn` returns the raw protobuf-shaped
+ * response and `select` (the hook's own selectors) is left for react-query to apply, so those
+ * selectors get exercised for real.
+ */
+function mockRestResponses({
+  candles = OHLC_CANDLES,
+  points = PRICE_POINTS,
+}: {
+  candles?: typeof OHLC_CANDLES
+  points?: typeof PRICE_POINTS
+} = {}): void {
+  querySalt += 1
+  const salt = querySalt
+  mockGetOhlcQueryOptions.mockImplementation(({ enabled, select }) => ({
+    queryKey: [ReactQueryCacheKey.DataApiService, 'getTokenHistoryOHLC', salt],
+    queryFn: () => Promise.resolve({ candles }),
+    enabled,
+    select,
+  }))
+  mockGetPriceHistoryQueryOptions.mockImplementation(({ enabled, select }) => ({
+    queryKey: [ReactQueryCacheKey.DataApiService, 'getTokenHistoryPrice', salt],
+    queryFn: () => Promise.resolve({ points }),
+    enabled,
+    select,
+  }))
 }
 
-function makeCoinGeckoResult(
-  priceHistory: typeof COINGECKO_PRICE_HISTORY | [],
-  projectPriceHistory: typeof COINGECKO_PROJECT_PRICE_HISTORY | [] = [],
-) {
-  return {
-    data: {
-      tokenProjects: [
-        {
-          tokens: [{ chain: GraphQLApi.Chain.Ethereum, market: { priceHistory } }],
-          markets: projectPriceHistory.length ? [{ price: { value: 32 }, priceHistory: projectPriceHistory }] : [],
-        },
-      ],
-    },
-    loading: false,
-  }
+/**
+ * The hook appends the live spot price to the end of the series (`appendLiveSpotPriceEntry`), either
+ * as a new trailing point or coalesced into the last backend point depending on the series'
+ * granularity. This asserts what holds either way.
+ */
+function expectSeriesWithLiveSpot({
+  entries,
+  backendValues,
+  spotPrice,
+}: {
+  entries: PriceChartData[]
+  backendValues: number[]
+  spotPrice: number
+}): void {
+  expect(entries.length).toBeGreaterThanOrEqual(backendValues.length)
+  expect(entries.length).toBeLessThanOrEqual(backendValues.length + 1)
+
+  const retained = entries.slice(0, -1)
+  expect(retained.map((entry) => entry.value)).toEqual(backendValues.slice(0, retained.length))
+  expect(entries[entries.length - 1].value).toBe(spotPrice)
 }
 
 describe('useTokenPriceChartData', () => {
   beforeEach(() => {
-    mockUseTokenPriceQuery.mockReturnValue(makeSubgraphResult(SUBGRAPH_PRICE_HISTORY))
-    mockUseTokenPriceHistoryQuery.mockReturnValue(makeCoinGeckoResult(COINGECKO_PRICE_HISTORY))
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'visible',
+    vi.clearAllMocks()
+    mockUseTokenSpotPrice.mockReturnValue(SPOT_PRICE)
+    mockRestResponses()
+  })
+
+  it('renders the REST price history for line charts', async () => {
+    const { result } = renderHook(() =>
+      useTokenPriceChartData({
+        variables: BASE_VARIABLES,
+        skip: false,
+        priceChartType: PriceChartType.LINE,
+      }),
+    )
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.chartType).toBe(ChartType.PRICE)
+    expect(result.current.dataQuality).toBe(DataQuality.VALID)
+    expect(result.current.disableCandlestickUI).toBe(false)
+    expectSeriesWithLiveSpot({
+      entries: result.current.entries,
+      backendValues: [10, 11, 12],
+      spotPrice: SPOT_PRICE,
     })
+    expect(mockGetOhlcQueryOptions).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
   })
 
-  it('uses CoinGecko price history when it returns data', () => {
+  it('renders the REST OHLC candles for candlestick charts', async () => {
     const { result } = renderHook(() =>
       useTokenPriceChartData({
         variables: BASE_VARIABLES,
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-      }),
-    )
-
-    expect(result.current.chartType).toBe(ChartType.PRICE)
-    expect(result.current.dataQuality).toBe(DataQuality.VALID)
-    // CoinGecko entries start at value 20; subgraph starts at 10
-    expect(result.current.entries[0].value).toBe(20)
-  })
-
-  it('falls back to subgraph when CoinGecko returns an empty array', () => {
-    mockUseTokenPriceHistoryQuery.mockReturnValue(makeCoinGeckoResult([]))
-
-    const { result } = renderHook(() =>
-      useTokenPriceChartData({
-        variables: BASE_VARIABLES,
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-      }),
-    )
-
-    expect(result.current.chartType).toBe(ChartType.PRICE)
-    expect(result.current.dataQuality).toBe(DataQuality.VALID)
-    // Subgraph entries start at value 10
-    expect(result.current.entries[0].value).toBe(10)
-  })
-
-  it('returns INVALID data quality when both CoinGecko and subgraph return empty arrays', () => {
-    mockUseTokenPriceHistoryQuery.mockReturnValue(makeCoinGeckoResult([]))
-    mockUseTokenPriceQuery.mockReturnValue(makeSubgraphResult([]))
-
-    const { result } = renderHook(() =>
-      useTokenPriceChartData({
-        variables: BASE_VARIABLES,
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-      }),
-    )
-
-    expect(result.current.dataQuality).toBe(DataQuality.INVALID)
-    expect(result.current.entries).toHaveLength(0)
-  })
-
-  it('uses subgraph data for multichain tokens regardless of CoinGecko response', () => {
-    const { result } = renderHook(() =>
-      useTokenPriceChartData({
-        variables: { ...BASE_VARIABLES, multichain: true },
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-      }),
-    )
-
-    // Subgraph entries start at value 10
-    expect(result.current.entries[0].value).toBe(10)
-  })
-
-  it('uses project CoinGecko price history for multichain tokens when project market data is preferred', () => {
-    mockUseTokenPriceHistoryQuery.mockReturnValue(
-      makeCoinGeckoResult(COINGECKO_PRICE_HISTORY, COINGECKO_PROJECT_PRICE_HISTORY),
-    )
-
-    const { result } = renderHook(() =>
-      useTokenPriceChartData({
-        variables: { ...BASE_VARIABLES, multichain: true },
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-        preferProjectMarketData: true,
-      }),
-    )
-
-    // Project CoinGecko entries start at value 30; token-level entries start at 20; subgraph starts at 10
-    expect(result.current.entries[0].value).toBe(30)
-    expect(mockUseTokenPriceHistoryQuery).toHaveBeenCalledWith(
-      expect.objectContaining({
-        skip: false,
-      }),
-    )
-  })
-
-  it('disables candlesticks and uses project CoinGecko line history when project market data is preferred', () => {
-    mockUseTokenPriceHistoryQuery.mockReturnValue(
-      makeCoinGeckoResult(COINGECKO_PRICE_HISTORY, COINGECKO_PROJECT_PRICE_HISTORY),
-    )
-    mockUseTokenPriceQuery.mockReturnValue(makeSubgraphResult(SUBGRAPH_PRICE_HISTORY, SUBGRAPH_OHLC))
-
-    const { result } = renderHook(() =>
-      useTokenPriceChartData({
-        variables: { ...BASE_VARIABLES, multichain: true },
         skip: false,
         priceChartType: PriceChartType.CANDLESTICK,
-        preferProjectMarketData: true,
       }),
     )
 
-    expect(result.current.disableCandlestickUI).toBe(true)
-    expect(result.current.entries[0].value).toBe(30)
-    expect(mockUseTokenPriceHistoryQuery).toHaveBeenCalledWith(
-      expect.objectContaining({
-        skip: false,
-      }),
-    )
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expectSeriesWithLiveSpot({
+      entries: result.current.entries,
+      backendValues: [20, 21, 22],
+      spotPrice: SPOT_PRICE,
+    })
+    expect(mockGetPriceHistoryQueryOptions).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
   })
 
-  it('does not fall back to subgraph data while preferred project market history is loading', () => {
-    mockUseTokenPriceHistoryQuery.mockReturnValue({ data: undefined, loading: true })
-    mockUseTokenPriceQuery.mockReturnValue(makeSubgraphResult(SUBGRAPH_PRICE_HISTORY, SUBGRAPH_OHLC))
+  it('falls back to price history and disables the candlestick UI on an all-zero OHLC series', async () => {
+    mockRestResponses({ candles: ZERO_OHLC_CANDLES })
 
     const { result } = renderHook(() =>
       useTokenPriceChartData({
-        variables: { ...BASE_VARIABLES, multichain: true },
+        variables: BASE_VARIABLES,
         skip: false,
-        priceChartType: PriceChartType.LINE,
-        preferProjectMarketData: true,
+        priceChartType: PriceChartType.CANDLESTICK,
       }),
     )
 
-    expect(result.current.loading).toBe(true)
+    await waitFor(() => expect(result.current.disableCandlestickUI).toBe(true))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expectSeriesWithLiveSpot({
+      entries: result.current.entries,
+      backendValues: [10, 11, 12],
+      spotPrice: SPOT_PRICE,
+    })
+  })
+
+  it('returns INVALID data quality when REST returns no points', async () => {
+    mockRestResponses({ points: [] })
+    mockUseTokenSpotPrice.mockReturnValue(undefined)
+
+    const { result } = renderHook(() =>
+      useTokenPriceChartData({
+        variables: BASE_VARIABLES,
+        skip: false,
+        priceChartType: PriceChartType.LINE,
+      }),
+    )
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
     expect(result.current.dataQuality).toBe(DataQuality.INVALID)
     expect(result.current.entries).toHaveLength(0)
   })
 
-  it('falls back to subgraph data when preferred project market history is missing after loading', () => {
-    mockUseTokenPriceHistoryQuery.mockReturnValue(makeCoinGeckoResult([], []))
-    mockUseTokenPriceQuery.mockReturnValue(makeSubgraphResult(SUBGRAPH_PRICE_HISTORY, SUBGRAPH_OHLC))
-
-    const { result } = renderHook(() =>
-      useTokenPriceChartData({
-        variables: { ...BASE_VARIABLES, multichain: true },
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-        preferProjectMarketData: true,
-      }),
-    )
-
-    expect(result.current.loading).toBe(false)
-    expect(result.current.dataQuality).toBe(DataQuality.VALID)
-    expect(result.current.entries[0].value).toBe(9)
-  })
-
-  it('pauses price polling when tab is hidden', () => {
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    })
-
-    renderHook(() =>
-      useTokenPriceChartData({
-        variables: BASE_VARIABLES,
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-      }),
-    )
-
-    expect(mockUseTokenPriceQuery).toHaveBeenLastCalledWith(expect.objectContaining({ pollInterval: 0 }))
-  })
-
-  it('polls at the normal rate when tab is visible', () => {
-    renderHook(() =>
-      useTokenPriceChartData({
-        variables: BASE_VARIABLES,
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-      }),
-    )
-
-    expect(mockUseTokenPriceQuery).toHaveBeenLastCalledWith(
-      expect.objectContaining({ pollInterval: PollingInterval.KindaFast }),
-    )
-  })
-
-  it('fires an immediate refetch when the tab becomes visible after being hidden', async () => {
-    const mockRefetch = vi.fn().mockResolvedValue(undefined)
-    mockUseTokenPriceQuery.mockReturnValue({ ...makeSubgraphResult(SUBGRAPH_PRICE_HISTORY), refetch: mockRefetch })
-
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    })
-
-    renderHook(() =>
-      useTokenPriceChartData({
-        variables: BASE_VARIABLES,
-        skip: false,
-        priceChartType: PriceChartType.LINE,
-      }),
-    )
-
-    expect(mockRefetch).not.toHaveBeenCalled()
-
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'visible',
-    })
-
-    await act(async () => {
-      document.dispatchEvent(new Event('visibilitychange'))
-    })
-
-    expect(mockRefetch).toHaveBeenCalledOnce()
-  })
-
-  it('does not refetch when skip is true and tab becomes visible', async () => {
-    const mockRefetch = vi.fn().mockResolvedValue(undefined)
-    mockUseTokenPriceQuery.mockReturnValue({ ...makeSubgraphResult(SUBGRAPH_PRICE_HISTORY), refetch: mockRefetch })
-
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'hidden',
-    })
-
+  it('disables both REST queries when skipped', () => {
     renderHook(() =>
       useTokenPriceChartData({
         variables: BASE_VARIABLES,
@@ -332,30 +214,32 @@ describe('useTokenPriceChartData', () => {
       }),
     )
 
-    Object.defineProperty(document, 'visibilityState', {
-      configurable: true,
-      get: () => 'visible',
-    })
-
-    await act(async () => {
-      document.dispatchEvent(new Event('visibilitychange'))
-    })
-
-    expect(mockRefetch).not.toHaveBeenCalled()
+    expect(mockGetOhlcQueryOptions).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
+    expect(mockGetPriceHistoryQueryOptions).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
   })
 
-  it('produces strictly ascending timestamps when CoinGecko returns a duplicate trailing timestamp', () => {
-    // Upstream CoinGecko history can end with two points at the same second. lightweight-charts
+  it('prefers the caller-supplied current price over its own spot-price fallback', async () => {
+    const { result } = renderHook(() =>
+      useTokenPriceChartData({
+        variables: BASE_VARIABLES,
+        skip: false,
+        priceChartType: PriceChartType.LINE,
+        currentPriceOverride: 999,
+      }),
+    )
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.entries[result.current.entries.length - 1].value).toBe(999)
+    // With an override there is nothing for the fallback query to provide, so it stays skipped.
+    expect(mockUseTokenSpotPrice).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ skip: true }))
+  })
+
+  it('produces strictly ascending timestamps when REST returns a duplicate trailing timestamp', async () => {
+    // Upstream price history can end with two points at the same second. lightweight-charts
     // requires strictly-ascending times; a zero delta breaks curved-line interpolation and paints
     // a spurious diagonal line/wedge across the chart.
-    mockUseTokenPriceHistoryQuery.mockReturnValue(
-      makeCoinGeckoResult([
-        priceHistoryEntry(1000, 20),
-        priceHistoryEntry(2000, 21),
-        priceHistoryEntry(3000, 22),
-        priceHistoryEntry(3000, 22),
-      ]),
-    )
+    mockRestResponses({ points: [...PRICE_POINTS, { timestamp: T[2], priceUsd: 12 }] })
 
     const { result } = renderHook(() =>
       useTokenPriceChartData({
@@ -364,6 +248,8 @@ describe('useTokenPriceChartData', () => {
         priceChartType: PriceChartType.LINE,
       }),
     )
+
+    await waitFor(() => expect(result.current.entries.length).toBeGreaterThan(0))
 
     const times = result.current.entries.map((entry) => entry.time)
     for (let i = 1; i < times.length; i++) {

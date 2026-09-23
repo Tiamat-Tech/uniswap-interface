@@ -1,6 +1,19 @@
-import { lazy, PropsWithChildren, ReactNode, Suspense, useEffect, useState } from 'react'
+import { Flex, type FlexProps, Text, TouchableArea } from '@universe/mycelium'
+import { AnimatedPager } from '@universe/mycelium/animate-presence-pager'
+import { styled } from '@universe/mycelium/styled'
+import {
+  type ComponentPropsWithoutRef,
+  type ComponentRef,
+  forwardRef,
+  lazy,
+  PropsWithChildren,
+  ReactNode,
+  Suspense,
+  useEffect,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatedPager, Flex, FlexProps, Image, Loader, ModalCloseIcon, styled, Text, TouchableArea } from 'ui/src'
+import { Image, Loader, ModalCloseIcon } from 'ui/src'
 import { UNISWAP_LOGO } from 'ui/src/assets'
 import { AndroidLogo } from 'ui/src/components/icons/AndroidLogo'
 import { AppleLogo } from 'ui/src/components/icons/AppleLogo'
@@ -18,50 +31,47 @@ import WalletIllustration from '~/assets/images/walletIllustration.png'
 import { Wiggle } from '~/components/animations/Wiggle'
 import { TroubleLoggingInModule } from '~/components/NavBar/DownloadApp/Modal/TroubleLoggingInModule'
 import { useAccount } from '~/hooks/useAccount'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
-import { ExternalLink } from '~/theme/components/Links'
+import { ExternalLink, type ExternalLinkProps } from '~/theme/components/Links'
 
 const LazyWalletOneLinkQR = lazy(async () => {
   const module = await import('~/components/WalletOneLinkQR')
   return { default: module.WalletOneLinkQR }
 })
 
-const BadgeLink = deprecatedStyled(ExternalLink)`
-  stroke: none;
-  :hover {
-    opacity: 1;
-  }
-`
+// The legacy `:hover { opacity: 1 }` compiled to a descendant selector (`.x :hover`), so it is
+// reproduced verbatim rather than as a hover: rule on the link itself.
+function BadgeLink(props: ExternalLinkProps): JSX.Element {
+  return <ExternalLink className="[stroke:none] [&_:hover]:opacity-100" {...props} />
+}
 
-const WiggleIcon = styled(Wiggle, {
-  flex: 0,
-  height: 'auto',
-  cursor: 'pointer',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
+const WiggleIcon = forwardRef<ComponentRef<typeof Wiggle>, ComponentPropsWithoutRef<typeof Wiggle>>(
+  function WiggleIcon(props, ref) {
+    return (
+      <Wiggle
+        ref={ref}
+        flex={0}
+        height="auto"
+        cursor="pointer"
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        {...props}
+      />
+    )
+  },
+)
+const IllustrationContainer = styled('div', {
+  platform: 'web',
+  base: 'flex w-full rounded-[16px] border border-surface3 overflow-hidden',
 })
-const IllustrationContainer = deprecatedStyled.div`
-  display: flex;
-  width: 100%;
-  border-radius: 16px;
-  border: ${({ theme }) => `1px solid ${theme.surface3}`};
-  overflow: hidden;
-`
-const Illustration = deprecatedStyled.img`
-  width: 100%;
-  transition: ${({ theme }) => `transform ${theme.transition.timing.inOut} ${theme.transition.duration.medium}`};
-`
-const Card = deprecatedStyled.div`
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  &:hover {
-    ${Illustration} {
-      transform: scale(1.1);
-    }
-  }
-`
+const Illustration = styled('img', {
+  platform: 'web',
+  base: 'w-full [transition:transform_ease-in-out_250ms] group-hover:[transform:scale(1.1)]',
+})
+const Card = styled('div', {
+  platform: 'web',
+  base: 'group flex flex-col cursor-pointer',
+})
 
 function ModalContent({
   header,

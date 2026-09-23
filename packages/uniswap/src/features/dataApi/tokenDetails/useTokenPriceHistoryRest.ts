@@ -8,7 +8,6 @@ import { HistoryDuration } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import { GraphQLApi } from '@universe/api'
 import { useMemo } from 'react'
 import { getGetTokenHistoryPriceQueryOptions } from 'uniswap/src/data/apiClients/dataApiService/tokens/queries'
-import { useIsV2TokensEnabled } from 'uniswap/src/features/dataApi/tokenDetails/useIsV2TokensEnabled'
 import { currencyIdToRestContractInput } from 'uniswap/src/features/dataApi/utils/currencyIdToContractInput'
 import type { CurrencyId } from 'uniswap/src/types/currency'
 
@@ -67,24 +66,15 @@ function selectPriceHistoryEntries(
 
 export interface UseTokenPriceHistoryRestOptions {
   duration: HistoryDuration
-  preferProjectMarketData?: boolean
   /** True for the "all networks" aggregate view of a genuinely multichain asset. */
   isMultichainAggregateView?: boolean
 }
 
-/**
- * REST price history entries for a token's line chart, gated by FeatureFlags.V2EndpointsTokens.
- *
- * RWA/project-market data has no REST equivalent yet, so preferProjectMarketData disables this
- * query entirely — callers must supply their own GraphQL/CoinGecko path for that case.
- */
 export function useTokenPriceHistoryRest(
   currencyId: CurrencyId | undefined,
   options: UseTokenPriceHistoryRestOptions,
 ): { entries: RestPriceHistoryPoint[]; isLoading: boolean } {
-  const { duration, preferProjectMarketData = false, isMultichainAggregateView = false } = options
-  const isV2TokensEnabled = useIsV2TokensEnabled()
-  const shouldUseV2Tokens = isV2TokensEnabled && !preferProjectMarketData
+  const { duration, isMultichainAggregateView = false } = options
 
   const target = useMemo(() => {
     if (!currencyId) {
@@ -97,7 +87,7 @@ export function useTokenPriceHistoryRest(
   const { data: entries, isLoading } = useQuery(
     getGetTokenHistoryPriceQueryOptions({
       params: target ? { target, duration } : undefined,
-      enabled: shouldUseV2Tokens && !!target,
+      enabled: !!target,
       select: selectPriceHistoryEntries,
     }),
   )

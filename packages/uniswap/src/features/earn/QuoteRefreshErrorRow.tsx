@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { Flex, Text } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Text } from 'ui/src'
+import { Button } from 'ui/src'
 import { invalidateEarnQuoteRefreshQueries } from 'uniswap/src/features/earn/quoteRefreshRetry'
 import { useEvent } from 'utilities/src/react/hooks'
 

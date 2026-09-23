@@ -1,5 +1,5 @@
 import { RwaCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { useFeatureFlag } from '@universe/gating'
+import { GatedFeature, useGatedFeatures } from '@universe/compliance'
 import type { RWAMatch } from 'uniswap/src/features/rwa/rwaMatch'
 import { useLogRWATokenDetailsViewed } from 'uniswap/src/features/rwa/useLogRWATokenDetailsViewed'
 import { UniswapEventName } from 'uniswap/src/features/telemetry/constants'
@@ -8,9 +8,9 @@ import { renderHook } from 'uniswap/src/test/test-utils'
 import type { Mock } from 'vitest'
 
 vi.mock('uniswap/src/features/telemetry/send')
-vi.mock('@universe/gating', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@universe/gating')>()),
-  useFeatureFlag: vi.fn(),
+vi.mock('@universe/compliance', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@universe/compliance')>()),
+  useGatedFeatures: vi.fn(),
 }))
 
 const MAINNET_CHAIN_ID = 1
@@ -32,15 +32,19 @@ function match({ category = RwaCategory.STOCKS, issuer = 'ondo' } = {}): RWAMatc
 
 describe(useLogRWATokenDetailsViewed, () => {
   const mockSendAnalyticsEvent = sendAnalyticsEvent as Mock
-  const mockUseFeatureFlag = vi.mocked(useFeatureFlag)
+  const mockUseGatedFeatures = vi.mocked(useGatedFeatures)
 
   beforeEach(() => {
     mockSendAnalyticsEvent.mockClear()
-    mockUseFeatureFlag.mockReturnValue(false)
+    mockUseGatedFeatures.mockReturnValue({ features: [], isLoading: false, isPending: false })
   })
 
-  it('fires once with the resolved RWA properties, geogated reflecting the RwaGeoblocked gate', () => {
-    mockUseFeatureFlag.mockReturnValue(true)
+  it('fires once with the resolved RWA properties, geogated reflecting the compliance region gate', () => {
+    mockUseGatedFeatures.mockReturnValue({
+      features: [GatedFeature.ISSUER_SPECIFIC_RWA],
+      isLoading: false,
+      isPending: false,
+    })
     renderHook(() =>
       useLogRWATokenDetailsViewed({
         rwaMatch: match(),
@@ -61,7 +65,7 @@ describe(useLogRWATokenDetailsViewed, () => {
     })
   })
 
-  it('sets geogated=false when the RwaGeoblocked gate is off', () => {
+  it('sets geogated=false when the region is not RWA-blocked', () => {
     renderHook(() =>
       useLogRWATokenDetailsViewed({
         rwaMatch: match(),
@@ -74,6 +78,32 @@ describe(useLogRWATokenDetailsViewed, () => {
     expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(
       UniswapEventName.RWATokenDetailsViewed,
       expect.objectContaining({ geogated: false }),
+    )
+  })
+
+  it('defers the fire until the region lookup resolves, then logs the resolved geogated value', () => {
+    mockUseGatedFeatures.mockReturnValue({ features: [], isLoading: true, isPending: true })
+    const { rerender } = renderHook(() =>
+      useLogRWATokenDetailsViewed({
+        rwaMatch: match(),
+        tokenAddress: TSLA_ADDRESS,
+        tokenSymbol: 'TSLA.on',
+        chainId: MAINNET_CHAIN_ID,
+      }),
+    )
+    expect(mockSendAnalyticsEvent).not.toHaveBeenCalled()
+
+    mockUseGatedFeatures.mockReturnValue({
+      features: [GatedFeature.ISSUER_SPECIFIC_RWA],
+      isLoading: false,
+      isPending: false,
+    })
+    rerender()
+
+    expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(1)
+    expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(
+      UniswapEventName.RWATokenDetailsViewed,
+      expect.objectContaining({ geogated: true }),
     )
   })
 

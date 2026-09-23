@@ -50,6 +50,7 @@ export function useMeldFiatCurrencyInfo(selectedCountry?: FORCountry): FiatOnRam
   const appFiatCurrencySupported =
     supportedFiatCurrencies &&
     supportedFiatCurrencies.fiatCurrencies.some(
+      // oxlint-disable-next-line universe-custom/no-tolowercase-address-currencyid -- fiat currency codes, not addresses
       (currency): boolean => activeLocalCurrency.toLowerCase() === currency.fiatCurrencyCode.toLowerCase(),
     )
   const meldSupportedFiatCurrency: FiatCurrencyInfo = useMemo(() => {

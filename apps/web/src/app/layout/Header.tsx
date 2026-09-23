@@ -1,6 +1,6 @@
+import { Flex } from '@universe/mycelium'
 import { memo } from 'react'
-import { Flex } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
+import { zIndexes } from 'ui/src/theme/zIndexes'
 import { GRID_AREAS } from '~/app/layout/gridAreas'
 import { Navbar } from '~/components/NavBar/index'
 import {

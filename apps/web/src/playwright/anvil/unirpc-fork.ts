@@ -38,7 +38,11 @@ function isUnirpcForkEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return value === '1' || value === 'true'
 }
 
-/** Entry-gateway base URL for uni RPC forking. Default: staging (prod comes with the CI flip). */
+/**
+ * Entry-gateway base URL for uni RPC forking. Default: staging. CI doesn't use this
+ * lane anymore — it forks the direct unirpc-v2 prod host via the static
+ * ANVIL_FORK_URL(_BASE) overrides (see web_e2e_tests_playwright_anvil.yml).
+ */
 function resolveUnirpcGatewayBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
   const configured = env.ANVIL_UNIRPC_GATEWAY_URL?.trim()
   return (configured ? configured : DEFAULT_GATEWAY_BASE_URL).replace(/\/+$/, '')
@@ -82,6 +86,35 @@ function createUnirpcForkSourceProvider(ctx?: {
       await sessionClient.recover()
     },
   }
+}
+
+/**
+ * Known-safe fork-URL path segment shapes: empty, the literal `rpc`, a provider
+ * API version (`v2`, `v3`, ...), or a numeric chain id. Everything else is
+ * masked — allowlisting inverts the redaction so an unanticipated key shape
+ * (short tokens included) fails CLOSED instead of leaking into logs.
+ */
+const SAFE_FORK_URL_PATH_SEGMENT = /^(?:|rpc|v\d+|\d+)$/
+
+/**
+ * Redacts a fork URL for logging: origin plus path, with every path segment not
+ * matching {@link SAFE_FORK_URL_PATH_SEGMENT} replaced by `***` (provider API
+ * keys — Alchemy/Infura/QuickNode — ride in URL paths). The unirpc shape stays
+ * readable (`https://unirpc-v2.prod.unihq.org/rpc/1`); query strings and
+ * credentials never survive. Only ever log fork URLs through this — never raw.
+ */
+function redactForkUrlForLog(forkUrl: string): string {
+  let url: URL
+  try {
+    url = new URL(forkUrl)
+  } catch {
+    return '<unparseable fork url>'
+  }
+  const path = url.pathname
+    .split('/')
+    .map((segment) => (SAFE_FORK_URL_PATH_SEGMENT.test(segment) ? segment : '***'))
+    .join('/')
+  return `${url.origin}${path === '/' ? '' : path}`
 }
 
 /**
@@ -147,6 +180,7 @@ export {
   createUnirpcForkSourceProvider,
   isUnirpcForkEnabled,
   probeForkAuth,
+  redactForkUrlForLog,
   resolveForkSourceProvider,
   resolveUnirpcGatewayBaseUrl,
   shouldRelaunchForAuth,

@@ -16,17 +16,18 @@ const VAULT_ADDRESS = '0x0000000000000000000000000000000000000002'
 
 describe(buildEarnPlanAnalytics, () => {
   it('preserves zero slippage when building analytics', () => {
-    const analytics = buildEarnPlanAnalytics(createTrade({ slippageTolerance: 0 }))
+    const analytics = buildEarnPlanAnalytics(createTrade({ slippageTolerance: 0 }), 'attempt-1')
 
     expect(analytics.allowed_slippage).toBe(0)
     expect(analytics.allowed_slippage_basis_points).toBe(0)
   })
 
   it('includes Earn intent fields for deposits', () => {
-    const analytics = buildEarnPlanAnalytics(createTrade({ slippageTolerance: 0 }))
+    const analytics = buildEarnPlanAnalytics(createTrade({ slippageTolerance: 0 }), 'attempt-1')
 
     expect(analytics).toEqual(
       expect.objectContaining({
+        attempt_id: 'attempt-1',
         earn_action: TradingApi.EarnAction.DEPOSIT,
         earn_vault_address: VAULT_ADDRESS,
         earn_vault_chain_id: TradingApi.ChainId._1,
@@ -46,6 +47,7 @@ describe(buildEarnPlanAnalytics, () => {
         },
         slippageTolerance: 0,
       }),
+      'attempt-1',
     )
 
     expect(analytics).toEqual(
@@ -68,7 +70,7 @@ describe(createEarnPlanFailureCallback, (): void => {
       const handleFailure = vi.fn((_error?: Error, _retry?: () => void): void => undefined)
       const logFailed = vi.fn((_error: Error | undefined, _context?: PlanFailureCallbackContext): void => undefined)
       const onFailure = createEarnPlanFailureCallback({ handleFailure, logFailed })
-      const context = { willFinalize }
+      const context: PlanFailureCallbackContext = { willFinalize }
 
       onFailure(error, retry, context)
 

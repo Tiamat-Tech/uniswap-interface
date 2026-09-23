@@ -1,9 +1,13 @@
 import { Currency } from '@uniswap/sdk-core'
+import { useStatsigClientStatus } from '@universe/gating'
 import { parseAsBoolean, parseAsString, useQueryState, useQueryStates } from 'nuqs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
+import { CHAIN_ROLLOUT_FLAGS } from 'uniswap/src/features/chains/chainFeatureFlags'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { useSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
+import { isTestnetChain } from 'uniswap/src/features/chains/utils'
+import { ONE_SECOND_MS } from 'utilities/src/time/time'
 import { assume0xAddress } from '~/chains'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { useCurrencyValidation } from '~/features/Liquidity/Create/hooks/useCurrencyValidation'
@@ -18,6 +22,7 @@ import {
   parseAsPriceRangeState,
   parseAsStep,
 } from '~/features/Liquidity/parsers/urlParsers'
+import { getProtocolVersionLabel } from '~/features/Liquidity/utils/protocolVersion'
 import { getIsBrowserPage, MatchType, PageType } from '~/hooks/useIsPage'
 import type { DepositState } from '~/types/liquidity'
 
@@ -56,20 +61,32 @@ const replaceStateParser = {
   currencyb: parseAsCurrencyAddress.withDefault(''),
 }
 
+/**
+ * Cap on a single hold before the flow gives up and uses the pre-Statsig fallback (default chain, currency
+ * params cleared, URL rewritten). Longer than a normal init round-trip, short enough that a stalled or
+ * blocked Statsig endpoint degrades to the wrong chain rather than a blank page.
+ *
+ * Armed per engagement rather than once per mount, so a readiness regression before mount restarts the
+ * window. That can only happen while Statsig is working — each cycle ends ready — and never after the first
+ * expiry, which releases the hold for the rest of the mount. An init that never completes, the case this
+ * guards, has nothing to clear the timer and so is still capped at one interval.
+ */
+export const CHAIN_ROLLOUT_READINESS_TIMEOUT_MS = 3 * ONE_SECOND_MS
+
 // Only sync URL state when on create position or migrate routes
 // we use a function here so we can get the latest value of the pathname
 // without re-rendering the component (only used in the function!)
 function getIsSyncing() {
-  const isCreatePosition = getIsBrowserPage(PageType.CREATE_POSITION, MatchType.STARTS_WITH)
   const isAddLiquidityNew = getIsBrowserPage(PageType.ADD_LIQUIDITY_NEW, MatchType.STARTS_WITH)
   const isAddLiquidityPool = getIsBrowserPage(PageType.ADD_LIQUIDITY, MatchType.INCLUDES)
   const isMigrateV3 = getIsBrowserPage(PageType.MIGRATE_V3, MatchType.STARTS_WITH)
   const isMigrateV2 = getIsBrowserPage(PageType.MIGRATE_V2, MatchType.STARTS_WITH)
-  return isCreatePosition || isAddLiquidityNew || isAddLiquidityPool || isMigrateV3 || isMigrateV2
+  return isAddLiquidityNew || isAddLiquidityPool || isMigrateV3 || isMigrateV2
 }
 
 export function useLiquidityUrlState() {
-  const { defaultChainId } = useEnabledChains()
+  const { defaultChainId, isTestnetModeEnabled } = useEnabledChains()
+  const { isStatsigReady } = useStatsigClientStatus()
   const [isMigrated, setIsMigrated] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
@@ -112,11 +129,48 @@ export function useLiquidityUrlState() {
 
   const parsedChainId = chain ?? undefined
   const resolvedChainId = useSupportedChainId(parsedChainId)
-  const supportedChainId = resolvedChainId ?? defaultChainId
+  const [hasReadinessTimedOut, setHasReadinessTimedOut] = useState(false)
+
+  // Before Statsig initializes, chain rollout flags read as their default (false), so a launched-but-
+  // flag-gated chain (Robinhood, Linea, Arc, ...) is transiently missing from the enabled chains. Treating
+  // that as "unsupported" would collapse a valid preset link to the default chain, drop its currency
+  // params, and rewrite the URL — permanently, since the form freezes these inputs on mount. `parsedChainId`
+  // is always a known `UniverseChainId` (the parser rejects unknown slugs); only its enabled bit is unknown.
+  //
+  // Scoped tightly on purpose:
+  // - only chains in `CHAIN_ROLLOUT_FLAGS`, since an app-unsupported chain is already final and would
+  //   resolve no differently once Statsig is ready
+  // - only when the chain's testnet-ness matches the current mode. `getEnabledChains` excludes a chain
+  //   outright when it doesn't, so the flag is the only thing that could still change the outcome. Derived
+  //   from the chain rather than the mode so a rollout-flagged testnet would be held rather than skipped
+  // - only until `isMounted`, so a readiness regression after mount (`updateUserAsync` on wallet connect
+  //   re-enters the `Loading` status) cannot start holding, blank the page, or drop a URL sync mid-session
+  // - only until the timeout, so a stalled Statsig init degrades to the fallback instead of rendering
+  //   nothing. The timer is keyed on this flag, so the cap is per engagement rather than from first render
+  //   (see the constant); expiry latches and releases the hold for the rest of the mount
+  const isChainSupportUnresolved =
+    !isMounted &&
+    !isStatsigReady &&
+    !hasReadinessTimedOut &&
+    parsedChainId !== undefined &&
+    resolvedChainId === undefined &&
+    parsedChainId in CHAIN_ROLLOUT_FLAGS &&
+    isTestnetChain(parsedChainId) === isTestnetModeEnabled
+
+  useEffect(() => {
+    if (!isChainSupportUnresolved) {
+      return undefined
+    }
+
+    const timeout = setTimeout(() => setHasReadinessTimedOut(true), CHAIN_ROLLOUT_READINESS_TIMEOUT_MS)
+    return () => clearTimeout(timeout)
+  }, [isChainSupportUnresolved])
+
+  const supportedChainId = resolvedChainId ?? (isChainSupportUnresolved ? parsedChainId : defaultChainId)
   const defaultInitialToken = nativeOnChain(supportedChainId)
 
   // Check if URL chain doesn't match current testnet mode - if so, clear currency params
-  const urlChainMismatch = parsedChainId !== undefined && resolvedChainId === undefined
+  const urlChainMismatch = parsedChainId !== undefined && resolvedChainId === undefined && !isChainSupportUnresolved
 
   // Handle currency validation and loading
   const {
@@ -130,6 +184,10 @@ export function useLiquidityUrlState() {
     currencyB: urlChainMismatch ? undefined : currencyB,
     defaultInitialToken,
     chainId: supportedChainId,
+    // Wait out the hold before looking anything up: the lookup would resolve on the default chain while
+    // the URL's chain still reads as not-enabled, and its cached result would then be served as
+    // placeholder data — reporting `loading: false` — for the real lookup once the chain resolves.
+    skip: isChainSupportUnresolved,
   })
 
   // Sync callback to update URL with form state
@@ -141,8 +199,10 @@ export function useLiquidityUrlState() {
       depositState: Partial<DepositState>
       flowStep?: PositionFlowStep
     }) => {
-      // Only sync to URL when on create position routes and after migration is complete
-      if (!getIsSyncing() || !isMigrated) {
+      // Only sync to URL when on create position routes, after migration is complete, and once the URL's
+      // chain is known — syncing during the initial hold would rewrite `chain` to the default. The hold
+      // ends at mount, so this never suppresses a sync for an already-rendered form.
+      if (!getIsSyncing() || !isMigrated || isChainSupportUnresolved) {
         return
       }
 
@@ -156,12 +216,20 @@ export function useLiquidityUrlState() {
         currencyB: tokenBAddress,
         chain: data.currencyInputs.tokenA?.chainId ?? data.currencyInputs.tokenB?.chainId,
         fee: data.positionState.fee,
+        // `?protocolVersion` is the only carrier of the version — there is no path segment for it —
+        // so it has to be written on every change, not just read at mount. Syncing it here rather
+        // than at each switch site covers the version dropdown, the fee-on-transfer v2 fallback and
+        // anything added later.
+        protocolVersion:
+          data.positionState.protocolVersion === undefined
+            ? undefined
+            : getProtocolVersionLabel(data.positionState.protocolVersion),
         hook: hookAddress,
         priceRangeState: data.priceRangeState,
         depositState: data.depositState,
       })
     },
-    [setReplaceState, isMigrated],
+    [setReplaceState, isMigrated, isChainSupportUnresolved],
   )
 
   useEffect(() => {
@@ -169,12 +237,14 @@ export function useLiquidityUrlState() {
       return
     }
 
-    if (!currencyValidationLoading) {
+    if (!currencyValidationLoading && !isChainSupportUnresolved) {
       setIsMounted(true)
     }
-  }, [currencyValidationLoading, isMounted])
+  }, [currencyValidationLoading, isChainSupportUnresolved, isMounted])
 
-  const loading = (currencyValidationLoading || !isMigrated) && !isMounted
+  // Hold the flow unmounted until the chain's enabled bit is known, so consumers that freeze these inputs
+  // on mount (CreatePositionContent) never latch onto the pre-init fallback chain.
+  const loading = (currencyValidationLoading || !isMigrated || isChainSupportUnresolved) && !isMounted
 
   return useMemo(() => {
     return {

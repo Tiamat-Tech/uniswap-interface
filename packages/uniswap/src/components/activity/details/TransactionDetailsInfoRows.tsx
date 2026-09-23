@@ -1,16 +1,16 @@
-import dayjs from 'dayjs'
-import { useTranslation } from 'react-i18next'
-import { useDispatch } from 'react-redux'
 import {
   Flex,
   FlexProps,
   Loader,
   Text,
-  UniswapXText,
   UniversalImage,
   UniversalImageResizeMode,
   useIsDarkMode,
-} from 'ui/src'
+} from '@universe/mycelium'
+import dayjs from 'dayjs'
+import { useTranslation } from 'react-i18next'
+import { useDispatch } from 'react-redux'
+import { UniswapXText } from 'ui/src'
 import { RotatableChevron } from 'ui/src/components/icons'
 import { CopyAlt } from 'ui/src/components/icons/CopyAlt'
 import { ExternalLink } from 'ui/src/components/icons/ExternalLink'
@@ -54,21 +54,18 @@ export function TransactionDetailsInfoRows({
   pt,
   openPlanView,
   onClose,
-  isEarnActivityDisplayEnabled = true,
 }: {
   transactionDetails: TransactionDetails
   isShowingMore: boolean
   pt?: FlexProps['pt']
   openPlanView: () => void
   onClose: () => void
-  isEarnActivityDisplayEnabled?: boolean
 }): JSX.Element {
   const rows = useTransactionDetailsInfoRows({
     transactionDetails,
     isShowingMore,
     onClose,
     openPlanView,
-    isEarnActivityDisplayEnabled,
   })
 
   return (
@@ -83,13 +80,11 @@ function useTransactionDetailsInfoRows({
   isShowingMore,
   openPlanView,
   onClose,
-  isEarnActivityDisplayEnabled,
 }: {
   transactionDetails: TransactionDetails
   isShowingMore: boolean
   openPlanView: () => void
   onClose: () => void
-  isEarnActivityDisplayEnabled: boolean
 }): JSX.Element[] {
   const { t } = useTranslation()
   const isDarkMode = useIsDarkMode()
@@ -108,7 +103,6 @@ function useTransactionDetailsInfoRows({
   const vaultRows = getActivityDisplayVaultRows({
     transactionDetails,
     typeInfo,
-    isEarnActivityDisplayEnabled,
   })
 
   if (vaultRows) {
@@ -124,7 +118,7 @@ function useTransactionDetailsInfoRows({
         specificRows.push(
           <DappInfoRow
             key="dappInfo"
-            label={t('transaction.details.dappName')}
+            label={t('common.protocol')}
             iconUrl={typeInfo.dappInfo.icon}
             name={typeInfo.dappInfo.name}
           />,
@@ -201,7 +195,7 @@ function useTransactionDetailsInfoRows({
     case TransactionType.Unknown:
       specificRows.push(
         ...getUnknownTransactionInfoRows({
-          appLabel: t('transaction.details.dappName'),
+          protocolLabel: t('common.protocol'),
           chainId: transactionDetails.chainId,
           contractLabel: t('common.text.contract'),
           typeInfo,
@@ -218,12 +212,12 @@ function useTransactionDetailsInfoRows({
 }
 
 function getUnknownTransactionInfoRows({
-  appLabel,
+  protocolLabel,
   typeInfo,
   chainId,
   contractLabel,
 }: {
-  appLabel: string
+  protocolLabel: string
   typeInfo: UnknownTransactionInfo
   chainId: TransactionDetails['chainId']
   contractLabel: string
@@ -236,7 +230,12 @@ function getUnknownTransactionInfoRows({
 
   if (typeInfo.dappInfo.name) {
     rows.push(
-      <DappInfoRow key="dappInfo" label={appLabel} iconUrl={typeInfo.dappInfo.icon} name={typeInfo.dappInfo.name} />,
+      <DappInfoRow
+        key="dappInfo"
+        label={protocolLabel}
+        iconUrl={typeInfo.dappInfo.icon}
+        name={typeInfo.dappInfo.name}
+      />,
     )
   }
 

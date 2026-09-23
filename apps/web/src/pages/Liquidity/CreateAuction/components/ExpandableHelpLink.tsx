@@ -1,6 +1,6 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { QuestionInCircleFilled } from '@universe/mycelium/icons/QuestionInCircleFilled'
 import { useCallback, useState } from 'react'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { QuestionInCircleFilled } from 'ui/src/components/icons/QuestionInCircleFilled'
 
 /**
  * Inline "(?) <link>" that toggles a short help description below it. Shared by the configure-auction

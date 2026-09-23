@@ -1,89 +1,64 @@
 import { type PartialMessage, type PlainMessage, toPlainMessage } from '@bufbuild/protobuf'
-import type {
-  GetProtocolFeesRequest,
-  GetProtocolFeesResponse,
-  ListTopPoolsRequest,
-  ListTopPoolsResponse,
-} from '@uniswap/client-data-api/dist/data/v1/api_pb'
-import { dataApiServiceClientV1 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClient'
+import { type InfiniteData } from '@tanstack/react-query'
+import type { ListPoolsRequest, ListPoolsResponse } from '@uniswap/client-data-api/dist/data/v2/api_pb'
+import { getConnectQueryRetryDelay, shouldRetryConnectQuery } from '@universe/api'
+import { dataApiServiceClientV2 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClientV2'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
-import {
-  persistableInfiniteQueryOptions,
-  persistableQueryOptions,
-} from 'utilities/src/reactQuery/persistableQueryOptions'
-import { type QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
-import { ONE_MINUTE_MS } from 'utilities/src/time/time'
+import { persistableInfiniteQueryOptions } from 'utilities/src/reactQuery/persistableQueryOptions'
 
-export type ListTopPoolsInput = {
-  params?: Omit<PartialMessage<ListTopPoolsRequest>, 'pageToken'>
+export type ListPoolsInput = {
+  params?: Omit<PartialMessage<ListPoolsRequest>, 'page'>
+  /** data.v2 PageRequest pageSize (default 100, max 100). */
+  pageSize?: number
   enabled?: boolean
+  persist?: boolean
 }
 
-type ListTopPoolsQueryKey = readonly [ReactQueryCacheKey.DataApiService, 'listTopPools', ListTopPoolsInput['params']]
+type ListPoolsQueryKey = readonly [
+  ReactQueryCacheKey.DataApiService,
+  'listPools',
+  ListPoolsInput['params'],
+  number | undefined,
+  boolean,
+]
 
-export function getListTopPoolsQueryOptions({
+export function getListPoolsQueryOptions({
   params,
-  enabled,
-}: ListTopPoolsInput): ReturnType<
+  pageSize,
+  enabled = true,
+  persist = true,
+}: ListPoolsInput): ReturnType<
   typeof persistableInfiniteQueryOptions<
-    PlainMessage<ListTopPoolsResponse>,
+    PlainMessage<ListPoolsResponse>,
     Error,
-    PlainMessage<ListTopPoolsResponse>,
-    ListTopPoolsQueryKey,
+    InfiniteData<PlainMessage<ListPoolsResponse>>,
+    ListPoolsQueryKey,
     string
   >
 > {
-  return persistableInfiniteQueryOptions({
-    queryKey: [ReactQueryCacheKey.DataApiService, 'listTopPools', params] as const,
-    // toPlainMessage strips the Message prototype so the value survives disk persistence.
-    queryFn: async ({ pageParam }: { pageParam: string }): Promise<PlainMessage<ListTopPoolsResponse>> => {
+  const options = persistableInfiniteQueryOptions({
+    queryKey: [ReactQueryCacheKey.DataApiService, 'listPools', params, pageSize, persist] as const,
+    queryFn: async ({ pageParam }: { pageParam: string }): Promise<PlainMessage<ListPoolsResponse>> => {
       if (!params) {
         throw new Error('params required')
       }
-      return toPlainMessage(await dataApiServiceClientV1.listTopPools({ ...params, pageToken: pageParam }))
+      return toPlainMessage(
+        await dataApiServiceClientV2.listPools({ ...params, page: { pageSize, pageToken: pageParam || undefined } }),
+      )
     },
     initialPageParam: '',
-    getNextPageParam: (lastPage: PlainMessage<ListTopPoolsResponse>) => lastPage.nextPageToken || undefined,
-    enabled,
-    // Refetched every 60s by the Explore heartbeat's Pools tab tick.
-    staleTime: ONE_MINUTE_MS,
+    // Trust the token, even on a short or empty page. The backend fetches limit+1 rows, so a final
+    // page never carries one; a page that is short AND carries one is a ranked walk that hit its
+    // candidate budget (searched dense prefixes, ascending sorts), and the token resumes the walk
+    // where it stopped. Ending on an empty page there would show "no pools" while matches sit
+    // further down the walk. A runaway loop is bounded by the Table's no-growth fetch budget.
+    getNextPageParam: (lastPage: PlainMessage<ListPoolsResponse>) => lastPage.page?.nextPageToken || undefined,
+    // Without a retry, one failed request drops the pools table into its error state until the next
+    // heartbeat tick (up to 60s away on Explore; PoolBrowser has none). The cold-cache
+    // `Code.Unavailable` stampede response in particular needs a real backoff — see connectRpc/retry.
+    retry: shouldRetryConnectQuery,
+    retryDelay: getConnectQueryRetryDelay,
+    enabled: enabled && !!params,
   })
-}
-
-export type GetProtocolFeesInput = {
-  params?: PartialMessage<GetProtocolFeesRequest>
-  enabled?: boolean
-}
-
-type GetProtocolFeesQueryKey = readonly [
-  ReactQueryCacheKey.DataApiService,
-  'getProtocolFees',
-  PartialMessage<GetProtocolFeesRequest> | undefined,
-]
-
-/**
- * Batched per-pool protocol/effective fees (data-api `GetProtocolFees`, backend#10486).
- * One request covers <=100 pools of a single chain + protocol version; both fee fields are
- * TRUE-optional on the wire, so a missing value means "unavailable" (never 0) and a served 0
- * is a real value (fee switch off). Served-or-nothing: the FE never computes fees.
- */
-export function getProtocolFeesQueryOptions({
-  params,
-  enabled = true,
-}: GetProtocolFeesInput): QueryOptionsResult<
-  PlainMessage<GetProtocolFeesResponse> | undefined,
-  Error,
-  PlainMessage<GetProtocolFeesResponse> | undefined,
-  GetProtocolFeesQueryKey
-> {
-  return persistableQueryOptions({
-    queryKey: [ReactQueryCacheKey.DataApiService, 'getProtocolFees', params] as const,
-    queryFn: async (): Promise<PlainMessage<GetProtocolFeesResponse> | undefined> => {
-      if (!params) {
-        throw new Error('params required')
-      }
-      return toPlainMessage(await dataApiServiceClientV1.getProtocolFees(params))
-    },
-    enabled: enabled && !!params?.poolIds?.length,
-  })
+  return persist ? options : { ...options, meta: { ...options.meta, persist: false } }
 }

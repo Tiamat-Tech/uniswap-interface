@@ -8,8 +8,8 @@ import {
   getCancelSingleParams,
 } from '@uniswap/uniswapx-sdk'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { providers } from 'ethers/lib/ethers'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { createPermit2Contract } from 'uniswap/src/features/transactions/utils/permit2'
 import { logger } from 'utilities/src/logger/logger'
 

@@ -1,4 +1,4 @@
-import { Flex, Text, TouchableArea } from 'ui/src'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { Clear } from 'ui/src/components/icons/Clear'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'

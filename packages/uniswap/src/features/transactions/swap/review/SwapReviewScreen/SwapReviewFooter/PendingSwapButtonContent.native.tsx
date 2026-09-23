@@ -1,6 +1,7 @@
+import { Flex } from '@universe/mycelium'
 import { useEffect, useMemo, useRef } from 'react'
 import { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated'
-import { Button, CustomButtonFrame, Flex, ThemedSpinningLoader, useIsShortMobileDevice, useSporeColors } from 'ui/src'
+import { Button, ThemedSpinningLoader, useIsShortMobileDevice, useSporeColors } from 'ui/src'
 import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import {
   getPlanProgressEstimates,
@@ -30,6 +31,13 @@ const PROGRESS_BAR_MAX_WIDTH = 99.5
  * that it's started even thought no progress has been made yet.
  */
 const PROGRESS_BAR_MIN_WIDTH = 0.5
+
+// Mirrors the frame's own size-variant padding: the rebuilt frame exposes no `staticConfig` to read it from.
+const BUTTON_SIZE_PADDING = {
+  medium: { px: '$spacing16', py: '$spacing12' },
+  large: { px: '$spacing20', py: '$spacing16' },
+} as const
+
 /**
  * Calculates the progress of the swap in percentage based on the number of steps
  * that a swap needs to take.
@@ -106,9 +114,7 @@ export function PendingSwapButtonContent({
   const isShortMobileDevice = useIsShortMobileDevice()
   const size = isShortMobileDevice ? 'medium' : 'large'
 
-  const buttonPadding = CustomButtonFrame.staticConfig.variants?.['size']?.[size]
-  const px = buttonPadding && 'px' in buttonPadding ? buttonPadding['px'] : 0
-  const py = buttonPadding && 'py' in buttonPadding ? buttonPadding['py'] : 0
+  const { px, py } = BUTTON_SIZE_PADDING[size]
 
   const icon = useMemo(() => {
     return (
@@ -142,7 +148,7 @@ export function PendingSwapButtonContent({
         {submissionText ? (
           <Button.Text color={colors.accent1.val}>{submissionText}</Button.Text>
         ) : (
-          <DelayedSubmissionText color={colors.accent1.val} />
+          <DelayedSubmissionText TextComponent={Button.Text} />
         )}
       </Flex>
     </Button>

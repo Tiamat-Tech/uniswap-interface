@@ -1,11 +1,12 @@
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet'
+import { Text } from '@universe/mycelium'
+import { Accordion } from '@universe/mycelium'
 import React from 'react'
 import { SeedPhraseAndPrivateKeysDevSection } from 'src/components/experiments/SeedPhraseAndPrivateKeysDevSection'
 import { ServerOverrides } from 'src/components/experiments/ServerOverrides'
 import { useReactNavigationModal } from 'src/components/modals/useReactNavigationModal'
 import { E2EPixel } from 'src/test/E2EPixel'
 import { getFullAppVersion } from 'src/utils/version'
-import { Accordion, Text } from 'ui/src'
 import { spacing } from 'ui/src/theme'
 import { CacheConfig } from 'uniswap/src/components/gating/CacheConfig'
 import { GatingOverrides } from 'uniswap/src/components/gating/GatingOverrides'
@@ -19,15 +20,7 @@ export function ExperimentsModal(): JSX.Element {
   const { onClose } = useReactNavigationModal()
 
   return (
-    <Modal
-      fullScreen
-      renderBehindBottomInset
-      // Content drags must not dismiss: scroll-position arbitration is unreliable for the tall
-      // flag list, so mid-list downward scrolls would close the sheet. Handle/backdrop still dismiss.
-      enableContentPanningGesture={false}
-      name={ModalName.Experiments}
-      onClose={onClose}
-    >
+    <Modal fullScreen renderBehindBottomInset name={ModalName.Experiments} onClose={onClose}>
       {/* Sheet-aware scrollable: a plain ScrollView inside a gorhom sheet loses scroll-vs-pan
           arbitration, so downward scrolls can be taken by the sheet's dismiss gesture. */}
       <BottomSheetScrollView

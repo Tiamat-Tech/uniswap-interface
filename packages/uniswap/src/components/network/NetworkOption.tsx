@@ -1,14 +1,14 @@
+import { UniverseChainId } from '@universe/chains'
 import { isWebPlatform } from '@universe/environment'
+import { ElementAfterText, Flex, iconSizes, Text } from '@universe/mycelium'
+import type { FlexCompatProps as FlexProps } from '@universe/mycelium'
+import { CheckmarkCircle } from '@universe/mycelium/icons/CheckmarkCircle'
 import { type ReactNode, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ElementAfterText, Flex, FlexProps, Text } from 'ui/src'
-import { CheckmarkCircle } from 'ui/src/components/icons/CheckmarkCircle'
-import { iconSizes } from 'ui/src/theme'
 import { NetworkLogo } from 'uniswap/src/components/CurrencyLogo/NetworkLogo'
 import { NetworkPile } from 'uniswap/src/components/network/NetworkPile/NetworkPile'
 import { NewTag } from 'uniswap/src/components/pill/NewTag'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 
 const NETWORK_OPTION_ICON_SIZE = iconSizes.icon24
 const OPTION_GAP = isWebPlatform ? '$spacing8' : '$spacing6'

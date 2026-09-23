@@ -1,5 +1,6 @@
+import { AnimatableCopyIcon, Flex } from '@universe/mycelium'
+import type { FlexCompatProps as FlexProps } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { AnimatableCopyIcon, Flex, FlexProps } from 'ui/src'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'

@@ -1,9 +1,13 @@
+import { Level } from '@uniswap/client-unirpc-v2/dist/uniswap/unirpc/v2/service_pb'
 import { call, select } from 'typed-redux-saga'
+import { fetchGasFeeQuery } from 'uniswap/src/data/apiClients/gasService/useGasFeeQuery'
+import { GAS_SPEED_STRATEGIES, GasSpeed } from 'uniswap/src/features/gas/utils'
 import { createApprovalTransactionStep } from 'uniswap/src/features/transactions/steps/approve'
 import {
   createSwapTransactionStep,
   createSwapTransactionStepWalletCall,
 } from 'uniswap/src/features/transactions/swap/steps/swap'
+import type { ValidatedTransactionRequest } from 'uniswap/src/features/transactions/types/transactionRequests'
 import { parseERC20ApproveCalldata } from 'uniswap/src/utils/approvals'
 import { createSaga } from 'uniswap/src/utils/saga'
 import { logger } from 'utilities/src/logger/logger'
@@ -17,6 +21,42 @@ import { coerceUnknownToError } from '~/utils/coerceUnknownToError'
 
 // approve(address,uint256) calldata: '0x' + 4-byte selector + 32-byte spender + 32-byte amount.
 const ERC20_APPROVE_CALLDATA_LENGTH = 2 + 8 + 64 + 64
+
+/**
+ * Populates gas fields from the gas service (same service and urgent strategy as web's
+ * `useTransactionGasFee`). CreateAuction txs carry no gas fields, and submitting them bare makes
+ * ethers run its own eth_estimateGas against the public RPC — whose 500s have blocked launches
+ * before the wallet ever prompted. Returns the tx unchanged when the gas service can't produce
+ * params, so ethers' own estimation stays the fallback rather than a new hard failure.
+ */
+async function populateGasServiceParams(tx: ValidatedTransactionRequest): Promise<ValidatedTransactionRequest> {
+  try {
+    const gasFee = await fetchGasFeeQuery({
+      tx,
+      gasStrategy: GAS_SPEED_STRATEGIES[GasSpeed.Urgent],
+      urgency: { level: Level.URGENT },
+      // Only read when no explicit gasStrategy is passed.
+      isStatsigReady: true,
+    })
+    if (!gasFee.params) {
+      logger.warn(
+        'submitAuctionLaunchSaga',
+        'populateGasServiceParams',
+        'Gas service returned no params; falling back to ethers estimation',
+      )
+      return tx
+    }
+    return { ...tx, ...gasFee.params }
+  } catch (error) {
+    logger.warn(
+      'submitAuctionLaunchSaga',
+      'populateGasServiceParams',
+      'Gas service failed; falling back to ethers estimation',
+      { error },
+    )
+    return tx
+  }
+}
 
 export function* submitAuctionLaunch(params: SubmitAuctionLaunchParams) {
   const {
@@ -72,6 +112,8 @@ export function* submitAuctionLaunch(params: SubmitAuctionLaunchParams) {
     let launchHash: string | undefined
 
     for (const [index, tx] of transactions.entries()) {
+      const txWithGas = yield* call(populateGasServiceParams, tx)
+
       if (index !== launchStepIndex) {
         // Approval (existing-token path): handle it as a real approval step so we wait for it to
         // confirm before prompting the launch tx, and it renders in the review-modal progress
@@ -80,7 +122,7 @@ export function* submitAuctionLaunch(params: SubmitAuctionLaunchParams) {
         const decoded = data.length >= ERC20_APPROVE_CALLDATA_LENGTH ? parseERC20ApproveCalldata(data) : undefined
         const approvalStep = createApprovalTransactionStep({
           amount: decoded?.amount.toString(),
-          txRequest: tx,
+          txRequest: txWithGas,
           tokenAddress: tx.to,
           chainId: tx.chainId,
           tokenSymbol,
@@ -96,7 +138,7 @@ export function* submitAuctionLaunch(params: SubmitAuctionLaunchParams) {
       // auction actually exists on-chain; a revert routes to onFailure instead.
       launchHash = yield* call(handleOnChainStep, {
         address: account.address,
-        step: createSwapTransactionStep(tx),
+        step: createSwapTransactionStep(txWithGas),
         info,
         setCurrentStep,
         shouldWaitForConfirmation: true,

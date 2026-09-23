@@ -1,25 +1,31 @@
+import { type UniverseChainId, Platform, type EVMUniverseChainId, areEvmAddressesEqual } from '@universe/chains'
+import type { ColorTokens } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useMemo } from 'react'
-import { type ColorTokens, useSporeColors } from 'ui/src'
 import { useActiveAddress } from 'uniswap/src/features/accounts/store/hooks'
-import type { EVMUniverseChainId, UniverseChainId } from 'uniswap/src/features/chains/types'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { useOnChainCurrencyBalance } from 'uniswap/src/features/portfolio/api'
 import { useCurrencyInfo } from 'uniswap/src/features/tokens/useCurrencyInfo'
 import { buildCurrencyId, buildNativeCurrencyId } from 'uniswap/src/utils/currencyId'
 import { zeroAddress } from '~/chains'
-import { fromQ96ToDecimalWithTokenDecimals } from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
+import {
+  fromQ96ToDecimalWithTokenDecimals,
+  q96ToPriceString,
+} from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
+import { type AuctionMaxBidPrice, useAuctionMaxBidPrice } from '~/features/Toucan/Auction/hooks/useAuctionMaxBidPrice'
 import { type BudgetFieldState, useBidBudgetField } from '~/features/Toucan/Auction/hooks/useBidBudgetField'
 import { type SubmitState, useBidFormSubmit } from '~/features/Toucan/Auction/hooks/useBidFormSubmit'
 import {
   type MaxValuationFieldState,
   useBidMaxValuationField,
 } from '~/features/Toucan/Auction/hooks/useBidMaxValuationField'
+import { useCeilingRecap } from '~/features/Toucan/Auction/hooks/useCeilingRecap'
 import { useDurationRemaining } from '~/features/Toucan/Auction/hooks/useDurationRemaining'
+import { useIsQuickLaunchAuction } from '~/features/Toucan/Auction/hooks/useIsQuickLaunchAuction'
 import { useMinValidBid } from '~/features/Toucan/Auction/hooks/useMinValidBid'
 import { useAuctionStore, useAuctionStoreActions } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getClearingPrice } from '~/features/Toucan/Auction/utils/clearingPrice'
 import { approximateNumberFromRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
-import { snapToNearestTick } from '~/features/Toucan/Auction/utils/ticks'
+import { calculateQuickLaunchMaxBidQ96, snapToNearestTick } from '~/features/Toucan/Auction/utils/ticks'
 import { getAuctionTokenDecimals } from '~/features/Toucan/Auction/utils/tokenMetadata'
 
 interface UseBidFormControllerResult {
@@ -41,6 +47,7 @@ interface UseBidFormControllerResult {
   bidCurrencyAddress?: string
   bidTokenSymbol: string
   isNativeBidToken: boolean
+  maxBidPrice: AuctionMaxBidPrice
 }
 
 interface UseBidFormControllerParams {
@@ -101,7 +108,7 @@ export function useBidFormController({
   const durationRemaining = useDurationRemaining(chainId as EVMUniverseChainId | undefined, endBlockNum)
 
   // Determine currency and balance
-  const isNativeBidToken = currency?.toLowerCase() === zeroAddress
+  const isNativeBidToken = areEvmAddressesEqual(currency, zeroAddress)
 
   const bidCurrencyId = useMemo(() => {
     if (!chainId) {
@@ -153,7 +160,51 @@ export function useBidFormController({
     auctionTokenDecimals,
   })
 
-  const defaultMaxValuationDisplay = useMemo(() => minValidPriceDisplay ?? '', [minValidPriceDisplay])
+  // Auction-wide bid price ceiling from a maxBidPrice() validation hook, if any.
+  const maxBidPrice = useAuctionMaxBidPrice({
+    bidTokenDecimals,
+    auctionTokenDecimals,
+    clearingPriceQ96,
+    floorPriceQ96,
+    tickSizeQ96,
+  })
+
+  // QuickLaunch: no max-FDV input, so the bid uses the fixed product ceiling (the 25,000 ETH FDV
+  // cap in ticks.ts, mirroring pools.trade / labs/rh-cca) instead of the min valid bid — the
+  // order stays active through price discovery instead of silently dropping out.
+  const isQuickLaunch = useIsQuickLaunchAuction()
+
+  const quickLaunchMaxBidQ96 = useMemo(() => {
+    // Falsy guards mirror useMinValidBid's; ticks.ts keeps its own tickSize <= 0n branch for
+    // parity with the rh-cca source (independently unit-tested), it's just unreachable from here.
+    if (!isQuickLaunch || !clearingPriceQ96 || !floorPriceQ96 || !tickSizeQ96) {
+      return undefined
+    }
+    const unbounded = calculateQuickLaunchMaxBidQ96({ clearingPriceQ96, floorPriceQ96, tickSizeQ96 })
+    // A quick launch hides the max-FDV input, so an over-ceiling peg would be a bid the
+    // user can neither see nor correct — it would just revert on submission. Clamp to the
+    // highest tick the hook accepts. When even that is exhausted the form is already
+    // disabled by the reached state, so leaving the peg at the clamp is safe.
+    const ceiling = maxBidPrice.maxValidBidQ96
+    if (ceiling !== undefined && unbounded > ceiling) {
+      return ceiling
+    }
+    return unbounded
+  }, [isQuickLaunch, clearingPriceQ96, floorPriceQ96, tickSizeQ96, maxBidPrice.maxValidBidQ96])
+
+  const quickLaunchMaxValuationDisplay = useMemo(() => {
+    if (!quickLaunchMaxBidQ96 || bidTokenDecimals === undefined || auctionTokenDecimals === undefined) {
+      return undefined
+    }
+    return q96ToPriceString({ q96Value: quickLaunchMaxBidQ96, bidTokenDecimals, auctionTokenDecimals })
+  }, [quickLaunchMaxBidQ96, bidTokenDecimals, auctionTokenDecimals])
+
+  // Quick launches fall back to the min valid bid while the ceiling inputs are still resolving,
+  // so the field always initializes and Review bid never dead-ends with the input hidden.
+  const defaultMaxValuationDisplay = useMemo(
+    () => (isQuickLaunch ? (quickLaunchMaxValuationDisplay ?? minValidPriceDisplay) : minValidPriceDisplay) ?? '',
+    [isQuickLaunch, quickLaunchMaxValuationDisplay, minValidPriceDisplay],
+  )
 
   // Initialize budget field hook
   const { budgetField, budgetCurrencyAmount, budgetAmountIsZero, resetBudgetField } = useBidBudgetField({
@@ -184,11 +235,48 @@ export function useBidFormController({
     floorPriceQ96,
     tickSizeQ96,
     minMaxPriceQ96,
+    maxBidPriceQ96: maxBidPrice.maxBidPriceQ96,
     minValidPriceDisplay,
     minValidPriceDisplayFormatted,
     defaultMaxValuationDisplay,
     onInputChange,
   })
+
+  // Anything entered before the ceiling resolved was capped against `undefined`, and this
+  // field's write paths suppress the blur snap, so nothing else would correct it.
+  useCeilingRecap({
+    maxValidBidQ96: maxBidPrice.maxValidBidQ96,
+    tokenValueQ96: maxValuationField.tokenValueQ96,
+    tokenValue: maxValuationField.tokenValue,
+    onRecap: maxValuationField.onTokenValueChange,
+  })
+
+  // QuickLaunch: the max-valuation field is hidden, so keep it pegged to the ceiling.
+  // The field only initializes its default once, and both the classification and the ceiling
+  // (fixed at the FDV cap, but only computable once the auction's grid parameters load) resolve
+  // asynchronously — without this the hidden field could stay at a stale (or min-valid) value.
+  useEffect(() => {
+    if (!isQuickLaunch || !quickLaunchMaxBidQ96 || !quickLaunchMaxValuationDisplay) {
+      return
+    }
+    // Compare the FIELD's own value, never the submitted `maxPriceQ96`. Both the peg target
+    // and maxPriceQ96 are clamped to the same ceiling tick, so comparing against the latter
+    // reports "already pegged" the moment the ceiling resolves — and the write that would
+    // bring the field's own (still unclamped) value into line never fires. The submitted
+    // price would stay correct while `exactMaxValuationAmount` went stale for
+    // evaluateMaxPrice and the analytics payload, on the one launch type where the field is
+    // hidden and the user cannot see or fix it.
+    //
+    // tokenValueQ96 is that own value, unclamped. The exact-string check stays as the
+    // write guard, so field-side normalization of the stored value cannot re-trigger the
+    // write and loop the render.
+    const isPegged =
+      maxValuationField.tokenValueQ96 === quickLaunchMaxBidQ96 ||
+      maxValuationField.tokenValue === quickLaunchMaxValuationDisplay
+    if (!isPegged) {
+      maxValuationField.onTokenValueChange(quickLaunchMaxValuationDisplay)
+    }
+  }, [isQuickLaunch, quickLaunchMaxBidQ96, quickLaunchMaxValuationDisplay, maxValuationField])
 
   // Check if user has any balance of the bid token
   const hasBidToken = Boolean(currencyBalance && !currencyBalance.equalTo(0))
@@ -288,22 +376,29 @@ export function useBidFormController({
   // Listen for chart tick clicks and update max valuation field
   useEffect(() => {
     if (selectedTickPrice) {
-      // Use onTokenValueChange to set the token price directly
-      // The chart tick represents the raw token price, and the display logic will
-      // handle showing it as FDV in VALUATION mode or raw price in TOKEN_PRICE mode
-      maxValuationField.onTokenValueChange(selectedTickPrice)
+      // QuickLaunch: no FDV input — ignore tick clicks instead of competing with the ceiling peg
+      // (which would immediately revert them anyway), but still clear the selection.
+      if (!isQuickLaunch) {
+        // Use onTokenValueChange to set the token price directly
+        // The chart tick represents the raw token price, and the display logic will
+        // handle showing it as FDV in VALUATION mode or raw price in TOKEN_PRICE mode
+        maxValuationField.onTokenValueChange(selectedTickPrice)
+      }
       // Clear the selection after applying it
       setSelectedTickPrice(null)
     }
-  }, [selectedTickPrice, maxValuationField, setSelectedTickPrice])
+  }, [selectedTickPrice, maxValuationField, setSelectedTickPrice, isQuickLaunch])
 
   // Update the store's userBidPrice when max valuation changes
   // This allows the chart to display a bid line at the user's current bid position
   // We snap the price to the nearest tick to ensure the bid line always aligns with a valid tick,
   // even when fiat mode introduces floating-point precision errors during currency conversion
   useEffect(() => {
-    // Only update if we have a valid, non-zero max valuation and required parameters
+    // Only update if we have a valid, non-zero max valuation and required parameters.
+    // QuickLaunch: no bid line — the user never chose a max FDV, so drawing the synthetic
+    // ceiling (the 25,000 ETH FDV cap) on the chart would only confuse.
     if (
+      !isQuickLaunch &&
       maxPriceQ96 &&
       !maxPriceAmountIsZero &&
       !budgetAmountIsZero &&
@@ -344,6 +439,7 @@ export function useBidFormController({
     tickSizeQ96,
     setUserBidPrice,
     budgetAmountIsZero,
+    isQuickLaunch,
   ])
 
   return {
@@ -364,5 +460,6 @@ export function useBidFormController({
     bidCurrencyAddress: currency,
     bidTokenSymbol,
     isNativeBidToken,
+    maxBidPrice,
   }
 }

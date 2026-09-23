@@ -3,8 +3,8 @@ import { type ChainedQuoteResponse, TradingApi } from '@universe/api'
 import { createEarnChainedActionDisplayAmounts } from 'uniswap/src/features/earn/chainedDisplayAmounts'
 import { convertGasFeeToDisplayValue } from 'uniswap/src/features/gas/convertGasFeeToDisplayValue'
 import { getDisplayGasStrategy } from 'uniswap/src/features/gas/utils'
+import { getIsPermissionedForAnalytics } from 'uniswap/src/features/permissionedTokens/getIsPermissionedForAnalytics'
 import type {
-  EarnPlanAnalyticsFields,
   PlanFailureCallback,
   PlanFailureCallbackContext,
   PlanSagaAnalytics,
@@ -16,7 +16,7 @@ import { getCurrencyAddressForAnalytics } from 'uniswap/src/utils/currencyId'
 
 const EARN_PLAN_ANALYTICS_ROUTING: PlanSagaAnalytics['routing'] = 'chained'
 
-type EarnPlanSagaAnalytics = PlanSagaAnalytics & EarnPlanAnalyticsFields
+type EarnPlanSagaAnalytics = PlanSagaAnalytics & { attempt_id: string }
 
 type EarnPlanFailureUiHandler = (error?: Error, retry?: () => void) => void
 type EarnPlanFailureAnalyticsHandler = (error: Error | undefined, context?: PlanFailureCallbackContext) => void
@@ -161,8 +161,9 @@ export function buildEarnSwapTxContext(trade: ChainedActionTrade): ValidatedChai
   }
 }
 
-export function buildEarnPlanAnalytics(trade: ChainedActionTrade): EarnPlanSagaAnalytics {
+export function buildEarnPlanAnalytics(trade: ChainedActionTrade, attemptId: string): EarnPlanSagaAnalytics {
   return {
+    attempt_id: attemptId,
     transactionOriginType: TransactionOriginType.Internal,
     routing: EARN_PLAN_ANALYTICS_ROUTING,
     chain_id:
@@ -175,6 +176,7 @@ export function buildEarnPlanAnalytics(trade: ChainedActionTrade): EarnPlanSagaA
     token_out_symbol: trade.outputAmount.currency.symbol,
     token_in_address: getCurrencyAddressForAnalytics(trade.inputAmount.currency),
     token_out_address: getCurrencyAddressForAnalytics(trade.outputAmount.currency),
+    is_permissioned: getIsPermissionedForAnalytics([trade.inputAmount.currency, trade.outputAmount.currency]),
     token_in_amount: trade.inputAmount.toExact(),
     token_out_amount: trade.outputAmount.toExact(),
     token_in_amount_max: trade.maxAmountIn.toExact(),

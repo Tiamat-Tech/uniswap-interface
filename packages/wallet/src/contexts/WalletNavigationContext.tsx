@@ -1,12 +1,13 @@
+import { UniverseChainId } from '@universe/chains'
 /* oxlint-disable typescript/no-unnecessary-condition */
-import { createContext, PropsWithChildren, useContext } from 'react'
+import { createContext, PropsWithChildren, useContext, useMemo } from 'react'
 import { getNativeAddress } from 'uniswap/src/constants/addresses'
 import {
+  type NavigateToCategoryDetailsArgs,
   type NavigateToEarnVaultArgs as BaseNavigateToEarnVaultArgs,
   NavigateToNftItemArgs,
 } from 'uniswap/src/contexts/UniswapContext'
 import { AssetType } from 'uniswap/src/entities/assets'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import type { EarnAction } from 'uniswap/src/features/earn/types'
 import { FiatOnRampCurrency } from 'uniswap/src/features/fiatOnRamp/types'
 import { ModalNameType } from 'uniswap/src/features/telemetry/constants'
@@ -120,6 +121,8 @@ export type ShareTokenArgs = {
   currencyId: string
 }
 
+export type { NavigateToCategoryDetailsArgs }
+
 export type NavigateToEarnVaultArgs = BaseNavigateToEarnVaultArgs & {
   /** When set, skip the vault overview and land directly in the deposit/withdraw flow. */
   initialAction?: EarnAction
@@ -142,15 +145,71 @@ export type WalletNavigationContextState = {
   handleShareToken: (args: ShareTokenArgs) => void
   navigateToAdvancedSettings: () => void
   navigateToEarnVault: (args: NavigateToEarnVaultArgs) => void
+  /** Optional: only platforms with a Category Details screen (mobile) wire it. */
+  navigateToCategoryDetails?: (args: NavigateToCategoryDetailsArgs) => void
 }
 
 export const WalletNavigationContext = createContext<WalletNavigationContextState | undefined>(undefined)
 
 export function WalletNavigationProvider({
   children,
-  ...props
+  handleShareToken,
+  navigateToAccountActivityList,
+  navigateToAccountTokenList,
+  navigateToAdvancedSettings,
+  navigateToBuyOrReceiveWithEmptyWallet,
+  navigateToCategoryDetails,
+  navigateToEarnVault,
+  navigateToExternalProfile,
+  navigateToFiatOnRamp,
+  navigateToNftDetails,
+  navigateToPoolDetails,
+  navigateToReceive,
+  navigateToSend,
+  navigateToSwapFlow,
+  navigateToTokenDetails,
 }: PropsWithChildren<WalletNavigationContextState>): JSX.Element {
-  return <WalletNavigationContext.Provider value={props}>{children}</WalletNavigationContext.Provider>
+  // Spreading the props into the value would allocate a new object on every render of the provider,
+  // which sits above the whole app: every consumer (incl. each token row) would re-render on any
+  // navigation state change.
+  const value = useMemo(
+    () => ({
+      handleShareToken,
+      navigateToAccountActivityList,
+      navigateToAccountTokenList,
+      navigateToAdvancedSettings,
+      navigateToBuyOrReceiveWithEmptyWallet,
+      navigateToCategoryDetails,
+      navigateToEarnVault,
+      navigateToExternalProfile,
+      navigateToFiatOnRamp,
+      navigateToNftDetails,
+      navigateToPoolDetails,
+      navigateToReceive,
+      navigateToSend,
+      navigateToSwapFlow,
+      navigateToTokenDetails,
+    }),
+    [
+      handleShareToken,
+      navigateToAccountActivityList,
+      navigateToAccountTokenList,
+      navigateToAdvancedSettings,
+      navigateToBuyOrReceiveWithEmptyWallet,
+      navigateToCategoryDetails,
+      navigateToEarnVault,
+      navigateToExternalProfile,
+      navigateToFiatOnRamp,
+      navigateToNftDetails,
+      navigateToPoolDetails,
+      navigateToReceive,
+      navigateToSend,
+      navigateToSwapFlow,
+      navigateToTokenDetails,
+    ],
+  )
+
+  return <WalletNavigationContext.Provider value={value}>{children}</WalletNavigationContext.Provider>
 }
 
 export const useWalletNavigation = (): WalletNavigationContextState => {

@@ -1,7 +1,8 @@
 import '~/test-utils/tokens/mocks'
 import { fireEvent } from '@testing-library/react'
+import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { GraphQLApi } from '@universe/api'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { useLPGeoRestriction } from '~/features/Liquidity/useLPGeoRestriction'
 import { useAccount } from '~/hooks/useAccount'
@@ -10,7 +11,11 @@ import { useMultiChainPositions } from '~/pages/PoolDetails/Pools/hooks/useMulti
 import { USE_DISCONNECTED_ACCOUNT } from '~/test-utils/constants'
 import { mocked } from '~/test-utils/mocked'
 import { mockMediaSize } from '~/test-utils/mockMediaSize'
-import { useMultiChainPositionsReturnValue, validBEPoolToken0, validBEPoolToken1 } from '~/test-utils/pools/fixtures'
+import {
+  useMultiChainPositionsReturnValue,
+  validParsedPoolToken0,
+  validParsedPoolToken1,
+} from '~/test-utils/pools/fixtures'
 import { render, screen } from '~/test-utils/render'
 
 vi.mock('~/pages/PoolDetails/Pools/hooks/useMultiChainPositions')
@@ -22,8 +27,8 @@ vi.mock('~/features/Liquidity/useLPGeoRestriction', () => ({ useLPGeoRestriction
 
 // `useMedia().md` is the desktop/mobile split, so the viewport is pinned rather than inherited from
 // jsdom. Kept out of the sibling desktop file because mocking it stops the swap modal mounting there.
-vi.mock('tamagui', async () => ({
-  ...(await vi.importActual<typeof import('tamagui')>('tamagui')),
+vi.mock('@universe/mycelium/theme-hooks-compat', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@universe/mycelium/theme-hooks-compat')>()),
   useMedia: vi.fn(),
 }))
 
@@ -31,10 +36,11 @@ const BANNER_TOKEN_HEADING = 'USDC isn’t available for liquidity provision in 
 
 const PROPS = {
   chainId: UniverseChainId.Mainnet,
-  token0: validBEPoolToken0,
-  token1: validBEPoolToken1,
+  poolIdOrAddress: '0xpool',
+  token0: validParsedPoolToken0,
+  token1: validParsedPoolToken1,
   feeTier: 500,
-  protocolVersion: GraphQLApi.ProtocolVersion.V3,
+  protocolVersion: ProtocolVersion.V3,
 } as const
 
 function mockGeoRestriction(overrides: Partial<ReturnType<typeof useLPGeoRestriction>>): void {
@@ -86,6 +92,6 @@ describe('PoolDetailsStatsButtons geo gate on mobile (pool details CTA seam)', (
     expect(screen.queryByTestId(TestID.LPGeoRestrictionBanner)).toBeNull()
 
     fireEvent.click(screen.getByTestId(TestID.PoolDetailsAddLiquidityButton))
-    expect(globalThis.window.location.pathname).toBe('/positions/create/v3')
+    expect(globalThis.window.location.pathname).toBe('/positions/add/ethereum/0xpool')
   })
 })

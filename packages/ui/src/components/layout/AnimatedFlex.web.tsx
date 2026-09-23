@@ -1,7 +1,6 @@
+import { Flex, type FlexProps } from '@universe/mycelium'
 import { type ComponentRef, forwardRef } from 'react'
 import type { AnimatedFlexProps } from 'ui/src/components/layout/AnimatedFlex'
-import { Flex, type FlexProps } from 'ui/src/components/layout/Flex'
-
 type AnimatedFlexComponent = React.ForwardRefExoticComponent<
   AnimatedFlexProps & React.RefAttributes<ComponentRef<typeof Flex>>
 >

@@ -1,6 +1,6 @@
+import type { FlexCompatProps as FlexProps } from '@universe/mycelium'
+import { Bank } from '@universe/mycelium/icons/Bank'
 import { useTranslation } from 'react-i18next'
-import { Bank } from 'ui/src/components/icons/Bank'
-import { FlexProps } from 'ui/src/components/layout/Flex'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'

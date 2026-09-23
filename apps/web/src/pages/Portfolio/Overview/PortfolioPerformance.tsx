@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import {
   getProfitLossPeriodLabel,
   getProfitLossSince,

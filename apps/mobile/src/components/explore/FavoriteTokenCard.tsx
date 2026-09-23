@@ -1,6 +1,7 @@
 import { GraphQLApi, isNonPollingRequestInFlight } from '@universe/api'
-import { isIOS } from '@universe/environment'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { isIOS, isMobileApp } from '@universe/environment'
+import { AnimatedTouchableArea, borderRadii, Flex, imageSizes, Text } from '@universe/mycelium'
+import { useIsDarkMode, useShadowPropsShort } from '@universe/mycelium/theme-hooks-compat'
 import React, { memo, useMemo } from 'react'
 import type { StyleProp, ViewProps, ViewStyle } from 'react-native'
 import ContextMenu from 'react-native-context-menu-view'
@@ -10,10 +11,12 @@ import RemoveButton from 'src/components/explore/RemoveButton'
 import { Loader } from 'src/components/loading/loaders'
 import { useTokenDetailsNavigation } from 'src/components/TokenDetails/hooks'
 import { usePollOnFocusOnly } from 'src/utils/hooks'
-import { AnimatedTouchableArea, Flex, Text, useIsDarkMode, useShadowPropsShort } from 'ui/src'
-import { borderRadii, fonts, imageSizes } from 'ui/src/theme'
+// fonts stays on ui/src: its values are device-adaptive (adjustedSize) while mycelium's are
+// static, and the loaders below must size to the exact rendered $heading3/$subheading2 text.
+import { fonts } from 'ui/src/theme'
 import AnimatedNumber from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
+import { useContextMenuPressGate } from 'uniswap/src/components/menus/hooks/useContextMenuPressGate'
 import { RelativeChange } from 'uniswap/src/components/RelativeChange/RelativeChange'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
@@ -49,7 +52,6 @@ function FavoriteTokenCard({
   showLoading,
   ...rest
 }: FavoriteTokenCardProps): JSX.Element {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
   const dispatch = useDispatch()
   const { defaultChainId } = useEnabledChains()
   const tokenDetailsNavigation = useTokenDetailsNavigation()
@@ -104,6 +106,8 @@ function FavoriteTokenCard({
     tokenDetailsNavigation.navigate(currencyId)
   })
 
+  const { onPressIn, onPressOut, handlePress } = useContextMenuPressGate({ onPress })
+
   const shadowProps = useShadowPropsShort()
 
   const priceLoading = isNonPollingRequestInFlight(networkStatus)
@@ -127,7 +131,9 @@ function FavoriteTokenCard({
       borderRadius="$rounded16"
       overflow={isIOS ? 'hidden' : 'visible'}
       testID={`${TestID.FavoriteTokenCardPrefix}${token?.symbol}`}
-      onPress={onPress}
+      onPress={handlePress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       {...shadowProps}
     >
       <Flex
@@ -163,10 +169,10 @@ function FavoriteTokenCard({
             />
           ) : (
             <AnimatedNumber
+              disableAnimations={isMobileApp}
               numericValue={price}
               value={priceFormatted}
               textVariant="$heading3"
-              disableAnimations={!isDataLivelinessEnabled}
             />
           )}
           {priceLoading ? (
@@ -177,6 +183,7 @@ function FavoriteTokenCard({
             />
           ) : (
             <RelativeChange
+              shouldAnimate={!isMobileApp}
               arrowSize="$icon.16"
               change={pricePercentChange ?? undefined}
               semanticColor={true}

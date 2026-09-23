@@ -1,5 +1,5 @@
+import { Flex } from '@universe/mycelium'
 import type { ReactNode } from 'react'
-import { Flex } from 'ui/src'
 
 interface EarnReviewLayoutProps {
   children: ReactNode

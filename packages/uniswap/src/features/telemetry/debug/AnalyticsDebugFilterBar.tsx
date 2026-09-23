@@ -1,5 +1,5 @@
+import { Flex, ScrollView, Text, TouchableArea } from '@universe/mycelium'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Flex, ScrollView, Text, TouchableArea } from 'ui/src'
 import { X } from 'ui/src/components/icons'
 import type { AnalyticsDebugFilters, PropertyFilter } from 'uniswap/src/features/telemetry/debug/analyticsDebugStore'
 import { useEvent } from 'utilities/src/react/hooks'

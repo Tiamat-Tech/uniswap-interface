@@ -5,14 +5,19 @@ import type {
   ListLaunchesResponse,
   ListLaunchpadsRequest,
   ListLaunchpadsResponse,
-} from '@uniswap/client-data-api/dist/data/v2/api_pb'
-import { dataApiServiceClientV2 } from 'uniswap/src/data/apiClients/dataApiService/clients/DataApiClientV2'
+} from '@uniswap/client-launches/dist/launches/v1/api_pb'
+import { launchServiceClient } from 'uniswap/src/data/apiClients/dataApiService/clients/LaunchServiceClient'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 import {
   persistableInfiniteQueryOptions,
   persistableQueryOptions,
 } from 'utilities/src/reactQuery/persistableQueryOptions'
 import { type QueryOptionsResult } from 'utilities/src/reactQuery/queryOptions'
+
+// Both query keys below deliberately keep the ReactQueryCacheKey.DataApiService prefix even though
+// the reads now go through launches.v1.LaunchService: the launches.v1 messages are wire- and
+// JSON-identical to their data.v2 twins, so the persisted payload shape is unchanged and renaming
+// the key would only cold-start every user's persisted cache.
 
 export type ListLaunchpadsInput = {
   params?: PartialMessage<ListLaunchpadsRequest>
@@ -41,7 +46,7 @@ export function getListLaunchpadsQueryOptions({
       if (!params) {
         return undefined
       }
-      return toPlainMessage(await dataApiServiceClientV2.listLaunchpads(params))
+      return toPlainMessage(await launchServiceClient.listLaunchpads(params))
     },
     enabled: enabled && !!params,
     placeholderData: keepPreviousData,
@@ -79,7 +84,7 @@ export function getListLaunchesQueryOptions({
       }
       const { pageSize, ...request } = params
       return toPlainMessage(
-        await dataApiServiceClientV2.listLaunches({
+        await launchServiceClient.listLaunches({
           ...request,
           page: { pageSize, pageToken: pageParam || undefined },
         }),

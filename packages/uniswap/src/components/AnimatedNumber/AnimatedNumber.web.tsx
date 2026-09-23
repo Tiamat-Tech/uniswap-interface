@@ -1,7 +1,6 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, getTextVariantKey, Shine, Text, TextLoaderWrapper, type TextVariantKey } from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useMemo, useState } from 'react'
-import { Flex, Shine, Text, TextLoaderWrapper, useSporeColors } from 'ui/src'
-import { getTextVariantKey, type TextVariantKey } from 'ui/src/theme'
 import type { AnimatedNumberProps } from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import { BALANCE_CHANGE_INDICATION_DURATION } from 'uniswap/src/components/AnimatedNumber/animationConfig'
 import { useAnimatedNumberAnimation } from 'uniswap/src/components/AnimatedNumber/hooks/useAnimatedNumberAnimation'
@@ -262,12 +261,6 @@ export function AnimatedNumberCore({
 }
 
 const AnimatedNumber = (props: AnimatedNumberProps): JSX.Element => {
-  const isDataLivelinessEnabled = useFeatureFlag(FeatureFlags.DataLivelinessUI)
-
-  if (!isDataLivelinessEnabled) {
-    return <AnimatedNumberFallback {...props} />
-  }
-
   return <AnimatedNumberCore {...props} />
 }
 

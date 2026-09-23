@@ -14,17 +14,16 @@ describe('Earn How it works behavior history', () => {
       uniswapBehaviorHistory: legacyBehaviorHistory,
     } as UniswapState
 
-    expect(selectHasAcknowledgedEarnHowItWorks(state, 'vault-a')).toBe(false)
+    expect(selectHasAcknowledgedEarnHowItWorks(state)).toBe(false)
   })
 
-  it('persists the acknowledgement for only the selected vault', () => {
+  it('treats an acknowledgement for any vault as a global acknowledgement', () => {
     const behaviorHistory = uniswapBehaviorHistoryReducer(
       initialUniswapBehaviorHistoryState,
       setHasAcknowledgedEarnHowItWorks({ vaultId: 'vault-a' }),
     )
     const state = { uniswapBehaviorHistory: behaviorHistory } as UniswapState
 
-    expect(selectHasAcknowledgedEarnHowItWorks(state, 'vault-a')).toBe(true)
-    expect(selectHasAcknowledgedEarnHowItWorks(state, 'vault-b')).toBe(false)
+    expect(selectHasAcknowledgedEarnHowItWorks(state)).toBe(true)
   })
 })

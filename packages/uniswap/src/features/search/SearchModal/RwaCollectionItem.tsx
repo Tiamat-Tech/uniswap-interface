@@ -1,14 +1,20 @@
+import type { UniverseChainId } from '@universe/chains'
 import type { ReactNode } from 'react'
 import { useDispatch } from 'react-redux'
 import type { FocusedRowControl } from 'uniswap/src/components/lists/items/OptionItem'
-import type { RwaCollectionOption, SearchModalOption } from 'uniswap/src/components/lists/items/types'
+import {
+  TokenOptionItemStats,
+  useSearchVolumeLabel,
+} from 'uniswap/src/components/lists/items/tokens/TokenOptionItem/TokenOptionItemStats'
+import type { RwaCollectionOption, SearchModalListOption } from 'uniswap/src/components/lists/items/types'
 import type { OnchainItemSection } from 'uniswap/src/components/lists/OnchainItemList/types'
 import { useUniswapContext } from 'uniswap/src/contexts/UniswapContext'
 import { resolvePrimaryChain } from 'uniswap/src/data/apiClients/dataApiService/rwa/resolvePrimaryChain'
+import { getIssuerCount } from 'uniswap/src/data/apiClients/dataApiService/rwa/rwaMetrics'
 import type { IssuerToken } from 'uniswap/src/data/apiClients/dataApiService/rwa/types'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { toSupportedChainId } from 'uniswap/src/features/chains/utils'
+import type { SearchTokenStats } from 'uniswap/src/features/dataApi/types'
 import { ExpandableAssetGroup } from 'uniswap/src/features/expandableAsset/ExpandableAssetGroup'
 import type { RenderIssuerRowArgs } from 'uniswap/src/features/expandableAsset/types'
 import { SearchHistoryResultType } from 'uniswap/src/features/search/SearchHistoryResult'
@@ -16,6 +22,7 @@ import { addToSearchHistory } from 'uniswap/src/features/search/searchHistorySli
 import { sendSearchOptionItemClickedAnalytics } from 'uniswap/src/features/search/SearchModal/analytics/analytics'
 import type { SearchFilterContext } from 'uniswap/src/features/search/SearchModal/analytics/SearchContext'
 import { tdpChainFilterForTokenRow } from 'uniswap/src/features/search/SearchModal/utils/searchModalListItem'
+import type { CategoryTagPlacement } from 'uniswap/src/features/tokenCategories/CategoryTagPill'
 import { buildCurrencyId } from 'uniswap/src/utils/currencyId'
 import { tdpChainSelectionFromFilter } from 'uniswap/src/utils/linking'
 import { logger } from 'utilities/src/logger/logger'
@@ -24,7 +31,7 @@ type RwaCollectionItemProps = {
   item: RwaCollectionOption
   expanded: boolean
   searchFilters: SearchFilterContext
-  section: OnchainItemSection<SearchModalOption>
+  section: OnchainItemSection<SearchModalListOption>
   index: number
   rowIndex: number
   focusedRowControl: FocusedRowControl
@@ -33,6 +40,8 @@ type RwaCollectionItemProps = {
   onToggle: () => void
   onSelect?: () => void
   testID?: string
+  searchStats?: SearchTokenStats
+  categoryTagPlacement?: CategoryTagPlacement
 }
 
 export function RwaCollectionItem({
@@ -48,15 +57,18 @@ export function RwaCollectionItem({
   onToggle,
   onSelect,
   testID,
+  searchStats,
+  categoryTagPlacement,
 }: RwaCollectionItemProps): JSX.Element {
   const { navigateToTokenDetails, getTokenDetailsUrl } = useUniswapContext()
   const dispatch = useDispatch()
   const { chains: enabledChainIds } = useEnabledChains()
+  const volumeDetail = useSearchVolumeLabel(searchStats?.volume1dUsd)
 
   const { rwa } = item
-  const canExpand = rwa.issuerTokens.length > 1
-  // The lone issuer for a non-expandable collection (the parent row navigates to it directly).
+  const canExpand = getIssuerCount(rwa) > 1
   const soleIssuer = canExpand ? undefined : rwa.issuerTokens[0]
+  const chainFilter = searchFilters.searchChainFilter ?? undefined
 
   type IssuerNavigation = {
     chainId: UniverseChainId
@@ -69,11 +81,11 @@ export function RwaCollectionItem({
     tdpChain: UniverseChainId | null | undefined
   }
 
-  // Resolve an issuer's navigation target without side effects. The primary chain is the first enabled
-  // chainToken (chainTokens are sorted mainnet-first upstream), so the path address, row logo, and
+  // Resolve an issuer's navigation target without side effects. The primary chain is the filtered chain's leg,
+  // else the first enabled chainToken (sorted mainnet-first upstream), so the path address, row logo badge, and
   // analytics all target the same chain.
   const resolveIssuerNavigation = (issuer: IssuerToken): IssuerNavigation | undefined => {
-    const resolved = resolvePrimaryChain({ issuer, enabledChainIds })
+    const resolved = resolvePrimaryChain({ issuer, enabledChainIds, chainFilter })
     if (!resolved) {
       return undefined
     }
@@ -174,17 +186,28 @@ export function RwaCollectionItem({
     <ExpandableAssetGroup
       asset={rwa}
       enabledChainIds={enabledChainIds}
+      chainFilter={chainFilter}
       isExpanded={expanded}
       showCategoryTag={item.showCategoryTag ?? true}
+      categoryTagPlacement={categoryTagPlacement}
       focusedRowControl={focusedRowControl}
       testID={testID}
       renderIssuerRow={renderIssuerRow}
       isIssuerMenuReady={isIssuerMenuReady}
       getIssuerHref={issuerHref}
+      rightElement={
+        searchStats?.priceUsd != null ? (
+          <TokenOptionItemStats
+            priceUsd={searchStats.priceUsd}
+            pricePercentChange1d={searchStats.pricePercentChange1d}
+            isPriceFloor={canExpand}
+          />
+        ) : undefined
+      }
+      volumeDetail={volumeDetail}
       onToggle={onToggle}
       onParentPress={soleIssuer && (() => selectIssuer(soleIssuer))}
       onIssuerModifierPress={recordIssuerModifierPress}
-      // Multi-issuer: each expanded sub-row gets its own press handler.
       onIssuerPress={selectIssuer}
     />
   )

@@ -1,18 +1,7 @@
 import { render, screen } from '@testing-library/react'
-import type { PropsWithChildren } from 'react'
-import { TamaguiProvider } from 'ui/src'
-import config from 'ui/src/tamagui.config'
 import { PermissionedPill } from '~/pages/TokenDetails/components/info/TokenDescriptionPills'
 
-function ThemeWrapper({ children }: PropsWithChildren): JSX.Element {
-  return (
-    <TamaguiProvider config={config} defaultTheme="light">
-      {children}
-    </TamaguiProvider>
-  )
-}
-
-const renderWithTheme = (ui: React.ReactElement): ReturnType<typeof render> => render(ui, { wrapper: ThemeWrapper })
+const renderWithTheme = (ui: React.ReactElement): ReturnType<typeof render> => render(ui)
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

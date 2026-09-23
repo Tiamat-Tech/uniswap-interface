@@ -1,4 +1,5 @@
 import { type Currency } from '@uniswap/sdk-core'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import {
   type ComplianceTokenInput,
   GatedFeature,
@@ -22,7 +23,7 @@ export function toComplianceTokenRef(currency: Currency | undefined): Compliance
   }
   return {
     chainId: currency.chainId,
-    address: currency.isNative ? NATIVE_ADDRESS_FOR_TRADING_API : currency.address.toLowerCase(),
+    address: currency.isNative ? NATIVE_ADDRESS_FOR_TRADING_API : normalizeTokenAddressForCache(currency.address),
   }
 }
 

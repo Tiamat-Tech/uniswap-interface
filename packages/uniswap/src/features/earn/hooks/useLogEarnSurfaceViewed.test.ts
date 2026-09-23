@@ -40,4 +40,21 @@ describe(useLogEarnSurfaceViewed, () => {
 
     expect(mockSendAnalyticsEvent).toHaveBeenCalledTimes(2)
   })
+
+  it('includes the read-only dimension when provided', () => {
+    renderHook(() =>
+      useLogEarnSurfaceViewed({
+        entryPoint: EarnEntryPoint.PortfolioEarnSection,
+        isReadOnly: true,
+        isVisible: true,
+        surface: EarnAnalyticsSurface.Web,
+      }),
+    )
+
+    expect(mockSendAnalyticsEvent).toHaveBeenCalledWith(EarnEventName.EarnSurfaceViewed, {
+      entry_point: 'portfolio_earn_section',
+      is_read_only: true,
+      surface: 'web',
+    })
+  })
 })

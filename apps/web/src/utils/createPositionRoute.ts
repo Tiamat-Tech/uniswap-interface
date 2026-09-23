@@ -1,38 +1,7 @@
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { ADD_LIQUIDITY_PATH } from '~/pages/AddLiquidity/poolLinkParams'
 
-export type CreatePositionProtocolVersion = 'v2' | 'v3' | 'v4'
-
-/**
- * Builds the create-position route.
- * `protocolVersion` only applies to the legacy `/positions/create/:version` route;
- * the revamp flow always uses `/positions/add`.
- */
-export function buildCreatePositionHref({
-  entryPoint,
-  isAddLiquidityRevampEnabled,
-  protocolVersion = 'v4',
-}: {
-  entryPoint?: string
-  isAddLiquidityRevampEnabled: boolean
-  protocolVersion?: CreatePositionProtocolVersion
-}): string {
-  const path = isAddLiquidityRevampEnabled ? '/positions/add' : `/positions/create/${protocolVersion}`
+/** Builds the create-position route — the generic "new position" CTA, which opens the pool browser. */
+export function buildCreatePositionHref({ entryPoint }: { entryPoint?: string } = {}): string {
   const search = entryPoint ? new URLSearchParams({ entryPoint }).toString() : ''
-  return search ? `${path}?${search}` : path
-}
-
-export function useCreatePositionHref({
-  entryPoint,
-  protocolVersion,
-}: {
-  entryPoint?: string
-  protocolVersion?: CreatePositionProtocolVersion
-} = {}): string {
-  const isAddLiquidityRevampEnabled = useFeatureFlag(FeatureFlags.AddLiquidityRevamp)
-
-  return buildCreatePositionHref({
-    entryPoint,
-    isAddLiquidityRevampEnabled,
-    protocolVersion,
-  })
+  return search ? `${ADD_LIQUIDITY_PATH}?${search}` : ADD_LIQUIDITY_PATH
 }

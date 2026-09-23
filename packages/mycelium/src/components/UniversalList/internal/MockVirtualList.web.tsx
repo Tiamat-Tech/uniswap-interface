@@ -1,5 +1,5 @@
 import { Fragment, type ReactElement } from 'react'
-import { Flex } from '../../flex'
+import { FlexCompat as Flex } from '../../../flex-compat/FlexCompat'
 import type { UniversalListProps } from '../types'
 
 // Non-virtualized placeholder used until the real Legend List engine lands.
@@ -14,8 +14,8 @@ export function MockVirtualList<T>({
   style,
 }: UniversalListProps<T>): ReactElement {
   return (
-    <Flex direction="column" className={style?.className}>
-      <Flex direction="column" className={contentContainerStyle?.className}>
+    <Flex justifyContent="flex-start" flexDirection="column" className={style?.className}>
+      <Flex justifyContent="flex-start" flexDirection="column" className={contentContainerStyle?.className}>
         {ListHeaderComponent}
         {data.length === 0
           ? ListEmptyComponent

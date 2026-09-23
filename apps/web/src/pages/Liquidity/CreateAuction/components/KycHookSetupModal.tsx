@@ -1,29 +1,20 @@
 import { ValidationType } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
+import type { UniverseChainId } from '@universe/chains'
+import { Button, Flex, fonts, Input, ModalCloseIcon, Text, TouchableArea } from '@universe/mycelium'
+import { HeightAnimator } from '@universe/mycelium/height-animator'
+import { Code } from '@universe/mycelium/icons/Code'
+import { DocumentList } from '@universe/mycelium/icons/DocumentList'
+import { ExternalLink as ExternalLinkIcon } from '@universe/mycelium/icons/ExternalLink'
+import { Page } from '@universe/mycelium/icons/Page'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
+import { UserCheck } from '@universe/mycelium/icons/UserCheck'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Button,
-  Flex,
-  HeightAnimator,
-  Input,
-  ModalCloseIcon,
-  Separator,
-  SpinningLoader,
-  Text,
-  TouchableArea,
-} from 'ui/src'
-import { Code } from 'ui/src/components/icons/Code'
-import { DocumentList } from 'ui/src/components/icons/DocumentList'
-import { ExternalLink as ExternalLinkIcon } from 'ui/src/components/icons/ExternalLink'
-import { Page } from 'ui/src/components/icons/Page'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
-import { UserCheck } from 'ui/src/components/icons/UserCheck'
-import { fonts } from 'ui/src/theme/fonts'
+import { Separator, SpinningLoader } from 'ui/src'
 import { CopyHelper } from 'uniswap/src/components/CopyHelper/CopyHelper'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { AuctionQueryClient } from 'uniswap/src/data/apiClients/liquidityService/AuctionQueryClient'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { ElementName, ModalName } from 'uniswap/src/features/telemetry/constants'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { ExplorerDataType, getExplorerLink } from 'uniswap/src/utils/linking'

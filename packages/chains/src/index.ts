@@ -1,4 +1,13 @@
 export { UniverseChainId, RPCType } from './rpc/types'
+export { Platform } from './platforms/types'
+export type {
+  EVMUniverseChainId,
+  PlatformAddress,
+  PlatformSpecificAddress,
+  SVMUniverseChainId,
+  UniverseChainIdByPlatform,
+} from './platforms/types'
+export { chainIdToPlatform, isChainIdOnPlatform, isEVMChain, isSVMChain } from './platforms/utils'
 export type { RpcChainInfo, ViemChainInfo } from './rpc/types'
 export type { RpcConfig, FlashbotsConfig, RpcUrlSelectorCtx, RpcUrlSelector } from './rpc/rpcUrlSelector'
 export type { RpcConfigResolver, RpcConfigResolverInput } from './rpc/resolveRpcConfig'
@@ -7,7 +16,7 @@ export type { CreateEthersProvider } from './rpc/createEthersProvider'
 export type { CreateViemClient, CreateViemClientFactoryCtx } from './rpc/createViemClient'
 export type { EthersSignTypedDataParams } from './transactions/createSignTypedData/ethers'
 export { createTransactions } from './transactions/createTransactions'
-export { createUniRpcConfigResolver } from './rpc/getUniRpcConfig'
+export { createUniRpcConfigResolver, UNI_SWAP_PROTECTION_HEADER } from './rpc/getUniRpcConfig'
 export { createRpcConfigResolver } from './rpc/resolveRpcConfig'
 export { createRpcUrlSelector } from './rpc/rpcUrlSelector'
 export { createEthersProviderFactory } from './rpc/createEthersProvider'
@@ -36,6 +45,16 @@ export { createNamehash } from './utilities/createNamehash'
 export { createParseUnits } from './utilities/createParseUnits'
 export { zeroAddress } from './utilities/createZeroAddress'
 export { assume0xAddress } from './utilities/assume0xAddress'
+export {
+  AddressStringFormat,
+  areAddressesEqual,
+  areEvmAddressesEqual,
+  getPlatformAddress,
+  getValidAddress,
+  normalizeAddress,
+  normalizeTokenAddressForCache,
+  sanitizeAddressText,
+} from './utilities/addresses'
 export { InstrumentedJsonRpcProvider } from './rpc/observability/InstrumentedJsonRpcProvider'
 export { createObservableTransport } from './rpc/observability/createObservableTransport'
 export { createUniRpcRoutedTransport } from './rpc/createUniRpcRoutedTransport'
@@ -63,5 +82,10 @@ export { feeOnTransferDetectorAbi, type FeeOnTransferDetectorAbi } from './abis/
 export { ensRegistrarAbi, type EnsRegistrarAbi } from './abis/ensRegistrarAbi'
 export { ensPublicResolverAbi, type EnsPublicResolverAbi } from './abis/ensPublicResolverAbi'
 export { wethAbi, type WethAbi } from './abis/wethAbi'
+export { erc4626VaultAbi, type Erc4626VaultAbi } from './abis/erc4626VaultAbi'
+export { marginAccountAbi, type MarginAccountAbi } from './abis/marginAccountAbi'
+export { marginRouterAbi, type MarginRouterAbi } from './abis/marginRouterAbi'
+export { permit2Abi, type Permit2Abi } from './abis/permit2Abi'
+export { v4QuoterAbi, type V4QuoterAbi } from './abis/v4QuoterAbi'
 export { createContracts } from './contracts/createContracts'
 export type { ChainContract } from './contracts/createContract/shared'

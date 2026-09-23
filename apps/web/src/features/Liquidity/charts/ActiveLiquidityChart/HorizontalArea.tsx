@@ -1,5 +1,5 @@
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { ScaleLinear } from 'd3'
-import { useSporeColors } from 'ui/src'
 import { ChartEntry } from '~/features/Liquidity/charts/LiquidityRangeInput/types'
 
 export const HorizontalArea = ({

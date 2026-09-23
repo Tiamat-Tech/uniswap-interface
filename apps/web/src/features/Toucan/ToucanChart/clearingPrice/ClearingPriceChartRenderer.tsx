@@ -1,8 +1,12 @@
+import '~/features/Toucan/ToucanChart/clearingPrice/ClearingPriceChartRenderer.css'
 /* oxlint-disable max-lines */
-import { createChart, type IChartApi, type UTCTimestamp } from 'lightweight-charts'
+import { Flex } from '@universe/mycelium'
+import { styled } from '@universe/mycelium/styled'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { createChart, LineSeries, type IChartApi, type UTCTimestamp } from 'lightweight-charts'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Flex, useSporeColors } from 'ui/src'
 import { useEvent } from 'utilities/src/react/hooks'
+import { ChartWrapper } from '~/components/Charts/ChartWrapper'
 import { LiveDotRenderer } from '~/components/Charts/LiveDotRenderer'
 import { formatTickMarks } from '~/components/Charts/utils'
 import { CHART_DIMENSIONS } from '~/features/Toucan/Auction/BidDistributionChart/constants'
@@ -19,7 +23,6 @@ import type {
   NormalizedClearingPriceSeries,
   YAxisLabel,
 } from '~/features/Toucan/ToucanChart/clearingPrice/types'
-import { deprecatedStyled } from '~/lib/deprecated-styled'
 
 /**
  * For in-progress auctions, the data chart occupies this percentage of the total width.
@@ -51,85 +54,31 @@ const RIGHT_EDGE_FADE_LINE_CLEARANCE = 2
  */
 const DATA_CHART_BOTTOM_INSET = 26
 
-const ChartContainer = deprecatedStyled.div<{ height: number }>`
-  width: calc(100% - ${CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH}px);
-  height: 100%;
-  margin-left: ${CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH}px;
-
-  /* Override lightweight-charts inline overflow:hidden to prevent x-axis label cutoff */
-  .tv-lightweight-charts {
-    overflow: visible !important;
-  }
-
-  /* Clip the main plot area to prevent chart line from overflowing into X-axis */
-  .tv-lightweight-charts table tr:first-child td:nth-child(2) {
-    overflow: hidden;
-  }
-
-  /* Match x-axis background to app surface color */
-  .tv-lightweight-charts table tr:last-child td {
-    background-color: ${({ theme }) => theme.surface1};
-  }
-`
-
-const ChartWrapper = deprecatedStyled.div<{ height: number }>`
-  position: relative;
-  width: 100%;
-  height: ${({ height }) => height}px;
-  overflow: visible;
-`
+const ChartContainer = styled('div', {
+  platform: 'web',
+  base: 'clearing-price-chart-container h-full',
+  inlineStyle: () => ({
+    width: `calc(100% - ${CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH}px)`,
+    marginLeft: CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH,
+  }),
+})
 
 /** Container for the x-axis background chart (full width, x-axis only) */
-const XAxisChartContainer = deprecatedStyled.div<{ height: number }>`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: ${({ height }) => height}px;
-  pointer-events: none;
-
-  .tv-lightweight-charts {
-    overflow: visible !important;
-  }
-
-  /* Clip the main plot area to prevent chart content from overflowing into X-axis */
-  .tv-lightweight-charts table tr:first-child td:nth-child(2) {
-    overflow: hidden;
-  }
-
-  /* Match x-axis background to app surface color */
-  .tv-lightweight-charts table tr:last-child td {
-    background-color: ${({ theme }) => theme.surface1};
-  }
-`
+const XAxisChartContainerFrame = styled('div', {
+  platform: 'web',
+  base: 'clearing-price-xaxis-container absolute top-0 left-0 w-full pointer-events-none',
+})
 
 /** Container for the data chart (partial width for in-progress auctions) */
-const DataChartContainer = deprecatedStyled.div<{ height: number; $widthPercent: number }>`
-  position: absolute;
-  top: 0;
-  left: ${CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH}px;
-  width: calc(${({ $widthPercent }) => $widthPercent}% - ${CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH}px);
-  height: ${({ height }) => height}px;
-  overflow: hidden;
+const DataChartContainerFrame = styled('div', {
+  platform: 'web',
+  base: 'clearing-price-data-container absolute top-0 overflow-hidden',
+})
 
-  .tv-lightweight-charts {
-    overflow: hidden !important;
-  }
-`
-
-const YAxisLabelEl = deprecatedStyled.span`
-  position: absolute;
-  left: 0;
-  font-size: 10px;
-  font-family: 'Basel', sans-serif;
-  color: ${({ theme }) => theme.neutral2};
-  background-color: ${({ theme }) => theme.surface1};
-  padding-right: 6px;
-  transform: translateY(-50%);
-  pointer-events: none;
-  white-space: nowrap;
-  z-index: 1;
-`
+const YAxisLabelEl = styled('span', {
+  platform: 'web',
+  base: 'absolute left-0 text-[10px] [font-family:Basel,sans-serif] text-neutral2 bg-surface1 pr-[6px] [transform:translateY(-50%)] pointer-events-none whitespace-nowrap z-[1]',
+})
 
 interface ClearingPriceChartRendererProps {
   normalizedData: NormalizedClearingPriceSeries
@@ -142,7 +91,7 @@ interface ClearingPriceChartRendererProps {
   /** When true, disables mouse wheel scroll/scale so an external handler can manage Y-axis pan/zoom */
   disableMouseWheelInteractions?: boolean
   /** Total supply of auction token (raw units) for FDV calculation in tooltip */
-  totalSupply?: string
+  tokenTotalSupply?: string
   /** Decimals of the auction token for FDV calculation in tooltip */
   auctionTokenDecimals?: number
   /** When true (no-bids empty state), the price line extends to the chart's right edge instead of stopping at current time (LP-806) */
@@ -166,7 +115,7 @@ export function ClearingPriceChartRenderer({
   height = CHART_DIMENSIONS.HEIGHT,
   onVisiblePriceRangeChange,
   disableMouseWheelInteractions,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals,
   extendLineToRightEdge,
 }: ClearingPriceChartRendererProps): JSX.Element {
@@ -261,7 +210,11 @@ export function ClearingPriceChartRenderer({
     const xAxisChart = createChart(container, {
       width: container.clientWidth,
       height,
+      // v5 lifts a hovered series above its pane siblings by default — keep
+      // v4's draw order (QA can deliberately opt in later).
+      hoveredSeriesOnTop: false,
       layout: {
+        attributionLogo: false,
         textColor: colors.neutral2.val,
         background: { color: 'transparent' },
       },
@@ -290,7 +243,7 @@ export function ClearingPriceChartRenderer({
     // Add invisible line series with phantom points for x-axis range
     const { visibleRangeStart } = normalizedData
     if (visibleRangeStart && xAxisEndTime) {
-      const xAxisSeries = xAxisChart.addLineSeries({
+      const xAxisSeries = xAxisChart.addSeries(LineSeries, {
         color: 'transparent',
         lineWidth: 1,
         priceLineVisible: false,
@@ -528,12 +481,15 @@ export function ClearingPriceChartRenderer({
             </YAxisLabelEl>
           ))}
           {/* Background: X-axis chart showing full auction time range */}
-          <XAxisChartContainer ref={xAxisChartContainerRef} height={height} />
+          <XAxisChartContainerFrame ref={xAxisChartContainerRef} style={{ height }} />
           {/* Foreground: Data chart showing actual price data */}
-          <DataChartContainer
+          <DataChartContainerFrame
             ref={chartContainerRef}
-            height={height - timeScaleHeight}
-            $widthPercent={dataChartWidthPercent}
+            style={{
+              left: CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH,
+              width: `calc(${dataChartWidthPercent}% - ${CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH}px)`,
+              height: height - timeScaleHeight,
+            }}
           />
           <Flex
             position="absolute"
@@ -553,7 +509,7 @@ export function ClearingPriceChartRenderer({
                   data={tooltipState.data}
                   bidTokenInfo={bidTokenInfo}
                   scaleFactor={normalizedData.scaleFactor}
-                  totalSupply={totalSupply}
+                  tokenTotalSupply={tokenTotalSupply}
                   auctionTokenDecimals={auctionTokenDecimals}
                   isPreBidEnd={tooltipState.isPreBidEnd}
                 />
@@ -579,7 +535,7 @@ export function ClearingPriceChartRenderer({
               }}
             />
           )}
-          {/* Live dot indicator — wrapper offsets by CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH to match DataChartContainer position.
+          {/* Live dot indicator — wrapper offsets by CHART_DIMENSIONS.Y_AXIS_LABEL_WIDTH to match DataChartContainerFrame position.
               In full-width line mode the dot marks the end of the extended line at the right edge, per design (LP-806). */}
           {chartContainerRef.current && isControllerReady && controllerRef.current && (
             <Flex
@@ -620,7 +576,7 @@ export function ClearingPriceChartRenderer({
             {tick.label}
           </YAxisLabelEl>
         ))}
-        <ChartContainer ref={chartContainerRef} height={height} />
+        <ChartContainer ref={chartContainerRef} />
         <Flex
           style={{
             position: 'absolute',
@@ -639,7 +595,7 @@ export function ClearingPriceChartRenderer({
                 data={tooltipState.data}
                 bidTokenInfo={bidTokenInfo}
                 scaleFactor={normalizedData.scaleFactor}
-                totalSupply={totalSupply}
+                tokenTotalSupply={tokenTotalSupply}
                 auctionTokenDecimals={auctionTokenDecimals}
                 isPreBidEnd={tooltipState.isPreBidEnd}
               />

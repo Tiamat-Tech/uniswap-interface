@@ -19,6 +19,7 @@ import {
 } from '~/features/Toucan/Auction/BidDistributionChart/utils/q96'
 import { BidDistributionData, BidTokenInfo, OptimisticBid, UserBid } from '~/features/Toucan/Auction/store/types'
 import { approximateNumberFromRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
+import { hasTokenTotalSupply } from '~/features/Toucan/Auction/utils/tokenTotalSupply'
 import type { ChartMode } from '~/features/Toucan/ToucanChart/renderer'
 
 /**
@@ -401,25 +402,27 @@ function calculateYAxisLevels(maxAmount: number): number[] {
   return [0, niceIncrement]
 }
 
+/** `undefined` when the total supply is unknown: the tick's FDV cannot be computed, only its price. */
 function calculateTickDisplayValue(params: {
   tickValue: number
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals?: number
-}): number {
-  const { tickValue, bidTokenInfo, totalSupply, auctionTokenDecimals = 18 } = params
-  // Convert tick value to USD (tick is already in bid token units, multiply by price)
-  // When priceFiat is 0 (unavailable), return 0 and let caller handle fallback display
-  const tickInUSD = bidTokenInfo.priceFiat === 0 ? 0 : tickValue * bidTokenInfo.priceFiat
+}): number | undefined {
+  const { tickValue, bidTokenInfo, tokenTotalSupply, auctionTokenDecimals = 18 } = params
+  // The tick is already in bid token units, so the bid token's fiat price converts it directly. A
+  // `priceFiat` of 0 means that price is unavailable, yet every label still states a 0 FDV.
+  const tickInUSD = tickValue * bidTokenInfo.priceFiat
 
-  // Always show as FDV: multiply by total supply
-  if (!totalSupply) {
-    return tickInUSD
+  // Every label built from this is an FDV, so returning the bare per-token price without a supply
+  // to multiply by would relabel the price as a valuation.
+  if (!hasTokenTotalSupply(tokenTotalSupply)) {
+    return undefined
   }
 
-  // Convert totalSupply to an approximate decimal token count (avoid Number(formatUnits(...)) precision loss)
+  // Convert tokenTotalSupply to an approximate decimal token count (avoid Number(formatUnits(...)) precision loss)
   const totalTokensApprox = approximateNumberFromRaw({
-    raw: BigInt(totalSupply),
+    raw: BigInt(tokenTotalSupply),
     decimals: auctionTokenDecimals,
     significantDigits: 15,
   })
@@ -429,18 +432,20 @@ function calculateTickDisplayValue(params: {
 /**
  * Format tick value for display (exported for chart component)
  * Uses provided formatter function for localized formatting
- * Always displays as FDV (Fully Diluted Valuation) when totalSupply is available
+ * Always displays as FDV (Fully Diluted Valuation) when tokenTotalSupply is available
  */
 export function formatTickForDisplay(params: {
   tickValue: number
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals?: number
   formatter: (amount: number) => string
 }): string {
   const { formatter, ...rest } = params
   const displayValue = calculateTickDisplayValue(rest)
-  return formatter(displayValue)
+  // `formatter` is injected as `(amount: number) => string`, so it has no placeholder of its own to
+  // fall back to when the FDV could not be computed.
+  return displayValue === undefined ? '--' : formatter(displayValue)
 }
 
 /**
@@ -517,7 +522,7 @@ export function computeTickWindow({
 export function generateChartData({
   bidData,
   bidTokenInfo,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals = 18,
   clearingPrice,
   floorPrice,
@@ -529,7 +534,7 @@ export function generateChartData({
 }: {
   bidData: BidDistributionData
   bidTokenInfo: BidTokenInfo
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals?: number
   clearingPrice: string
   floorPrice: string
@@ -694,12 +699,6 @@ export function generateChartData({
       const emptyBars: ChartBarData[] = []
       for (let i = 0; i < emptyTotalBars; i++) {
         const currentTick = emptyMinTick + i * barStep
-        const displayValue = calculateTickDisplayValue({
-          tickValue: currentTick,
-          bidTokenInfo,
-          totalSupply,
-          auctionTokenDecimals,
-        })
         emptyBars.push({
           tick: currentTick,
           tickQ96: calculateTickQ96({
@@ -707,7 +706,13 @@ export function generateChartData({
             tickSizeQ96: tickSize,
             tickOffset: emptyFloorOffset + i * emptyRawTicksPerBar,
           }),
-          tickDisplay: formatter(displayValue),
+          tickDisplay: formatTickForDisplay({
+            tickValue: currentTick,
+            bidTokenInfo,
+            tokenTotalSupply,
+            auctionTokenDecimals,
+            formatter,
+          }),
           amount: 0,
           index: i,
         })
@@ -798,13 +803,6 @@ export function generateChartData({
     const currentTick = minTick + i * barStep
     const aggregate = barAggregates.get(i)
 
-    const displayValue = calculateTickDisplayValue({
-      tickValue: currentTick,
-      bidTokenInfo,
-      totalSupply,
-      auctionTokenDecimals,
-    })
-
     // Use matched Q96 if available, otherwise calculate from floor price
     const tickQ96 =
       aggregate?.tickQ96 ??
@@ -817,7 +815,13 @@ export function generateChartData({
     bars.push({
       tick: currentTick,
       tickQ96,
-      tickDisplay: formatter(displayValue),
+      tickDisplay: formatTickForDisplay({
+        tickValue: currentTick,
+        bidTokenInfo,
+        tokenTotalSupply,
+        auctionTokenDecimals,
+        formatter,
+      }),
       amount: aggregate?.amount ?? 0,
       index: i,
     })

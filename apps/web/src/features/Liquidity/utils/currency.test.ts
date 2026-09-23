@@ -1,12 +1,14 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
+import { UniverseChainId } from '@universe/chains'
 import { ZERO_ADDRESS } from 'uniswap/src/constants/misc'
 import { nativeOnChain, USDT } from 'uniswap/src/constants/tokens'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { getWrappedTokenIfExists } from 'uniswap/src/utils/currency'
 import {
   canUnwrapCurrency,
   getCurrencyForProtocol,
   getCurrencyWithOptionalUnwrap,
+  getCurrencyWithUnwrap,
   getCurrencyWithWrap,
   getTokenOrZeroAddress,
 } from '~/features/Liquidity/utils/currency'
@@ -14,6 +16,9 @@ import { ETH_MAINNET } from '~/test-utils/constants'
 
 const nativeCurrency = nativeOnChain(UniverseChainId.Mainnet)
 const WETH = nativeOnChain(UniverseChainId.Mainnet).wrapped
+// Arc has no wrapped native, so `.wrapped` throws there rather than returning undefined.
+const arcNativeCurrency = nativeOnChain(UniverseChainId.Arc)
+const ARC_USDC = getChainInfo(UniverseChainId.Arc).tokens.USDC
 describe('getCurrencyWithWrap', () => {
   it('returns undefined when currency is undefined', () => {
     expect(getCurrencyWithWrap(undefined, ProtocolVersion.V2)).toBeUndefined()
@@ -33,6 +38,31 @@ describe('getCurrencyWithWrap', () => {
     expect(getCurrencyWithWrap(nativeCurrency, ProtocolVersion.V2)).toBe(nativeCurrency.wrapped)
     expect(getCurrencyWithWrap(nativeCurrency, ProtocolVersion.V3)).toBe(nativeCurrency.wrapped)
     expect(getCurrencyWithWrap(nativeCurrency, ProtocolVersion.V4)).toBe(nativeCurrency)
+  })
+})
+
+describe('chains without a wrapped native', () => {
+  it('reports native as having no wrapped token instead of throwing', () => {
+    expect(() => arcNativeCurrency.wrapped).toThrow('Unsupported chain ID')
+    expect(getWrappedTokenIfExists(arcNativeCurrency)).toBeUndefined()
+  })
+
+  it('leaves tokens on the chain untouched', () => {
+    expect(getWrappedTokenIfExists(ARC_USDC)).toBe(ARC_USDC)
+    expect(getCurrencyWithWrap(ARC_USDC, ProtocolVersion.V3)).toBe(ARC_USDC)
+    expect(getCurrencyForProtocol(ARC_USDC, ProtocolVersion.V3)).toBe(ARC_USDC)
+  })
+
+  it('returns undefined rather than throwing for native on v2/v3', () => {
+    expect(getCurrencyWithWrap(arcNativeCurrency, ProtocolVersion.V2)).toBeUndefined()
+    expect(getCurrencyWithWrap(arcNativeCurrency, ProtocolVersion.V3)).toBeUndefined()
+    expect(getCurrencyForProtocol(arcNativeCurrency, ProtocolVersion.V2)).toBeUndefined()
+    expect(getCurrencyForProtocol(arcNativeCurrency, ProtocolVersion.V3)).toBeUndefined()
+  })
+
+  it('still passes native through untouched on v4', () => {
+    expect(getCurrencyWithWrap(arcNativeCurrency, ProtocolVersion.V4)).toBe(arcNativeCurrency)
+    expect(getCurrencyForProtocol(arcNativeCurrency, ProtocolVersion.V4)).toBe(arcNativeCurrency)
   })
 })
 
@@ -94,6 +124,36 @@ describe('getCurrencyForProtocol', () => {
     expect(getCurrencyForProtocol(nativeCurrency, ProtocolVersion.V2)).toBe(nativeCurrency.wrapped)
     expect(getCurrencyForProtocol(nativeCurrency, ProtocolVersion.V3)).toBe(nativeCurrency.wrapped)
     expect(getCurrencyForProtocol(nativeCurrency, ProtocolVersion.V4)).toBe(nativeCurrency)
+  })
+})
+
+describe('getCurrencyWithUnwrap', () => {
+  it('returns undefined when currency is undefined', () => {
+    expect(getCurrencyWithUnwrap(undefined, ProtocolVersion.V3)).toBeUndefined()
+  })
+
+  it('unwraps wrapped native for v2/v3', () => {
+    expect(getCurrencyWithUnwrap(WETH, ProtocolVersion.V2)).toBe(nativeCurrency)
+    expect(getCurrencyWithUnwrap(WETH, ProtocolVersion.V3)).toBe(nativeCurrency)
+  })
+
+  it('keeps wrapped native as-is for v4, which can hold either leg', () => {
+    expect(getCurrencyWithUnwrap(WETH, ProtocolVersion.V4)).toBe(WETH)
+  })
+
+  it('passes anything that is not wrapped native through untouched', () => {
+    expect(getCurrencyWithUnwrap(USDT, ProtocolVersion.V3)).toBe(USDT)
+    expect(getCurrencyWithUnwrap(USDT, ProtocolVersion.V4)).toBe(USDT)
+    expect(getCurrencyWithUnwrap(nativeCurrency, ProtocolVersion.V3)).toBe(nativeCurrency)
+    expect(getCurrencyWithUnwrap(nativeCurrency, ProtocolVersion.V4)).toBe(nativeCurrency)
+    // Arc has no wrapped native at all, so there is nothing to unwrap on either protocol.
+    expect(getCurrencyWithUnwrap(arcNativeCurrency, ProtocolVersion.V3)).toBe(arcNativeCurrency)
+    expect(getCurrencyWithUnwrap(ARC_USDC, ProtocolVersion.V3)).toBe(ARC_USDC)
+  })
+
+  it('unwraps on an unknown protocol version, matching the pre-v4 default', () => {
+    expect(getCurrencyWithUnwrap(WETH, undefined)).toBe(nativeCurrency)
+    expect(getCurrencyWithUnwrap(WETH, ProtocolVersion.UNSPECIFIED)).toBe(nativeCurrency)
   })
 })
 

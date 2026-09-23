@@ -1,5 +1,5 @@
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
-import { Flex } from 'ui/src'
+import { Flex } from '@universe/mycelium'
 import { PortfolioConnectWalletBanner } from '~/pages/Portfolio/ConnectWalletBanner'
 import { ConnectWalletFixedBottomButton } from '~/pages/Portfolio/ConnectWalletFixedBottomButton'
 import { PortfolioHeader } from '~/pages/Portfolio/Header/Header'
@@ -10,7 +10,7 @@ import { PortfolioContent } from '~/pages/Portfolio/PortfolioContent'
 import { PortfolioOutageProvider } from '~/pages/Portfolio/PortfolioOutageContext'
 
 interface PortfolioPageInnerProps {
-  mb?: number | string
+  mb?: number
 }
 
 export function PortfolioPageInner({ mb }: PortfolioPageInnerProps): JSX.Element {
@@ -25,7 +25,7 @@ export function PortfolioPageInner({ mb }: PortfolioPageInnerProps): JSX.Element
       <Flex
         flexDirection="column"
         gap="$spacing40"
-        maxWidth="$maxWidth1200"
+        maxWidth={1200}
         width="100%"
         p="$spacing24"
         pt="$none"

@@ -1,9 +1,12 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Token } from '@uniswap/sdk-core'
+import { Flex } from '@universe/mycelium'
 import { useCallback, useMemo, useState } from 'react'
-import { Flex } from 'ui/src'
 import { D3RangeAmountInput } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/components/D3RangeAmountInput'
-import { useChartPriceState } from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/selectors/priceSelectors'
+import {
+  useChartCurrentPrice,
+  useChartPriceState,
+} from '~/features/Liquidity/charts/D3LiquidityRangeInput/D3LiquidityRangeChart/store/selectors/priceSelectors'
 import {
   useLiquidityChartStorePriceDifferences,
   useLiquidityChartStoreRenderingContext,
@@ -47,7 +50,7 @@ function usePercentageToPrice() {
 }
 
 export function D3LiquidityMinMaxInput() {
-  const { setPriceRangeState, priceRangeState, positionState, currencies } = useCreateLiquidityContext()
+  const { priceRangeState, positionState, currencies } = useCreateLiquidityContext()
   const [typedValue, setTypedValue] = useState({ [RangeSelectionInput.MIN]: '', [RangeSelectionInput.MAX]: '' })
   const percentageToPrice = usePercentageToPrice()
   const [displayUserTypedValue, setDisplayUserTypedValue] = useState({
@@ -57,13 +60,23 @@ export function D3LiquidityMinMaxInput() {
 
   const { minPrice, maxPrice, isFullRange, inputMode } = useChartPriceState()
   const priceDifferences = useLiquidityChartStorePriceDifferences()
-  const { liquidityData, priceData } = useLiquidityChartStoreRenderingContext() ?? {}
-  const { setChartState, decrementMin, incrementMin, decrementMax, incrementMax, toggleInputMode } =
-    useLiquidityChartStoreActions()
+  const { liquidityData } = useLiquidityChartStoreRenderingContext() ?? {}
+  const {
+    setChartState,
+    handleTickRangeChange,
+    decrementMin,
+    incrementMin,
+    decrementMax,
+    incrementMax,
+    toggleInputMode,
+  } = useLiquidityChartStoreActions()
 
-  const currentPrice = priceData?.[priceData.length - 1]?.value
-  const absoluteMinPrice = liquidityData?.[0].price0
-  const absoluteMaxPrice = liquidityData?.[liquidityData.length - 1].price0
+  // Shared with the %-delta selector: the displayed delta and the value typed against it
+  // have to anchor on the same price. Without a mounted chart only the store has one.
+  const currentPrice = useChartCurrentPrice()
+  // Undefined for a pool being created, which has no distribution to bound the range by
+  const absoluteMinPrice = liquidityData?.at(0)?.price0
+  const absoluteMaxPrice = liquidityData?.at(-1)?.price0
 
   // Navigation params for increment/decrement actions
   const tickNavigationParams: TickNavigationParams | undefined = useMemo(() => {
@@ -171,19 +184,32 @@ export function D3LiquidityMinMaxInput() {
         })
       }
 
+      // Route through handleTickRangeChange (not a raw setPriceRangeState) so the edit re-detects the
+      // strategy, the same as the drag and increment paths. A typed range that no longer matches the
+      // selected preset clears the (now stale) label — otherwise a later streamed re-seed that crosses
+      // a typed bound would re-anchor the preset over the range the user typed.
       if (input === RangeSelectionInput.MIN) {
-        setPriceRangeState((prev) => ({ ...prev, minTick: tickToSet }))
+        handleTickRangeChange({ minTick: tickToSet, maxTick: priceRangeState.maxTick })
       } else {
-        setPriceRangeState((prev) => ({ ...prev, maxTick: tickToSet }))
+        handleTickRangeChange({ minTick: priceRangeState.minTick, maxTick: tickToSet })
       }
 
       setDisplayUserTypedValue((prev) => ({ ...prev, [input]: false }))
     },
-    [setPriceRangeState, tickNavigationParams, positionState],
+    [handleTickRangeChange, priceRangeState.minTick, priceRangeState.maxTick, tickNavigationParams, positionState],
   )
 
   return (
-    <Flex row gap="$gap4" $lg={{ row: false }}>
+    // The group rounds its outer bottom corners; which child owns them follows
+    // the flex direction, so clip once here instead of restating it per input.
+    <Flex
+      row
+      gap="$gap4"
+      $lg={{ row: false }}
+      borderBottomLeftRadius="$rounded20"
+      borderBottomRightRadius="$rounded20"
+      overflow="hidden"
+    >
       <D3RangeAmountInput
         isDisabled={isFullRange}
         input={RangeSelectionInput.MIN}

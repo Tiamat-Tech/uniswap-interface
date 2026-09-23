@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
+import { XTwitter } from '@universe/mycelium/icons/XTwitter'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { XTwitter } from 'ui/src/components/icons/XTwitter'
 import { stripTrailingSlashesFromWebsiteUrl } from '~/pages/Liquidity/CreateAuction/websiteLink'
 
 export function ExistingTokenInfoDisplay({

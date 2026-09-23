@@ -1,5 +1,4 @@
-import { Flex } from 'ui/src'
-import { validColor } from 'ui/src/theme'
+import { Flex, validColor } from '@universe/mycelium'
 
 const BAR_HEIGHT = 6
 // Glow at the fill head: 18px accent circle at 50%, blur(4px), with a gentle pulse.

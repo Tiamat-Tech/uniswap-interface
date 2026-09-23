@@ -3,10 +3,11 @@
 // "unnecessary" (same disable as the Auctions table).
 /* oxlint-disable typescript/no-unnecessary-condition */
 import { createColumnHelper } from '@tanstack/react-table'
-import { LaunchesOrderBy } from '@uniswap/client-data-api/dist/data/v2/types_pb'
+import { LaunchesOrderBy } from '@uniswap/client-launches/dist/launches/v1/types_pb'
+import { Flex, FlexCompatProps, Text } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, FlexProps, Text, useMedia } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -18,9 +19,17 @@ import { ClickableHeaderRow, HeaderArrow, HeaderSortText } from '~/components/Ta
 import { TableText } from '~/components/Table/shared/TableText'
 import { HeaderCell } from '~/components/Table/styled'
 import { getTokenDescriptionColumnSize, TokenDescription } from '~/pages/Explore/tables/Tokens/TokenDescription'
+import { CollapsibleTokenCell } from '~/pages/Launches/CollapsibleTokenCell'
 import { LaunchItem } from '~/pages/Launches/launchesModel'
 import { formatDurationShort } from '~/pages/Launches/launchFormat'
 import { LAUNCHPAD_COLUMN_META, LAUNCHPAD_COLUMN_WIDTH, LaunchpadCellContent } from '~/pages/Launches/LaunchpadCell'
+import {
+  getCollapseTouchActionCss,
+  getConsumedScrollMarginCss,
+  getTokenColumnWidthCss,
+} from '~/pages/Launches/tokenColumnCollapse'
+import { usePrefetchLaunchTokenDetails } from '~/pages/Launches/usePrefetchLaunchTokenDetails'
+import { useTokenColumnCollapse } from '~/pages/Launches/useTokenColumnCollapse'
 
 interface LaunchTableValue {
   launch: LaunchItem
@@ -30,6 +39,10 @@ interface LaunchTableValue {
   // fires a click event from `analytics` (same mechanism as the auction table).
   testId: string
   link?: string
+  onRowHoverStart?: () => void
+  onRowHoverEnd?: () => void
+  onRowFocus?: () => void
+  onRowPressStart?: () => void
   analytics: {
     elementName: ElementName
     properties: Record<string, unknown>
@@ -44,12 +57,22 @@ const ROW_HEIGHT = 64
 // keeps the shared LAUNCHPAD_COLUMN_WIDTH.
 const LAUNCH_TABLE_LAUNCHPAD_WIDTH = LAUNCHPAD_COLUMN_WIDTH + 25
 
+// Horizontal page gutters the mobile full-bleed breakout has to cancel, and the same distance the
+// trailing scroll-end margin restores. Two nested gutters stack under md: the page's own
+// px: $spacing16 (pages/Launches/index.tsx) sits inside AppBody's 10px padding
+// (app/layout/Layout.tsx, `max-width: breakpoints.md` — the same boundary as Tamagui's `$md`), so
+// the real gutter there is 26px, not 16. Above md AppBody has no padding and the page uses
+// $spacing40. Both values must come from here or the breakout and the gutter drift apart.
+const APP_BODY_GUTTER_MD_PX = 10
+const PAGE_GUTTER_PX = 40
+const PAGE_GUTTER_MD_PX = 16 + APP_BODY_GUTTER_MD_PX
+
 function HeaderLabel({
   children,
   justifyContent,
 }: {
   children: string
-  justifyContent: FlexProps['justifyContent']
+  justifyContent: FlexCompatProps['justifyContent']
 }): JSX.Element {
   return (
     <HeaderCell justifyContent={justifyContent}>
@@ -142,6 +165,30 @@ export function LaunchTable({
 }): JSX.Element {
   const { t } = useTranslation()
   const media = useMedia()
+  const { scheduleHoverPrefetch, cancelHoverPrefetch, prefetchNow } = usePrefetchLaunchTokenDetails()
+
+  // Mobile: the pinned token column collapses to just the logo as the table scrolls horizontally,
+  // freeing viewport width for the data columns (interaction model: useTokenColumnCollapse docs).
+  const collapseRootRef = useTokenColumnCollapse({ enabled: media.lg })
+  const tokenColumnWidthOverride = media.lg ? getTokenColumnWidthCss() : undefined
+  const tokenColumnMeta = useMemo(
+    () =>
+      tokenColumnWidthOverride
+        ? {
+            widthOverride: tokenColumnWidthOverride,
+            trailingMarginCss: getConsumedScrollMarginCss(),
+            touchActionCss: getCollapseTouchActionCss(),
+            // The collapsed column parks under-scrolling values right beside the logo, where the
+            // shared 95% pinned background lets them ghost through.
+            opaquePinnedBackground: true,
+          }
+        : undefined,
+    [tokenColumnWidthOverride],
+  )
+  // Mobile full-bleed: the table breaks out of the full page gutter on the right, and the last
+  // column carries that same distance as trailing margin, so the scroll end rests with the normal
+  // content margin. Both come from PAGE_GUTTER_*_PX — see the note there on the two stacked gutters.
+  const trailingGutterCss = media.lg ? `${media.md ? PAGE_GUTTER_MD_PX : PAGE_GUTTER_PX}px` : undefined
 
   // Bridge the API's fetch-next-page to the shared Table's scroll trigger; onComplete fires once the
   // page resolves so the load-more indicator clears and the next scroll can fetch again.
@@ -161,7 +208,16 @@ export function LaunchTable({
         launch,
         index: i + 1,
         testId: TestID.LaunchTableRow,
-        ...(launch.detailPath ? { link: launch.detailPath } : {}),
+        ...(launch.detailPath
+          ? {
+              link: launch.detailPath,
+              onRowHoverStart: () => scheduleHoverPrefetch(launch),
+              onRowHoverEnd: cancelHoverPrefetch,
+              // Tabbing through rows is a sweep, so focus takes the debounced path.
+              onRowFocus: () => scheduleHoverPrefetch(launch),
+              onRowPressStart: () => prefetchNow(launch),
+            }
+          : {}),
         analytics: {
           elementName: ElementName.LaunchesTableRow,
           properties: {
@@ -175,7 +231,7 @@ export function LaunchTable({
           },
         },
       })),
-    [launches],
+    [launches, scheduleHoverPrefetch, cancelHoverPrefetch, prefetchNow],
   )
 
   const columns = useMemo(() => {
@@ -205,6 +261,7 @@ export function LaunchTable({
       columnHelper.accessor((row) => row.launch, {
         id: 'tokenName',
         size: media.lg ? getTokenDescriptionColumnSize(true) : 238,
+        ...(tokenColumnMeta ? { meta: tokenColumnMeta } : {}),
         header: () => <HeaderLabel justifyContent="flex-start">{t('explore.table.column.token')}</HeaderLabel>,
         cell: (cell) => {
           const launch = cell.getValue?.()
@@ -212,13 +269,22 @@ export function LaunchTable({
             <Cell justifyContent="flex-start" loading={loading} testId={TestID.NameCell}>
               <TableText flex={1} minWidth={0} width="100%">
                 {launch ? (
-                  <TokenDescription
-                    name={launch.name}
-                    symbol={launch.symbol}
-                    address={launch.tokenAddress}
-                    chainId={launch.logoChainId}
-                    logoUrl={launch.logoUrl}
-                  />
+                  media.lg ? (
+                    <CollapsibleTokenCell
+                      name={launch.name}
+                      symbol={launch.symbol}
+                      chainId={launch.logoChainId}
+                      logoUrl={launch.logoUrl}
+                    />
+                  ) : (
+                    <TokenDescription
+                      name={launch.name}
+                      symbol={launch.symbol}
+                      address={launch.tokenAddress}
+                      chainId={launch.logoChainId}
+                      logoUrl={launch.logoUrl}
+                    />
+                  )
                 ) : null}
               </TableText>
             </Cell>
@@ -303,6 +369,8 @@ export function LaunchTable({
         // translated labels (es "Antigüedad", ru "Возраст") need the extra room next to the sort
         // arrow to avoid hard-clipping.
         size: 100,
+        // Full-bleed scroll-end gutter: rows end with the page margin instead of the viewport edge.
+        ...(trailingGutterCss ? { meta: { trailingMarginCss: trailingGutterCss } } : {}),
         header: () => (
           <SortableHeaderLabel
             sort={LaunchesOrderBy.LAUNCHED_AT}
@@ -325,18 +393,35 @@ export function LaunchTable({
     ]
 
     return filteredColumns.filter((column): column is NonNullable<(typeof filteredColumns)[number]> => Boolean(column))
-  }, [media.lg, t, loading, sortBy, ascending, onSort])
+  }, [media.lg, t, loading, sortBy, ascending, onSort, tokenColumnMeta, trailingGutterCss])
 
   return (
-    <Table
-      columns={columns}
-      data={tableValues}
-      loading={loading}
-      loadMore={loadMore}
-      maxWidth={1120}
-      rowHeight={ROW_HEIGHT}
-      compactRowHeight={ROW_HEIGHT}
-      defaultPinnedColumns={['index', 'tokenName']}
-    />
+    // The negative right margins are the mobile full-bleed breakout, taking the table to the
+    // viewport edge while its left edge keeps the page margin (alignSelf stretch lets the wrapper
+    // size as parent width + breakout, which width: 100% would not). They must cancel every gutter
+    // between the table and the viewport, not just the page's own. On mobile only, overflowX:
+    // clip keeps scrolled-under cell content from painting into the page gutter beside the pinned
+    // column — clip rather than hidden because hidden would make the wrapper a scroll container and
+    // re-anchor the sticky table header to it, and paired with overflowY: visible (the one mix CSS
+    // allows) so nothing vertical gets clipped.
+    <Flex
+      ref={collapseRootRef}
+      alignSelf="stretch"
+      $lg={{ mr: -PAGE_GUTTER_PX }}
+      $md={{ mr: -PAGE_GUTTER_MD_PX }}
+      style={media.lg ? { overflowX: 'clip', overflowY: 'visible' } : undefined}
+    >
+      <Table
+        columns={columns}
+        data={tableValues}
+        loading={loading}
+        loadMore={loadMore}
+        maxWidth={1120}
+        rowHeight={ROW_HEIGHT}
+        compactRowHeight={ROW_HEIGHT}
+        defaultPinnedColumns={['index', 'tokenName']}
+        pinnedWidthOverride={tokenColumnWidthOverride}
+      />
+    </Flex>
   )
 }

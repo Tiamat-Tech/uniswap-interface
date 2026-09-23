@@ -1,7 +1,10 @@
+import '~/features/Toucan/Auction/BidActivities/BidActivities.css'
 import { createColumnHelper, type Row } from '@tanstack/react-table'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea, Unicon, useMedia } from 'ui/src'
+import { Unicon } from 'ui/src'
 import { useColorHexFromThemeKey } from 'ui/src/hooks/useColorHexFromThemeKey'
 import { zIndexes } from 'ui/src/theme'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
@@ -50,11 +53,7 @@ function TableTimeCell({ timestamp }: { timestamp: string }) {
 }
 
 function AnimatedBidRow({ children }: { children: React.ReactNode }) {
-  return (
-    <Flex animation="200ms" animateOnly={['transform', 'opacity']} enterStyle={{ opacity: 0, y: -20 }}>
-      {children}
-    </Flex>
-  )
+  return <Flex className="bid-activity-row-enter">{children}</Flex>
 }
 
 function openBidActivityExplorerLink(explorerLink: string): void {
@@ -369,7 +368,10 @@ export const BidActivities = ({
           loading={loading}
           hideHeader={false}
           maxHeight={formattedBidActivities.length >= FIXED_HEIGHT_THRESHOLD ? 450 : undefined}
-          loadMore={pendingNewBidCount > 0 ? undefined : loadMore}
+          // Pending new bids gate what is RENDERED (visibleActivities above), never whether older
+          // pages may be fetched: withdrawing this prop per polled bid reads to useTableLoadMore as
+          // a pagination-mode switch, and while the pointer rests here it never came back.
+          loadMore={loadMore}
           loadingRowsCount={6}
           rowHeight={ROW_HEIGHT}
           getRowId={(row) => row.bidId}

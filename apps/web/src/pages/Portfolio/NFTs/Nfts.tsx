@@ -1,14 +1,15 @@
+import { UniverseChainId } from '@universe/chains'
 import { isMobileWeb } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, useMedia } from 'ui/src'
 import { InlineExpandoRow } from 'uniswap/src/components/ExpandoRow/InlineExpandoRow'
 import { NftsList } from 'uniswap/src/components/nfts/NftsList'
 import { NftsListEmptyState } from 'uniswap/src/components/nfts/NftsListEmptyState'
 import { PollingInterval } from 'uniswap/src/constants/misc'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getChainLabel } from 'uniswap/src/features/chains/utils'
 import { NFTItem } from 'uniswap/src/features/nfts/types'
 import { ElementName, InterfacePageName, SectionName } from 'uniswap/src/features/telemetry/constants'
@@ -141,7 +142,6 @@ export function PortfolioNfts(): JSX.Element {
               customEmptyState={
                 selectedChainId || isSolanaOnlyWallet ? chainFilterEmptyState : externalWalletEmptyState
               }
-              nextFetchPolicy="cache-first"
               SearchInputComponent={SearchInput}
               searchInputTestId={TestID.PortfolioNftsSearchInput}
               headerTestId={TestID.PortfolioNftsHeader}

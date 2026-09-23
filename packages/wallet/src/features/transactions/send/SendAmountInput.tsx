@@ -1,7 +1,8 @@
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { Flex, type FlexCompatProps as FlexProps, Text, TouchableArea } from '@universe/mycelium'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
-import { NativeSyntheticEvent, TextInputSelectionChangeEventData } from 'react-native'
-import { Flex, FlexProps, Input, Text, TouchableArea } from 'ui/src'
+import { LayoutChangeEvent, NativeSyntheticEvent, TextInputSelectionChangeEventData } from 'react-native'
+import { Input } from 'ui/src'
 import { ArrowDownArrowUp } from 'ui/src/components/icons'
 import { useDynamicFontSizing } from 'ui/src/hooks/useDynamicFontSizing'
 import { fonts } from 'ui/src/theme'
@@ -106,7 +107,7 @@ export function SendAmountInput({
     <Flex
       centered
       gap="$spacing16"
-      onLayout={(e): void => {
+      onLayout={(e: LayoutChangeEvent): void => {
         onLayout(e)
         setContainerWidth(e.nativeEvent.layout.width)
         // Avoid case where onSetFontSize is called before onLayout, resulting in incorrect sizing if view is re-mounted

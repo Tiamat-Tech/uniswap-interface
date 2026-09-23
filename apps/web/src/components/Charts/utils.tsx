@@ -22,21 +22,14 @@ export type ChartQueryResult<TDataType, TChartType extends ChartType> = {
   loading: boolean
   dataQuality: DataQuality
   dataHash?: string
+  /** True when the underlying query failed, distinguishing a fetch failure from a token with no data to plot. */
+  isError?: boolean
 }
 
 export enum DataQuality {
   VALID = 0,
   INVALID = 1,
   STALE = 2,
-}
-
-/** Used for expecting the same data freshness regardless of time period, e.g. 1y price chart should still have a recent point */
-const CONSTANT_STALENESS: Partial<Record<GraphQLApi.HistoryDuration, number>> = {
-  [GraphQLApi.HistoryDuration.Hour]: ms('15m'),
-  [GraphQLApi.HistoryDuration.Day]: ms('15m'),
-  [GraphQLApi.HistoryDuration.Week]: ms('15m'),
-  [GraphQLApi.HistoryDuration.Month]: ms('15m'),
-  [GraphQLApi.HistoryDuration.Year]: ms('15m'),
 }
 
 /** Used decreasing freshness regardless of time period, e.g. 1h volume chart has more recent data than 1y volume chart */
@@ -53,7 +46,10 @@ const CHART_DURATION_STALE_THRESHOLD_MAP: Record<
   ChartType,
   Partial<Record<GraphQLApi.HistoryDuration, number> | undefined>
 > = {
-  [ChartType.PRICE]: CONSTANT_STALENESS,
+  // Price chart appends a live spot-price point stamped to "now" (see appendLiveSpotPriceEntry), so this
+  // threshold is only hit as a fallback when that append no-ops (e.g. current price momentarily unavailable).
+  // GRANULAR_STALENESS avoids treating a coarser Week/Month/Year bucket as stale in that fallback case.
+  [ChartType.PRICE]: GRANULAR_STALENESS,
   [ChartType.VOLUME]: GRANULAR_STALENESS,
   [ChartType.TVL]: GRANULAR_STALENESS,
   // Liquidity chart does not have a time axis
@@ -83,10 +79,6 @@ export function checkDataQuality({
   }
 }
 
-export function withUTCTimestamp<T extends { timestamp: number }>(entry: T): T & { time: UTCTimestamp } {
-  return { ...entry, time: entry.timestamp as UTCTimestamp }
-}
-
 /** Current time as lightweight-charts UTCTimestamp (whole seconds since epoch). */
 export function getCurrentUTCTimestamp(): UTCTimestamp {
   // lightweight-charts requires integer UTCTimestamps; Date.now() is millisecond-precision,
@@ -103,37 +95,6 @@ export function isZeroOhlcSeries(entries: { value: number }[]): boolean {
   }
   const zeroCount = entries.filter((entry) => entry.value === 0).length
   return zeroCount / entries.length > CANDLESTICK_FALLBACK_THRESHOLD
-}
-
-/**
- * Appends (or merges into) a fresh current-value point so the series stays fresh and each time
- * period ends with the same value. Returns a new array/entry rather than mutating in place, since
- * callers may hold entries shared elsewhere (e.g. react-query's cached `select` output).
- */
-export function appendCurrentValue<T extends { time: UTCTimestamp }>({
-  entries,
-  currentValue,
-  buildEntry,
-  withCurrentValue,
-}: {
-  entries: T[]
-  currentValue: number | undefined
-  buildEntry: (time: UTCTimestamp, value: number) => T
-  withCurrentValue: (entry: T, update: { time: UTCTimestamp; value: number }) => T
-}): T[] {
-  if (!currentValue || entries.length <= 1) {
-    return entries
-  }
-  const lastEntry = entries[entries.length - 1]
-  const secondToLastEntry = entries[entries.length - 2]
-  const granularity = lastEntry.time - secondToLastEntry.time
-
-  const time = getCurrentUTCTimestamp()
-  // If the current value falls within the last entry's time window, update it; otherwise append a new entry.
-  if (time - lastEntry.time < granularity) {
-    return [...entries.slice(0, -1), withCurrentValue(lastEntry, { time, value: currentValue })]
-  }
-  return [...entries, buildEntry(time, currentValue)]
 }
 
 /**

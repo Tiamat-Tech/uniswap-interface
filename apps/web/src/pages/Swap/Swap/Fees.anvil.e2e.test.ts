@@ -1,4 +1,5 @@
 import { V1_TRADING_API_PATHS } from '@universe/api'
+import { areEvmAddressesEqual } from '@universe/chains'
 import { USDC_MAINNET } from 'uniswap/src/constants/tokens'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { assume0xAddress } from '~/chains'
@@ -20,9 +21,7 @@ type AggregatedOutput = { recipient?: string; bps?: number; amount?: string }
 function findTestFeeOutput(body?: {
   quote?: { aggregatedOutputs?: AggregatedOutput[] }
 }): AggregatedOutput | undefined {
-  return body?.quote?.aggregatedOutputs?.find(
-    (output) => output.recipient?.toLowerCase() === TEST_FEE_RECIPIENT.toLowerCase(),
-  )
+  return body?.quote?.aggregatedOutputs?.find((output) => areEvmAddressesEqual(output.recipient, TEST_FEE_RECIPIENT))
 }
 
 test.describe(

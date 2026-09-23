@@ -1,15 +1,15 @@
 import { createLocalTriggerDataSource } from '@universe/notifications/src/notification-data-source/implementations/createLocalTriggerDataSource'
 import { type NotificationTracker } from '@universe/notifications/src/notification-tracker/NotificationTracker'
 import { type MobileState } from 'src/app/mobileReducer'
-import { createBackupReminderTrigger } from 'src/notification-service/triggers/backupReminderTrigger'
 import {
   createMobileLocalTriggerDataSource,
   isLocalTriggerNotification,
 } from 'src/notification-service/triggers/createMobileLocalTriggerDataSource'
 import type { MockedFunction } from 'vitest'
+import { createBackupReminderTrigger } from 'wallet/src/features/behaviorHistory/backupReminderTrigger'
 
 vi.mock('@universe/notifications/src/notification-data-source/implementations/createLocalTriggerDataSource')
-vi.mock('src/notification-service/triggers/backupReminderTrigger')
+vi.mock('wallet/src/features/behaviorHistory/backupReminderTrigger')
 
 const mockCreateLocalTriggerDataSource = createLocalTriggerDataSource as MockedFunction<
   typeof createLocalTriggerDataSource
@@ -19,7 +19,6 @@ const mockCreateBackupReminderTrigger = createBackupReminderTrigger as MockedFun
 >
 
 describe('createMobileLocalTriggerDataSource', () => {
-  const mockDispatch = vi.fn()
   const mockGetState = vi.fn<() => MobileState>()
   const mockGetPortfolioValue = vi.fn<() => Promise<number>>()
   const mockTracker = {
@@ -32,7 +31,6 @@ describe('createMobileLocalTriggerDataSource', () => {
     id: 'local:backup_reminder_modal',
     shouldShow: vi.fn().mockResolvedValue(true),
     createNotification: vi.fn(),
-    onAcknowledge: vi.fn(),
   }
 
   beforeEach(() => {
@@ -48,14 +46,12 @@ describe('createMobileLocalTriggerDataSource', () => {
     it('creates a data source with backup reminder trigger', () => {
       createMobileLocalTriggerDataSource({
         getState: mockGetState,
-        dispatch: mockDispatch,
         tracker: mockTracker,
         getPortfolioValue: mockGetPortfolioValue,
       })
 
       expect(mockCreateBackupReminderTrigger).toHaveBeenCalledWith({
         getState: mockGetState,
-        dispatch: mockDispatch,
         getPortfolioValue: mockGetPortfolioValue,
       })
     })
@@ -63,7 +59,6 @@ describe('createMobileLocalTriggerDataSource', () => {
     it('passes triggers to createLocalTriggerDataSource', () => {
       createMobileLocalTriggerDataSource({
         getState: mockGetState,
-        dispatch: mockDispatch,
         tracker: mockTracker,
         getPortfolioValue: mockGetPortfolioValue,
       })
@@ -80,7 +75,6 @@ describe('createMobileLocalTriggerDataSource', () => {
     it('uses custom poll interval when provided', () => {
       createMobileLocalTriggerDataSource({
         getState: mockGetState,
-        dispatch: mockDispatch,
         tracker: mockTracker,
         getPortfolioValue: mockGetPortfolioValue,
         pollIntervalMs: 10000,
@@ -102,7 +96,6 @@ describe('createMobileLocalTriggerDataSource', () => {
 
       const result = createMobileLocalTriggerDataSource({
         getState: mockGetState,
-        dispatch: mockDispatch,
         tracker: mockTracker,
         getPortfolioValue: mockGetPortfolioValue,
       })

@@ -16,11 +16,15 @@ import { effectiveFontToken, typographyClasses } from './typography-classes'
 export { effectiveFontToken }
 
 const TEXT_STYLE_OPTIONS: CommonStyleClassOptions = {
-  // Full-palette pinned vars: `[background-color:var(--stext-…)]` rather than
+  // Full-palette pinned vars: `⟦background-color:var(--stext-…)⟧` rather than
   // `bg-…` — the Text color surface exceeds the semantic utility set and pins
   // the legacy palette verbatim (no drift ledger needed).
   colorClasses: (prefix, value) => [colorPropertyClass(prefix === 'bg' ? 'background-color' : 'border-color', value)],
   shadowColorExpression: colorCssExpression,
+  // The color longhands (borderTopColor, caretColor, …) resolve through the
+  // same pinned palette as the shorthands above — Text's surface exceeds the
+  // semantic set the shared default covers (compile.test.ts pins $accent3).
+  longTailColorExpression: colorCssExpression,
   longTailProps: LONG_TAIL_STYLE_PROPS,
   unitlessProps: UNITLESS_STYLE_PROPS,
 }

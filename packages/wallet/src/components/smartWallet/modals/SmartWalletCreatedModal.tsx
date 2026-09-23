@@ -1,6 +1,6 @@
+import { SmartWallet } from '@universe/mycelium/icons/SmartWallet'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { useSporeColors } from 'ui/src'
-import { SmartWallet } from 'ui/src/components/icons'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { SmartWalletModal } from 'wallet/src/components/smartWallet/modals/SmartWalletModal'

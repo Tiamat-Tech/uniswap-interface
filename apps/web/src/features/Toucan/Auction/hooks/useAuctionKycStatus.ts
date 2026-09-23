@@ -1,13 +1,12 @@
-import { ChainId, KycVerificationStatus } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { KycVerificationStatus } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v1/types_pb'
+import { UniverseChainId } from '@universe/chains'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  buildVerifyWalletParams,
   toLegacyVerifyWalletResponse,
   useVerifyWalletQuery,
 } from 'uniswap/src/data/apiClients/dataApiService/auctions/useVerifyWallet'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
-import { zeroAddress } from '~/chains'
 
 interface UseAuctionKycStatusParams {
   /**
@@ -47,6 +46,14 @@ export interface AuctionKycStatus {
   status: KycVerificationStatus
   /** Block at which the allowlist-only restriction lifts and general sale opens */
   allowlistEndBlock?: number
+  /**
+   * The lookup succeeded and returned NO validations at all — the backend recognized
+   * nothing about this auction's validation hook. Distinct from isError (the lookup
+   * failed) and from a normal hookless auction, which callers separate by checking the
+   * hook address. **False, not undefined, while the query is in flight**, so a pending
+   * request never reads as an unmodeled hook.
+   */
+  hasNoRecognizedValidations: boolean
 }
 
 export function useAuctionKycStatus({
@@ -56,15 +63,17 @@ export function useAuctionKycStatus({
   currentBlockNumber,
 }: UseAuctionKycStatusParams): AuctionKycStatus {
   const { t } = useTranslation()
-  const isToucanAuctionKYCEnabled = useFeatureFlag(FeatureFlags.ToucanAuctionKYC)
   const { data, isLoading, isError } = useVerifyWalletQuery(
-    {
-      walletAddress: walletAddress ?? zeroAddress,
-      auctionAddress,
-      chainId: chainId as unknown as ChainId,
-    },
+    buildVerifyWalletParams({ walletAddress, auctionAddress, chainId }),
     currentBlockNumber,
   )
+
+  // Settled successfully with an empty array: everything the backend knows about this
+  // auction's hook is "nothing". `data` alone is the right guard — the query result is a
+  // discriminated union, so its presence already means the request succeeded, and a
+  // loading or errored state can never reach here. (Explicit !isLoading/!isError checks
+  // were provably dead and tripped no-unnecessary-condition.)
+  const hasNoRecognizedValidations = Boolean(data && data.validations.length === 0)
 
   const legacyData = useMemo(() => {
     if (data?.validations) {
@@ -80,21 +89,6 @@ export function useAuctionKycStatus({
   }, [legacyData?.redirectUrl])
 
   return useMemo(() => {
-    if (!isToucanAuctionKYCEnabled) {
-      return {
-        canBid: true,
-        whitelistLabel: undefined,
-        kycButtonDisabled: false,
-        onKycAction: undefined,
-        isLoading: false,
-        isError: false,
-        isAllowlisted: false,
-        auctionHasPresale: false,
-        auctionNeedsVerification: false,
-        status: KycVerificationStatus.VERIFICATION_STATUS_UNSPECIFIED,
-      }
-    }
-
     // Still loading
     if (isLoading) {
       return {
@@ -108,6 +102,7 @@ export function useAuctionKycStatus({
         auctionHasPresale: false,
         auctionNeedsVerification: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_UNSPECIFIED,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -124,6 +119,7 @@ export function useAuctionKycStatus({
         auctionHasPresale: false,
         auctionNeedsVerification: false,
         status: KycVerificationStatus.VERIFICATION_STATUS_UNSPECIFIED,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -151,6 +147,7 @@ export function useAuctionKycStatus({
         auctionNeedsVerification,
         status: legacyData.status,
         allowlistEndBlock,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -168,6 +165,7 @@ export function useAuctionKycStatus({
         auctionNeedsVerification,
         status: legacyData.status,
         allowlistEndBlock,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -186,6 +184,7 @@ export function useAuctionKycStatus({
         auctionNeedsVerification,
         status: legacyData.status,
         allowlistEndBlock,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -204,6 +203,7 @@ export function useAuctionKycStatus({
         auctionNeedsVerification,
         status: legacyData.status,
         allowlistEndBlock,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -222,6 +222,7 @@ export function useAuctionKycStatus({
         auctionNeedsVerification,
         status: legacyData.status,
         allowlistEndBlock,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -239,6 +240,7 @@ export function useAuctionKycStatus({
         auctionNeedsVerification,
         status: legacyData.status,
         allowlistEndBlock,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -256,6 +258,7 @@ export function useAuctionKycStatus({
         auctionNeedsVerification,
         status: legacyData.status,
         allowlistEndBlock,
+        hasNoRecognizedValidations,
       }
     }
 
@@ -272,6 +275,7 @@ export function useAuctionKycStatus({
       auctionNeedsVerification: false,
       status: KycVerificationStatus.VERIFICATION_STATUS_COMPLETED,
       allowlistEndBlock,
+      hasNoRecognizedValidations,
     }
-  }, [legacyData, isLoading, isError, t, isToucanAuctionKYCEnabled, redirectToKyc])
+  }, [legacyData, isLoading, isError, t, redirectToKyc, hasNoRecognizedValidations])
 }

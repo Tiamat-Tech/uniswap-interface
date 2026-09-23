@@ -1,5 +1,5 @@
+import { BREAKPOINT_PX } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useState } from 'react'
-import { breakpoints } from 'ui/src/theme'
 import {
   CAROUSEL_CARD_GAP,
   CAROUSEL_FADE_WIDTH,
@@ -8,20 +8,20 @@ import {
 } from '~/components/TokenCardCarousel/constants'
 
 function getCardsPerView(containerWidth: number): number {
-  if (containerWidth <= breakpoints.sm) {
+  if (containerWidth <= BREAKPOINT_PX.sm) {
     return 1
   }
-  if (containerWidth <= breakpoints.md) {
+  if (containerWidth <= BREAKPOINT_PX.md) {
     return 2
   }
-  if (containerWidth <= breakpoints.xl) {
+  if (containerWidth <= BREAKPOINT_PX.xl) {
     return 3
   }
   return 4
 }
 
 function getCardWidth(containerWidth: number): number {
-  if (containerWidth <= breakpoints.sm) {
+  if (containerWidth <= BREAKPOINT_PX.sm) {
     return Math.min(containerWidth * 0.8, CAROUSEL_SMALL_CARD_MAX_WIDTH)
   }
 
@@ -56,11 +56,11 @@ export function useCarouselLayout(containerRef: React.RefObject<HTMLElement | nu
     }
   }, [containerRef])
 
-  const isSmallViewport = containerWidth > 0 && containerWidth <= breakpoints.sm
+  const isSmallViewport = containerWidth > 0 && containerWidth <= BREAKPOINT_PX.sm
 
   return {
     cardWidth: containerWidth > 0 ? getCardWidth(containerWidth) : CAROUSEL_SMALL_CARD_MAX_WIDTH,
     fadeWidth: isSmallViewport ? CAROUSEL_FADE_WIDTH_SMALL : CAROUSEL_FADE_WIDTH,
-    showArrowButtons: containerWidth === 0 || containerWidth > breakpoints.sm,
+    showArrowButtons: containerWidth === 0 || containerWidth > BREAKPOINT_PX.sm,
   }
 }

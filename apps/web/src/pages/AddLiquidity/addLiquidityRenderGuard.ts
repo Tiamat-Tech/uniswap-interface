@@ -1,6 +1,6 @@
 import type { Currency } from '@uniswap/sdk-core'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
-import type { PoolData } from '~/data/pools/usePoolData'
+import type { UniverseChainId } from '@universe/chains'
+import type { PoolData } from '~/data/pools/poolData'
 
 export type FlowState = 'browse' | 'form'
 

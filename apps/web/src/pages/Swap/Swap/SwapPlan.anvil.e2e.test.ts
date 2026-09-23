@@ -15,11 +15,10 @@
 import { MaxUint256, PERMIT2_ADDRESS } from '@uniswap/permit2-sdk'
 import { UNIVERSAL_ROUTER_ADDRESS, UniversalRouterVersion, WETH_ADDRESS } from '@uniswap/universal-router-sdk'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId, areAddressesEqual } from '@universe/chains'
 import { FeatureFlags } from '@universe/gating'
 import { USDC, USDT } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { parseEther, parseUnits, recoverTypedDataAddress } from 'viem'
 import { assume0xAddress } from '~/chains'
 import {

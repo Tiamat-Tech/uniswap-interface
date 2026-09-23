@@ -1,13 +1,12 @@
+import { Flex, spacing, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ScrollView, StyleSheet } from 'react-native'
-import { Flex, Text } from 'ui/src'
-import { spacing } from 'ui/src/theme'
+import { useExploreSectionTitleProps } from 'src/components/explore/ExploreSections/useExploreSectionTitleProps'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { EarnAnalyticsSurface, EarnEntryPoint } from 'uniswap/src/features/earn/analytics'
 import { EarnVaultChip, EarnVaultChipSkeleton } from 'uniswap/src/features/earn/EarnVaultChip'
 import { useEarnVaults } from 'uniswap/src/features/earn/hooks/useEarnVaults'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { useLogEarnSurfaceViewed } from 'uniswap/src/features/earn/hooks/useLogEarnSurfaceViewed'
 import { getEarnVaultsSortedForExplore } from 'uniswap/src/features/earn/utils'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
@@ -17,14 +16,22 @@ import { useActiveAccountAddress } from 'wallet/src/features/wallet/hooks'
 const MOBILE_EARN_VAULT_CHIP_WIDTH = 224
 const SKELETON_CHIP_COUNT = 3
 
+function SectionTitle({ title }: { title: string }): JSX.Element {
+  const titleProps = useExploreSectionTitleProps()
+  return (
+    <Text {...titleProps} mx="$spacing20">
+      {title}
+    </Text>
+  )
+}
+
 export function StartEarningSection(): JSX.Element | null {
   const { t } = useTranslation()
-  const isEarnEnabled = useIsEarnEnabled()
   const { isTestnetModeEnabled } = useEnabledChains()
   const activeAddress = useActiveAccountAddress() ?? undefined
   const { navigateToEarnVault } = useWalletNavigation()
 
-  const enabled = isEarnEnabled && !isTestnetModeEnabled
+  const enabled = !isTestnetModeEnabled
   const { vaults, positionsByVaultId, isLoadingVaults } = useEarnVaults({ account: activeAddress, enabled })
   const exploreVaults = useMemo(() => getEarnVaultsSortedForExplore(vaults), [vaults])
   useLogEarnSurfaceViewed({
@@ -47,9 +54,7 @@ export function StartEarningSection(): JSX.Element | null {
 
   return (
     <Flex gap="$spacing8" pt="$spacing8" pb="$spacing16">
-      <Text color="$neutral2" variant="subheading2" mx="$spacing20">
-        {t('explore.earn.startEarning')}
-      </Text>
+      <SectionTitle title={t('explore.earn.startEarning')} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {exploreVaults.map((vault) => {
           const position = positionsByVaultId.get(vault.id)
@@ -72,9 +77,7 @@ export function StartEarningSection(): JSX.Element | null {
 function StartEarningSectionSkeleton({ title }: { title: string }): JSX.Element {
   return (
     <Flex gap="$spacing8" pt="$spacing8" pb="$spacing16" testID={TestID.StartEarningSectionSkeleton}>
-      <Text color="$neutral2" variant="subheading2" mx="$spacing20">
-        {title}
-      </Text>
+      <SectionTitle title={title} />
       <ScrollView
         horizontal
         scrollEnabled={false}

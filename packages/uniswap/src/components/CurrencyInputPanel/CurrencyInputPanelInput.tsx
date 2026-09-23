@@ -1,9 +1,9 @@
 import { isWebAppDesktop, isWebPlatform } from '@universe/environment'
+import { AnimatedFlex, Flex, Text, TouchableArea, type FlexProps } from '@universe/mycelium'
 import { forwardRef, memo, useCallback, useImperativeHandle, useRef } from 'react'
 import type { NativeSyntheticEvent, TextInput, TextInputSelectionChangeEventData } from 'react-native'
-import { Flex, FlexProps, Text, TouchableArea, useSporeColors } from 'ui/src'
+import { useSporeColors } from 'ui/src'
 import type { ShakeAnimation } from 'ui/src/animations/hooks/useShakeAnimation'
-import { AnimatedFlex } from 'ui/src/components/layout/AnimatedFlex'
 import { FontSizeOptions } from 'ui/src/hooks/useDynamicFontSizing'
 import { fonts, spacing } from 'ui/src/theme'
 import { AmountInput } from 'uniswap/src/components/AmountInput/AmountInput'
@@ -221,7 +221,7 @@ export const CurrencyInputPanelInput = memo(
                   color="$neutral3"
                   fontSize={inputFontSize.fontSize}
                   variant="heading2"
-                  style={{ lineHeight: inputFontSize.fontSize }}
+                  lineHeight={inputFontSize.fontSize}
                 >
                   0
                 </Text>

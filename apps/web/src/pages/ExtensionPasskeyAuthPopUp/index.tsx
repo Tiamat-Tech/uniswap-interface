@@ -7,10 +7,10 @@ import {
   useRecoveryFlow,
 } from '@universe/embedded-wallet'
 import { getChromeRuntime, getChromeRuntimeWithThrow } from '@universe/environment'
+import { Flex, SpinningLoader } from '@universe/mycelium'
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
-import { Flex, SpinningLoader } from 'ui/src'
 import { parseMessage } from 'uniswap/src/extension/messagePassing/platform'
 import {
   InterfaceToExtensionRequestType,

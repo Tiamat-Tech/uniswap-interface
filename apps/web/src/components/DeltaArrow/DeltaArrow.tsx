@@ -1,19 +1,15 @@
-import { ArrowChange } from 'ui/src/components/icons/ArrowChange'
+import { ArrowChange } from '@universe/mycelium/icons/ArrowChange'
+import { isValidDelta } from 'uniswap/src/utils/calculateDelta'
 
+export { calculateDelta } from 'uniswap/src/utils/calculateDelta'
 export { DEFAULT_DELTA_COLOR, getDeltaTextColor } from 'uniswap/src/utils/getDeltaTextColor'
 
-export function calculateDelta(start: number, current: number): number | undefined {
-  const delta = (current / start - 1) * 100
-  return isValidDelta(delta) ? delta : undefined
-}
-
-function isValidDelta(delta: number | null | undefined): delta is number {
-  // Null-check not including zero
-  return delta !== null && delta !== undefined && delta !== Infinity && !isNaN(delta)
-}
-
-function isDeltaZero(delta: string): boolean {
-  return parseFloat(delta) === 0
+/** True when a formatted delta string (e.g. "0.00%") displays as zero, even if the raw delta is a tiny non-zero value. */
+export function isDeltaZero(delta: string): boolean {
+  // Check digits instead of parseFloat: comma-decimal locales format 0.5% as "0,50 %", which
+  // parseFloat truncates to 0. A formatted zero contains only '0' digits regardless of locale.
+  const digits = delta.match(/\d/g)
+  return digits !== null && digits.every((digit) => digit === '0')
 }
 
 interface DeltaArrowProps {

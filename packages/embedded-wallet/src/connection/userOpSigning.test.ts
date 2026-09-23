@@ -1,10 +1,10 @@
+import { UniverseChainId } from '@universe/chains'
 import { signUserOpWithEmbeddedWallet } from '@universe/embedded-wallet/src/connection/userOpSigning'
 import { checkEmbeddedWalletDelegation } from '@universe/embedded-wallet/src/features/passkey/embeddedWalletDelegation'
 import {
   sign7702AuthorizationWithPasskey,
   signTypedDataWithPasskey,
 } from '@universe/embedded-wallet/src/features/passkey/signing'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { encodeCaliburUserOpSignature } from 'uniswap/src/features/smartWallet/userOp/caliburSignature'
 import type { PublicClient } from 'viem'
 import type { RpcUserOperation } from 'viem/account-abstraction'

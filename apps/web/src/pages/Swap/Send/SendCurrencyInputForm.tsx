@@ -1,14 +1,14 @@
 import { type Currency } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
+import { Button, Flex, type FlexCompatProps, Text, TouchableArea } from '@universe/mycelium'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import type { TFunction } from 'i18next'
-import { type ElementRef, useCallback, useMemo, useRef, useState } from 'react'
+import { type ElementRef, type MouseEvent, useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, type ButtonProps, Flex, styled, Text, TouchableArea } from 'ui/src'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { useCurrencyInputFontSize } from 'uniswap/src/components/CurrencyInputPanel/hooks/useCurrencyInputFontSize'
 import { TokenSelectorVariation } from 'uniswap/src/components/TokenSelector/types'
 import { useEnabledChains } from 'uniswap/src/features/chains/hooks/useEnabledChains'
 import { useSupportedChainId } from 'uniswap/src/features/chains/hooks/useSupportedChainId'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getPrimaryStablecoin } from 'uniswap/src/features/chains/utils'
 import { useAppFiatCurrency, useFiatCurrencyComponents } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useMaxAmountSpend } from 'uniswap/src/features/gas/hooks/useMaxAmountSpend'
@@ -28,6 +28,7 @@ import {
   NumericalInputMimic,
   NumericalInputSymbolContainer,
   StyledNumericalInput,
+  useMeasuredFieldWidth,
 } from '~/components/NumericalInput/LargeAmountInput'
 import { isInputGreaterThanDecimals } from '~/components/NumericalInput/NumericalInput'
 import { CurrencySearchModal } from '~/components/SearchModal/CurrencySearchModal'
@@ -36,55 +37,43 @@ import { SendInputError } from '~/pages/Swap/Send/state/hooks'
 import { useSendContext } from '~/pages/Swap/Send/state/SendContext'
 import { SwitchNetworkAction } from '~/state/popups/types'
 
-// Hidden-mimic width measurement can land fractions of a pixel short of the real input's
-// required width, which is enough for `text-overflow: ellipsis` to clip the last character.
-const ROUNDING_BUFFER = 1
+const Wrapper = ({ disabled, ...props }: FlexCompatProps & { disabled?: boolean }): JSX.Element => (
+  <Flex opacity={disabled ? 0.4 : 1} pointerEvents={disabled ? 'none' : undefined} {...props} />
+)
 
-const Wrapper = styled(Flex, {
-  opacity: 1,
+const CurrencyInputWrapper = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    backgroundColor="$surface1"
+    px="$spacing16"
+    borderBottomRightRadius="$rounded16"
+    borderBottomLeftRadius="$rounded16"
+    height="64px"
+    justifyContent="center"
+    position="relative"
+    borderColor="$surface3"
+    borderWidth="$spacing1"
+    {...props}
+  />
+)
 
-  variants: {
-    disabled: {
-      true: {
-        opacity: 0.4,
-        pointerEvents: 'none',
-      },
-    },
-  },
-})
+const InputWrapper = (props: FlexCompatProps): JSX.Element => (
+  <Flex
+    position="relative"
+    backgroundColor="$surface1"
+    alignItems="center"
+    justifyContent="flex-end"
+    borderTopLeftRadius="$rounded16"
+    borderTopRightRadius="$rounded16"
+    borderColor="$surface3"
+    borderWidth="$spacing1"
+    borderBottomWidth="$none"
+    {...props}
+  />
+)
 
-const CurrencyInputWrapper = styled(Flex, {
-  backgroundColor: '$surface1',
-  px: '$spacing16',
-  borderBottomRightRadius: '$rounded16',
-  borderBottomLeftRadius: '$rounded16',
-  height: '64px',
-  justifyContent: 'center',
-  position: 'relative',
-  borderColor: '$surface3',
-  borderWidth: '$spacing1',
-})
-
-const InputWrapper = styled(Flex, {
-  position: 'relative',
-  backgroundColor: '$surface1',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  borderTopLeftRadius: '$rounded16',
-  borderTopRightRadius: '$rounded16',
-  borderColor: '$surface3',
-  borderWidth: '$spacing1',
-  borderBottomWidth: '$none',
-})
-
-const ErrorContainer = styled(Flex, {
-  position: 'absolute',
-  width: '100%',
-  justifyContent: 'center',
-  alignItems: 'center',
-  left: '0',
-  bottom: '32px',
-})
+const ErrorContainer = (props: FlexCompatProps): JSX.Element => (
+  <Flex position="absolute" width="100%" justifyContent="center" alignItems="center" left={0} bottom={32} {...props} />
+)
 
 function getSendInputErrorMessage(t: TFunction, inputError: SendInputError): string {
   switch (inputError) {
@@ -97,7 +86,7 @@ function getSendInputErrorMessage(t: TFunction, inputError: SendInputError): str
   }
 }
 
-const MaxButton = ({ onPress }: { onPress: ButtonProps['onPress'] }) => {
+const MaxButton = ({ onPress }: { onPress: (e: MouseEvent<HTMLButtonElement>) => void }) => {
   const { t } = useTranslation()
   return (
     <Button variant="branded" emphasis="secondary" size="xxsmall" onPress={onPress}>
@@ -163,7 +152,7 @@ export function SendCurrencyInputForm({
 
   const fiatBalanceValue = useUSDCValue(currencyBalance)
   const displayValue = inputInFiat ? exactAmountFiat : exactAmountToken
-  const hiddenObserver = useResizeObserver<HTMLElement>()
+  const { ref: hiddenObserverRef, fieldWidth: adjustedWidth } = useMeasuredFieldWidth(displayValue)
   const prefixObserver = useResizeObserver<HTMLElement>()
   const amountInputRef = useRef<ElementRef<typeof StyledNumericalInput>>(null)
 
@@ -250,7 +239,7 @@ export function SendCurrencyInputForm({
   }, [exactAmountOut, inputInFiat, setSendState])
 
   const handleMaxInput = useCallback(
-    (e: Parameters<NonNullable<ButtonProps['onPress']>>[0]) => {
+    (e: MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation()
 
       if (maxInputAmount) {
@@ -264,8 +253,6 @@ export function SendCurrencyInputForm({
     },
     [maxInputAmount, setSendState],
   )
-
-  const adjustedWidth = displayValue && hiddenObserver.width ? hiddenObserver.width + ROUNDING_BUFFER : undefined
 
   return (
     <Wrapper disabled={disabled}>
@@ -304,7 +291,7 @@ export function SendCurrencyInputForm({
                   testId={TestID.SendFormAmountInput}
                 />
                 <NumericalInputMimic
-                  ref={hiddenObserver.ref}
+                  ref={hiddenObserverRef}
                   numericalFontSize={fontSize}
                   style={{ lineHeight: `${lineHeight}px`, fontSize: `${fontSize}px` }}
                 >

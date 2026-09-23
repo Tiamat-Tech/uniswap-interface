@@ -1,5 +1,5 @@
+import { useMedia } from '@universe/mycelium/theme-hooks-compat'
 import { useSyncExternalStore } from 'react'
-import { useMedia } from 'ui/src'
 import { useConnectionStatus } from 'uniswap/src/features/accounts/store/hooks'
 import { addMediaQueryListener, removeMediaQueryListener } from '~/utils/matchMedia'
 

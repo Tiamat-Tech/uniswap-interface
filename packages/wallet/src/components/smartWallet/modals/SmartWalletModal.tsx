@@ -1,7 +1,9 @@
 import { isExtensionApp } from '@universe/environment'
+import { Flex, Text } from '@universe/mycelium'
+import { type FlexProps } from '@universe/mycelium'
 import React from 'react'
 import { Trans } from 'react-i18next'
-import { Button, Flex, GetThemeValueForKey, Text } from 'ui/src'
+import { Button } from 'ui/src'
 import { ButtonConfig as DialogButtonConfig } from 'uniswap/src/components/dialog/DialogButtons'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { LearnMoreLink } from 'uniswap/src/components/text/LearnMoreLink'
@@ -34,7 +36,7 @@ export interface SmartWalletModalProps {
   zIndex?: number
   hideHandlebar?: boolean
   isDismissible?: boolean
-  iconBackgroundColor?: GetThemeValueForKey<'backgroundColor'>
+  iconBackgroundColor?: FlexProps['backgroundColor']
   horizontalAlignment?: 'left' | 'center'
   horizontalButtons?: boolean
 }

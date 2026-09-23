@@ -1,3 +1,4 @@
+import { UniverseChainId } from '@universe/chains'
 import { memo } from 'react'
 import { TokenSelectorOption } from 'uniswap/src/components/lists/items/types'
 import { OnchainItemSection } from 'uniswap/src/components/lists/OnchainItemList/types'
@@ -8,7 +9,6 @@ import { TokenSelectorSwapList } from 'uniswap/src/components/TokenSelector/list
 import { OnSelectRwaToken, TokenSelectorFlow, TokenSelectorVariation } from 'uniswap/src/components/TokenSelector/types'
 import { TradeableAsset } from 'uniswap/src/entities/assets'
 import type { AddressGroup } from 'uniswap/src/features/accounts/store/types/AccountsState'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 
 interface TokenSelectorListSwitchProps {

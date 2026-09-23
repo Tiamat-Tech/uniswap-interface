@@ -1,11 +1,11 @@
 import { Currency, CurrencyAmount, TradeType } from '@uniswap/sdk-core'
 import { TradingApi } from '@universe/api'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Button, Flex, type FlexCompatProps, Separator, Text, TouchableArea } from '@universe/mycelium'
 import { atom } from 'jotai'
 import { useAtomValue, useUpdateAtom } from 'jotai/utils'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type ComponentProps, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Separator, styled, Text, TouchableArea } from 'ui/src'
 import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
 import { ArrowDown } from 'ui/src/components/icons/ArrowDown'
 import { X } from 'ui/src/components/icons/X'
@@ -76,19 +76,24 @@ export function useOpenOffchainActivityModal() {
   )
 }
 
-const Wrapper = styled(Flex, {
-  gap: '$gap12',
-  grow: true,
-  pt: '$spacing12',
-  pb: '$spacing20',
-  px: '$spacing20',
-  width: '100%',
-  backgroundColor: '$surface1',
-})
+function Wrapper(props: FlexCompatProps): JSX.Element {
+  return (
+    <Flex
+      gap="$gap12"
+      grow
+      pt="$spacing12"
+      pb="$spacing20"
+      px="$spacing20"
+      width="100%"
+      backgroundColor="$surface1"
+      {...props}
+    />
+  )
+}
 
-const OffchainModalDivider = styled(Separator, {
-  my: '$spacing28',
-})
+function OffchainModalDivider(props: ComponentProps<typeof Separator>): JSX.Element {
+  return <Separator my="$spacing28" {...props} />
+}
 
 export function useOrderAmounts(order?: UniswapXOrderDetails):
   | {

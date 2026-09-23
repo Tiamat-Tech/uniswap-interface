@@ -176,6 +176,22 @@ export const TwoDecimalsCurrency: FormatCreator = {
   },
 }
 
+export const SixDecimalsCurrency: FormatCreator = {
+  createFormat: (locale: string, currencyCode: string): Intl.NumberFormat => {
+    return getNumberFormat({
+      name: 'SixDecimalsCurrency',
+      locale,
+      props: {
+        notation: 'standard',
+        maximumFractionDigits: 6,
+        minimumFractionDigits: 6,
+        currency: currencyCode,
+        style: 'currency',
+      },
+    })
+  },
+}
+
 export const ShorthandTwoDecimalsCurrency: FormatCreator = {
   createFormat: (locale: string, currencyCode: string): Intl.NumberFormat => {
     return getNumberFormat({
@@ -694,6 +710,12 @@ const fiatRewardsFormatter: Formatter = {
   defaultFormat: SevenSigFigsSciNotationCurrency,
 }
 
+// Fixed six decimals so a live-ticking rewards value keeps a stable shape between ticks.
+const fiatRewardsPreciseFormatter: Formatter = {
+  rules: [{ upperBound: Infinity, formatter: SixDecimalsCurrency }],
+  defaultFormat: SixDecimalsCurrency,
+}
+
 export const TYPE_TO_FORMATTER_RULES = {
   [NumberType.TokenNonTx]: tokenNonTxFormatter,
   [NumberType.TokenTx]: tokenTxFormatter,
@@ -706,6 +728,7 @@ export const TYPE_TO_FORMATTER_RULES = {
   [NumberType.FiatTokenPrice]: fiatTokenPricesFormatter,
   [NumberType.FiatTokenStats]: fiatTokenStatsFormatter,
   [NumberType.FiatRewards]: fiatRewardsFormatter,
+  [NumberType.FiatRewardsPrecise]: fiatRewardsPreciseFormatter,
   [NumberType.FiatGasPrice]: fiatGasPriceFormatter,
   [NumberType.PortfolioBalance]: portfolioBalanceFormatter,
   [NumberType.Percentage]: percentagesFormatter,

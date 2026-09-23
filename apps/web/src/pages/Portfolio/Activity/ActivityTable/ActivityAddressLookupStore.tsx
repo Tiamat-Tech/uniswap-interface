@@ -51,19 +51,14 @@ function showsAddressInCell(transactionType: TransactionType, hasProtocolInfo: b
  * Hook to initialize and update address lookups based on transactions.
  * Should be called at the table level to batch fetch all unique addresses.
  */
-export function useActivityAddressLookup(
-  transactions: TransactionDetails[],
-  { isEarnActivityDisplayEnabled = true }: { isEarnActivityDisplayEnabled?: boolean } = {},
-): void {
+export function useActivityAddressLookup(transactions: TransactionDetails[]): void {
   // Extract unique EVM addresses from all transactions
   const uniqueAddresses = useMemo(() => {
     const addresses = new Set<Address>()
 
     transactions.forEach((tx) => {
       // Get counterparty from fragments
-      const fragments = buildActivityRowFragments(tx, {
-        isEarnActivityDisplayEnabled,
-      })
+      const fragments = buildActivityRowFragments(tx)
       if (fragments.counterparty && isEVMAddress(fragments.counterparty)) {
         addresses.add(fragments.counterparty)
       }
@@ -77,7 +72,7 @@ export function useActivityAddressLookup(
     })
 
     return Array.from(addresses)
-  }, [transactions, isEarnActivityDisplayEnabled])
+  }, [transactions])
 
   // Batch fetch Unitags for all unique addresses
   const {

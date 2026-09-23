@@ -1,5 +1,5 @@
-import { Flex } from 'ui/src/components/layout'
-import { Text } from 'ui/src/components/text'
+import { Flex } from '@universe/mycelium'
+import { Text } from '@universe/mycelium'
 import type { DynamicSizeTextProps } from 'ui/src/components/text/DynamicSizeText/DynamicSizeText'
 
 export function DynamicSizeText({ children, floatingSuffix, gap, ...props }: DynamicSizeTextProps): JSX.Element {

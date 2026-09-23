@@ -1,17 +1,17 @@
 /* oxlint-disable max-lines */
 import { Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
+import { AlertTriangleFilled } from '@universe/mycelium/icons/AlertTriangleFilled'
 import { useEffect, useMemo, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
-import { AlertTriangleFilled } from 'ui/src/components/icons/AlertTriangleFilled'
+import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { Modal } from 'uniswap/src/components/modals/Modal'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'
 import { TransactionStep, TransactionStepType } from 'uniswap/src/features/transactions/steps/types'
 import { NumberType } from 'utilities/src/format/types'
 import { useEvent } from 'utilities/src/react/hooks'
-import { CurrencyLogo } from '~/components/Logo/CurrencyLogo'
 import { SubscriptZeroPrice } from '~/components/SubscriptZeroPrice'
 import {
   BidProgressIndicator,
@@ -31,6 +31,7 @@ import { BudgetFieldState } from '~/features/Toucan/Auction/hooks/useBidBudgetFi
 import { SubmitState } from '~/features/Toucan/Auction/hooks/useBidFormSubmit'
 import { MaxValuationFieldState } from '~/features/Toucan/Auction/hooks/useBidMaxValuationField'
 import { useBidTokenInfo } from '~/features/Toucan/Auction/hooks/useBidTokenInfo'
+import { useIsQuickLaunchAuction } from '~/features/Toucan/Auction/hooks/useIsQuickLaunchAuction'
 import { useAuctionStore } from '~/features/Toucan/Auction/store/useAuctionStore'
 import { getClearingPrice } from '~/features/Toucan/Auction/utils/clearingPrice'
 import { getAuctionTokenDecimals } from '~/features/Toucan/Auction/utils/tokenMetadata'
@@ -69,6 +70,11 @@ export function BidReviewModal({
     auctionDetails: state.auctionDetails,
     checkpointData: state.checkpointData,
   }))
+
+  // QuickLaunch: no max-FDV input — the bid's ceiling is the synthetic 25,000 ETH FDV cap (no
+  // longer a 50x-of-reference cap), not a user choice, so the review omits the max-FDV summary
+  // and the partial-fill explainer (neither applies).
+  const isQuickLaunch = useIsQuickLaunchAuction()
 
   const [transactionSteps, setTransactionSteps] = useState<TransactionStep[]>([])
   const [currentStep, setCurrentStep] = useState<{ step: TransactionStep; accepted: boolean }>()
@@ -375,7 +381,7 @@ export function BidReviewModal({
       name={ModalName.BidReview}
       isModalOpen={isOpen}
       onClose={handleClose}
-      padding="$spacing0"
+      padding="$none"
       maxWidth={420}
       pt="$spacing8"
       pb="$spacing8"
@@ -407,35 +413,42 @@ export function BidReviewModal({
                     </Text>
                   )}
                 </Flex>
-                {bidCurrency ? <CurrencyLogo currency={bidCurrency} size={40} /> : null}
+                {bidCurrency ? <CurrencyLogo currencyInfo={bidCurrencyInfo} size={40} /> : null}
               </Flex>
 
-              <Flex gap="$spacing4">
-                <Text variant="body2" color="$neutral2">
-                  {t('toucan.bidReview.maxFdv')}
-                </Text>
-                <Text variant="heading3" color="$neutral1">
-                  {maxFdvFormatted ?? PLACEHOLDER}
-                </Text>
-                {maxPricePerTokenDecimal !== undefined ? (
-                  <Flex row alignItems="baseline" gap="$none">
-                    <SubscriptZeroPrice
-                      value={maxPricePerTokenDecimal}
-                      symbol={budgetSymbol}
-                      variant="body4"
-                      color="$neutral2"
-                      subscriptThreshold={3}
-                    />
-                    <Text variant="body4" color="$neutral2">
-                      {` ${t('toucan.bidReview.perTokenSuffix')}`}
-                    </Text>
-                  </Flex>
-                ) : null}
-              </Flex>
+              {!isQuickLaunch && (
+                <Flex gap="$spacing4">
+                  <Text variant="body2" color="$neutral2">
+                    {t('toucan.bidReview.maxFdv')}
+                  </Text>
+                  <Text variant="heading3" color="$neutral1">
+                    {maxFdvFormatted ?? PLACEHOLDER}
+                  </Text>
+                  {maxPricePerTokenDecimal !== undefined ? (
+                    <Flex row alignItems="baseline" gap="$none">
+                      <SubscriptZeroPrice
+                        value={maxPricePerTokenDecimal}
+                        symbol={budgetSymbol}
+                        variant="body4"
+                        color="$neutral2"
+                        subscriptThreshold={3}
+                      />
+                      <Text variant="body4" color="$neutral2">
+                        {` ${t('toucan.bidReview.perTokenSuffix')}`}
+                      </Text>
+                    </Flex>
+                  ) : null}
+                </Flex>
+              )}
 
               {/* Info box with partial fill explanation and disclaimer */}
               <Flex backgroundColor="$surface2" borderRadius="$rounded12" p="$spacing12" gap="$spacing8">
-                {maxFdvPreciseFormatted && maxFdvFiatFormatted ? (
+                {isQuickLaunch ? (
+                  <Text variant="body4" color="$neutral2">
+                    {t('toucan.bidReview.fillsAtClearingPrice')}
+                  </Text>
+                ) : null}
+                {!isQuickLaunch && maxFdvPreciseFormatted && maxFdvFiatFormatted ? (
                   <Text variant="body4" color="$neutral2">
                     <Trans
                       i18nKey="toucan.bidReview.partialFillExplanation"

@@ -2,13 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { ClaimFeesRequest } from '@uniswap/client-liquidity/dist/uniswap/liquidity/v2/api_pb'
 import { type Currency, CurrencyAmount } from '@uniswap/sdk-core'
+import type { UniverseChainId } from '@universe/chains'
 import { useGetPasskeyAuthStatus } from '@universe/embedded-wallet'
-import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Button, Flex, iconSizes, Text } from '@universe/mycelium'
+import { Passkey } from '@universe/mycelium/icons/Passkey'
 import { type Dispatch, type SetStateAction, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, Switch, Text } from 'ui/src'
-import { Passkey } from 'ui/src/components/icons/Passkey'
-import { iconSizes } from 'ui/src/theme'
+import { Switch } from 'ui/src'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { GetHelpHeader } from 'uniswap/src/components/dialog/GetHelpHeader'
 import { Modal } from 'uniswap/src/components/modals/Modal'
@@ -16,7 +16,6 @@ import { PollingInterval } from 'uniswap/src/constants/misc'
 import { nativeOnChain } from 'uniswap/src/constants/tokens'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
 import { liquidityQueries } from 'uniswap/src/data/apiClients/liquidityService/liquidityQueries'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import type { PositionInfo } from 'uniswap/src/features/positions/types'
 import { getIsPermissioned } from 'uniswap/src/features/positions/utils'
@@ -44,6 +43,7 @@ import { getLPBaseAnalyticsProperties } from '~/features/Liquidity/analytics'
 import { canUnwrapCurrency, getCurrencyWithOptionalUnwrap } from '~/features/Liquidity/utils/currency'
 import { getProtocols } from '~/features/Liquidity/utils/protocolVersion'
 import { useAccount } from '~/hooks/useAccount'
+import { useDocumentScrollLock } from '~/hooks/useDocumentScrollLock'
 import { useModalInitialState } from '~/hooks/useModalInitialState'
 import { useModalState } from '~/hooks/useModalState'
 import { useSelectChain } from '~/hooks/useSelectChain'
@@ -144,7 +144,6 @@ function FeeTokenRow({
 export function ClaimFeeModal() {
   const { t } = useTranslation()
   const trace = useTrace()
-  const isCentralizedPricesEnabled = useFeatureFlag(FeatureFlags.CentralizedPrices)
   const { formatCurrencyAmount, convertFiatAmountFormatted } = useLocalizationContext()
   const positionInfo = useModalInitialState(ModalName.ClaimFee)
   const account = useWallet().evmAccount
@@ -158,7 +157,8 @@ export function ClaimFeeModal() {
   const canUnwrap1 = canUnwrapCurrency(currency1Amount?.currency, positionInfo?.version)
   const canUnwrap = positionInfo && chainId && (canUnwrap0 || canUnwrap1)
 
-  const { closeModal } = useModalState(ModalName.ClaimFee)
+  const { isOpen, closeModal } = useModalState(ModalName.ClaimFee)
+  useDocumentScrollLock(isOpen)
 
   const { fee0Amount, fee1Amount } = positionInfo ?? {}
   const fee0AmountUsd = useUSDCValue(fee0Amount, PollingInterval.Slow)
@@ -282,7 +282,6 @@ export function ClaimFeeModal() {
                   currency0AmountUsd: fee0AmountUsd,
                   currency1AmountUsd: fee1AmountUsd,
                   version: positionInfo.version,
-                  isCentralizedPricesEnabled,
                 }),
               }
             : undefined,
@@ -291,7 +290,7 @@ export function ClaimFeeModal() {
   }
 
   return (
-    <Modal name={ModalName.ClaimFee} onClose={closeModal} isDismissible>
+    <Modal name={ModalName.ClaimFee} onClose={closeModal} isDismissible disableRemoveScroll>
       <Flex gap="$gap16">
         <GetHelpHeader
           link={UniswapHelpUrls.requestUrl}
@@ -338,7 +337,7 @@ export function ClaimFeeModal() {
         <ErrorCallout errorMessage={getErrorMessageToDisplay({ calldataError: error })} onPress={refetch} />
         <Flex row>
           <Button
-            data-testid={TestID.ClaimFees}
+            testID={TestID.ClaimFees}
             key="LoaderButton-animation-ClaimFeeModal-button"
             disabled={!data?.claim || Boolean(currentTransactionStep)}
             loading={calldataLoading || Boolean(currentTransactionStep)}

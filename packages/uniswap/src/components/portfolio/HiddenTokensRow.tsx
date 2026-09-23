@@ -1,7 +1,7 @@
 import { isMobileApp } from '@universe/environment'
+import { Flex } from '@universe/mycelium'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex } from 'ui/src'
 import { InformationBanner } from 'uniswap/src/components/banners/InformationBanner'
 import { ExpandoRow } from 'uniswap/src/components/ExpandoRow/ExpandoRow'
 import { useTokenBalanceListContext } from 'uniswap/src/features/portfolio/TokenBalanceListContext'

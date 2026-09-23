@@ -1,58 +1,69 @@
 import { ProtocolVersion } from '@uniswap/client-data-api/dist/data/v1/poolTypes_pb'
 import { Percent } from '@uniswap/sdk-core'
 import { FeeAmount, TICK_SPACINGS } from '@uniswap/v3-sdk'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
+import { MAX_LP_FEE } from 'uniswap/src/constants/pools'
 import { DYNAMIC_FEE_DATA } from 'uniswap/src/features/positions/types'
 import { PercentNumberDecimals } from 'utilities/src/format/types'
 import { describe, expect, it } from 'vitest'
 import {
   calculateTickSpacingFromFeeAmount,
+  getCommonFeeTiersWithData,
   getDefaultFeeTiersForChainWithDynamicFeeTier,
   getDefaultFeeTiersWithData,
   getFeeTierKey,
   isDynamicFeeTier,
+  parseFeeDataFromUrl,
   mergeFeeTiers,
+  toNewPoolFeeData,
 } from '~/features/Liquidity/utils/feeTiers'
 import { FeeTierData } from '~/types/liquidity'
 
 describe('calculateTickSpacingFromFeeAmount', () => {
-  it('returns correct tick spacing for typical fee amounts (2x)', () => {
-    expect(calculateTickSpacingFromFeeAmount(100, false)).toBe(2) // .01%
-    expect(calculateTickSpacingFromFeeAmount(500, false)).toBe(10) // .05%
-    expect(calculateTickSpacingFromFeeAmount(3000, false)).toBe(60) // .3%
+  it('returns correct tick spacing for typical fee amounts', () => {
+    expect(calculateTickSpacingFromFeeAmount(100)).toBe(1) // .01%
+    expect(calculateTickSpacingFromFeeAmount(500)).toBe(5) // .05%
+    expect(calculateTickSpacingFromFeeAmount(3000)).toBe(30) // .3%
   })
 
   it('rounds to nearest whole number', () => {
-    expect(calculateTickSpacingFromFeeAmount(333, false)).toBe(7)
-    expect(calculateTickSpacingFromFeeAmount(250, false)).toBe(5)
+    expect(calculateTickSpacingFromFeeAmount(333)).toBe(3)
+    expect(calculateTickSpacingFromFeeAmount(250)).toBe(3)
   })
 
   it('returns at least 1 for very small fee amounts', () => {
-    expect(calculateTickSpacingFromFeeAmount(0.1, false)).toBe(1)
-    expect(calculateTickSpacingFromFeeAmount(0, false)).toBe(1)
+    expect(calculateTickSpacingFromFeeAmount(0.1)).toBe(1)
+    expect(calculateTickSpacingFromFeeAmount(0)).toBe(1)
+    expect(calculateTickSpacingFromFeeAmount(30)).toBe(1) // round(0.3) = 0, floored to 1
   })
 
   it('handles large fee amounts', () => {
-    expect(calculateTickSpacingFromFeeAmount(10000, false)).toBe(200)
+    expect(calculateTickSpacingFromFeeAmount(10000)).toBe(100)
+  })
+})
+
+describe('toNewPoolFeeData', () => {
+  it('re-keys a tier to the launcher SDK derivation for the fee tiers the availability check covers', () => {
+    const spacingFor = (feeAmount: number, tickSpacing: number) =>
+      toNewPoolFeeData({ feeAmount, tickSpacing, isDynamic: false }).tickSpacing
+    expect(spacingFor(FeeAmount.LOWEST, TICK_SPACINGS[FeeAmount.LOWEST])).toBe(1)
+    expect(spacingFor(FeeAmount.LOW, TICK_SPACINGS[FeeAmount.LOW])).toBe(5)
+    expect(spacingFor(2500, 50)).toBe(25)
+    expect(spacingFor(FeeAmount.MEDIUM, TICK_SPACINGS[FeeAmount.MEDIUM])).toBe(30)
+    expect(spacingFor(FeeAmount.HIGH, TICK_SPACINGS[FeeAmount.HIGH])).toBe(100)
   })
 
-  it('uses the 1x multiplier when the flag is enabled', () => {
-    expect(calculateTickSpacingFromFeeAmount(100, true)).toBe(1) // .01%
-    expect(calculateTickSpacingFromFeeAmount(500, true)).toBe(5) // .05%
-    expect(calculateTickSpacingFromFeeAmount(3000, true)).toBe(30) // .3%
-    expect(calculateTickSpacingFromFeeAmount(10000, true)).toBe(100)
-  })
-
-  it('still enforces a minimum of 1 when the flag is enabled', () => {
-    expect(calculateTickSpacingFromFeeAmount(0, true)).toBe(1)
-    expect(calculateTickSpacingFromFeeAmount(30, true)).toBe(1) // round(0.3) = 0, floored to 1
+  it('passes dynamic fee tiers through untouched (their fee amount is a flag, not bips)', () => {
+    expect(toNewPoolFeeData(DYNAMIC_FEE_DATA)).toEqual(DYNAMIC_FEE_DATA)
   })
 })
 
 describe('getFeeTierKey', () => {
   it('returns correct key', () => {
-    expect(getFeeTierKey({ feeTier: 100, tickSpacing: 60, isDynamicFee: false })).toBe('100-60')
-    expect(getFeeTierKey({ feeTier: 100, tickSpacing: 60, isDynamicFee: true })).toBe('100-60-dynamic')
+    expect(getFeeTierKey({ feeTier: 100, tickSpacing: 60 })).toBe('100-60')
+    expect(getFeeTierKey({ feeTier: DYNAMIC_FEE_DATA.feeAmount, tickSpacing: 60 })).toBe(
+      `${DYNAMIC_FEE_DATA.feeAmount}-60`,
+    )
   })
 })
 
@@ -61,12 +72,8 @@ describe('mergeFeeTiers', () => {
     `${Number(percent) * 100}%`
   const formattedDynamicFeeTier = 'dynamic'
   const staticFee = { feeAmount: 100, isDynamic: false, tickSpacing: 60 }
-  const dynamicFee = { feeAmount: 100, isDynamic: true, tickSpacing: 60 }
-  const dynamicFeeKey = getFeeTierKey({
-    feeTier: dynamicFee.feeAmount,
-    tickSpacing: dynamicFee.tickSpacing,
-    isDynamicFee: dynamicFee.isDynamic,
-  })!
+  const dynamicFee = { feeAmount: DYNAMIC_FEE_DATA.feeAmount, isDynamic: true, tickSpacing: 60 }
+  const dynamicFeeKey = getFeeTierKey({ feeTier: dynamicFee.feeAmount, tickSpacing: dynamicFee.tickSpacing })
 
   const staticFeeTierData: FeeTierData = {
     fee: staticFee,
@@ -119,8 +126,7 @@ describe('mergeFeeTiers', () => {
     const dynamicKey = getFeeTierKey({
       feeTier: DYNAMIC_FEE_DATA.feeAmount,
       tickSpacing: DYNAMIC_FEE_DATA.tickSpacing,
-      isDynamicFee: DYNAMIC_FEE_DATA.isDynamic,
-    })!
+    })
     let feeTiers = { [dynamicKey]: defaultDynamicFeeTierData }
     let result = mergeFeeTiers({ feeTiers, defaultFeeData, formatPercent, formattedDynamicFeeTier })
     expect(result).toEqual({
@@ -278,7 +284,7 @@ describe('getDefaultFeeTiersForChainWithDynamicFeeTier', () => {
       `${FeeAmount.LOW}-${TICK_SPACINGS[FeeAmount.LOW]}`,
       `${FeeAmount.MEDIUM}-${TICK_SPACINGS[FeeAmount.MEDIUM]}`,
       `${FeeAmount.HIGH}-${TICK_SPACINGS[FeeAmount.HIGH]}`,
-      `${DYNAMIC_FEE_DATA.feeAmount}-${DYNAMIC_FEE_DATA.tickSpacing}-dynamic`,
+      `${DYNAMIC_FEE_DATA.feeAmount}-${DYNAMIC_FEE_DATA.tickSpacing}`,
     ])
   })
 })
@@ -413,13 +419,117 @@ describe('isDynamicFeeTier', () => {
     expect(isDynamicFeeTier(dynamicFeeData)).toBe(true)
   })
 
-  it('returns true for fee data with DYNAMIC_FEE_DATA.feeAmount', () => {
+  // The flag is the whole answer: every producer of FeeData sets it, and a fee amount alone can
+  // come from user input (a typed tier, a legacy URL param) that has no business resolving here.
+  it('returns false for the sentinel fee amount when the flag is off', () => {
     const feeData = { feeAmount: DYNAMIC_FEE_DATA.feeAmount, isDynamic: false, tickSpacing: 10 }
-    expect(isDynamicFeeTier(feeData)).toBe(true)
+    expect(isDynamicFeeTier(feeData)).toBe(false)
   })
 
   it('returns false for non-dynamic fee data', () => {
     const feeData = { feeAmount: 100, isDynamic: false, tickSpacing: 10 }
     expect(isDynamicFeeTier(feeData)).toBe(false)
+  })
+})
+
+describe('parseFeeDataFromUrl', () => {
+  const spacing = { tickSpacing: 60 }
+
+  it('leaves a consistent static tier untouched', () => {
+    const fee = { feeAmount: 3000, isDynamic: false, ...spacing }
+    expect(parseFeeDataFromUrl(fee)).toBe(fee)
+  })
+
+  // `?fee={"feeAmount":3000,"tickSpacing":60,"isDynamic":true}` parses — the schema checks shape,
+  // not consistency — and the tier key would otherwise collide with the static 0.30% tile.
+  it('pulls the fee amount to the sentinel when the flag says dynamic', () => {
+    expect(parseFeeDataFromUrl({ feeAmount: 3000, isDynamic: true, ...spacing })).toEqual({
+      feeAmount: DYNAMIC_FEE_DATA.feeAmount,
+      isDynamic: true,
+      ...spacing,
+    })
+  })
+
+  // The mirror case: a legacy bookmark carrying the pool key's fee with no isDynamic param.
+  it('sets the flag when the fee amount is the sentinel', () => {
+    expect(parseFeeDataFromUrl({ feeAmount: DYNAMIC_FEE_DATA.feeAmount, isDynamic: false, ...spacing })).toEqual({
+      feeAmount: DYNAMIC_FEE_DATA.feeAmount,
+      isDynamic: true,
+      ...spacing,
+    })
+  })
+
+  // Bounded after reconciliation, not before: the flag makes the fee amount meaningless, so an
+  // out-of-range fee alongside it resolves to the sentinel rather than being rejected.
+  it('accepts an out-of-range fee when the flag marks it dynamic', () => {
+    expect(parseFeeDataFromUrl({ feeAmount: 2_000_000, isDynamic: true, ...spacing })?.feeAmount).toBe(
+      DYNAMIC_FEE_DATA.feeAmount,
+    )
+  })
+
+  it('keeps the tick spacing the URL supplied', () => {
+    expect(parseFeeDataFromUrl({ feeAmount: 500, isDynamic: true, tickSpacing: 200 })?.tickSpacing).toBe(200)
+  })
+
+  // Each of these reached the v4-sdk Pool constructor and tripped its fee invariant mid-render.
+  it.each([
+    ['at the protocol cap', { feeAmount: MAX_LP_FEE, isDynamic: false, ...spacing }],
+    ['between the cap and the sentinel', { feeAmount: 2_000_000, isDynamic: false, ...spacing }],
+    ['negative', { feeAmount: -500, isDynamic: false, ...spacing }],
+    ['fractional', { feeAmount: 30.5, isDynamic: false, ...spacing }],
+    ['NaN', { feeAmount: NaN, isDynamic: false, ...spacing }],
+    ['with zero tick spacing', { feeAmount: 3000, isDynamic: false, tickSpacing: 0 }],
+    ['with negative tick spacing', { feeAmount: 3000, isDynamic: false, tickSpacing: -60 }],
+    ['with fractional tick spacing', { feeAmount: 3000, isDynamic: false, tickSpacing: 1.5 }],
+  ])('rejects a fee %s', (_label, fee) => {
+    expect(parseFeeDataFromUrl(fee)).toBeUndefined()
+  })
+})
+
+describe('getCommonFeeTiersWithData', () => {
+  const pool = (feeAmount: number, tickSpacing: number): FeeTierData => ({
+    fee: { feeAmount, isDynamic: false, tickSpacing },
+    formattedFee: `${feeAmount}`,
+    totalLiquidityUsd: 5_000_000,
+    percentage: new Percent(1, 100),
+    created: true,
+    tvl: '5000000',
+  })
+  const createdAmounts = (feeTierData: Record<string, FeeTierData>) =>
+    getCommonFeeTiersWithData({ chainId: UniverseChainId.Mainnet, feeTierData, protocolVersion: ProtocolVersion.V4 })
+      .filter((tier) => tier.created)
+      .map((tier) => tier.value.feeAmount)
+
+  it('marks a canonical tier created from a pool at a tick spacing the tier does not carry', () => {
+    // The 0.30% box carries the v3 spacing (60) while the create field derives 30. Keying on the box's own
+    // spacing would leave it enabled beside this pool, so CCA could still deploy a second 0.30% pool.
+    expect(createdAmounts({ '3000-30': pool(FeeAmount.MEDIUM, 30) })).toEqual([FeeAmount.MEDIUM])
+  })
+
+  it('still matches a pool at the tier’s own tick spacing', () => {
+    expect(createdAmounts({ '3000-60': pool(FeeAmount.MEDIUM, TICK_SPACINGS[FeeAmount.MEDIUM]) })).toEqual([
+      FeeAmount.MEDIUM,
+    ])
+  })
+
+  it('leaves tiers with no pool uncreated', () => {
+    expect(createdAmounts({})).toEqual([])
+    expect(createdAmounts({ '3000-30': { ...pool(FeeAmount.MEDIUM, 30), created: false } })).toEqual([])
+  })
+
+  it('carries the launcher-derived tick spacing on each tier value, not the v3 table’s', () => {
+    // The tier value names the pool the launcher will create; its id (and the selection key built from
+    // it) must use the SDK's fee-derived spacing, or the availability check tests the wrong pool.
+    const tiers = getCommonFeeTiersWithData({
+      chainId: UniverseChainId.Mainnet,
+      feeTierData: {},
+      protocolVersion: ProtocolVersion.V4,
+    })
+    expect(tiers.map((tier) => [tier.value.feeAmount, tier.value.tickSpacing])).toEqual([
+      [FeeAmount.LOWEST, 1],
+      [FeeAmount.LOW, 5],
+      [FeeAmount.MEDIUM, 30],
+      [FeeAmount.HIGH, 100],
+    ])
   })
 })

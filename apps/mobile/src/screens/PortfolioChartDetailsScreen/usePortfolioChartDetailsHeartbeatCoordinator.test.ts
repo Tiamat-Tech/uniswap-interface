@@ -21,43 +21,25 @@ describe('usePortfolioChartDetailsHeartbeatCoordinator', () => {
     mockQueryClientRefetchQueries.mockReset().mockResolvedValue(undefined)
   })
 
-  it('passes enabled through to the shared coordinator', () => {
-    renderHook(() => usePortfolioChartDetailsHeartbeatCoordinator({ enabled: true }))
+  it('passes only a full refresh to the shared coordinator — no 30s price tick', () => {
+    renderHook(() => usePortfolioChartDetailsHeartbeatCoordinator())
 
-    expect(mockUseHeartbeatCoordinator).toHaveBeenCalledWith(
-      expect.objectContaining({ enabled: true, refresh: expect.any(Function), priceRefresh: expect.any(Function) }),
-    )
+    expect(mockUseHeartbeatCoordinator).toHaveBeenCalledWith({ refresh: expect.any(Function) })
   })
 
-  it('refetches balances, the chart, and PnL on refresh', async () => {
-    renderHook(() => usePortfolioChartDetailsHeartbeatCoordinator({ enabled: true }))
+  it('refetches wallet balances and PnL, but not the value chart, on refresh', async () => {
+    renderHook(() => usePortfolioChartDetailsHeartbeatCoordinator())
 
     const { refresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
     await refresh()
 
+    expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(2)
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
       queryKey: [ReactQueryCacheKey.GetWalletBalances],
-      type: 'active',
-    })
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
-      queryKey: [ReactQueryCacheKey.GetPortfolioChart],
       type: 'active',
     })
     expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
       queryKey: [ReactQueryCacheKey.GetWalletProfitLoss],
-      type: 'active',
-    })
-  })
-
-  it('only refetches balances on priceRefresh', async () => {
-    renderHook(() => usePortfolioChartDetailsHeartbeatCoordinator({ enabled: true }))
-
-    const { priceRefresh } = mockUseHeartbeatCoordinator.mock.calls[0]![0]
-    await priceRefresh()
-
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledTimes(1)
-    expect(mockQueryClientRefetchQueries).toHaveBeenCalledWith({
-      queryKey: [ReactQueryCacheKey.GetWalletBalances],
       type: 'active',
     })
   })

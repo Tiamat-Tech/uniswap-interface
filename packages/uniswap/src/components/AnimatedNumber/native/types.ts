@@ -1,4 +1,4 @@
-import type { ResolvedFontStyle } from 'ui/src/theme'
+import type { ResolvedFontStyle } from '@universe/mycelium'
 import type { AnimatedNumberProps } from 'uniswap/src/components/AnimatedNumber/AnimatedNumber'
 import type { AnimatedNumberDirection } from 'uniswap/src/components/AnimatedNumber/types'
 import type { FiatCurrencyInfo } from 'uniswap/src/features/fiatOnRamp/types'

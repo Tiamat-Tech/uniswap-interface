@@ -11,8 +11,8 @@ import type {
   WrapQuoteResponse,
 } from '@universe/api'
 import { TradingApi } from '@universe/api'
+import { UniverseChainId } from '@universe/chains'
 import { USDC, USDC_MAINNET, USDC_UNICHAIN } from 'uniswap/src/constants/tokens'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { createEarnChainedActionDisplayAmounts } from 'uniswap/src/features/earn/chainedDisplayAmounts'
 import { createBridgeTrade } from 'uniswap/src/features/transactions/swap/types/bridge'
 import { createChainedActionTrade } from 'uniswap/src/features/transactions/swap/types/chained'

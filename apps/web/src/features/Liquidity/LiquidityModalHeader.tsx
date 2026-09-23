@@ -1,7 +1,7 @@
+import { Flex, ModalCloseIcon, Text, TouchableArea } from '@universe/mycelium'
+import { BackArrow } from '@universe/mycelium/icons/BackArrow'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, ModalCloseIcon, Text, TouchableArea } from 'ui/src'
-import { BackArrow } from 'ui/src/components/icons/BackArrow'
 import { Deadline } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/Deadline/Deadline'
 import { Slippage } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/slippage/Slippage/Slippage'
 import { LPSettings } from '~/features/Liquidity/LPSettings'
@@ -41,7 +41,7 @@ export function LiquidityModalHeader({
           defaultTitle={t('pool.positions.transaction.settings')}
         />
       ) : (
-        <Flex position="absolute" top="0" right="0" p="$spacing4">
+        <Flex position="absolute" top={0} right={0} p="$spacing4">
           {CloseIconComponent}
         </Flex>
       )}

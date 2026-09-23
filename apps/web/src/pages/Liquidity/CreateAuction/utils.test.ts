@@ -1,5 +1,5 @@
 import { CurrencyAmount, Token } from '@uniswap/sdk-core'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { UniverseChainId } from '@universe/chains'
 import { describe, expect, it } from 'vitest'
 import { getLaunchThreshold, quoteRaiseAtFloor } from '~/pages/Liquidity/CreateAuction/launchThreshold'
 import { minimumAuctionSupplyDeposit } from '~/pages/Liquidity/CreateAuction/store/postAuctionLiquidityAllocationState'
@@ -19,6 +19,9 @@ import {
   expandCompactNumberInput,
   formatCompactNumberDisplay,
   formatCompactNumberInput,
+  getCustomPriceRangeFullRangeRemainderPercent,
+  getCustomPriceRangeTotalProblem,
+  getEffectiveRaiseCurrency,
   getMaxTieredPostAuctionLiquidityEffectivePercent,
   getPostAuctionLiquidityPreviewPercent,
   getPostAuctionLiquidityTierLpDollars,
@@ -34,6 +37,7 @@ import {
   percentOfSoldToLiquidityFromDepositAndLiquidityAmount,
   postAuctionLiquidityTokenAmountFromDepositedAndUiPercent,
   removeCustomPriceRangeEntry,
+  shouldShowFullRangeRemainder,
   updateCustomPriceRangeLiquidityPercent,
 } from '~/pages/Liquidity/CreateAuction/utils'
 
@@ -193,16 +197,21 @@ describe('custom price range utilities', () => {
     ).toEqual([0, 50])
   })
 
-  it('transfers removed row percent to the last remaining row', () => {
+  it('leaves the surviving rows untouched when a row is removed', () => {
     const entries = [
       { id: 'custom-range-1', liquidityPercent: 25, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
       { id: 'custom-range-2', liquidityPercent: 35, minPercentFromClearing: -33, maxPercentFromClearing: 50 },
       { id: 'custom-range-3', liquidityPercent: 40, minPercentFromClearing: -20, maxPercentFromClearing: 25 },
     ]
 
+    // The removed 35% is not pushed onto another row: it becomes remainder, which the full-range
+    // position absorbs.
     expect(removeCustomPriceRangeEntry(entries, 'custom-range-2').map((entry) => entry.liquidityPercent)).toEqual([
-      25, 75,
+      25, 40,
     ])
+    expect(getCustomPriceRangeFullRangeRemainderPercent(removeCustomPriceRangeEntry(entries, 'custom-range-2'))).toBe(
+      35,
+    )
   })
 
   it('validates finite and infinite bounds', () => {
@@ -241,13 +250,100 @@ describe('custom price range utilities', () => {
     ).toBe(false)
   })
 
-  it('requires custom range totals to equal 100', () => {
+  it('accepts custom range totals at or below 100 and rejects an overshoot', () => {
     expect(isCustomPriceRangeAllocationValid([createDefaultCustomPriceRangeEntry()])).toBe(true)
+    // Under-allocation is the point of this rule: the shortfall goes to the full-range position.
     expect(
       isCustomPriceRangeAllocationValid([
-        { id: 'custom-range-1', liquidityPercent: 50, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
+        { id: 'custom-range-1', liquidityPercent: 45, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
+      ]),
+    ).toBe(true)
+    expect(
+      isCustomPriceRangeAllocationValid([
+        { id: 'custom-range-1', liquidityPercent: 60, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
+        { id: 'custom-range-2', liquidityPercent: 41, minPercentFromClearing: -33, maxPercentFromClearing: 50 },
       ]),
     ).toBe(false)
+  })
+
+  it('rejects an allocation of zero, which would leave no concentrated position to build', () => {
+    // Every row at 0% strips to nothing server-side; the contract also reverts on a zero-weight
+    // definition. A launch that wants only a full-range position picks the full-range strategy.
+    expect(
+      isCustomPriceRangeAllocationValid([
+        { id: 'custom-range-1', liquidityPercent: 0, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
+      ]),
+    ).toBe(false)
+  })
+
+  it('keeps the step gate and the error copy on the same bounds', () => {
+    const at = (...percents: number[]) =>
+      percents.map((liquidityPercent, index) => ({
+        id: `custom-range-${index + 1}`,
+        liquidityPercent,
+        minPercentFromClearing: -50,
+        maxPercentFromClearing: 100,
+      }))
+
+    // Whenever the total is the reason Continue is blocked, there must be copy naming why — and
+    // whenever copy shows, Continue must actually be blocked.
+    for (const entries of [at(0), at(45), at(100), at(60, 41), at(0, 0)]) {
+      const problem = getCustomPriceRangeTotalProblem(entries)
+      expect(isCustomPriceRangeAllocationValid(entries)).toBe(problem === undefined)
+    }
+
+    expect(getCustomPriceRangeTotalProblem(at(0))).toBe('unallocated')
+    expect(getCustomPriceRangeTotalProblem(at(60, 41))).toBe('overAllocated')
+    expect(getCustomPriceRangeTotalProblem(at(45))).toBeUndefined()
+    expect(getCustomPriceRangeTotalProblem(at(100))).toBeUndefined()
+  })
+
+  it('hides the remainder row at a total of zero, where the blocking error owns the message', () => {
+    // Reachable in two clicks: add a range (it takes 100 - 100 = 0%), then remove the original row.
+    // The remainder is the whole budget, but "Full range 100%" next to "allocate at least one
+    // range" is a contradiction.
+    expect(
+      shouldShowFullRangeRemainder([
+        { id: 'custom-range-1', liquidityPercent: 0, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
+      ]),
+    ).toBe(false)
+  })
+
+  it('hides a remainder too small to survive display rounding', () => {
+    // Entries hold 5 decimals, the row renders 4: three rows of 33.33333 leave 0.00001, which would
+    // render as a "0%" full-range row.
+    const entries = [1, 2, 3].map((n) => ({
+      id: `custom-range-${n}`,
+      liquidityPercent: 33.33333,
+      minPercentFromClearing: -50,
+      maxPercentFromClearing: 100,
+    }))
+
+    expect(getCustomPriceRangeFullRangeRemainderPercent(entries)).toBeCloseTo(0.00001, 7)
+    expect(shouldShowFullRangeRemainder(entries)).toBe(false)
+    // A remainder that does render at 4 decimals still shows.
+    expect(
+      shouldShowFullRangeRemainder([
+        { id: 'custom-range-1', liquidityPercent: 99.9999, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
+      ]),
+    ).toBe(true)
+  })
+
+  it('reports the unallocated remainder that the full-range position absorbs', () => {
+    expect(getCustomPriceRangeFullRangeRemainderPercent([createDefaultCustomPriceRangeEntry()])).toBe(0)
+    expect(
+      getCustomPriceRangeFullRangeRemainderPercent([
+        { id: 'custom-range-1', liquidityPercent: 30, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
+        { id: 'custom-range-2', liquidityPercent: 15, minPercentFromClearing: -33, maxPercentFromClearing: 50 },
+      ]),
+    ).toBe(55)
+    // An over-allocated set has no remainder to show rather than a negative one.
+    expect(
+      getCustomPriceRangeFullRangeRemainderPercent([
+        { id: 'custom-range-1', liquidityPercent: 80, minPercentFromClearing: -50, maxPercentFromClearing: 100 },
+        { id: 'custom-range-2', liquidityPercent: 40, minPercentFromClearing: -33, maxPercentFromClearing: 50 },
+      ]),
+    ).toBe(0)
   })
 })
 
@@ -704,6 +800,22 @@ describe('getRaiseCurrencyAsCurrency', () => {
     expect(getRaiseCurrencyAsCurrency(RaiseCurrency.STABLECOIN, UniverseChainId.Mainnet)?.symbol).toBe('USDC')
     expect(getRaiseCurrencyAsCurrency(RaiseCurrency.STABLECOIN, UniverseChainId.Robinhood)?.symbol).toBe('USDG')
     expect(getRaiseCurrencyAsCurrency(RaiseCurrency.STABLECOIN, UniverseChainId.XLayer)?.symbol).toBe('USDT0')
+  })
+})
+
+describe('getEffectiveRaiseCurrency', () => {
+  it('keeps the selection on a chain whose two options are different tokens', () => {
+    expect(getEffectiveRaiseCurrency(RaiseCurrency.STABLECOIN, UniverseChainId.Mainnet)).toBe(RaiseCurrency.STABLECOIN)
+  })
+
+  it('resolves to the native option on a chain whose two options are the same token', () => {
+    expect(getEffectiveRaiseCurrency(RaiseCurrency.STABLECOIN, UniverseChainId.Arc)).toBe(RaiseCurrency.NATIVE)
+    expect(
+      getRaiseCurrencyAddress(
+        getEffectiveRaiseCurrency(RaiseCurrency.STABLECOIN, UniverseChainId.Arc),
+        UniverseChainId.Arc,
+      ),
+    ).toBe('0x0000000000000000000000000000000000000000')
   })
 })
 

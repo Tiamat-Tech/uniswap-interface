@@ -1,6 +1,7 @@
 import { Currency } from '@uniswap/sdk-core'
+import { Flex } from '@universe/mycelium'
+import { AnimateTransition } from '@universe/mycelium/animate-presence-pager'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { AnimateTransition, Flex } from 'ui/src'
 // oxlint-disable-next-line no-restricted-imports -- ui constant needed for modal animation timing
 import { ADAPTIVE_MODAL_ANIMATION_DURATION } from 'ui/src/components/modal/AdaptiveWebModal'
 import { TransactionStatus } from 'uniswap/src/features/transactions/types/transactionDetails'
@@ -28,12 +29,11 @@ import { PopupType } from '~/state/popups/types'
 import { InterfaceTrade } from '~/state/routing/types'
 import { isLimitTrade, isPreviewTrade, isUniswapXTradeType } from '~/state/routing/utils'
 import { useUniswapXOrderByOrderHash } from '~/state/transactions/hooks'
-import { ThemeProvider } from '~/theme'
 import type { LimitOrderResult } from '~/types/trade'
 import { SignatureExpiredError, UniswapXv2HardQuoteError } from '~/utils/errors'
 import { didUserReject } from '~/utils/swapErrorToUserReadableMessage'
 
-/** Must match `animation` on `AnimateTransition` below so held error UI clears after exit completes. */
+/** Must match `curve` on `AnimateTransition` below so held error UI clears after exit completes. */
 const CONFIRM_LIMIT_ORDER_MODAL_BODY_TRANSITION_MS = 200
 
 /**
@@ -321,25 +321,19 @@ export function ConfirmLimitOrderModal({
   }
 
   return (
-    <ThemeProvider>
-      <SwapModal onDismiss={onModalDismiss}>
-        <Flex height={24} p="$padding12" pt="$padding6" pb="$spacing4">
-          <SwapHead
-            onDismiss={onModalDismiss}
-            isLimitTrade={isLimitTrade(trade)}
-            confirmModalState={confirmModalState}
-          />
-        </Flex>
-        <AnimateTransition
-          currentIndex={modalBodyIndex}
-          animationType="fade"
-          animation={`${CONFIRM_LIMIT_ORDER_MODAL_BODY_TRANSITION_MS}ms`}
-        >
-          {MODAL_BODY_PANEL_ORDER.map((panelId) => (
-            <ConfirmLimitOrderModalBodyPanel key={panelId} panelId={panelId} {...bodyPanelProps} />
-          ))}
-        </AnimateTransition>
-      </SwapModal>
-    </ThemeProvider>
+    <SwapModal onDismiss={onModalDismiss}>
+      <Flex height={24} p="$padding12" pt="$padding6" pb="$spacing4">
+        <SwapHead onDismiss={onModalDismiss} isLimitTrade={isLimitTrade(trade)} confirmModalState={confirmModalState} />
+      </Flex>
+      <AnimateTransition
+        currentIndex={modalBodyIndex}
+        animationType="fade"
+        curve={`${CONFIRM_LIMIT_ORDER_MODAL_BODY_TRANSITION_MS}ms`}
+      >
+        {MODAL_BODY_PANEL_ORDER.map((panelId) => (
+          <ConfirmLimitOrderModalBodyPanel key={panelId} panelId={panelId} {...bodyPanelProps} />
+        ))}
+      </AnimateTransition>
+    </SwapModal>
   )
 }

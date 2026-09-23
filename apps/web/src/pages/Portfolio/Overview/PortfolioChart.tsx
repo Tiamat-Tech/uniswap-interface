@@ -1,16 +1,9 @@
 import { ChartPeriod, WalletBalanceCategory } from '@uniswap/client-data-api/dist/data/v1/api_pb'
+import { Flex, Separator, Text, useMedia, useSporeColors } from '@universe/mycelium'
+import { SegmentedControl, type SegmentedControlOption } from '@universe/mycelium/segmented-control-compat'
+import { styled } from '@universe/mycelium/styled'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Flex,
-  SegmentedControl,
-  SegmentedControlOption,
-  Separator,
-  styled,
-  Text,
-  useMedia,
-  useSporeColors,
-} from 'ui/src'
 import type { PortfolioTotalValue } from 'uniswap/src/features/dataApi/balances/buildPortfolioBalance'
 import { useAppFiatCurrencyInfo } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
@@ -40,7 +33,7 @@ import { PortfolioChartCategorySelector } from '~/pages/Portfolio/Overview/Portf
 type ChartPercentChange = ReturnType<typeof getPortfolioChartPercentChange>
 
 const ChartContainer = styled(Flex, {
-  width: '100%',
+  base: 'w-[100%]',
 })
 
 const CHART_HEIGHT = 300
@@ -95,8 +88,6 @@ interface PortfolioChartProps {
   /** Opt-in categories the backend omitted, so the total is a partial sum shown with a warning. */
   unavailableCategories?: WalletBalanceCategory[]
   isTotalValueMatch: boolean
-  /** Category feature gates: when the legacy path is retired, make this the default chart header. */
-  showBalanceHeaderRow?: boolean
   selectedCategory: PortfolioChartCategory
   setSelectedCategory: (category: PortfolioChartCategory) => void
   /** Non-total categories with data, in fixed display order — what the selector lists. */
@@ -127,7 +118,6 @@ export function PortfolioChart({
   setSelectedPeriod,
   onHoverPeriod,
   isTotalValueMatch,
-  showBalanceHeaderRow,
   selectedCategory,
   setSelectedCategory,
   availableCategories,
@@ -155,8 +145,6 @@ export function PortfolioChart({
     }))
   }, [selectedPeriod, t])
 
-  // Static color from the period's net change (first vs last); used by the legacy chart path.
-  const chartColor = useMemo(() => portfolioChartColor({ colors, series, reference: undefined }), [series, colors])
   // Scrub-aware target: while scrubbing, color by the hovered point vs the period start.
   const scrubAwareColorTarget = useMemo(
     () => portfolioChartColor({ colors, series, reference: hoveredChartData?.close }),
@@ -186,13 +174,12 @@ export function PortfolioChart({
     type: PriceChartType.LINE,
     stale: false,
     timePeriod: chartPeriodToHistoryDuration(selectedPeriod),
-    // New flag path animates toward the scrub-aware color; legacy path keeps the static color.
-    overrideColor: showBalanceHeaderRow ? animatedChartColor : chartColor,
+    overrideColor: animatedChartColor,
     hideYAxis: !isTotalValueMatch,
     yAxisFormatter,
   }
 
-  const shouldShowBalanceHeader = showBalanceHeaderRow && !isPortfolioZero
+  const shouldShowBalanceHeader = !isPortfolioZero
 
   // Kept visible on error (grayed out below) so the controls row layout is stable; only hidden when there's no breakdown.
   const showCategorySelector = shouldShowBalanceHeader && hasCategoryBreakdown && !isLoading && !isChartEmpty
@@ -316,7 +303,7 @@ export function PortfolioChart({
           />
         </Flex>
         {showCategorySelector && (
-          <Flex opacity={error ? 0.4 : 1} pointerEvents={error ? 'none' : 'auto'}>
+          <Flex opacity={error ? 0.4 : 1} pointerEvents={error || isDemoView ? 'none' : 'auto'}>
             <PortfolioChartCategorySelector
               value={selectedCategory}
               availableCategories={availableCategories}

@@ -1,10 +1,10 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import type { UniverseChainId } from '@universe/chains'
+import { Flex, Text } from '@universe/mycelium'
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { getBlockExplorerIcon } from 'uniswap/src/components/chains/BlockExplorerIcon'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useTokenMetadata } from 'uniswap/src/features/dataApi/tokenDetails/useTokenDetailsData'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { ElementName } from 'uniswap/src/features/telemetry/constants'
@@ -36,8 +36,7 @@ import { useTokenAddressCopy } from '~/pages/TokenDetails/hooks/useTokenAddressC
 export function TokenDescription() {
   const { t } = useTranslation()
   const trace = useTrace()
-  const { tokenProjectQuery, multiChainMap, selectedMultichainChainId } = useTDPStore((s) => ({
-    tokenProjectQuery: s.tokenProjectQuery,
+  const { multiChainMap, selectedMultichainChainId } = useTDPStore((s) => ({
     multiChainMap: s.multiChainMap,
     selectedMultichainChainId: s.selectedMultichainChainId,
   }))
@@ -57,11 +56,7 @@ export function TokenDescription() {
 
   const displayAddress = effectiveCurrency.isNative ? NATIVE_CHAIN_ID : effectiveCurrency.address
 
-  // Read About metadata from the lightweight project query so this section paints with the header,
-  // instead of waiting on the heavy market `tokenQuery`.
-  const { description, homepageUrl, twitterName } = useTokenMetadata(currencyId(effectiveCurrency), {
-    legacyToken: tokenProjectQuery.data?.token,
-  })
+  const { description, homepageUrl, twitterName } = useTokenMetadata(currencyId(effectiveCurrency))
   const explorerUrl = getExplorerLink({
     chainId: effectiveCurrency.chainId,
     data: displayAddress,
@@ -139,17 +134,10 @@ export function TokenDescription() {
   }
 
   return (
-    <Flex data-testid={TestID.TokenDetailsAboutSection} gap="$gap20" width="100%" $md={{ gap: '$gap16' }}>
+    <Flex testID={TestID.TokenDetailsAboutSection} gap="$gap20" width="100%" $md={{ gap: '$gap16' }}>
       <Text variant="heading3">{t('common.about')}</Text>
       <DescriptionBody description={description} />
-      <Flex
-        row
-        flexWrap="wrap"
-        gap="$gap12"
-        alignItems="center"
-        width="100%"
-        data-testid={TestID.TokenDetailsAboutLinks}
-      >
+      <Flex row flexWrap="wrap" gap="$gap12" alignItems="center" width="100%" testID={TestID.TokenDetailsAboutLinks}>
         {showVerifiedPill && (
           <>
             <PermissionedPill issuer={issuer} />

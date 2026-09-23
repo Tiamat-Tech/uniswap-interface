@@ -1,15 +1,20 @@
+import { UniverseChainId } from '@universe/chains'
+import { FeatureFlags, useFeatureFlag } from '@universe/gating'
 import { memo, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { NetworkError, NoResultsFound } from 'uniswap/src/components/lists/NoResultsFound'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useSectionsForSearchResults } from 'uniswap/src/features/search/SearchModal/hooks/useSectionsForSearchResults'
 import { SearchModalList, SearchModalListProps } from 'uniswap/src/features/search/SearchModal/SearchModalList'
+import { SearchModalListSkeleton } from 'uniswap/src/features/search/SearchModal/SearchModalListSkeleton'
 import { useRwaIssuerCurrencyInfos } from 'uniswap/src/features/search/SearchModal/stocks/useRwaIssuerCurrencyInfos'
 import { SearchTab } from 'uniswap/src/features/search/SearchModal/types'
 import { useMultichainSearchModalMetricsAnalytics } from 'uniswap/src/features/search/SearchModal/useMultichainSearchModalMetricsAnalytics'
 import { useIsOffline } from 'utilities/src/connection/useIsOffline'
 import { usePreviousWithLayoutEffect } from 'utilities/src/react/usePreviousWithLayoutEffect'
+
+// Stable identity so it doesn't bust SearchModalList's memo.
+const RESULTS_LIST_SKELETON = <SearchModalListSkeleton />
 
 interface SearchModalResultsListProps {
   chainFilter: UniverseChainId | null
@@ -42,6 +47,7 @@ function SearchModalResultsListInner({
 }: SearchModalResultsListProps): JSX.Element {
   const { t } = useTranslation()
   const isOffline = useIsOffline()
+  const isSearchV2UIEnabled = useFeatureFlag(FeatureFlags.SearchV2UI)
 
   const searchQuery = debouncedParsedSearchFilter ?? debouncedSearchFilter
   const shouldPrioritizeWallets =
@@ -57,7 +63,7 @@ function SearchModalResultsListInner({
 
   const {
     data: sections,
-    loading,
+    isLoading,
     error,
     refetch,
   } = useSectionsForSearchResults({
@@ -83,7 +89,7 @@ function SearchModalResultsListInner({
 
   useMultichainSearchModalMetricsAnalytics({
     sections: sectionsForMetrics,
-    isSearchResultsLoading: loading,
+    isSearchResultsLoading: isLoading,
     isSearchQueryPending: userIsTyping,
   })
 
@@ -91,7 +97,7 @@ function SearchModalResultsListInner({
   const hasReconnected = prevIsOffline && !isOffline
   useEffect(() => {
     if (hasReconnected) {
-      refetch?.()
+      refetch()
     }
   }, [hasReconnected, refetch])
 
@@ -108,19 +114,25 @@ function SearchModalResultsListInner({
     ) : undefined
   }, [debouncedSearchFilter, isOfflineWithNoData, hasActiveFilters, onResetFilters])
 
+  const searchFilters = useMemo(
+    (): SearchModalListProps['searchFilters'] => ({
+      query: debouncedParsedSearchFilter ?? debouncedSearchFilter ?? undefined,
+      searchChainFilter: effectiveTokenSearchChainFilter,
+      searchTabFilter: activeTab,
+    }),
+    [debouncedParsedSearchFilter, debouncedSearchFilter, effectiveTokenSearchChainFilter, activeTab],
+  )
+
   return (
     <SearchModalList
       emptyElement={emptyElement}
       errorText={t('token.selector.search.error')}
       hasError={!isOffline && Boolean(error)}
-      loading={!isOffline && (userIsTyping || loading)}
+      loading={!isOffline && (userIsTyping || isLoading)}
+      loadingElement={isSearchV2UIEnabled ? RESULTS_LIST_SKELETON : undefined}
       refetch={refetch}
       sections={isOfflineWithNoData ? [] : sections}
-      searchFilters={{
-        query: debouncedParsedSearchFilter ?? debouncedSearchFilter ?? undefined,
-        searchChainFilter: effectiveTokenSearchChainFilter,
-        searchTabFilter: activeTab,
-      }}
+      searchFilters={searchFilters}
       renderedInModal={renderedInModal}
       contentContainerStyle={contentContainerStyle}
       rowWrapper={rowWrapper}

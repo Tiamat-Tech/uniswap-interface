@@ -1,6 +1,7 @@
+import { Flex, type FlexProps, Text, TouchableArea } from '@universe/mycelium'
 import { PropsWithChildren, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, FlexProps, Image, ModalCloseIcon, Text, TouchableArea } from 'ui/src'
+import { Image, ModalCloseIcon } from 'ui/src'
 import { UNISWAP_LOGO } from 'ui/src/assets'
 import { BackArrow } from 'ui/src/components/icons/BackArrow'
 import { iconSizes } from 'ui/src/theme'

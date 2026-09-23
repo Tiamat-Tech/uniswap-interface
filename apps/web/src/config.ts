@@ -91,14 +91,20 @@ const webConfigValues = {
   /** SENTRY_TRACES_SAMPLE_RATE — 0–1 float */
   sentryTracesSampleRate: process.env.SENTRY_TRACES_SAMPLE_RATE ?? process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE,
 
+  /** WEB_BUILD_TYPE — serving stack baked in by vite.config.mts; tags DD + Amplitude events */
+  webBuildType: process.env.WEB_BUILD_TYPE,
+
   // #endregion
 }
 
 /** Zod schema for web-specific config fields */
 export const webConfigSchema = z.object({
   // Environment & Build Metadata
-  webBuildType: z.string().default('vite').describe('Web build tool identifier'),
   gitCommitHash: z.string().default('').describe('Git commit hash at build time'),
+  webBuildType: z
+    .string()
+    .optional()
+    .describe('Serving stack the web artifact was built for (workers | ecs | vercel | ipfs)'),
   // API Keys
   walletConnectProjectId: z.string().min(1).describe('Project ID for WalletConnect'),
 

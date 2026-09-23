@@ -1,6 +1,8 @@
+import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { ChevronsOut } from '@universe/mycelium/icons/ChevronsOut'
+import { opacifyRaw } from '@universe/mycelium/theme-hooks-compat'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { ChevronsOut } from 'ui/src/components/icons/ChevronsOut'
 import { PulsingIndicatorDot } from '~/features/Toucan/Auction/Banners/AuctionIntro/PulsingIndicatorDot'
 import { useAuctionIntroBannerData } from '~/features/Toucan/Auction/Banners/AuctionIntro/useAuctionIntroBannerData'
 
@@ -10,12 +12,14 @@ interface AuctionIntroBannerProps {
 
 export function AuctionIntroBanner({ onLearnMorePress }: AuctionIntroBannerProps) {
   const { t } = useTranslation()
+  const isTokenProvenanceEnabled = useFeatureFlag(FeatureFlags.TokenProvenance)
 
   const {
     shouldShowBanner,
     variant,
     durationRemaining,
     durationLabel,
+    isAuctionEndCountdown,
     tokenAccentColor,
     backgroundGradientStyle,
     isColorLoading,
@@ -32,30 +36,48 @@ export function AuctionIntroBanner({ onLearnMorePress }: AuctionIntroBannerProps
       row
       alignItems="center"
       justifyContent="space-between"
+      flexWrap={isTokenProvenanceEnabled ? 'wrap' : undefined}
+      gap={isTokenProvenanceEnabled ? '$spacing8' : undefined}
       px="$spacing24"
       py="$spacing16"
-      borderRadius="$rounded12"
+      borderRadius={isTokenProvenanceEnabled ? '$rounded16' : '$rounded12'}
+      borderWidth={isTokenProvenanceEnabled ? '$spacing1' : undefined}
+      mt={isTokenProvenanceEnabled ? '$spacing24' : undefined}
       overflow="hidden"
-      style={backgroundGradientStyle}
+      style={{
+        ...backgroundGradientStyle,
+        borderColor: isTokenProvenanceEnabled ? opacifyRaw(8, tokenAccentColor) : undefined,
+        backgroundClip: isTokenProvenanceEnabled ? 'padding-box' : undefined,
+      }}
     >
-      {/* Left side - Timer */}
       <Flex row alignItems="center" gap="$spacing12">
         <PulsingIndicatorDot color={tokenAccentColor} isPulsing={!isNotStarted} />
-        <Flex>
-          <Text variant="body4" color="$neutral2">
-            {durationLabel}
-          </Text>
+        {isTokenProvenanceEnabled && isAuctionEndCountdown ? (
           <Text variant="body1" color="$neutral1">
-            {durationRemaining ?? ''}
+            {durationRemaining ? t('toucan.auction.introBanner.remaining', { time: durationRemaining }) : durationLabel}
           </Text>
-        </Flex>
+        ) : (
+          <Flex>
+            <Text variant="body4" color="$neutral2">
+              {durationLabel}
+            </Text>
+            <Text variant="body1" color="$neutral1">
+              {durationRemaining ?? ''}
+            </Text>
+          </Flex>
+        )}
       </Flex>
 
-      {/* Right side - See full details button */}
-      <TouchableArea onPress={onLearnMorePress} hoverStyle={{ opacity: 0.8 }}>
+      <TouchableArea
+        onPress={onLearnMorePress}
+        ml={isTokenProvenanceEnabled ? 'auto' : undefined}
+        hoverStyle={{ opacity: 0.8 }}
+      >
         <Flex row alignItems="center" gap="$spacing8">
           <Text variant="buttonLabel2" color="$neutral1">
-            {t('toucan.auction.introBanner.seeFullDetails')}
+            {isTokenProvenanceEnabled
+              ? t('toucan.auction.introBanner.timelineAndDetails')
+              : t('toucan.auction.introBanner.seeFullDetails')}
           </Text>
           <ChevronsOut size={18} color="$neutral1" />
         </Flex>

@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => ({
   buildEarnPlanAnalytics: vi.fn(() => ({})),
   buildEarnSwapTxContext: vi.fn(() => ({ routing: 'CHAINED' })),
   dispatch: vi.fn(),
-  isEarnEnabled: true,
   isTestnetModeEnabled: false,
   requiredForTransactions: true,
 }))
@@ -38,10 +37,6 @@ vi.mock('src/features/biometrics/useBiometricAppSettings', () => ({
 
 vi.mock('src/features/biometricsSettings/hooks', () => ({
   useBiometricPrompt: () => ({ trigger: mocks.biometricTrigger }),
-}))
-
-vi.mock('uniswap/src/features/earn/hooks/useIsEarnEnabled', () => ({
-  getIsEarnEnabled: () => mocks.isEarnEnabled,
 }))
 
 vi.mock('wallet/src/features/accounts/store/hooks', () => ({
@@ -75,6 +70,7 @@ vi.mock('uniswap/src/features/transactions/swap/review/stores/activePlan/activeP
 }))
 
 const PARAMS = {
+  attemptId: 'attempt-1',
   earnIntent: {} as TradingApi.EarnIntent,
   inputCurrency: {} as Currency,
   outputCurrency: {} as Currency,
@@ -87,7 +83,6 @@ const PARAMS = {
 describe(useEarnExecuteCallback, () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mocks.isEarnEnabled = true
     mocks.isTestnetModeEnabled = false
     mocks.requiredForTransactions = true
   })
@@ -107,6 +102,7 @@ describe(useEarnExecuteCallback, () => {
     await act(async () => successCallback())
 
     expect(PARAMS.onSubmitted).toHaveBeenCalledOnce()
+    expect(mocks.buildEarnPlanAnalytics).toHaveBeenCalledWith(expect.anything(), 'attempt-1')
     expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'executePlan/trigger' }))
   })
 
@@ -157,37 +153,6 @@ describe(useEarnExecuteCallback, () => {
       expect.objectContaining({ message: 'explore.earn.review.unavailable' }),
     )
     expect(mocks.biometricTrigger).not.toHaveBeenCalled()
-    expect(mocks.dispatch).not.toHaveBeenCalled()
-  })
-
-  it('blocks execution when Earn is disabled', () => {
-    mocks.isEarnEnabled = false
-    const { result } = renderHook(() => useEarnExecuteCallback())
-
-    act(() => result.current(PARAMS))
-
-    expect(PARAMS.onFailure).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'explore.earn.review.unavailable' }),
-    )
-    expect(mocks.biometricTrigger).not.toHaveBeenCalled()
-    expect(mocks.dispatch).not.toHaveBeenCalled()
-  })
-
-  it('rechecks the Earn flag after biometric authentication succeeds', () => {
-    const { result } = renderHook(() => useEarnExecuteCallback())
-
-    act(() => result.current(PARAMS))
-    const { successCallback } = mocks.biometricTrigger.mock.calls[0]![0] as {
-      successCallback: () => void
-    }
-
-    mocks.isEarnEnabled = false
-    act(() => successCallback())
-
-    expect(PARAMS.onFailure).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'explore.earn.review.unavailable' }),
-    )
-    expect(PARAMS.onSubmitted).not.toHaveBeenCalled()
     expect(mocks.dispatch).not.toHaveBeenCalled()
   })
 

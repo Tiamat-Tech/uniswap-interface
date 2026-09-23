@@ -1,7 +1,10 @@
-import { DEFAULT_FLASHBOTS_ENABLED } from '@universe/chains'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
+import { DEFAULT_FLASHBOTS_ENABLED, RPCType, UniverseChainId } from '@universe/chains'
+import { defaultResolveRpcConfig } from 'uniswap/src/features/providers/resolveRpcConfig'
 import { isPrivateRpcSupportedOnChain } from 'wallet/src/features/providers/utils'
-import type { TransactionConfigService } from 'wallet/src/features/transactions/executeTransaction/services/transactionConfigService'
+import type {
+  PrivateRpcProviderType,
+  TransactionConfigService,
+} from 'wallet/src/features/transactions/executeTransaction/services/transactionConfigService'
 
 /**
  * Implementation of TransactionConfigService that retrieves configuration
@@ -49,6 +52,17 @@ export function createTransactionConfigService(): TransactionConfigService {
     }): boolean {
       const privateRpcSupportedOnChain = isPrivateRpcSupportedOnChain(chainId)
       return submitViaPrivateRpc && privateRpcSupportedOnChain
+    },
+
+    getPrivateRpcProviderType({ chainId }: { chainId: UniverseChainId }): PrivateRpcProviderType {
+      const privateRpcConfig = defaultResolveRpcConfig({ chainId, rpcType: RPCType.Private })
+      if (privateRpcConfig?.isUniRpc) {
+        return 'unirpc'
+      }
+      if (privateRpcConfig?.shouldUseFlashbots) {
+        return 'flashbots'
+      }
+      return 'mevblocker'
     },
   }
 }

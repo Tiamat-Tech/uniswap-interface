@@ -1,12 +1,11 @@
+import { Platform, UniverseChainId } from '@universe/chains'
 import type {
   EmbeddedWalletCapability,
   GetCapabilitiesCore,
 } from '@universe/embedded-wallet/src/connection/eip5792Types'
 import { hexToNumber, isValidHexString } from '@universe/encoding'
 import { getFeatureFlaggedChainIds } from 'uniswap/src/features/chains/hooks/useFeatureFlaggedChainIds'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { getEnabledChains } from 'uniswap/src/features/chains/utils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 
 /**
  * EIP-5792 `wallet_getCapabilities` for the embedded wallet. Reports atomic

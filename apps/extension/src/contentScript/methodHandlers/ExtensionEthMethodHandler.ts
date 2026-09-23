@@ -1,6 +1,6 @@
 /* oxlint-disable max-lines */
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { hexToNumber } from '@universe/encoding'
+import { UniverseChainId, Platform, areAddressesEqual } from '@universe/chains'
 import { getPermissions } from 'src/app/features/dappRequests/permissions'
 import { SendTransactionRequest } from 'src/app/features/dappRequests/types/DappRequestTypes'
 import {
@@ -44,12 +44,9 @@ import {
   WalletSwitchEthereumChainRequest,
   WalletSwitchEthereumChainRequestSchema,
 } from 'src/contentScript/WindowEthereumRequestTypes'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { chainIdToHexadecimalString, toSupportedChainId } from 'uniswap/src/features/chains/utils'
 import { DappRequestType, DappResponseType, EthMethod } from 'uniswap/src/features/dappRequests/types'
 import { isSelfCallWithData } from 'uniswap/src/features/dappRequests/utils'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
-import { areAddressesEqual } from 'uniswap/src/utils/addresses'
 import { extractBaseUrl } from 'utilities/src/format/urls'
 import { logger } from 'utilities/src/logger/logger'
 import { walletContextValue } from 'wallet/src/features/wallet/context'
@@ -496,7 +493,7 @@ export class ExtensionEthMethodHandler extends BaseMethodHandler<WindowEthereumR
     const sendTransactionRequest: SendTransactionRequest = {
       type: DappRequestType.SendTransaction,
       requestId: request.requestId,
-      transaction: adaptTransactionForEthers(request.transaction),
+      transaction: request.transaction,
     }
 
     // native transactions like native send will not have populated data field
@@ -683,12 +680,4 @@ export class ExtensionEthMethodHandler extends BaseMethodHandler<WindowEthereumR
       batchId: request.batchId,
     })
   }
-}
-
-// oxlint-disable-next-line typescript/no-explicit-any -- Transaction object from dapp can have various shapes requiring flexible typing
-function adaptTransactionForEthers(transaction: any): any {
-  if (typeof transaction.chainId === 'string') {
-    transaction.chainId = hexToNumber(transaction.chainId)
-  }
-  return transaction
 }

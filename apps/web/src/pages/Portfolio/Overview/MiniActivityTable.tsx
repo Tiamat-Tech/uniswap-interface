@@ -1,14 +1,13 @@
 import { createColumnHelper, Row } from '@tanstack/react-table'
 import { SharedEventName } from '@uniswap/analytics-events'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
+import { RotateRight } from '@universe/mycelium/icons/RotateRight'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
-import { RotateRight } from 'ui/src/components/icons/RotateRight'
 import { isLoadingItem } from 'uniswap/src/components/activity/utils'
 import { ActivityRenderData } from 'uniswap/src/features/activity/hooks/useActivityData'
-import { useIsEarnEnabled } from 'uniswap/src/features/earn/hooks/useIsEarnEnabled'
 import { ElementName, SectionName } from 'uniswap/src/features/telemetry/constants'
 import { sendAnalyticsEvent } from 'uniswap/src/features/telemetry/send'
 import { TransactionDetails } from 'uniswap/src/features/transactions/types/transactionDetails'
@@ -41,7 +40,6 @@ export const MiniActivityTable = memo(function MiniActivityTable({
 }: MiniActivityTableProps) {
   const { t } = useTranslation()
   const trace = useTrace()
-  const isEarnActivityDisplayEnabled = useIsEarnEnabled()
   const { chainId, externalAddress, isExternalWallet } = usePortfolioRoutes()
   const openTransactionDetailsModal = useOpenTransactionDetailsModal()
   const navigate = useNavigate()
@@ -92,11 +90,7 @@ export const MiniActivityTable = memo(function MiniActivityTable({
           return (
             <Cell loading={showLoadingSkeleton} justifyContent="flex-start" p="$spacing8">
               {hasRow<TransactionDetails>(info) && (
-                <ActivityAmountCell
-                  transaction={info.row.original}
-                  variant="compact"
-                  isEarnActivityDisplayEnabled={isEarnActivityDisplayEnabled}
-                />
+                <ActivityAmountCell transaction={info.row.original} variant="compact" />
               )}
             </Cell>
           )
@@ -122,7 +116,7 @@ export const MiniActivityTable = memo(function MiniActivityTable({
         },
       }),
     ]
-  }, [isEarnActivityDisplayEnabled, loading])
+  }, [loading])
 
   const handleTransactionClick = useCallback(
     (transaction: TransactionDetails) => {
@@ -212,9 +206,10 @@ export const MiniActivityTable = memo(function MiniActivityTable({
           alignItems="center"
           gap="$gap8"
           onPress={handleSeeAllActivity}
-          data-testid={TestID.PortfolioOverviewViewAllActivity}
+          testID={TestID.PortfolioOverviewViewAllActivity}
         >
-          <Text variant="body3" color="$neutral2">
+          {/* hoverStyle replaces the legacy TouchableArea hover-color injection, which skips mycelium children */}
+          <Text variant="body3" color="$neutral2" hoverStyle={{ color: '$neutral2Hovered' }}>
             {t('portfolio.overview.activity.seeAllActivity')}
           </Text>
           <RotateRight color="$neutral1" size="$icon.16" />

@@ -37,6 +37,7 @@ vi.mock('~/hooks/useBlockTimestamp', () => ({
 
 vi.mock('~/features/Toucan/Config/config', () => ({
   getAuctionMetadata: () => undefined,
+  getAuctionLpPercentOverride: () => undefined,
 }))
 
 const CHAIN_ID = 1

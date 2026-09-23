@@ -1,4 +1,4 @@
-import { Flex } from 'ui/src/components/layout'
+import { Flex } from '@universe/mycelium'
 import { ShineProps } from 'ui/src/loading/ShineProps'
 import { useInjectSingleStylesheet } from 'utilities/src/react/useInjectSingleStylesheet'
 
@@ -16,6 +16,7 @@ const KEYFRAMES_CSS = `
 
 export function Shine({ shimmerDurationSeconds = 1, children, disabled, ...rest }: ShineProps): JSX.Element {
   useInjectSingleStylesheet({ id: CSS_RULE_ID, css: KEYFRAMES_CSS, active: !disabled })
+  const platformDelay = rest['$platform-web']?.animationDelay
 
   return (
     <Flex
@@ -30,7 +31,7 @@ export function Shine({ shimmerDurationSeconds = 1, children, disabled, ...rest 
               animationDuration: `${shimmerDurationSeconds}s`,
               animationTimingFunction: 'linear',
               animationIterationCount: 'infinite',
-              animationDelay: rest['$platform-web']?.animationDelay,
+              animationDelay: typeof platformDelay === 'string' ? platformDelay : undefined,
             }
       }
     >

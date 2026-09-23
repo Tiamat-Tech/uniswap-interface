@@ -1,5 +1,4 @@
-import { Flex } from 'ui/src'
-import { zIndexes } from 'ui/src/theme'
+import { Flex, zIndexes } from '@universe/mycelium'
 import { CarouselScrollButton } from '~/components/TokenCardCarousel/CarouselScrollButton'
 
 const ARROW_HIDE_OFFSET = {
@@ -32,7 +31,8 @@ export function CarouselScrollButtonOverlay({
       zIndex={zIndexes.dropdown}
       opacity={visible ? 1 : 0}
       pointerEvents={visible ? 'auto' : 'none'}
-      $platform-web={{
+      // Transform is computed from runtime visibility state, so it stays an inline style rather than a class.
+      style={{
         transform: `translateX(${visible ? 0 : hideOffset}px)`,
         transition: ARROW_TRANSITION,
       }}

@@ -1,11 +1,11 @@
+import { UniverseChainId, areEvmAddressesEqual } from '@universe/chains'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { ArrowRight } from '@universe/mycelium/icons/ArrowRight'
+import { CoinConvert } from '@universe/mycelium/icons/CoinConvert'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { ArrowRight } from 'ui/src/components/icons/ArrowRight'
-import { CoinConvert } from 'ui/src/components/icons/CoinConvert'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { NATIVE_CHAIN_ID } from '~/constants/tokens'
 import { useTokenBalances } from '~/hooks/useTokenBalances'
 
@@ -45,11 +45,7 @@ export function NoBidTokenBanner({
           if (isNativeBidToken && currency.isNative) {
             return false
           }
-          if (
-            !isNativeBidToken &&
-            !currency.isNative &&
-            currency.address.toLowerCase() === bidCurrencyAddress.toLowerCase()
-          ) {
+          if (!isNativeBidToken && !currency.isNative && areEvmAddressesEqual(currency.address, bidCurrencyAddress)) {
             return false
           }
         }

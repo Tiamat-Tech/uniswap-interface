@@ -2,41 +2,28 @@ import { useQueryClient } from '@tanstack/react-query'
 import { HomeTab } from 'src/screens/HomeScreen/portfolio/types'
 import { useHeartbeatCoordinator } from 'src/utils/useHeartbeatCoordinator'
 import { NFT_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/dataApiService/nfts/queries'
+import { WALLET_POSITIONS_QUERY_KEY_PREFIX } from 'uniswap/src/data/apiClients/liquidityService/queryKeys'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
 /**
- * Drives synchronized refresh loops for the Home portfolio header + tabs: a 60-second full
- * refresh covering wallet balances and the portfolio value chart (always visible above the
- * tabs), plus a 30-second price-only refresh of wallet balances in between. Tab-specific data
- * only refreshes while its tab is active — the Tokens tab's balance list on both ticks, and
- * positions/NFTs only on the full tick — matching web's Portfolio heartbeat. Every query in a
- * tick fires concurrently so they land as close together as possible.
+ * Drives synchronized refresh loops for the Home portfolio header + tabs: wallet balances on
+ * the 60s full tick only, the Tokens tab balance list on both ticks (30s) while that tab is
+ * active, and positions/NFTs on the full tick while their tab is active. The portfolio value
+ * chart is intentionally not on the tick — the Zerion-backed queries here are scoped to the
+ * active tab and kept at a conservative cadence to limit call volume.
  */
-export function useHomeScreenHeartbeatCoordinator({
-  enabled,
-  activeTab,
-}: {
-  enabled: boolean
-  activeTab: HomeTab | undefined
-}): void {
+export function useHomeScreenHeartbeatCoordinator({ activeTab }: { activeTab: HomeTab | undefined }): void {
   const queryClient = useQueryClient()
 
   const priceRefresh = async (): Promise<void> => {
-    const tasks: Promise<unknown>[] = [
-      queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.GetWalletBalances], type: 'active' }),
-    ]
-
     if (activeTab === HomeTab.Tokens) {
-      tasks.push(queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.GetPortfolio], type: 'active' }))
+      await queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.GetPortfolio], type: 'active' })
     }
-
-    await Promise.allSettled(tasks)
   }
 
   const refresh = async (): Promise<void> => {
     const tasks: Promise<unknown>[] = [
       queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.GetWalletBalances], type: 'active' }),
-      queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.GetPortfolioChart], type: 'active' }),
     ]
 
     if (activeTab === HomeTab.Tokens) {
@@ -44,7 +31,7 @@ export function useHomeScreenHeartbeatCoordinator({
     }
 
     if (activeTab === HomeTab.Pools) {
-      tasks.push(queryClient.refetchQueries({ queryKey: [ReactQueryCacheKey.ListPositions], type: 'active' }))
+      tasks.push(queryClient.refetchQueries({ queryKey: WALLET_POSITIONS_QUERY_KEY_PREFIX, type: 'active' }))
     }
 
     if (activeTab === HomeTab.NFTs) {
@@ -54,5 +41,5 @@ export function useHomeScreenHeartbeatCoordinator({
     await Promise.allSettled(tasks)
   }
 
-  useHeartbeatCoordinator({ refresh, priceRefresh, enabled })
+  useHeartbeatCoordinator({ refresh, priceRefresh })
 }

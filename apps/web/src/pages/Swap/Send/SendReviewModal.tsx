@@ -1,15 +1,16 @@
+import { UniverseChainId } from '@universe/chains'
 import { useGetPasskeyAuthStatus } from '@universe/embedded-wallet'
-import { ReactNode } from 'react'
+import { Flex as FlexCompat, type FlexCompatProps, Flex, Text } from '@universe/mycelium'
+import { forwardRef, type ForwardRefExoticComponent, ReactNode, type RefAttributes } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
 import { capitalize } from 'tsafe'
-import { Button, Flex, Separator, styled, Text } from 'ui/src'
+import { Button, Separator } from 'ui/src'
 import { Passkey } from 'ui/src/components/icons/Passkey'
 import { Unitag } from 'ui/src/components/icons/Unitag'
 import { DynamicSizeText } from 'ui/src/components/text/DynamicSizeText/DynamicSizeText'
 import { AccountIcon } from 'uniswap/src/features/accounts/AccountIcon'
 import { selectHasDismissedLowNetworkTokenWarning } from 'uniswap/src/features/behaviorHistory/selectors'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { useAppFiatCurrency } from 'uniswap/src/features/fiatCurrency/hooks'
 import { useMaxAmountSpend } from 'uniswap/src/features/gas/hooks/useMaxAmountSpend'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
@@ -27,9 +28,12 @@ import { ChainLogo } from '~/components/Logo/ChainLogo'
 import { useAccount } from '~/hooks/useAccount'
 import { useSendContext } from '~/pages/Swap/Send/state/SendContext'
 
-const ReviewContentContainer = styled(Flex, {
-  width: '100%',
-  gap: '$gap16',
+// Explicit return type: forwardRef's inferred type isn't nameable under declaration emit (TS2883).
+const ReviewContentContainer: ForwardRefExoticComponent<FlexCompatProps & RefAttributes<HTMLDivElement>> = forwardRef<
+  HTMLDivElement,
+  FlexCompatProps
+>(function ReviewContentContainer(props, ref) {
+  return <FlexCompat ref={ref} width="100%" gap="$gap16" {...props} />
 })
 
 const SendModalHeader = ({
@@ -149,7 +153,7 @@ export function SendReviewModalInner({ onConfirm, isConfirming, hasError }: Send
                     maxWebFontSize={36}
                     minWebFontSize={24}
                     lineHeight="44px"
-                    color="neutral1"
+                    color="$neutral1"
                     gap="$gap4"
                     floatingSuffix={
                       recipientData.unitag && (

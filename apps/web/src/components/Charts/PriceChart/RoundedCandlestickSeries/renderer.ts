@@ -7,8 +7,8 @@ import {
   CandlestickData,
   ICustomSeriesPaneRenderer,
   PaneRendererCustomData,
+  IRange,
   PriceToCoordinateConverter,
-  Range,
   Time,
   UTCTimestamp,
 } from 'lightweight-charts'
@@ -90,7 +90,7 @@ export class RoundedCandleSeriesRenderer<
   }: {
     renderingScope: BitmapCoordinatesRenderingScope
     bars: readonly BarItem[]
-    visibleRange: Range<number>
+    visibleRange: IRange<number>
   }): void {
     if (this._data === null || this._options === null) {
       return
@@ -126,7 +126,7 @@ export class RoundedCandleSeriesRenderer<
   }: {
     renderingScope: BitmapCoordinatesRenderingScope
     bars: readonly BarItem[]
-    visibleRange: Range<number>
+    visibleRange: IRange<number>
     radius: number
   }): void {
     if (this._data === null || this._options === null) {

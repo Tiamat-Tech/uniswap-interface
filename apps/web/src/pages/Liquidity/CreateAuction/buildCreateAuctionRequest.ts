@@ -25,6 +25,11 @@ import {
   isUnboundedTier,
   parseCompactNumberInput,
 } from '~/pages/Liquidity/CreateAuction/utils'
+import {
+  getAuctionOpenTime,
+  getEffectivePreBidStartTime,
+  isPreBidRangeValid,
+} from '~/pages/Liquidity/CreateAuction/utils/duration'
 
 export interface BuildCreateAuctionRequestParams {
   tokenForm: TokenFormState
@@ -42,6 +47,14 @@ export interface BuildCreateAuctionRequestParams {
    */
   xVerificationToken?: string | null
   simulateTransaction?: boolean
+  /**
+   * Whether the wizard is in quick-launch mode (`useIsQuickLaunchMode`). The decoupled graduation
+   * price is a quick-launch-only preset, so field 8 (`graduation_price_raise_per_token`) is emitted
+   * ONLY when this is true — a belt-and-suspenders guard so a stale `configureAuction.graduationPrice`
+   * left over from a quick-launch handoff can never leak onto a manual (user-configured) auction,
+   * which the creator never chose and cannot see, on an immutable auction.
+   */
+  isQuickLaunch: boolean
 }
 
 function toUnixSeconds(date: Date): bigint {
@@ -221,6 +234,49 @@ function toLiquidityLock(
 }
 
 /**
+ * Builds the request's `token_info` oneof. A new token sends the mint parameters; an existing
+ * token sends only its address (the launch amount rides on `auction.auctionSupply`, pulled from
+ * the wallet, which keeps whatever it does not deposit).
+ *
+ * `existingTokenAddress` is guaranteed non-empty in existing mode by the caller's guard.
+ */
+function toTokenInfo({
+  tokenForm,
+  totalSupplyRaw,
+  existingTokenAddress,
+  xVerificationToken,
+}: {
+  tokenForm: TokenFormState
+  totalSupplyRaw: string
+  existingTokenAddress: string | undefined
+  xVerificationToken?: string | null
+}): PartialMessage<CreateAuctionRequest>['tokenInfo'] {
+  if (tokenForm.mode !== TokenMode.CREATE_NEW) {
+    return { source: { case: 'existing', value: { tokenAddress: existingTokenAddress ?? '' } } }
+  }
+  const hasXVerification = xVerificationToken != null && xVerificationToken !== ''
+  return {
+    source: {
+      case: 'newToken',
+      value: {
+        // Token standard is chain-driven on the backend (NewTokenConfig.standard was removed /
+        // reserved in proto 1.3.3), so it is no longer sent from the client.
+        name: tokenForm.name,
+        symbol: tokenForm.symbol,
+        // A new token mints its full configured supply; all of it is deposited into the auction
+        // and the un-auctioned remainder is returned to the creator via auction.returnedSupply.
+        totalSupply: totalSupplyRaw,
+        metadata: {
+          description: tokenForm.description,
+          image: tokenForm.imageUrl,
+          ...(hasXVerification ? { xVerificationToken } : {}),
+        },
+      },
+    },
+  }
+}
+
+/**
  * Maps the CreateAuction wizard state into the wizard-level `CreateAuctionRequest` the
  * liquidity service expects. The backend translates these into contract-native params.
  *
@@ -230,10 +286,28 @@ function toLiquidityLock(
 export function buildCreateAuctionRequest(
   params: BuildCreateAuctionRequestParams,
 ): PartialMessage<CreateAuctionRequest> | undefined {
-  const { tokenForm, configureAuction, customizePool, walletAddress, currencyAddress, salt } = params
-  const { committed, startTime, endTime } = configureAuction
+  const { tokenForm, configureAuction, customizePool, walletAddress, currencyAddress, salt, isQuickLaunch } = params
+  const { committed, startTime, endTime, preBidStartTime } = configureAuction
 
   if (!committed || !startTime || !endTime) {
+    return undefined
+  }
+
+  // Pre-bid is a manual-wizard feature; quick launch has no module for it and never shows one.
+  // Gate on the MODE, not just the value — the mirror of the field-8 hygiene below. Without this,
+  // a window configured in the advanced flow survives a switch into quick launch and either ships
+  // a pre-bid period the creator was never shown (on an immutable auction), or — if the preset's
+  // own start lands before the stale value — trips the ordering guard below and disables the
+  // launch button pointing at a field quick launch does not render. The store clears it on the
+  // toggle too; this is the belt to that pair of braces. The gate lives in
+  // `getEffectivePreBidStartTime` so the staleness guard and the review step's date rows
+  // describe the same auction this builds.
+  const effectivePreBidStartTime = getEffectivePreBidStartTime({ preBidStartTime, isQuickLaunch })
+
+  // An out-of-order pre-bid window is incomplete config, not something to silently drop:
+  // sending it as a plain auction would launch a window the creator explicitly asked for and
+  // cannot see is missing. Suppress the request so the launch button stays disabled instead.
+  if (!isPreBidRangeValid({ startTime, preBidStartTime: effectivePreBidStartTime })) {
     return undefined
   }
 
@@ -280,40 +354,12 @@ export function buildCreateAuctionRequest(
   const burnLiquidity = shouldBurnLiquidity(customizePool)
   const resolvedPoolOwner = isAddress(customizePool.poolOwner) ? customizePool.poolOwner : walletAddress
 
-  const tokenInfo: PartialMessage<CreateAuctionRequest>['tokenInfo'] =
-    tokenForm.mode === TokenMode.CREATE_NEW
-      ? {
-          source: {
-            case: 'newToken',
-            value: {
-              // Token standard is chain-driven on the backend (NewTokenConfig.standard was removed /
-              // reserved in proto 1.3.3), so it is no longer sent from the client.
-              name: tokenForm.name,
-              symbol: tokenForm.symbol,
-              // A new token mints its full configured supply; all of it is deposited into the auction
-              // and the un-auctioned remainder is returned to the creator via auction.returnedSupply.
-              totalSupply: committed.totalSupply.quotient.toString(),
-              metadata: {
-                description: tokenForm.description,
-                image: tokenForm.imageUrl,
-                ...(params.xVerificationToken != null && params.xVerificationToken !== ''
-                  ? { xVerificationToken: params.xVerificationToken }
-                  : {}),
-              },
-            },
-          },
-        }
-      : {
-          source: {
-            case: 'existing',
-            value: {
-              // No supply field for existing tokens: the launch amount is auction.auctionSupply,
-              // pulled from the wallet (which keeps whatever it does not deposit). Guaranteed
-              // non-empty/valid by the existing-mode guard above.
-              tokenAddress: existingTokenAddress ?? '',
-            },
-          },
-        }
+  const tokenInfo = toTokenInfo({
+    tokenForm,
+    totalSupplyRaw: committed.totalSupply.quotient.toString(),
+    existingTokenAddress,
+    xVerificationToken: params.xVerificationToken,
+  })
 
   return {
     chainId: universeChainId as ChainId,
@@ -323,9 +369,31 @@ export function buildCreateAuctionRequest(
     tokenInfo,
     auction: {
       currencyAddress: currencyAddress || zeroAddress,
-      startTimeUnix: toUnixSeconds(startTime),
+      // `start_time_unix` is when the auction OPENS for bids, which is the contract's
+      // startBlock — with a pre-bid window that is `preBidStartTime`, not the wizard's
+      // "Start date". The wizard's start date is where token emission begins, which is what
+      // `prebid_end_time_unix` carries. Without a pre-bid window the two coincide and this
+      // sends exactly what it always sent.
+      //
+      // VERSION SKEW: field 9 is new in @uniswap/client-liquidity 1.4.43. A liquidity service
+      // predating it drops `prebid_end_time_unix` but still honours this field — so it would
+      // emit from the PRE-BID start, beginning distribution earlier than the configured start
+      // date with the ramp stretched over the pre-bid span, on an immutable auction. Not merely
+      // "the window is ignored". Nothing here gates on server support: the guarantee is deploy
+      // order (the service ships and is verified before this does), so a rollback below 1.4.43
+      // while this is live reopens it silently.
+      startTimeUnix: toUnixSeconds(getAuctionOpenTime({ startTime, preBidStartTime: effectivePreBidStartTime })),
       endTimeUnix: toUnixSeconds(endTime),
+      prebidEndTimeUnix: effectivePreBidStartTime ? toUnixSeconds(startTime) : undefined,
       floorPriceRaisePerToken: toCanonicalDecimalString(configureAuction.floorPrice),
+      // Quick-launch only: decouples the graduation threshold from the floor — the backend uses
+      // graduationPrice x soldSupply instead of floor x soldSupply. Gated on `isQuickLaunch` (not
+      // just the pin's presence) so a stale pin from a quick-launch handoff can never leak field 8
+      // onto a manual auction. The pin is also cleared on every quick-launch exit path in the store.
+      graduationPriceRaisePerToken:
+        isQuickLaunch && configureAuction.graduationPrice
+          ? toCanonicalDecimalString(configureAuction.graduationPrice)
+          : undefined,
       // `auctionSupply` is everything deposited into the auction contract (sold + reservedSupplyForLp
       // + returnedSupply); the backend derives sold = auctionSupply − reservedSupplyForLp −
       // returnedSupply. returnedSupply is omitted when zero (backend treats empty as 0) — existing

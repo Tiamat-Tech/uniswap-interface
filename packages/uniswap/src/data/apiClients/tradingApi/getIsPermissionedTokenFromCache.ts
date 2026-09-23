@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { V1_TRADING_API_PATHS, type CheckPermissionsResponse } from '@universe/api'
+import { normalizeTokenAddressForCache } from '@universe/chains'
 import { hasKnownPermissionedToken } from 'uniswap/src/data/apiClients/tradingApi/permissionedTokenStatusCache'
 import { ReactQueryCacheKey } from 'utilities/src/reactQuery/cache'
 
@@ -22,13 +23,34 @@ export function getIsPermissionedTokenFromCache({
   tokenAddresses: (string | undefined)[]
   chainId: number | undefined
 }): boolean {
+  return getIsPermissionedStatusFromCache({ queryClient, tokenAddresses, chainId }) === true
+}
+
+/**
+ * Tri-state variant for analytics, where `false` must mean "resolved and not permissioned",
+ * never "not known yet":
+ * - `true`: at least one token is confirmed permissioned
+ * - `false`: every token has a resolved `/permissions` answer and none is permissioned
+ * - `undefined`: the cache can't answer yet (cold cache, missing chainId, no tokens)
+ */
+export function getIsPermissionedStatusFromCache({
+  queryClient,
+  tokenAddresses,
+  chainId,
+}: {
+  queryClient: QueryClient
+  tokenAddresses: (string | undefined)[]
+  chainId: number | undefined
+}): boolean | undefined {
   if (!chainId) {
-    return false
+    return undefined
   }
 
-  const targets = new Set(tokenAddresses.filter((address): address is string => !!address).map((a) => a.toLowerCase()))
+  const targets = new Set(
+    tokenAddresses.filter((address): address is string => !!address).map((a) => normalizeTokenAddressForCache(a)),
+  )
   if (targets.size === 0) {
-    return false
+    return undefined
   }
 
   // SHORT-TERM: a token previously confirmed permissioned is remembered across reloads,
@@ -43,12 +65,24 @@ export function getIsPermissionedTokenFromCache({
     queryKey: [ReactQueryCacheKey.TradingApi, V1_TRADING_API_PATHS.checkPermissions],
   })
 
-  return entries.some(([queryKey, data]) => {
+  const resolved = new Set<string>()
+  for (const [queryKey, data] of entries) {
     if (!data || getChainIdFromPermissionsKey(queryKey) !== chainId) {
-      return false
+      continue
     }
-    return data.results.some((result) => result.isPermissioned && targets.has(result.token.toLowerCase()))
-  })
+    for (const result of data.results) {
+      const token = normalizeTokenAddressForCache(result.token)
+      if (!targets.has(token)) {
+        continue
+      }
+      if (result.isPermissioned) {
+        return true
+      }
+      resolved.add(token)
+    }
+  }
+
+  return resolved.size === targets.size ? false : undefined
 }
 
 // The query params (with `chainId`) are the third element of the `useCheckPermissionsQuery`

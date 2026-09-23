@@ -1,6 +1,7 @@
 import { TokensOrderBy } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import { CustomRankingType, RankingType } from '@universe/api'
-import { AppTFunction } from 'ui/src/i18n/types'
+import { AppTFunction } from 'utilities/src/i18n/types'
+import { logger } from 'utilities/src/logger/logger'
 import { ExploreOrderBy, TokenMetadataDisplayType } from 'wallet/src/features/wallet/types'
 
 export interface V2TokensSort {
@@ -29,7 +30,7 @@ export function exploreOrderByToV2Sort(orderBy: ExploreOrderBy): V2TokensSort {
   }
 }
 
-export function getTokenMetadataDisplayType(orderBy: ExploreOrderBy): TokenMetadataDisplayType {
+export function getTokenMetadataDisplayType(orderBy: ExploreOrderBy): TokenMetadataDisplayType | null {
   switch (orderBy) {
     case RankingType.MarketCap:
       return TokenMetadataDisplayType.MarketCap
@@ -41,7 +42,12 @@ export function getTokenMetadataDisplayType(orderBy: ExploreOrderBy): TokenMetad
     case CustomRankingType.PricePercentChange1DayAsc:
       return TokenMetadataDisplayType.Symbol
     default:
-      throw new Error('Unexpected order by value ' + orderBy)
+      logger.warn(
+        'explore/utils.ts',
+        'getTokenMetadataDisplayType',
+        'Unexpected order by value in getTokenMetadataDisplayType: ' + orderBy,
+      )
+      return null
   }
 }
 

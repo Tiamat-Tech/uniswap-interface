@@ -88,4 +88,27 @@ describe('useIsStepValid', () => {
   it('always allows the review step', () => {
     expect(renderStepValid(buildConfiguredStore(), CreateAuctionStep.REVIEW_LAUNCH)).toBe(true)
   })
+
+  describe('pre-bid window', () => {
+    it('accepts a window that opens before the start date', () => {
+      const store = buildConfiguredStore()
+      store.getState().actions.setPreBidStartTime(new Date(Date.now() + MS_PER_DAY - 15 * 60_000))
+      expect(renderStepValid(store, CreateAuctionStep.CONFIGURE_AUCTION)).toBe(true)
+    })
+
+    it('rejects a pre-bid start that is not before the start date', () => {
+      const store = buildConfiguredStore()
+      const { startTime } = store.getState().configureAuction
+      store.getState().actions.setPreBidStartTime(startTime)
+      expect(renderStepValid(store, CreateAuctionStep.CONFIGURE_AUCTION)).toBe(false)
+    })
+
+    it('applies the min-lead rule to the pre-bid start, since that is when the auction opens', () => {
+      const store = buildConfiguredStore()
+      // The start date is a day out and would pass on its own; the pre-bid start is what the
+      // wallet would actually be asked to open, and it is already in the past.
+      store.getState().actions.setPreBidStartTime(new Date(Date.now() - 60_000))
+      expect(renderStepValid(store, CreateAuctionStep.CONFIGURE_AUCTION)).toBe(false)
+    })
+  })
 })

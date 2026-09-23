@@ -1,67 +1,59 @@
-import React, { forwardRef } from 'react'
-import { Input, styled, type GetProps } from 'ui/src'
+import React, { type ElementRef, forwardRef, type ForwardRefExoticComponent, type RefAttributes } from 'react'
+import { Input as BaseInput, type InputProps as BaseInputProps } from 'ui/src'
+import { defaultWeights } from 'ui/src/theme'
 import { Locale } from 'uniswap/src/features/language/constants'
 import { useCurrentLocale } from 'uniswap/src/features/language/hooks'
 import { escapeRegExp } from '~/utils/escapeRegExp'
 
-export const StyledInput = styled(Input, {
-  unstyled: true,
-  name: 'NumericalStyledInput',
-  width: 0,
-  minWidth: 0,
-  position: 'relative',
-  fontFamily: '$body',
-  fontWeight: '$book',
-  outlineWidth: 0,
-  borderWidth: 0,
-  flexGrow: 1,
-  flexShrink: 1,
-  flexBasis: 'auto',
-  backgroundColor: 'transparent',
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  padding: 0,
-  color: '$neutral1',
-  placeholderTextColor: '$neutral2',
+/** Larger left-aligned type used by swap / limit amount fields. */
+export type AmountLayout = 'default' | 'swapCurrency'
 
-  focusStyle: {
-    outlineWidth: 0,
-    outlineStyle: 'none',
-    borderWidth: 0,
-    boxShadow: 'none',
-  },
+export type StyledInputProps = BaseInputProps & {
+  amountLayout?: AmountLayout
+}
 
-  focusVisibleStyle: {
-    outlineWidth: 0,
-    outlineStyle: 'none',
-    borderWidth: 0,
-    boxShadow: 'none',
-  },
+// Spread before `{...rest}` so a call site still beats the layout.
+const AMOUNT_LAYOUT_PROPS = {
+  default: { fontSize: 28, textAlign: 'right' },
+  swapCurrency: { fontSize: 36, textAlign: 'left', maxHeight: 44 },
+} as const satisfies Record<AmountLayout, BaseInputProps>
 
-  '$platform-web': {
-    outlineStyle: 'none',
-    outlineWidth: 0,
-  },
-
-  variants: {
-    amountLayout: {
-      default: {
-        fontSize: 28,
-        textAlign: 'right',
-      },
-      swapCurrency: {
-        fontSize: 36,
-        textAlign: 'left',
-        maxHeight: 44,
-      },
-    },
-  } as const,
-
-  defaultVariants: {
-    amountLayout: 'default',
-  },
-})
+// Explicit return type: see "TS2883 on exported forwardRef wrappers" in packages/mycelium/CLAUDE.md.
+export const StyledInput: ForwardRefExoticComponent<StyledInputProps & RefAttributes<ElementRef<typeof BaseInput>>> =
+  forwardRef<ElementRef<typeof BaseInput>, StyledInputProps>(function StyledInput(
+    { amountLayout = 'default', '$platform-web': platformWeb, ...rest },
+    ref,
+  ) {
+    return (
+      <BaseInput
+        ref={ref}
+        unstyled
+        width={0}
+        minWidth={0}
+        position="relative"
+        fontFamily="$body"
+        // Literal weight: the Input's own token resolution is the only font layer here.
+        fontWeight={defaultWeights.book}
+        outlineWidth={0}
+        borderWidth={0}
+        flexGrow={1}
+        flexShrink={1}
+        flexBasis="auto"
+        backgroundColor="transparent"
+        whiteSpace="nowrap"
+        overflow="hidden"
+        textOverflow="ellipsis"
+        padding={0}
+        color="$neutral1"
+        placeholderTextColor="$neutral2"
+        // No focusStyle/focusVisibleStyle: their values already hold at rest, and the Input spreads
+        // focusStyle after the RN `style` prop, so passing them would let focus beat inline `style`.
+        $platform-web={{ outlineStyle: 'none', outlineWidth: 0, ...platformWeb }}
+        {...AMOUNT_LAYOUT_PROPS[amountLayout]}
+        {...rest}
+      />
+    )
+  })
 
 export function localeUsesComma(locale: Locale): boolean {
   const decimalSeparator = new Intl.NumberFormat(locale).format(1.1)[1]
@@ -71,10 +63,10 @@ export function localeUsesComma(locale: Locale): boolean {
 
 const inputRegex = RegExp(`^\\d*(?:\\\\[.])?\\d*$`) // match escaped "." characters via in a non-capturing group
 
-/** Tamagui `Input` props accepted by `StyledInput`, excluding fields owned by numerical-input logic. */
-export type NumericalInputTamaguiPassthrough = Omit<
-  GetProps<typeof StyledInput>,
-  'value' | 'onChangeText' | 'onChange' | 'defaultValue'
+/** `ui/src` Input props accepted by `StyledInput`, excluding fields owned by numerical-input logic. */
+export type NumericalInputPassthrough = Omit<
+  StyledInputProps,
+  'value' | 'onChangeText' | 'onChange' | 'defaultValue' | 'amountLayout'
 >
 
 export type NumericalInputOwnProps = {
@@ -84,10 +76,10 @@ export type NumericalInputOwnProps = {
   maxDecimals?: number
   testId?: string
   /** Larger left-aligned type used by swap / limit amount fields */
-  amountLayout?: 'default' | 'swapCurrency'
+  amountLayout?: AmountLayout
 }
 
-export type InputProps = NumericalInputTamaguiPassthrough & NumericalInputOwnProps
+export type InputProps = NumericalInputPassthrough & NumericalInputOwnProps
 
 export function isInputGreaterThanDecimals(value: string, maxDecimals?: number): boolean {
   const decimalGroups = value.split('.')
@@ -108,12 +100,6 @@ const InputInner = forwardRef<NumericalInputRef, InputProps>(
       amountLayout = 'default',
       disabled,
       maxLength = 79,
-      // Pulled out so we can apply after `amountLayout` variant (Send / shared) without relying on spread order.
-      fontSize: fontSizeProp,
-      lineHeight: lineHeightProp,
-      width: widthProp,
-      maxWidth: maxWidthProp,
-      maxHeight: maxHeightProp,
       ...rest
     }: InputProps,
     ref,
@@ -168,11 +154,6 @@ const InputInner = forwardRef<NumericalInputRef, InputProps>(
         maxLength={maxLength}
         spellCheck={false}
         {...rest}
-        {...(fontSizeProp !== undefined ? { fontSize: fontSizeProp } : {})}
-        {...(lineHeightProp !== undefined ? { lineHeight: lineHeightProp } : {})}
-        {...(widthProp !== undefined ? { width: widthProp } : {})}
-        {...(maxWidthProp !== undefined ? { maxWidth: maxWidthProp } : {})}
-        {...(maxHeightProp !== undefined ? { maxHeight: maxHeightProp } : {})}
       />
     )
   },

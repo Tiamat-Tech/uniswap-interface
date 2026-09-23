@@ -1,6 +1,6 @@
+import { Platform } from '@universe/chains'
+import { Button, Flex } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex } from 'ui/src'
-import { Platform } from 'uniswap/src/features/platforms/types/Platform'
 import { MenuStateVariant, useSetMenu } from '~/components/AccountDrawer/menuState'
 import { useAccountDrawer } from '~/components/AccountDrawer/MiniPortfolio/hooks'
 import {

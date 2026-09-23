@@ -1,10 +1,10 @@
+import { Anchor, Flex, Text, TouchableArea } from '@universe/mycelium'
+import { BookOpen } from '@universe/mycelium/icons/BookOpen'
+import { ExternalLink } from '@universe/mycelium/icons/ExternalLink'
+import { GraduationCap } from '@universe/mycelium/icons/GraduationCap'
+import { SpeechBubbles } from '@universe/mycelium/icons/SpeechBubbles'
+import { X } from '@universe/mycelium/icons/X'
 import { useTranslation } from 'react-i18next'
-import { Anchor, Flex, Text, TouchableArea } from 'ui/src'
-import { BookOpen } from 'ui/src/components/icons/BookOpen'
-import { ExternalLink } from 'ui/src/components/icons/ExternalLink'
-import { GraduationCap } from 'ui/src/components/icons/GraduationCap'
-import { SpeechBubbles } from 'ui/src/components/icons/SpeechBubbles'
-import { X } from 'ui/src/components/icons/X'
 import { UniswapHelpUrls, UniswapStaticUrls } from 'uniswap/src/constants/urls'
 import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 
@@ -42,7 +42,6 @@ export function HelpContent({ onClose }: HelpContentProps) {
       borderColor="$surface3"
       backgroundColor="$surface2"
       userSelect="none"
-      boxShadow="$shadow.1"
       data-testid={TestID.HelpModal}
     >
       <Flex row justifyContent="space-between" alignItems="center">

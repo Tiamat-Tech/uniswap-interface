@@ -35,7 +35,7 @@ describe('PoolDetailsTransactionsTable', () => {
   it('renders loading state', () => {
     mocked(usePoolTransactions).mockReturnValue({
       loading: true,
-      error: undefined,
+      error: null,
       transactions: [],
       loadMore: vi.fn(),
     })
@@ -83,7 +83,7 @@ describe('PoolDetailsTransactionsTable', () => {
     mocked(usePoolTransactions).mockReturnValue({
       transactions: mockData,
       loading: false,
-      error: undefined,
+      error: null,
       loadMore: vi.fn(),
     })
     mocked(useAbbreviatedTimeString).mockReturnValue('1mo ago')

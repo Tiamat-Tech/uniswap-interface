@@ -6,6 +6,7 @@ import { create, useStore } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import { useShallow } from 'zustand/react/shallow'
 import { TimePeriod } from '~/data/util'
+import { EMPTY_POOLS_FILTER_STATE, type PoolsAprRange, type PoolsFilterState } from '~/types/poolsFilter'
 
 /**
  * Single-select auction filter shared by the quick-filter pills and the Status dropdown.
@@ -26,6 +27,8 @@ interface ExploreTablesFilterActions {
   setTimePeriod: (period: TimePeriod) => void
   setQuickFilter: (filter: AuctionQuickFilter) => void
   setSelectedProtocol: (protocol: ProtocolVersion) => void
+  setPoolsFilter: (filter: PoolsFilterState) => void
+  setPoolsAprRange: (range: PoolsAprRange | undefined) => void
 }
 
 interface ExploreTablesFilterState {
@@ -33,6 +36,10 @@ interface ExploreTablesFilterState {
   timePeriod: TimePeriod
   quickFilter: AuctionQuickFilter
   selectedProtocol: ProtocolVersion
+  /** Advanced pools filter (behind the AdvancedPoolsFiltering flag); committed by the modal's Apply button. */
+  poolsFilter: PoolsFilterState
+  /** APR range of the Pools table's loaded rows; the table publishes it so the filter modal can hint it. */
+  poolsAprRange?: PoolsAprRange
   actions: ExploreTablesFilterActions
 }
 
@@ -43,19 +50,23 @@ const INITIAL_TIME_PERIOD = TimePeriod.DAY
 const INITIAL_QUICK_FILTER = AuctionQuickFilter.All
 const INITIAL_PROTOCOL = ProtocolVersion.UNSPECIFIED
 
-export function createExploreTablesFilterStore(): ExploreTablesFilterStore {
+export function createExploreTablesFilterStore(initialQuickFilter?: AuctionQuickFilter): ExploreTablesFilterStore {
   return create<ExploreTablesFilterState>()(
     devtools(
       (set) => ({
         filterString: INITIAL_FILTER_STRING,
         timePeriod: INITIAL_TIME_PERIOD,
-        quickFilter: INITIAL_QUICK_FILTER,
+        quickFilter: initialQuickFilter ?? INITIAL_QUICK_FILTER,
         selectedProtocol: INITIAL_PROTOCOL,
+        poolsFilter: EMPTY_POOLS_FILTER_STATE,
+        poolsAprRange: undefined,
         actions: {
           setFilterString: (value) => set({ filterString: value }),
           setTimePeriod: (period) => set({ timePeriod: period }),
           setQuickFilter: (filter) => set({ quickFilter: filter }),
           setSelectedProtocol: (protocol) => set({ selectedProtocol: protocol }),
+          setPoolsFilter: (filter) => set({ poolsFilter: filter }),
+          setPoolsAprRange: (range) => set({ poolsAprRange: range }),
         },
       }),
       {
@@ -70,8 +81,15 @@ export function createExploreTablesFilterStore(): ExploreTablesFilterStore {
 
 const ExploreTablesFilterStoreContext = createContext<ExploreTablesFilterStore | null>(null)
 
-export function ExploreTablesFilterStoreContextProvider({ children }: { children: React.ReactNode }): JSX.Element {
-  const [store] = useState(() => createExploreTablesFilterStore())
+export function ExploreTablesFilterStoreContextProvider({
+  children,
+  initialQuickFilter,
+}: {
+  children: React.ReactNode
+  /** Seeds the auction quick filter (e.g. from the URL) at store creation. */
+  initialQuickFilter?: AuctionQuickFilter
+}): JSX.Element {
+  const [store] = useState(() => createExploreTablesFilterStore(initialQuickFilter))
 
   return <ExploreTablesFilterStoreContext.Provider value={store}>{children}</ExploreTablesFilterStoreContext.Provider>
 }

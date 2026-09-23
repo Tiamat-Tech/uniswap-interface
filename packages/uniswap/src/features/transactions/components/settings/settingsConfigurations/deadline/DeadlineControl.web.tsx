@@ -1,6 +1,6 @@
+import { Flex, Input, Text } from '@universe/mycelium'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Input, Text } from 'ui/src'
 import { useDeadlineSettings } from 'uniswap/src/features/transactions/components/settings/settingsConfigurations/deadline/useDeadlineSettings'
 
 const INPUT_MIN_WIDTH = 44
@@ -38,7 +38,7 @@ export function DeadlineControl(): JSX.Element {
       <Flex
         row
         backgroundColor={backgroundColor}
-        borderColor={isEditingDeadline ? '$DEP_accentSoft' : '$surface3'}
+        borderColor={isEditingDeadline ? '$accent1' : '$surface3'}
         borderRadius="$rounded16"
         $group-hover={{ borderColor: '$surface3Hovered', backgroundColor: '$surface1Hovered' }}
         borderWidth="$spacing1"
@@ -47,10 +47,11 @@ export function DeadlineControl(): JSX.Element {
         onPress={onFocusDeadlineInput}
       >
         <Flex row alignItems="center" pr="$spacing8" gap="$spacing4">
+          {/* Transparent so the row's background (and its group-hover swap) shows through — the
+              compat Input's groupHoverStyle only binds to legacy t_group anchors (INFRA-3958). */}
           <Input
             ref={inputRef}
-            backgroundColor={backgroundColor}
-            $group-hover={{ backgroundColor: '$surface1Hovered' }}
+            backgroundColor="$transparent"
             color="$neutral1"
             editable={true}
             fontFamily="$subHeading"

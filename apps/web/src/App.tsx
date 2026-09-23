@@ -1,9 +1,10 @@
 import { EXTENSION_PASSKEY_AUTH_PATH } from '@universe/embedded-wallet'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { useEffect, useLayoutEffect } from 'react'
 import { Helmet } from 'react-helmet-async/lib/index'
 import { Navigate, useLocation } from 'react-router'
-import { useSporeColors } from 'ui/src'
 import { initializeScrollWatcher } from 'uniswap/src/components/modals/ScrollLock'
+import { usePoolsBalanceCoachmarkStateInit } from 'uniswap/src/features/portfolio/PortfolioBalance/usePoolsBalanceCoachmarkStateInit'
 import Trace from 'uniswap/src/features/telemetry/Trace'
 import { ResetPageScrollEffect } from '~/app/bootstrap/ResetPageScroll'
 import { ResetPortfolioChainOnEntryEffect } from '~/app/bootstrap/ResetPortfolioChainOnEntry'
@@ -33,6 +34,7 @@ export function App() {
   const { embedded, view: embedView } = useEmbedSession()
 
   useFeatureFlagUrlOverrides()
+  usePoolsBalanceCoachmarkStateInit()
 
   useEffect(() => {
     initializeScrollWatcher()

@@ -1,14 +1,23 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { RotatableChevron } from '@universe/mycelium/icons/RotatableChevron'
 import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, TouchableArea } from 'ui/src'
-import { RotatableChevron } from 'ui/src/components/icons/RotatableChevron'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import {
   formatPriceRangeBound,
   normalizeSignedInput,
 } from '~/pages/Liquidity/CreateAuction/components/customPriceRangeEditorFormatting'
-import { PriceBoundColumnHeader } from '~/pages/Liquidity/CreateAuction/components/CustomPriceRangeEditorTable'
+import {
+  FullRangeRemainderHelp,
+  PriceBoundColumnHeader,
+} from '~/pages/Liquidity/CreateAuction/components/CustomPriceRangeEditorTable'
 import { type CustomPriceRangeEntry } from '~/pages/Liquidity/CreateAuction/types'
+import {
+  CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS,
+  FULL_RANGE_REMAINDER_BOUNDS,
+  getCustomPriceRangeFullRangeRemainderPercent,
+  shouldShowFullRangeRemainder,
+} from '~/pages/Liquidity/CreateAuction/utils'
 
 const REVIEW_PRICE_RANGE_ROW_MIN_HEIGHT_PX = 29
 
@@ -67,12 +76,22 @@ function ReviewTableHeaderLabel({ children }: { children: ReactNode }) {
   )
 }
 
-function ReviewPriceRangeValueCell({ children }: { children: string }) {
+function ReviewPriceRangeValueCell({
+  children,
+  accessibilityLabel,
+  adornment,
+}: {
+  children: string
+  /** Names the value for assistive tech; the remainder row has no visible label of its own. */
+  accessibilityLabel?: string
+  adornment?: ReactNode
+}) {
   return (
-    <Flex flex={1} flexBasis={0} minWidth={0} width="100%" justifyContent="center">
-      <Text variant="body4" color="$neutral1" numberOfLines={2}>
+    <Flex flex={1} flexBasis={0} minWidth={0} width="100%" row alignItems="center" gap="$spacing6">
+      <Text variant="body4" color="$neutral1" numberOfLines={2} aria-label={accessibilityLabel}>
         {children}
       </Text>
+      {adornment}
     </Flex>
   )
 }
@@ -89,8 +108,18 @@ export function ReviewCustomPriceRangeExpandable({
   const { t } = useTranslation()
   const { formatPercent } = useLocalizationContext()
   const [expanded, setExpanded] = useState(false)
+  // The full-range position the migrator opens for whatever the ranges leave unallocated. Shown
+  // here for the same reason as in the editor: it is part of the launch being reviewed.
+  const remainderPercent = getCustomPriceRangeFullRangeRemainderPercent(entries)
+  const showRemainderRow = shouldShowFullRangeRemainder(entries)
+  // This is the last screen before signing, and the remainder is a row the user never typed. It
+  // carries the editor's explanation and the same per-field names, so neither a reader nor a screen
+  // reader meets an unexplained range here.
+  const remainderFieldLabel = (field: string): string =>
+    t('toucan.createAuction.step.customizePool.priceRange.custom.fullRangeRemainderFieldLabel', { field })
 
-  const formatFinitePercentValue = (value: number): string => normalizeSignedInput(formatPercent(value, 4))
+  const formatFinitePercentValue = (value: number): string =>
+    normalizeSignedInput(formatPercent(value, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS))
 
   const handleToggleExpanded = (): void => {
     setExpanded((prev) => !prev)
@@ -156,13 +185,13 @@ export function ReviewCustomPriceRangeExpandable({
               width="100%"
               minHeight={REVIEW_PRICE_RANGE_ROW_MIN_HEIGHT_PX}
               justifyContent="center"
-              borderBottomWidth={index < entries.length - 1 ? 1 : 0}
+              borderBottomWidth={index < entries.length - 1 || showRemainderRow ? 1 : 0}
               borderBottomColor="$surface3"
             >
               <ReviewPriceRangeTableRow
                 column1={
                   <ReviewPriceRangeValueCell>
-                    {`${normalizeSignedInput(formatPercent(entry.liquidityPercent, 4))}%`}
+                    {`${normalizeSignedInput(formatPercent(entry.liquidityPercent, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS))}%`}
                   </ReviewPriceRangeValueCell>
                 }
                 column2={
@@ -178,6 +207,40 @@ export function ReviewCustomPriceRangeExpandable({
               />
             </Flex>
           ))}
+          {showRemainderRow ? (
+            <Flex width="100%" minHeight={REVIEW_PRICE_RANGE_ROW_MIN_HEIGHT_PX} justifyContent="center">
+              <ReviewPriceRangeTableRow
+                column1={
+                  <ReviewPriceRangeValueCell
+                    accessibilityLabel={remainderFieldLabel(
+                      t('toucan.createAuction.step.customizePool.priceRange.custom.liquidityPercent'),
+                    )}
+                    adornment={<FullRangeRemainderHelp />}
+                  >
+                    {`${normalizeSignedInput(formatPercent(remainderPercent, CUSTOM_PRICE_RANGE_PERCENT_DISPLAY_DECIMALS))}%`}
+                  </ReviewPriceRangeValueCell>
+                }
+                column2={
+                  <ReviewPriceRangeValueCell
+                    accessibilityLabel={remainderFieldLabel(
+                      t('toucan.createAuction.step.customizePool.priceRange.custom.minimumPrice'),
+                    )}
+                  >
+                    {`${formatPriceRangeBound(FULL_RANGE_REMAINDER_BOUNDS.minPercentFromClearing, formatFinitePercentValue)}%`}
+                  </ReviewPriceRangeValueCell>
+                }
+                column3={
+                  <ReviewPriceRangeValueCell
+                    accessibilityLabel={remainderFieldLabel(
+                      t('toucan.createAuction.step.customizePool.priceRange.custom.maximumPrice'),
+                    )}
+                  >
+                    {`${formatPriceRangeBound(FULL_RANGE_REMAINDER_BOUNDS.maxPercentFromClearing, formatFinitePercentValue)}%`}
+                  </ReviewPriceRangeValueCell>
+                }
+              />
+            </Flex>
+          ) : null}
         </Flex>
       ) : null}
     </Flex>

@@ -1,7 +1,7 @@
 import { isExtensionApp } from '@universe/environment'
+import { TouchableArea } from '@universe/mycelium'
 import { memo, PropsWithChildren, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { TouchableArea } from 'ui/src'
 import { ExternalLink } from 'ui/src/components/icons/ExternalLink'
 import { Eye } from 'ui/src/components/icons/Eye'
 import { EyeOff } from 'ui/src/components/icons/EyeOff'

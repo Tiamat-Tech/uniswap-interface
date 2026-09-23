@@ -1,8 +1,9 @@
 import { isWebPlatform } from '@universe/environment'
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
 import type { ComponentType } from 'react'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Flex, type IconProps, ModalCloseIcon, Text, TouchableArea } from 'ui/src'
+import { Button, type IconProps, ModalCloseIcon } from 'ui/src'
 import { BackArrow } from 'ui/src/components/icons/BackArrow'
 import { Bolt } from 'ui/src/components/icons/Bolt'
 import { ChartBar } from 'ui/src/components/icons/ChartBar'
@@ -10,17 +11,27 @@ import { EarnSparkle } from 'ui/src/components/icons/EarnSparkle'
 import { MessageQuestion } from 'ui/src/components/icons/MessageQuestion'
 import { MoneyHand } from 'ui/src/components/icons/MoneyHand'
 import { UniswapHelpUrls } from 'uniswap/src/constants/urls'
+import { EarnEventName } from 'uniswap/src/features/telemetry/constants/features'
+import Trace from 'uniswap/src/features/telemetry/Trace'
+import type { EarnAnalyticsBaseProperties } from 'uniswap/src/features/telemetry/types'
+import { TestID } from 'uniswap/src/test/fixtures/testIDs'
 import { openUri } from 'uniswap/src/utils/linking'
 
 const WEB_CONTENT_MIN_HEIGHT = 384
 
 type EarnHowItWorksViewProps = {
+  analyticsProperties?: EarnAnalyticsBaseProperties
   onBack?: () => void
   onClose?: () => void
   onContinue: () => void
 }
 
-export function EarnHowItWorksView({ onBack, onClose, onContinue }: EarnHowItWorksViewProps): JSX.Element {
+export function EarnHowItWorksView({
+  analyticsProperties,
+  onBack,
+  onClose,
+  onContinue,
+}: EarnHowItWorksViewProps): JSX.Element {
   const { t } = useTranslation()
   const rows = [
     {
@@ -74,6 +85,7 @@ export function EarnHowItWorksView({ onBack, onClose, onContinue }: EarnHowItWor
           variant="default"
           emphasis="primary"
           size={isWebPlatform ? 'medium' : 'large'}
+          testID={TestID.EarnHowItWorksContinue}
           onPress={onContinue}
         >
           {t('common.button.continue')}
@@ -85,27 +97,32 @@ export function EarnHowItWorksView({ onBack, onClose, onContinue }: EarnHowItWor
     </>
   )
 
-  if (isWebPlatform) {
-    return (
-      <Flex gap="$spacing12">
-        <WebHeader helpLabel={t('common.help')} onBack={onBack} onClose={onClose} onOpenHelp={onOpenHelp} />
-        <Flex
-          justifyContent="space-between"
-          gap="$spacing16"
-          minHeight={WEB_CONTENT_MIN_HEIGHT}
-          px="$spacing24"
-          pb="$spacing24"
-        >
+  return (
+    // Log the impression to measure drop-off before Continue.
+    <Trace
+      logImpression={analyticsProperties !== undefined}
+      eventOnTrigger={EarnEventName.EarnHowItWorksViewed}
+      properties={analyticsProperties}
+    >
+      {isWebPlatform ? (
+        <Flex gap="$spacing12">
+          <WebHeader helpLabel={t('common.help')} onBack={onBack} onClose={onClose} onOpenHelp={onOpenHelp} />
+          <Flex
+            justifyContent="space-between"
+            gap="$spacing16"
+            minHeight={WEB_CONTENT_MIN_HEIGHT}
+            px="$spacing24"
+            pb="$spacing24"
+          >
+            {content}
+          </Flex>
+        </Flex>
+      ) : (
+        <Flex gap="$spacing24" pt="$spacing12" px="$spacing24" pb="$spacing24">
           {content}
         </Flex>
-      </Flex>
-    )
-  }
-
-  return (
-    <Flex gap="$spacing24" pt="$spacing12" px="$spacing24" pb="$spacing24">
-      {content}
-    </Flex>
+      )}
+    </Trace>
   )
 }
 

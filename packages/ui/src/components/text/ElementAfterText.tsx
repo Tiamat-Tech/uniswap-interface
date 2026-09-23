@@ -1,6 +1,6 @@
 import { isAndroid, isWebAppDesktop } from '@universe/environment'
-import { Flex, FlexProps } from 'ui/src/components/layout/Flex'
-import { Text, TextProps } from 'ui/src/components/text/Text'
+import { Flex, FlexProps } from '@universe/mycelium'
+import { Text, TextProps } from '@universe/mycelium'
 import { usePostTextElementPositionProps } from 'ui/src/utils/layout'
 
 type ElementAfterTextProps = {

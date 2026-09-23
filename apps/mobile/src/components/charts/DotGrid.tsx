@@ -1,8 +1,7 @@
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import { memo } from 'react'
 import { StyleSheet } from 'react-native'
 import Svg, { Line } from 'react-native-svg'
-import { useSporeColors } from 'ui/src'
-import { opacify } from 'ui/src/theme'
 
 // Equal horizontal and vertical spacing, multiple of 4px
 const SPACING = 20

@@ -1,8 +1,8 @@
 import { SharedEventName } from '@uniswap/analytics-events'
+import { Flex, Text, iconSizes } from '@universe/mycelium'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import { Flex, Separator, Text } from 'ui/src'
-import { iconSizes } from 'ui/src/theme'
+import { Separator } from 'ui/src'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
@@ -24,7 +24,7 @@ interface IssuerTokenCardProps {
 
 function IssuerTokenCardStat({ label, value }: { label: string; value: string }): JSX.Element {
   return (
-    <Flex fill gap="$gap2">
+    <Flex fill gap="$spacing2">
       <Text variant="body3" color="$neutral2">
         {label}
       </Text>

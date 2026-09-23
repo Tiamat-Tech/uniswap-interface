@@ -1,5 +1,4 @@
-import { useDeviceDimensions } from 'ui/src/hooks/useDeviceDimensions'
-import { heightBreakpoints } from 'ui/src/theme'
+import { HEIGHT_BREAKPOINT_PX, useDeviceDimensions } from '@universe/mycelium/theme-hooks-compat'
 
 type ChartDimensions = {
   chartHeight: number
@@ -11,7 +10,7 @@ type ChartDimensions = {
 export function useChartDimensions(): ChartDimensions {
   const { fullHeight, fullWidth } = useDeviceDimensions()
 
-  const chartHeight = fullHeight < heightBreakpoints.short ? 130 : 215
+  const chartHeight = fullHeight < HEIGHT_BREAKPOINT_PX.short ? 130 : 215
   const chartWidth = fullWidth
 
   return {

@@ -1,4 +1,7 @@
+import { Flex, Text, zIndexes } from '@universe/mycelium'
+import { opacify, useSporeColors } from '@universe/mycelium/theme-hooks-compat'
 import {
+  AreaSeries,
   CrosshairMode,
   createChart,
   LineStyle,
@@ -11,9 +14,6 @@ import {
 } from 'lightweight-charts'
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text, useSporeColors } from 'ui/src'
-import { opacify } from 'ui/src/theme'
-import { zIndexes } from 'ui/src/theme/zIndexes'
 import {
   getSupplySchedulePoints,
   type SupplySchedulePoint,
@@ -271,7 +271,11 @@ export function SupplyScheduleChart() {
     const chart = createChart(container, {
       width: container.clientWidth,
       height: CHART_HEIGHT,
+      // v5 lifts a hovered series above its pane siblings by default — keep
+      // v4's draw order (QA can deliberately opt in later).
+      hoveredSeriesOnTop: false,
       layout: {
+        attributionLogo: false,
         background: { color: 'transparent' },
         textColor: neutral2Val,
         fontSize: 11,
@@ -316,13 +320,13 @@ export function SupplyScheduleChart() {
     } as const
 
     // Actual amounts sold (solid) up to the now line
-    const series = chart.addAreaSeries({
+    const series = chart.addSeries(AreaSeries, {
       ...sharedSeriesOptions,
       topColor: opacify(20, effectiveTokenColor),
     })
 
     // Remaining schedule (dashed) — a projection that depends on future demand
-    const projectedSeries = chart.addAreaSeries({
+    const projectedSeries = chart.addSeries(AreaSeries, {
       ...sharedSeriesOptions,
       lineStyle: LineStyle.Dashed,
       topColor: opacify(10, effectiveTokenColor),

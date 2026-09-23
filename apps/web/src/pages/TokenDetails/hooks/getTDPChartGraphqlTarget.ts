@@ -1,8 +1,8 @@
 import type { PlainMessage } from '@bufbuild/protobuf'
 import type { MultichainToken } from '@uniswap/client-data-api/dist/data/v2/types_pb'
 import type { GraphQLApi } from '@universe/api'
+import type { UniverseChainId } from '@universe/chains'
 import { getChainInfo } from 'uniswap/src/features/chains/chainInfo'
-import type { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { isNativeCurrencyAddress } from 'uniswap/src/utils/currencyId'
 import { getNativeTokenDBAddress } from '~/utils/nativeTokens'
 

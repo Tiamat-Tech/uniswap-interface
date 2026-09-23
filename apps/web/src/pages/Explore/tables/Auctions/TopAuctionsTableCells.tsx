@@ -1,9 +1,9 @@
+import { UniverseChainId } from '@universe/chains'
 import { FeatureFlags, useFeatureFlag } from '@universe/gating'
+import { Flex, useIsTouchDevice } from '@universe/mycelium'
+import { CheckmarkCircle } from '@universe/mycelium/icons/CheckmarkCircle'
+import { InfoCircleFilled } from '@universe/mycelium/icons/InfoCircleFilled'
 import { useTranslation } from 'react-i18next'
-import { Flex, useIsTouchDevice } from 'ui/src'
-import { CheckmarkCircle } from 'ui/src/components/icons/CheckmarkCircle'
-import { InfoCircleFilled } from 'ui/src/components/icons/InfoCircleFilled'
-import { Lightning } from 'ui/src/components/icons/Lightning'
 import { TokenLogo } from 'uniswap/src/components/CurrencyLogo/TokenLogo'
 import { useEvent } from 'utilities/src/react/hooks'
 import { stopPropagationPressProps } from 'utilities/src/react/stopPropagation'
@@ -12,6 +12,7 @@ import { EllipsisText } from '~/components/Table/shared/TableText'
 import { MouseoverTooltip, TooltipSize } from '~/components/Tooltip'
 import { OrderDirection } from '~/data/util'
 import type { EnrichedAuction } from '~/features/Toucan/hooks/useTopAuctions/useTopAuctions'
+import { PoolsTradeBadge } from '~/features/Toucan/Shared/PoolsTradeBadge'
 import { isQuickLaunchAuction } from '~/features/Toucan/utils/quickLaunchClassification'
 import { scrollToExploreTokenSection } from '~/pages/Explore/categories/useExploreCategory'
 
@@ -83,9 +84,16 @@ export function AuctionTableHeader({
 }
 
 export function TokenNameCell({ auction }: { auction: EnrichedAuction }) {
-  // QuickLaunch: quick-launch badge in the verified-icon slot; Lightning until design adds a fire icon.
+  const isTouchDevice = useIsTouchDevice()
+  // QuickLaunch: pools.trade logo in the verified-icon slot; curated verified wins when both apply.
+  // Robinhood-only, mirroring getPoolsTradeBidPageUrl: pools.xyz serves Robinhood Chain launches
+  // exclusively, so the brand attribution would be false provenance on any other chain.
   const isQuickLaunchBadgeEnabled = useFeatureFlag(FeatureFlags.QuickLaunch)
-  const showQuickLaunchBadge = isQuickLaunchBadgeEnabled && !auction.verified && isQuickLaunchAuction(auction)
+  const showQuickLaunchBadge =
+    isQuickLaunchBadgeEnabled &&
+    !auction.verified &&
+    isQuickLaunchAuction(auction) &&
+    auction.auction?.chainId === UniverseChainId.Robinhood
   return (
     <Flex row gap="$gap8" alignItems="center" justifyContent="flex-start">
       <Flex pr="$spacing4">
@@ -105,7 +113,15 @@ export function TokenNameCell({ auction }: { auction: EnrichedAuction }) {
         {auction.auction?.tokenSymbol}
       </EllipsisText>
       {auction.verified && <CheckmarkCircle size="$icon.16" color="$accent1" />}
-      {showQuickLaunchBadge && <Lightning size="$icon.16" color="$statusWarning" />}
+      {showQuickLaunchBadge && (
+        // The logo-only badge's tooltip is the sole carrier of the pools.trade attribution, and on
+        // touch devices a tap would otherwise land on the clickable row and navigate before the
+        // tooltip opens — same fix as the sort-header info icon above. Desktop keeps click-through
+        // since hover already shows the tooltip.
+        <Flex alignItems="center" justifyContent="center" {...(isTouchDevice ? stopPropagationPressProps : {})}>
+          <PoolsTradeBadge />
+        </Flex>
+      )}
     </Flex>
   )
 }

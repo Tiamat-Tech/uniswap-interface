@@ -18,7 +18,6 @@ interface UseResumePlanParams {
   outputCurrencyId: string
   inputCurrencyAmount: string
   earnAction?: TradingApi.EarnAction
-  isEarnActivityDisplayEnabled?: boolean
 }
 
 /** Mutation for fetching a plan and navigating to swap with the plan loaded. */
@@ -34,12 +33,7 @@ export function useResumePlanMutation({
       planId,
       inputCurrencyAmount,
       earnAction,
-      isEarnActivityDisplayEnabled = true,
     }: UseResumePlanParams): Promise<NavigateToSwapFlowArgs | undefined> => {
-      if (earnAction !== undefined && !isEarnActivityDisplayEnabled) {
-        throw new Error('Earn plan resume is disabled')
-      }
-
       // Fetch fresh plan details
       const planResponse = await TradingApiSessionClient.refreshExistingPlan({ planId })
 

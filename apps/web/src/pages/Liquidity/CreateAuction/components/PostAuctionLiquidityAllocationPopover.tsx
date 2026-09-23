@@ -1,8 +1,9 @@
+import { Flex, Text, TouchableArea } from '@universe/mycelium'
+import { CheckCircleFilled } from '@universe/mycelium/icons/CheckCircleFilled'
+import { MoreHorizontal } from '@universe/mycelium/icons/MoreHorizontal'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Popover, Text, TouchableArea } from 'ui/src'
-import { CheckCircleFilled } from 'ui/src/components/icons/CheckCircleFilled'
-import { MoreHorizontal } from 'ui/src/components/icons/MoreHorizontal'
+import { Popover } from 'ui/src'
 import {
   type PostAuctionLiquidityAllocationType,
   PostAuctionLiquidityAllocationType as AllocationType,

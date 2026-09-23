@@ -1,17 +1,7 @@
 import { render as rtlRender, screen } from '@testing-library/react'
 import React from 'react'
-import { TamaguiProvider } from 'ui/src'
-import config from 'ui/src/tamagui.config'
 
-function ThemeWrapper({ children }: { children: React.ReactNode }): JSX.Element {
-  return (
-    <TamaguiProvider config={config} defaultTheme="light">
-      {children}
-    </TamaguiProvider>
-  )
-}
-
-const render = (ui: React.ReactElement): ReturnType<typeof rtlRender> => rtlRender(ui, { wrapper: ThemeWrapper })
+const render = (ui: React.ReactElement): ReturnType<typeof rtlRender> => rtlRender(ui)
 
 // All mocks must be declared before importing the SUT.
 

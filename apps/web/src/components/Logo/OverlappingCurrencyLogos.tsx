@@ -1,4 +1,4 @@
-import { Flex, Text } from 'ui/src'
+import { Flex, Text } from '@universe/mycelium'
 import { CurrencyLogo } from 'uniswap/src/components/CurrencyLogo/CurrencyLogo'
 import { CurrencyInfo } from 'uniswap/src/features/dataApi/types'
 
@@ -26,8 +26,14 @@ function overlapMask(size: number): string {
  * Horizontal cluster of overlapping token logos, capped at `max`.
  *
  * Callers pass only currencies that resolved — an unresolved one would contribute an empty box and a
- * notch cut for nothing, leaving a hole in the cluster. Pass `totalCount` to close the cluster with a
- * "+N" chip covering both the capped and the unresolved remainder; omit it to cap silently.
+ * notch cut for nothing, leaving a hole in the cluster.
+ *
+ * `totalCount` is the overflow contract, and callers differ on purpose: pass the caller's own full
+ * count to close the cluster with a "+N" chip covering both the capped and the unresolved remainder
+ * (the activity rows, whose text says "+N" too and must agree with it); omit it to cap silently (the
+ * reward cards, which sit beside a USD total that already accounts for every token). Passing `max`
+ * without `totalCount` hides tokens with no indication they exist — deliberate on those cards, and
+ * worth a second look on any new caller.
  */
 export function OverlappingCurrencyLogos({
   currencyInfos,

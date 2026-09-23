@@ -1,10 +1,9 @@
 /* oxlint-disable typescript/explicit-function-return-type */
 /* oxlint-disable max-lines */
 import { ApolloClient, NormalizedCacheObject } from '@apollo/client'
-import { waitForFlashbotsProtectReceipt } from '@universe/chains'
+import { waitForFlashbotsProtectReceipt, UniverseChainId } from '@universe/chains'
 import { BigNumber, BigNumberish, providers } from 'ethers'
 import { call, cancel, delay, fork, put, race, spawn, take } from 'typed-redux-saga'
-import { UniverseChainId } from 'uniswap/src/features/chains/types'
 import { pushNotification } from 'uniswap/src/features/notifications/slice/slice'
 import { AppNotificationType } from 'uniswap/src/features/notifications/slice/types'
 import { WalletEventName } from 'uniswap/src/features/telemetry/constants'
@@ -175,7 +174,14 @@ function* waitForRemoteUpdate(transaction: TransactionDetails, provider: provide
     return undefined
   }
 
-  if (isClassic(transaction) && transaction.options.submitViaPrivateRpc) {
+  // UniRPC-protected txs never hit the Flashbots Protect API, so its status endpoint
+  // can't know them — their status resolves via the Trading API poll below. Older
+  // persisted txs without the provider label were all Flashbots, so they still poll.
+  if (
+    isClassic(transaction) &&
+    transaction.options.submitViaPrivateRpc &&
+    transaction.options.privateRpcProvider !== 'unirpc'
+  ) {
     const flashbotsStatus = yield* call(getFlashbotsTransactionStatus, transaction, hash)
     if (flashbotsStatus === TransactionStatus.Failed || flashbotsStatus === TransactionStatus.Canceled) {
       // Status is final and we won't get a receipt from ethers. Return early and finalize the transaction

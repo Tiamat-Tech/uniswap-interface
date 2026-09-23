@@ -1,19 +1,21 @@
 import { TradingApi } from '@universe/api'
 import { isWebAppDesktop, isWebPlatform } from '@universe/environment'
-import type { ReactNode } from 'react'
-import { Trans, useTranslation } from 'react-i18next'
 import {
+  borderRadii,
   Button,
   Flex,
+  iconSizes,
   Text,
-  Tooltip,
   TouchableArea,
   UniversalImage,
   UniversalImageResizeMode,
-  useSporeColors,
-} from 'ui/src'
+  zIndexes,
+} from '@universe/mycelium'
+import { useSporeColors } from '@universe/mycelium/theme-hooks-compat'
+import { TooltipCompat as Tooltip } from '@universe/mycelium/tooltip-compat'
+import type { ReactNode } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { InfoCircle } from 'ui/src/components/icons/InfoCircle'
-import { borderRadii, iconSizes, zIndexes } from 'ui/src/theme'
 import { Modal } from 'uniswap/src/components/modals/Modal'
 import { isUniverseChainId } from 'uniswap/src/features/chains/utils'
 import { ModalName } from 'uniswap/src/features/telemetry/constants'

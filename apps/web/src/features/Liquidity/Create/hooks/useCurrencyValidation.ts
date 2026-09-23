@@ -9,11 +9,20 @@ export function useCurrencyValidation({
   currencyB,
   defaultInitialToken,
   chainId,
+  skip,
 }: {
   currencyA?: string
   currencyB?: string
   defaultInitialToken: Currency
   chainId: number
+  /**
+   * Defers the token lookups entirely. `useCurrencyWithLoading` resolves `chainId` through
+   * `useSupportedChainId`, so while a chain reads as not-enabled it would look the address up on the
+   * default chain instead — a wrong-chain request whose result also masks the real one, because the
+   * data-api query keeps the previous key's data as placeholder and so reports `loading: false` when
+   * the chain later resolves and the key changes.
+   */
+  skip?: boolean
 }) {
   // Parse currency addresses with validation
   const { currencyAddressA, currencyAddressB } = useMemo(() => {
@@ -22,14 +31,14 @@ export function useCurrencyValidation({
   }, [currencyA, currencyB, chainId])
 
   // Load currencies
-  const { currency: currencyALoaded, loading: loadingA } = useCurrencyWithLoading({
-    address: currencyAddressA,
-    chainId,
-  })
-  const { currency: currencyBLoaded, loading: loadingB } = useCurrencyWithLoading({
-    address: currencyAddressB,
-    chainId,
-  })
+  const { currency: currencyALoaded, loading: loadingA } = useCurrencyWithLoading(
+    { address: currencyAddressA, chainId },
+    { skip },
+  )
+  const { currency: currencyBLoaded, loading: loadingB } = useCurrencyWithLoading(
+    { address: currencyAddressB, chainId },
+    { skip },
+  )
 
   const loading = loadingA || loadingB
   const defaultAAddress = defaultInitialToken.isNative ? NATIVE_CHAIN_ID : defaultInitialToken.address

@@ -1,6 +1,6 @@
+import { Flex, Text } from '@universe/mycelium'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Flex, Text } from 'ui/src'
 import { useLocalizationContext } from 'uniswap/src/features/language/LocalizationContext'
 import { NumberType } from 'utilities/src/format/types'
 import { formatUnits } from '~/chains'
@@ -9,13 +9,14 @@ import { formatTickForDisplay } from '~/features/Toucan/Auction/BidDistributionC
 import type { BidTokenInfo } from '~/features/Toucan/Auction/store/types'
 import { formatCompactFromRaw } from '~/features/Toucan/Auction/utils/fixedPointFdv'
 import { formatTimestampToDate } from '~/features/Toucan/Auction/utils/formatting'
+import { hasTokenTotalSupply } from '~/features/Toucan/Auction/utils/tokenTotalSupply'
 import type { ClearingPriceChartPoint } from '~/features/Toucan/ToucanChart/clearingPrice/types'
 
 interface ClearingPriceTooltipBodyProps {
   data: ClearingPriceChartPoint
   bidTokenInfo: BidTokenInfo
   scaleFactor: number
-  totalSupply?: string
+  tokenTotalSupply?: string
   auctionTokenDecimals?: number
   isPreBidEnd?: boolean
 }
@@ -29,7 +30,7 @@ export function ClearingPriceTooltipBody({
   data,
   bidTokenInfo,
   scaleFactor,
-  totalSupply,
+  tokenTotalSupply,
   auctionTokenDecimals,
   isPreBidEnd,
 }: ClearingPriceTooltipBodyProps): JSX.Element {
@@ -48,19 +49,20 @@ export function ClearingPriceTooltipBody({
 
   // FDV: price per auction token * total supply
   const fdvDisplay = useMemo(() => {
-    if (!totalSupply || auctionTokenDecimals == null) {
+    if (!hasTokenTotalSupply(tokenTotalSupply) || auctionTokenDecimals == null) {
       return null
     }
     const formattedFiat = formatTickForDisplay({
       tickValue: originalValue,
       bidTokenInfo,
-      totalSupply,
+      tokenTotalSupply,
       auctionTokenDecimals,
       formatter: (amount) => convertFiatAmountFormatted(amount, NumberType.FiatTokenStats),
     })
 
-    const supply = Number(formatUnits(BigInt(totalSupply), auctionTokenDecimals))
-    if (!supply || !Number.isFinite(supply)) {
+    // A supply too large for a JS number leaves the valuation unrenderable rather than Infinity
+    const supply = Number(formatUnits(BigInt(tokenTotalSupply), auctionTokenDecimals))
+    if (!Number.isFinite(supply)) {
       return null
     }
     const fdvInBidToken = originalValue * supply
@@ -68,7 +70,7 @@ export function ClearingPriceTooltipBody({
     const formattedBidToken = `${formatCompactFromRaw({ raw: fdvRaw, decimals: bidTokenInfo.decimals, maxFractionDigits: 1 })} ${bidTokenInfo.symbol}`
 
     return { fiat: formattedFiat, bidToken: formattedBidToken }
-  }, [originalValue, totalSupply, auctionTokenDecimals, bidTokenInfo, convertFiatAmountFormatted])
+  }, [originalValue, tokenTotalSupply, auctionTokenDecimals, bidTokenInfo, convertFiatAmountFormatted])
 
   return (
     <Flex flexDirection="column" gap="$gap4">
